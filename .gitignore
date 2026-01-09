@@ -47,6 +47,15 @@ web_modules/
 # TypeScript cache
 *.tsbuildinfo
 
+# Build output
+dist/
+
+# API Extractor temp files
+**/temp/
+!**/.gitkeep
+tmp
+**/tmp
+
 # Optional npm cache directory
 .npm
 
@@ -139,3 +148,13 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Nx cache
+.nx/
+
+# Changesets
+.changeset/*.md
+!.changeset/README.md
+
+# Claude
+.claude/settings.local.json

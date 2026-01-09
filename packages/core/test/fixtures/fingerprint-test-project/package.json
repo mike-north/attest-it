@@ -1,0 +1,6 @@
+{
+  "name": "fingerprint-test-project",
+  "version": "1.0.0",
+  "description": "Test fixture for fingerprinting",
+  "type": "module"
+}

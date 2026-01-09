@@ -1,0 +1,16 @@
+name: Test attest-it Action
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify attestations
+        uses: ./packages/github-action
+        with:
+          fail-on-missing: 'true'

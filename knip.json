@@ -1,0 +1,17 @@
+{
+  "$schema": "https://unpkg.com/knip@latest/schema.json",
+  "ignoreDependencies": ["@nx/js", "lint-staged", "@types/picomatch"],
+  "ignoreBinaries": ["api-documenter"],
+  "ignore": ["**/vitest.config.*", "**/test/fixtures/**", "**/fixtures/**"],
+  "workspaces": {
+    "packages/core": {
+      "entry": ["test/**/*.test.ts"]
+    },
+    "packages/cli": {
+      "entry": ["test/**/*.test.ts"]
+    },
+    "packages/github-action": {
+      "entry": ["test/**/*.test.ts"]
+    }
+  }
+}

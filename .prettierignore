@@ -1,0 +1,12 @@
+docs/api/**/*
+api-report/**/*
+**/api-report/**/*
+tmp/**/*
+**/tmp/**/*
+**/temp/**/*
+**/dist/**/*
+**/node_modules/**/*
+**/coverage/**/*
+**/build/**/*
+**/build/**/*
+pnpm-lock.yaml

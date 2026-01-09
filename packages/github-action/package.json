@@ -1,0 +1,23 @@
+{
+  "name": "@attest-it/github-action",
+  "version": "0.0.1",
+  "dependencies": {
+    "@actions/core": "^1.11.0",
+    "@attest-it/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "~22.19.3",
+    "tsup": "^8.3.5",
+    "typescript": "5.8.3",
+    "vitest": "^3.0.0"
+  },
+  "main": "./dist/index.js",
+  "private": true,
+  "scripts": {
+    "build": "tsup",
+    "lint": "eslint src",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "type": "module"
+}

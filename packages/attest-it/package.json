@@ -1,0 +1,59 @@
+{
+  "name": "attest-it",
+  "description": "Human-gated test attestation system with cryptographic signing",
+  "version": "0.0.1",
+  "author": "Mike North <michael.l.north@gmail.com>",
+  "bin": {
+    "attest-it": "./dist/bin/attest-it.js"
+  },
+  "dependencies": {
+    "@attest-it/cli": "workspace:*",
+    "@attest-it/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@microsoft/api-extractor": "^7.55.2",
+    "@types/node": "~22.19.3",
+    "tsup": "^8.3.5",
+    "typescript": "5.8.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "attestation",
+    "ci",
+    "cryptographic-signing",
+    "human-in-the-loop",
+    "testing",
+    "verification"
+  ],
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "repository": "attest-it/attest-it",
+  "scripts": {
+    "build": "tsup && declaration-file-normalizer dist/index.d.ts",
+    "check": "pnpm run check:api-report && pnpm run check:eslint && pnpm run check:types",
+    "check:api-report": "api-extractor run",
+    "check:eslint": "eslint src bin",
+    "check:types": "tsc --noEmit",
+    "generate:api-report": "api-extractor run --local",
+    "prepublishOnly": "pnpm run build"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts"
+}

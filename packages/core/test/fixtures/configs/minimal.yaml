@@ -1,0 +1,6 @@
+version: 1
+
+suites:
+  unit:
+    packages:
+      - '@attest-it/core'

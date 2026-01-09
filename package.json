@@ -1,13 +1,70 @@
 {
   "name": "attest-it-workspace",
+  "description": "Monorepo workspace for attest-it packages",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "author": "",
+  "devDependencies": {
+    "@api-extractor-tools/declaration-file-normalizer": "0.1.0-alpha.5",
+    "@changesets/cli": "^2.29.8",
+    "@eslint/js": "^9.39.2",
+    "@microsoft/api-documenter": "^7.28.2",
+    "@microsoft/api-extractor": "^7.55.2",
+    "@nx/js": "^22.3.3",
+    "@types/eslint-plugin-security": "~3.0.0",
+    "@types/picomatch": "~4.0.2",
+    "eslint": "^9.0.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-n": "^17.23.1",
+    "eslint-plugin-security": "^3.0.1",
+    "husky": "^9.1.7",
+    "knip": "^5.80.2",
+    "lint-staged": "^16.2.7",
+    "nx": "^22.3.3",
+    "prettier": "^3.0.0",
+    "syncpack": "^13.0.4",
+    "typescript": "5.8.3",
+    "typescript-eslint": "^8.52.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.24.0"
+  "license": "MIT",
+  "packageManager": "pnpm@10.24.0",
+  "pnpm": {
+    "overrides": {
+      "@types/node": "~22.19.3"
+    }
+  },
+  "private": true,
+  "scripts": {
+    "build": "NX_TUI=false nx run-many --target=build --exclude=attest-it-workspace",
+    "changeset": "changeset",
+    "check": "NX_TUI=false nx check",
+    "check:api-reports": "NX_TUI=false nx run-many --target=check:api-report --exclude=attest-it-workspace",
+    "check:dependencies": "syncpack lint",
+    "check:formatting": "pnpm exec prettier --check .",
+    "check:lint-ts": "NX_TUI=false nx run-many --target=check:lint-ts --exclude=attest-it-workspace",
+    "check:packages": "NX_TUI=false nx run-many --target=check --parallel --exclude=attest-it-workspace",
+    "check:typecheck": "NX_TUI=false nx run-many --target=check:typecheck --exclude=attest-it-workspace",
+    "check:unused": "nx check:unused",
+    "check:workspace": "NX_TUI=false nx check:workspace",
+    "clean": "pnpm clean:packages && pnpm clean:workspace",
+    "clean:packages": "NX_TUI=false nx run-many --target=clean --exclude=attest-it-workspace",
+    "clean:workspace": "rm -rf docs/api .nx tmp *.tsbuildinfo tsconfig.tsbuildinfo && nx reset",
+    "collect:api-reports": "NX_TUI=false nx collect:api-reports",
+    "dev": "NX_TUI=false nx run-many --target=dev --exclude=attest-it-workspace",
+    "dev:cli": "NX_TUI=false nx dev @attest-it/cli",
+    "fix": "NX_TUI=false nx fix:workspace",
+    "fix:dependencies": "syncpack fix-mismatches && syncpack format",
+    "fix:formatting": "pnpm exec prettier --write .",
+    "generate:api-docs": "pnpm collect:api-reports && api-documenter markdown --input-folder tmp/api-extractor --output-folder docs/api",
+    "generate:api-reports": "NX_TUI=false nx run-many --target=generate:api-report --exclude=attest-it-workspace",
+    "prepare": "husky",
+    "release": "changeset publish",
+    "test": "NX_TUI=false nx run-many --target=test --exclude=attest-it-workspace",
+    "version": "changeset version"
+  },
+  "type": "module"
 }

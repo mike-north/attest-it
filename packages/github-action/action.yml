@@ -1,0 +1,38 @@
+name: 'attest-it verify'
+description: 'Verify human-gated test attestations'
+author: 'attest-it'
+
+branding:
+  icon: 'check-circle'
+  color: 'green'
+
+inputs:
+  config-path:
+    description: 'Path to attest-it config file'
+    required: false
+    default: '.attest-it/config.yaml'
+
+  suite:
+    description: 'Verify specific suite only'
+    required: false
+
+  fail-on-missing:
+    description: 'Fail if any suite lacks attestation'
+    required: false
+    default: 'true'
+
+  strict:
+    description: 'Fail on warnings (approaching expiry)'
+    required: false
+    default: 'false'
+
+outputs:
+  valid:
+    description: 'Whether all attestations are valid (true/false)'
+
+  suites:
+    description: 'JSON object with per-suite status'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'

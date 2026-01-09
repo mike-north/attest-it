@@ -1,0 +1,50 @@
+{
+  "name": "@attest-it/cli",
+  "version": "0.0.1",
+  "author": "Mike North <michael.l.north@gmail.com>",
+  "bin": {
+    "attest-it": "./dist/bin/attest-it.js"
+  },
+  "dependencies": {
+    "@attest-it/core": "workspace:*",
+    "@inquirer/prompts": "^7.0.0",
+    "commander": "^13.0.0",
+    "picocolors": "^1.1.0",
+    "shell-quote": "^1.8.3",
+    "yaml": "^2.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "~22.19.3",
+    "@types/shell-quote": "~1.7.5",
+    "tsup": "^8.3.5",
+    "typescript": "5.8.3",
+    "vitest": "^3.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "repository": "attest-it/attest-it",
+  "scripts": {
+    "build": "tsup",
+    "check": "pnpm run check:eslint && pnpm run check:types",
+    "check:eslint": "eslint src",
+    "check:types": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts"
+}

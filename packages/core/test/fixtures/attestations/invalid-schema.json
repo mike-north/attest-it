@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "2",
+  "attestations": [
+    {
+      "suite": "unit",
+      "fingerprint": "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+      "attestedAt": "2024-01-15T10:30:00.000Z",
+      "attestedBy": "testuser",
+      "command": "npm test",
+      "exitCode": 0
+    }
+  ],
+  "signature": "placeholder-signature"
+}

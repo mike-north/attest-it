@@ -1,0 +1,51 @@
+{
+  "name": "@attest-it/core",
+  "description": "Core functionality for attest-it",
+  "version": "0.0.0",
+  "author": "Mike North <michael.l.north@gmail.com>",
+  "dependencies": {
+    "canonicalize": "^2.0.0",
+    "tinyglobby": "^0.2.0",
+    "yaml": "^2.8.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "~22.19.3",
+    "tsup": "^8.3.5",
+    "typescript": "5.8.3",
+    "vitest": "^3.0.0"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "attestation",
+    "testing"
+  ],
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsup && declaration-file-normalizer dist/index.d.ts",
+    "check": "pnpm run check:api-report && pnpm run check:eslint && pnpm run check:types",
+    "check:api-report": "api-extractor run",
+    "check:eslint": "eslint .",
+    "check:types": "tsc --noEmit",
+    "generate:api-report": "api-extractor run --local",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "type": "module",
+  "types": "./dist/index.d.ts"
+}

@@ -1,0 +1,7 @@
+version: 1
+
+settings:
+  maxAgeDays: 30
+  algorithm: ed25519
+
+suites: {}

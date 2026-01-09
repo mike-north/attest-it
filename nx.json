@@ -1,0 +1,92 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "_cacheVersion": "2026-01-02-sync-rename",
+  "targetDefaults": {
+    "build": {
+      "dependsOn": ["^build", "^generate:api-report"],
+      "cache": true,
+      "inputs": ["production", "^production"],
+      "outputs": ["{projectRoot}/dist", "{projectRoot}/build", "{projectRoot}/tsconfig.tsbuildinfo"]
+    },
+    "test:unit": {
+      "dependsOn": ["^build"],
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/vitest.config.mjs",
+        "{projectRoot}/vitest.config.ts"
+      ],
+      "outputs": ["{projectRoot}/coverage"]
+    },
+    "test:types": {
+      "dependsOn": ["build", "generate:api-report"],
+      "cache": true,
+      "inputs": ["default", "^production", "{projectRoot}/type-tests/**/*"]
+    },
+    "check": {
+      "dependsOn": ["build", "^build"],
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "outputs": []
+    },
+    "check:lint-ts": {
+      "cache": true,
+      "inputs": ["default", "{workspaceRoot}/eslint.config.js"],
+      "outputs": []
+    },
+    "check:typecheck": {
+      "dependsOn": ["^build", "^generate:api-report"],
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "outputs": []
+    },
+    "check:api-report": {
+      "cache": false
+    },
+    "generate:api-report": {
+      "dependsOn": ["build"],
+      "cache": true,
+      "inputs": [
+        "production",
+        "^production",
+        "{workspaceRoot}/api-extractor.base.json",
+        "{projectRoot}/api-extractor.json"
+      ],
+      "outputs": [
+        "{workspaceRoot}/tmp/api-extractor",
+        "{projectRoot}/api-report",
+        "{projectRoot}/dist/*-public.d.ts",
+        "{projectRoot}/dist/*-alpha.d.ts",
+        "{projectRoot}/dist/*-beta.d.ts",
+        "{projectRoot}/dist/*-unstripped.d.ts"
+      ]
+    },
+    "check:unused": {
+      "cache": true,
+      "inputs": ["default", "{workspaceRoot}/knip.json"],
+      "outputs": []
+    },
+    "check:dependencies": {
+      "cache": true,
+      "inputs": [
+        "{workspaceRoot}/package.json",
+        "{workspaceRoot}/packages/*/package.json",
+        "{workspaceRoot}/.syncpackrc.json"
+      ],
+      "outputs": []
+    }
+  },
+  "namedInputs": {
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "production": [
+      "default",
+      "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
+      "!{projectRoot}/tsconfig.spec.json",
+      "!{projectRoot}/test/**/*",
+      "!{projectRoot}/type-tests/**/*",
+      "!{projectRoot}/vitest.config.ts"
+    ],
+    "sharedGlobals": ["{workspaceRoot}/tsconfig.json", "{workspaceRoot}/pnpm-lock.yaml"]
+  }
+}

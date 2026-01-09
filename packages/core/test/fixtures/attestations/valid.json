@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1",
+  "attestations": [
+    {
+      "suite": "unit",
+      "fingerprint": "sha256:1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+      "attestedAt": "2024-01-15T10:30:00.000Z",
+      "attestedBy": "testuser",
+      "command": "npm test",
+      "exitCode": 0
+    },
+    {
+      "suite": "integration",
+      "fingerprint": "sha256:fedcba0987654321fedcba0987654321fedcba0987654321fedcba0987654321",
+      "attestedAt": "2024-01-15T11:00:00.000Z",
+      "attestedBy": "testuser",
+      "command": "npm run test:integration",
+      "exitCode": 0
+    }
+  ],
+  "signature": "placeholder-signature-will-be-implemented-in-phase-3"
+}

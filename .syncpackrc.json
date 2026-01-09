@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/JamieMason/syncpack/main/config.schema.json",
+  "versionGroups": [
+    {
+      "label": "Exclude workspace dependencies",
+      "dependencies": ["**"],
+      "dependencyTypes": ["prod", "dev", "peer", "optional", "local"],
+      "specifierTypes": ["!workspace-protocol"],
+      "packages": ["**"]
+    }
+  ],
+  "semverGroups": [
+    {
+      "label": "TypeScript uses explicit versions",
+      "dependencies": ["typescript"],
+      "range": ""
+    },
+    {
+      "label": "@types/* packages use tilde ranges",
+      "dependencies": ["@types/**"],
+      "range": "~"
+    },
+    {
+      "label": "0.x versions use tilde ranges",
+      "dependencies": ["tsd"],
+      "range": "~"
+    },
+    {
+      "label": "All other dependencies use caret ranges",
+      "dependencies": ["**"],
+      "range": "^"
+    }
+  ],
+  "source": ["package.json", "packages/*/package.json"]
+}

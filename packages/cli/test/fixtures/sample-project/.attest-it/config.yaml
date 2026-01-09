@@ -1,0 +1,22 @@
+version: 1
+
+settings:
+  maxAgeDays: 30
+  publicKeyPath: .attest-it/pubkey.pem
+  attestationsPath: .attest-it/attestations.json
+  defaultCommand: echo "tests passed"
+
+suites:
+  example:
+    description: Example test suite
+    packages:
+      - packages/example
+    files:
+      - packages/example/test/**/*.test.ts
+    command: echo "example tests passed"
+
+  failing:
+    description: Suite with failing tests
+    packages:
+      - packages/example
+    command: exit 1

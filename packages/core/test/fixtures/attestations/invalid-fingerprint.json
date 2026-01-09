@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1",
+  "attestations": [
+    {
+      "suite": "unit",
+      "fingerprint": "invalid-fingerprint-format",
+      "attestedAt": "2024-01-15T10:30:00.000Z",
+      "attestedBy": "testuser",
+      "command": "npm test",
+      "exitCode": 0
+    }
+  ],
+  "signature": "placeholder-signature"
+}

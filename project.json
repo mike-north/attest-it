@@ -1,0 +1,76 @@
+{
+  "name": "attest-it-workspace",
+  "$schema": "./node_modules/nx/schemas/project-schema.json",
+  "targets": {
+    "check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["pnpm check:packages", "pnpm check:workspace"],
+        "parallel": true,
+        "color": true
+      }
+    },
+    "collect:api-reports": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["{workspaceRoot}/packages/*/tmp/api-extractor/*.api.json"],
+      "outputs": ["{workspaceRoot}/tmp/api-extractor/*.api.json"],
+      "options": {
+        "commands": [
+          "mkdir -p tmp/api-extractor && cp packages/*/tmp/api-extractor/*.api.json ./tmp/api-extractor/"
+        ],
+        "parallel": false,
+        "color": true
+      },
+      "dependsOn": [
+        {
+          "target": "generate:api-report",
+          "projects": "@attest-it/*"
+        }
+      ]
+    },
+    "check:unused": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["knip"],
+        "color": true
+      },
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": "@attest-it/*"
+        }
+      ]
+    },
+    "check:workspace": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["pnpm check:unused", "pnpm check:dependencies", "pnpm check:formatting"],
+        "parallel": true,
+        "color": true
+      }
+    },
+    "fix:workspace": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": ["pnpm fix:dependencies", "pnpm fix:formatting"],
+        "parallel": true,
+        "color": true
+      }
+    },
+    "generate:api-docs": {
+      "inputs": ["{workspaceRoot}/tmp/api-extractor/*.api.json"],
+      "outputs": ["{workspaceRoot}/docs/api/**/*.md"],
+      "executor": "nx:run-commands",
+      "cache": true,
+      "dependsOn": ["collect:api-reports"],
+      "options": {
+        "commands": [
+          "api-documenter markdown --input-folder tmp/api-extractor --output-folder docs/api"
+        ],
+        "parallel": false,
+        "color": true
+      }
+    }
+  }
+}

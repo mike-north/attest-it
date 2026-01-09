@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "settings": {
+    "maxAgeDays": 30,
+    "publicKeyPath": ".attest-it/pubkey.pem",
+    "attestationsPath": ".attest-it/attestations.json",
+    "defaultCommand": "pnpm test",
+    "algorithm": "ed25519"
+  },
+  "suites": {
+    "unit": {
+      "description": "Unit tests for core functionality",
+      "packages": ["@attest-it/core"],
+      "files": ["src/**/*.test.ts"],
+      "ignore": ["**/node_modules/**", "**/*.spec.ts"],
+      "command": "pnpm test:unit"
+    },
+    "integration": {
+      "description": "Integration tests",
+      "packages": ["@attest-it/core", "@attest-it/cli"],
+      "files": ["integration/**/*.test.ts"],
+      "command": "pnpm test:integration",
+      "invalidates": ["unit"]
+    }
+  }
+}
