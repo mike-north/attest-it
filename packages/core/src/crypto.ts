@@ -241,6 +241,27 @@ async function cleanupFiles(...paths: string[]): Promise<void> {
 }
 
 /**
+ * Detect the algorithm of a key file by examining its contents.
+ * @param keyPath - Path to the key file (public or private)
+ * @returns The detected algorithm
+ * @internal
+ */
+async function detectKeyAlgorithm(keyPath: string): Promise<Algorithm> {
+  const result = await runOpenSSL(['pkey', '-in', keyPath, '-text', '-noout', '-pubin'])
+
+  // If -pubin fails, try without it (for private keys)
+  const keyInfo =
+    result.exitCode === 0
+      ? result.stdout.toString()
+      : (await runOpenSSL(['pkey', '-in', keyPath, '-text', '-noout'])).stdout.toString()
+
+  if (keyInfo.includes('ED25519')) {
+    return 'ed25519'
+  }
+  return 'rsa'
+}
+
+/**
  * Generate a new keypair using OpenSSL.
  * @param options - Generation options
  * @returns Paths to generated keys
@@ -343,8 +364,11 @@ export async function sign(options: SignOptions): Promise<string> {
     // Write data to temp file
     await fs.writeFile(dataFile, processBuffer)
 
-    // Sign the data
-    const result = await runOpenSSL([
+    // Detect key algorithm to determine if we need -rawin flag
+    const algorithm = await detectKeyAlgorithm(privateKeyPath)
+
+    // Build signing command - Ed25519 requires -rawin flag
+    const signArgs = [
       'pkeyutl',
       '-sign',
       '-inkey',
@@ -353,7 +377,14 @@ export async function sign(options: SignOptions): Promise<string> {
       dataFile,
       '-out',
       sigFile,
-    ])
+    ]
+
+    if (algorithm === 'ed25519') {
+      signArgs.push('-rawin')
+    }
+
+    // Sign the data
+    const result = await runOpenSSL(signArgs)
 
     if (result.exitCode !== 0) {
       throw new Error(`Failed to sign data: ${result.stderr}`)
@@ -411,8 +442,11 @@ export async function verify(options: VerifyOptions): Promise<boolean> {
     await fs.writeFile(dataFile, processBuffer)
     await fs.writeFile(sigFile, sigBuffer)
 
-    // Verify the signature
-    const result = await runOpenSSL([
+    // Detect key algorithm to determine if we need -rawin flag
+    const algorithm = await detectKeyAlgorithm(publicKeyPath)
+
+    // Build verification command - Ed25519 requires -rawin flag
+    const verifyArgs = [
       'pkeyutl',
       '-verify',
       '-pubin',
@@ -422,7 +456,14 @@ export async function verify(options: VerifyOptions): Promise<boolean> {
       sigFile,
       '-in',
       dataFile,
-    ])
+    ]
+
+    if (algorithm === 'ed25519') {
+      verifyArgs.push('-rawin')
+    }
+
+    // Verify the signature
+    const result = await runOpenSSL(verifyArgs)
 
     // Exit code 0 means valid signature, 1 means invalid
     // Any other exit code or stderr output indicates an error
