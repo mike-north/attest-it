@@ -1,0 +1,87 @@
+name: Test CLI Key Generation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test-keygen:
+    name: keygen (${{ matrix.os }}, ${{ matrix.algorithm }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        algorithm: [ed25519, rsa]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm build
+
+      - name: Check OpenSSL version
+        run: openssl version
+
+      - name: Generate keypair
+        run: |
+          mkdir -p test-keys
+          pnpm --filter @attest-it/cli exec attest-it keygen \
+            --algorithm ${{ matrix.algorithm }} \
+            --output test-keys/private.pem \
+            --public test-keys/public.pem \
+            --force
+
+      - name: Verify keys exist
+        run: |
+          test -f test-keys/private.pem || (echo "Private key not created" && exit 1)
+          test -f test-keys/public.pem || (echo "Public key not created" && exit 1)
+          echo "Keys created successfully"
+
+      - name: Verify key format
+        run: |
+          # Check private key is valid
+          openssl pkey -in test-keys/private.pem -check -noout || \
+            openssl rsa -in test-keys/private.pem -check -noout
+          echo "Private key is valid"
+
+          # Check public key is valid
+          openssl pkey -in test-keys/public.pem -pubin -noout || \
+            openssl rsa -in test-keys/public.pem -pubin -noout
+          echo "Public key is valid"
+
+      - name: Test signing and verification
+        run: |
+          echo "test data" > test-keys/data.txt
+
+          # Sign the data
+          if [ "${{ matrix.algorithm }}" = "ed25519" ]; then
+            openssl pkeyutl -sign -inkey test-keys/private.pem -rawin \
+              -in test-keys/data.txt -out test-keys/sig.bin
+          else
+            openssl pkeyutl -sign -inkey test-keys/private.pem \
+              -in test-keys/data.txt -out test-keys/sig.bin
+          fi
+
+          # Verify the signature
+          if [ "${{ matrix.algorithm }}" = "ed25519" ]; then
+            openssl pkeyutl -verify -pubin -inkey test-keys/public.pem -rawin \
+              -in test-keys/data.txt -sigfile test-keys/sig.bin
+          else
+            openssl pkeyutl -verify -pubin -inkey test-keys/public.pem \
+              -in test-keys/data.txt -sigfile test-keys/sig.bin
+          fi
+
+          echo "Signing and verification successful"
