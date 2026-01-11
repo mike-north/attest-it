@@ -66,22 +66,23 @@ jobs:
         run: |
           echo "test data" > test-keys/data.txt
 
-          # Sign the data
+          # Sign and verify using algorithm-appropriate commands
+          # - Ed25519: use pkeyutl with -rawin (raw data signing)
+          # - RSA: use dgst -sha256 (cross-platform compatible with LibreSSL and OpenSSL 3.x)
           if [ "${{ matrix.algorithm }}" = "ed25519" ]; then
+            # Ed25519 signing
             openssl pkeyutl -sign -inkey test-keys/private.pem -rawin \
               -in test-keys/data.txt -out test-keys/sig.bin
-          else
-            openssl pkeyutl -sign -inkey test-keys/private.pem \
-              -in test-keys/data.txt -out test-keys/sig.bin
-          fi
-
-          # Verify the signature
-          if [ "${{ matrix.algorithm }}" = "ed25519" ]; then
+            # Ed25519 verification
             openssl pkeyutl -verify -pubin -inkey test-keys/public.pem -rawin \
               -in test-keys/data.txt -sigfile test-keys/sig.bin
           else
-            openssl pkeyutl -verify -pubin -inkey test-keys/public.pem \
-              -in test-keys/data.txt -sigfile test-keys/sig.bin
+            # RSA signing with SHA-256 digest
+            openssl dgst -sha256 -sign test-keys/private.pem \
+              -out test-keys/sig.bin test-keys/data.txt
+            # RSA verification with SHA-256 digest
+            openssl dgst -sha256 -verify test-keys/public.pem \
+              -signature test-keys/sig.bin test-keys/data.txt
           fi
 
           echo "Signing and verification successful"
