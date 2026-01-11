@@ -31,11 +31,11 @@ mkdirSync(join(missingFixture, 'src'), { recursive: true })
 // Copy test keys to fixtures (using RSA keys for broader OpenSSL compatibility)
 copyFileSync(
   join(coreTestKeys, 'test-rsa-public.pem'),
-  join(validFixture, '.attest-it', 'pubkey.pem')
+  join(validFixture, '.attest-it', 'pubkey.pem'),
 )
 copyFileSync(
   join(coreTestKeys, 'test-rsa-public.pem'),
-  join(missingFixture, '.attest-it', 'pubkey.pem')
+  join(missingFixture, '.attest-it', 'pubkey.pem'),
 )
 
 // Create a simple source file to fingerprint

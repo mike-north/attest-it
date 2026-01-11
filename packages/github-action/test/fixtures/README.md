@@ -7,6 +7,7 @@ This directory contains test fixtures for the GitHub Action end-to-end tests.
 The `.pem` files in these fixtures are **TEST KEYS ONLY**.
 
 **DO NOT USE THESE KEYS FOR:**
+
 - Production attestations
 - Any real encryption or signing
 - Anything outside of testing this GitHub Action
@@ -16,12 +17,15 @@ These keys are intentionally committed to Git for testing purposes. They have no
 ## Fixtures
 
 ### `valid-attestation/`
+
 A project with a valid, signed attestation that should pass verification.
 
 ### `missing-attestation/`
+
 A project with configuration but no attestations. Used to test that `fail-on-missing: true` correctly fails when attestations are missing.
 
 ### `sample-project/`
+
 A minimal project for basic action functionality testing.
 
 ## Regenerating Fixtures

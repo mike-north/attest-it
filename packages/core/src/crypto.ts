@@ -273,7 +273,15 @@ export async function generateKeyPair(options: KeygenOptions = {}): Promise<KeyP
 
   try {
     // Generate RSA-2048 private key
-    const genArgs = ['genpkey', '-algorithm', 'RSA', '-pkeyopt', 'rsa_keygen_bits:2048', '-out', privatePath]
+    const genArgs = [
+      'genpkey',
+      '-algorithm',
+      'RSA',
+      '-pkeyopt',
+      'rsa_keygen_bits:2048',
+      '-out',
+      privatePath,
+    ]
 
     const genResult = await runOpenSSL(genArgs)
     if (genResult.exitCode !== 0) {
@@ -341,15 +349,7 @@ export async function sign(options: SignOptions): Promise<string> {
     await fs.writeFile(dataFile, processBuffer)
 
     // Sign using openssl dgst -sha256 (cross-platform compatible)
-    const signArgs = [
-      'dgst',
-      '-sha256',
-      '-sign',
-      privateKeyPath,
-      '-out',
-      sigFile,
-      dataFile,
-    ]
+    const signArgs = ['dgst', '-sha256', '-sign', privateKeyPath, '-out', sigFile, dataFile]
     const result = await runOpenSSL(signArgs)
 
     if (result.exitCode !== 0) {
