@@ -6,4 +6,6 @@ settings:
 suites:
   unit-tests:
     description: Unit test suite for CI testing
+    packages:
+      - .
     command: echo "unit tests passed"
