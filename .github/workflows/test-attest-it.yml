@@ -5,18 +5,41 @@ on:
     branches: [main]
 
 jobs:
-  test-action:
+  # Test 1: Valid attestation should pass
+  test-valid-attestation:
+    name: Valid attestation passes
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Test action with fixture (working-directory)
+      - name: Verify valid attestation
         uses: ./packages/github-action
         with:
-          working-directory: packages/github-action/test/fixtures/sample-project
-          fail-on-missing: 'false'
+          working-directory: packages/github-action/test/fixtures/valid-attestation
+          fail-on-missing: 'true'
 
-      - name: Verify action outputs
+      - name: Confirm success
+        run: echo "Valid attestation test passed"
+
+  # Test 2: Missing attestation should fail when fail-on-missing is true
+  test-missing-attestation:
+    name: Missing attestation fails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify missing attestation fails
+        id: verify
+        uses: ./packages/github-action
+        continue-on-error: true
+        with:
+          working-directory: packages/github-action/test/fixtures/missing-attestation
+          fail-on-missing: 'true'
+
+      - name: Check that action failed as expected
         run: |
-          echo "Action completed successfully"
-          echo "This validates the action can load config and run verification"
+          if [ "${{ steps.verify.outcome }}" != "failure" ]; then
+            echo "Expected action to fail but it succeeded"
+            exit 1
+          fi
+          echo "Missing attestation correctly caused failure"
