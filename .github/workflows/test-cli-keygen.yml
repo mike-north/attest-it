@@ -1,0 +1,82 @@
+name: Test CLI Key Generation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  test-keygen:
+    name: keygen (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm build
+
+      - name: Generate keypair
+        run: |
+          mkdir -p test-keys
+          node packages/cli/dist/bin/attest-it.js keygen \
+            --output test-keys/private.pem \
+            --public test-keys/public.pem \
+            --force
+
+      - name: Verify keys exist
+        run: |
+          test -f test-keys/private.pem || (echo "Private key not created" && exit 1)
+          test -f test-keys/public.pem || (echo "Public key not created" && exit 1)
+          echo "Keys created successfully"
+
+      - name: Test signing and verification
+        run: |
+          # Test that the generated keys work with the attest-it core library
+          node -e "
+            const { sign, verify } = require('./packages/core/dist/index.cjs');
+
+            async function test() {
+              const testData = 'test data for signing';
+
+              // Sign with the generated private key
+              const signature = await sign({
+                privateKeyPath: 'test-keys/private.pem',
+                data: testData,
+              });
+              console.log('Signing successful');
+
+              // Verify with the generated public key
+              const isValid = await verify({
+                publicKeyPath: 'test-keys/public.pem',
+                data: testData,
+                signature,
+              });
+
+              if (!isValid) {
+                throw new Error('Signature verification failed');
+              }
+              console.log('Verification successful');
+            }
+
+            test().catch(err => {
+              console.error(err);
+              process.exit(1);
+            });
+          "
+          echo "Signing and verification successful"

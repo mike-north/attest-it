@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { runKeygen, validateAlgorithm } from '../src/commands/keygen.js'
+import { runKeygen } from '../src/commands/keygen.js'
 import * as fs from 'node:fs'
 
 // Mock the core functions
@@ -70,68 +70,15 @@ describe('keygen command', () => {
     vi.clearAllMocks()
   })
 
-  describe('validateAlgorithm', () => {
-    describe('positive cases', () => {
-      it('should return ed25519 for valid input', () => {
-        const result = validateAlgorithm('ed25519')
-        expect(result).toBe('ed25519')
-      })
-
-      it('should return rsa for valid input', () => {
-        const result = validateAlgorithm('rsa')
-        expect(result).toBe('rsa')
-      })
-
-      it('should handle case insensitivity', () => {
-        expect(validateAlgorithm('ED25519')).toBe('ed25519')
-        expect(validateAlgorithm('RSA')).toBe('rsa')
-        expect(validateAlgorithm('Ed25519')).toBe('ed25519')
-        expect(validateAlgorithm('Rsa')).toBe('rsa')
-      })
-    })
-
-    describe('negative cases', () => {
-      it('should exit on invalid algorithm', () => {
-        expect(() => {
-          validateAlgorithm('invalid')
-        }).toThrow('process.exit called')
-
-        expect(mockProcessExit).toHaveBeenCalledWith(2)
-        expect(mockConsoleError).toHaveBeenCalledWith(
-          expect.stringContaining('Invalid algorithm: invalid'),
-        )
-      })
-
-      it('should reject empty string', () => {
-        expect(() => {
-          validateAlgorithm('')
-        }).toThrow('process.exit called')
-
-        expect(mockProcessExit).toHaveBeenCalledWith(2)
-        expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Invalid algorithm'))
-      })
-
-      it('should reject similar but incorrect algorithms', () => {
-        expect(() => {
-          validateAlgorithm('ed25518')
-        }).toThrow('process.exit called')
-
-        expect(mockProcessExit).toHaveBeenCalledWith(2)
-      })
-    })
-  })
-
   describe('runKeygen', () => {
     describe('positive cases', () => {
-      it('should generate ed25519 keypair successfully', async () => {
+      it('should generate RSA keypair successfully', async () => {
         await runKeygen({
-          algorithm: 'ed25519',
           force: false,
         })
 
         expect(checkOpenSSL).toHaveBeenCalled()
         expect(generateKeyPair).toHaveBeenCalledWith({
-          algorithm: 'ed25519',
           privatePath: '/home/user/.config/attest-it/private.pem',
           publicPath: '/home/user/repo/attest-it-public.pem',
           force: true,
@@ -142,30 +89,14 @@ describe('keygen command', () => {
         )
       })
 
-      it('should generate rsa keypair successfully', async () => {
-        await runKeygen({
-          algorithm: 'rsa',
-          force: false,
-        })
-
-        expect(generateKeyPair).toHaveBeenCalledWith({
-          algorithm: 'rsa',
-          privatePath: '/home/user/.config/attest-it/private.pem',
-          publicPath: '/home/user/repo/attest-it-public.pem',
-          force: true,
-        })
-      })
-
       it('should use custom output paths when provided', async () => {
         await runKeygen({
-          algorithm: 'ed25519',
           output: '/custom/private.pem',
           public: '/custom/public.pem',
           force: false,
         })
 
         expect(generateKeyPair).toHaveBeenCalledWith({
-          algorithm: 'ed25519',
           privatePath: '/custom/private.pem',
           publicPath: '/custom/public.pem',
           force: true,
@@ -176,7 +107,6 @@ describe('keygen command', () => {
         vi.mocked(fs.existsSync).mockReturnValue(true)
 
         await runKeygen({
-          algorithm: 'ed25519',
           force: true,
         })
 
@@ -189,7 +119,6 @@ describe('keygen command', () => {
         vi.mocked(checkOpenSSL).mockResolvedValue('OpenSSL 3.1.0 1 Jan 2023')
 
         await runKeygen({
-          algorithm: 'ed25519',
           force: false,
         })
 
@@ -206,7 +135,6 @@ describe('keygen command', () => {
 
         await expect(async () => {
           await runKeygen({
-            algorithm: 'ed25519',
             force: false,
           })
         }).rejects.toThrow('process.exit called')
@@ -221,7 +149,6 @@ describe('keygen command', () => {
 
         await expect(async () => {
           await runKeygen({
-            algorithm: 'ed25519',
             force: false,
           })
         }).rejects.toThrow('process.exit called')
@@ -235,7 +162,6 @@ describe('keygen command', () => {
 
         await expect(async () => {
           await runKeygen({
-            algorithm: 'ed25519',
             force: false,
           })
         }).rejects.toThrow('process.exit called')
@@ -246,25 +172,11 @@ describe('keygen command', () => {
         )
       })
 
-      it('should handle invalid algorithm', async () => {
-        await expect(async () => {
-          await runKeygen({
-            algorithm: 'aes256',
-            force: false,
-          })
-        }).rejects.toThrow('process.exit called')
-
-        expect(mockProcessExit).toHaveBeenCalledWith(2)
-        expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Invalid algorithm'))
-        expect(generateKeyPair).not.toHaveBeenCalled()
-      })
-
       it('should handle unknown error types', async () => {
         vi.mocked(generateKeyPair).mockRejectedValue('string error')
 
         await expect(async () => {
           await runKeygen({
-            algorithm: 'ed25519',
             force: false,
           })
         }).rejects.toThrow('process.exit called')
@@ -282,7 +194,6 @@ describe('keygen command', () => {
         vi.mocked(confirmAction).mockResolvedValue(true)
 
         await runKeygen({
-          algorithm: 'ed25519',
           force: false,
         })
 
@@ -300,7 +211,6 @@ describe('keygen command', () => {
         vi.mocked(confirmAction).mockResolvedValue(true)
 
         await runKeygen({
-          algorithm: 'ed25519',
           force: false,
         })
 
@@ -316,7 +226,6 @@ describe('keygen command', () => {
         vi.mocked(confirmAction).mockResolvedValue(true)
 
         await runKeygen({
-          algorithm: 'ed25519',
           force: false,
         })
 
@@ -338,7 +247,6 @@ describe('keygen command', () => {
         vi.mocked(fs.existsSync).mockReturnValue(false)
 
         await runKeygen({
-          algorithm: 'ed25519',
           force: false,
         })
 
@@ -351,7 +259,6 @@ describe('keygen command', () => {
 
         await expect(async () => {
           await runKeygen({
-            algorithm: 'ed25519',
             force: false,
           })
         }).rejects.toThrow('process.exit called')

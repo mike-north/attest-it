@@ -9,6 +9,7 @@ concurrency:
 
 jobs:
   release:
+    environment: npm-publish
     runs-on: ubuntu-latest
     permissions:
       contents: write

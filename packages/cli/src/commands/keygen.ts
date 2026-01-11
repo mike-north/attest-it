@@ -6,15 +6,13 @@ import {
   getDefaultPrivateKeyPath,
   getDefaultPublicKeyPath,
   setKeyPermissions,
-  type Algorithm,
 } from '@attest-it/core'
 import { log, success, error, warn, info } from '../utils/output.js'
 import { confirmAction } from '../utils/prompts.js'
 import { ExitCode } from '../utils/exit-codes.js'
 
 export const keygenCommand = new Command('keygen')
-  .description('Generate a new keypair for signing attestations')
-  .option('-a, --algorithm <alg>', 'Algorithm: ed25519 (default) or rsa', 'ed25519')
+  .description('Generate a new RSA keypair for signing attestations')
   .option('-o, --output <path>', 'Private key output path')
   .option('-p, --public <path>', 'Public key output path')
   .option('-f, --force', 'Overwrite existing keys')
@@ -23,7 +21,6 @@ export const keygenCommand = new Command('keygen')
   })
 
 interface KeygenOptions {
-  algorithm: string
   output?: string
   public?: string
   force?: boolean
@@ -32,11 +29,10 @@ interface KeygenOptions {
 /**
  * Run the keygen command to generate a new cryptographic keypair.
  *
- * Checks for OpenSSL availability, generates a keypair using the specified
- * algorithm, and sets appropriate permissions on the private key.
+ * Generates an RSA-2048 keypair with SHA-256 signatures, which is universally
+ * supported across all OpenSSL and LibreSSL versions.
  *
  * @param options - Command options
- * @param options.algorithm - Signing algorithm (ed25519 or rsa)
  * @param options.output - Private key output path
  * @param options.public - Public key output path
  * @param options.force - Overwrite existing keys without prompting
@@ -44,9 +40,6 @@ interface KeygenOptions {
  */
 async function runKeygen(options: KeygenOptions): Promise<void> {
   try {
-    // Validate algorithm
-    const algorithm = validateAlgorithm(options.algorithm)
-
     // Check OpenSSL
     log('Checking OpenSSL...')
     const version = await checkOpenSSL()
@@ -83,10 +76,9 @@ async function runKeygen(options: KeygenOptions): Promise<void> {
     }
 
     // Generate keypair
-    log(`\nGenerating ${algorithm.toUpperCase()} keypair...`)
+    log('\nGenerating RSA-2048 keypair...')
 
     const result = await generateKeyPair({
-      algorithm,
       privatePath,
       publicPath,
       force: true,
@@ -119,21 +111,4 @@ async function runKeygen(options: KeygenOptions): Promise<void> {
   }
 }
 
-/**
- * Validate and normalize the algorithm string.
- *
- * @param alg - Algorithm string to validate (case-insensitive)
- * @returns Normalized algorithm name ('ed25519' or 'rsa')
- * @throws Exits process with error if algorithm is invalid
- * @public
- */
-function validateAlgorithm(alg: string): Algorithm {
-  const normalized = alg.toLowerCase()
-  if (normalized === 'ed25519' || normalized === 'rsa') {
-    return normalized
-  }
-  error(`Invalid algorithm: ${alg}. Use 'ed25519' or 'rsa'.`)
-  process.exit(ExitCode.CONFIG_ERROR)
-}
-
-export { runKeygen, validateAlgorithm }
+export { runKeygen }

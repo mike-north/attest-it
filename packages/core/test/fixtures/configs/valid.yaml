@@ -5,7 +5,6 @@ settings:
   publicKeyPath: .attest-it/pubkey.pem
   attestationsPath: .attest-it/attestations.json
   defaultCommand: pnpm test
-  algorithm: ed25519
 
 suites:
   unit:

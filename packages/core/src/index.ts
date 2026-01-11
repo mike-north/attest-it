@@ -69,7 +69,6 @@ export {
   setKeyPermissions,
 } from './crypto.js'
 export type {
-  Algorithm,
   KeyPaths,
   KeygenOptions,
   SignOptions,

@@ -14,17 +14,16 @@ import {
 } from '../src/crypto.js'
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures', 'test-keys')
-const TEST_ED25519_PRIVATE = path.join(FIXTURES_DIR, 'test-private.pem')
-const TEST_ED25519_PUBLIC = path.join(FIXTURES_DIR, 'test-public.pem')
-const TEST_RSA_PRIVATE = path.join(FIXTURES_DIR, 'test-rsa-private.pem')
-const TEST_RSA_PUBLIC = path.join(FIXTURES_DIR, 'test-rsa-public.pem')
+const TEST_PRIVATE = path.join(FIXTURES_DIR, 'test-private.pem')
+const TEST_PUBLIC = path.join(FIXTURES_DIR, 'test-public.pem')
 
 describe('crypto', () => {
   describe('checkOpenSSL', () => {
-    it('should return OpenSSL version string', async () => {
+    it('should return OpenSSL/LibreSSL version string', async () => {
       const version = await checkOpenSSL()
       expect(version).toBeTruthy()
-      expect(version).toMatch(/OpenSSL/i)
+      // Accept both OpenSSL and LibreSSL (macOS default)
+      expect(version).toMatch(/OpenSSL|LibreSSL/i)
     })
   })
 
@@ -75,7 +74,7 @@ describe('crypto', () => {
       }
     })
 
-    it('should generate Ed25519 keypair by default', async () => {
+    it('should generate RSA keypair', async () => {
       const privatePath = path.join(tmpDir, 'private.pem')
       const publicPath = path.join(tmpDir, 'public.pem')
 
@@ -94,38 +93,6 @@ describe('crypto', () => {
         const mode = stats.mode & 0o777
         expect(mode).toBe(0o600)
       }
-    })
-
-    it('should generate Ed25519 keypair when algorithm specified', async () => {
-      const privatePath = path.join(tmpDir, 'ed25519-private.pem')
-      const publicPath = path.join(tmpDir, 'ed25519-public.pem')
-
-      const result = await generateKeyPair({
-        algorithm: 'ed25519',
-        privatePath,
-        publicPath,
-      })
-
-      expect(result.privatePath).toBe(privatePath)
-      expect(result.publicPath).toBe(publicPath)
-      expect(fsSync.existsSync(privatePath)).toBe(true)
-      expect(fsSync.existsSync(publicPath)).toBe(true)
-    })
-
-    it('should generate RSA keypair when algorithm is rsa', async () => {
-      const privatePath = path.join(tmpDir, 'rsa-private.pem')
-      const publicPath = path.join(tmpDir, 'rsa-public.pem')
-
-      const result = await generateKeyPair({
-        algorithm: 'rsa',
-        privatePath,
-        publicPath,
-      })
-
-      expect(result.privatePath).toBe(privatePath)
-      expect(result.publicPath).toBe(publicPath)
-      expect(fsSync.existsSync(privatePath)).toBe(true)
-      expect(fsSync.existsSync(publicPath)).toBe(true)
     })
 
     it('should fail if keys already exist without force', async () => {
@@ -194,26 +161,15 @@ describe('crypto', () => {
   })
 
   describe('sign', () => {
-    it('should sign data with Ed25519 key', async () => {
+    it('should sign data with RSA key', async () => {
       const signature = await sign({
-        privateKeyPath: TEST_ED25519_PRIVATE,
+        privateKeyPath: TEST_PRIVATE,
         data: 'test data',
       })
 
       expect(signature).toBeTruthy()
       expect(typeof signature).toBe('string')
       // Base64 signature should be valid
-      expect(() => Buffer.from(signature, 'base64')).not.toThrow()
-    })
-
-    it('should sign data with RSA key', async () => {
-      const signature = await sign({
-        privateKeyPath: TEST_RSA_PRIVATE,
-        data: 'test data',
-      })
-
-      expect(signature).toBeTruthy()
-      expect(typeof signature).toBe('string')
       expect(() => Buffer.from(signature, 'base64')).not.toThrow()
     })
 
@@ -229,7 +185,7 @@ describe('crypto', () => {
     it('should handle binary data', async () => {
       const binaryData = Buffer.from([0x00, 0x01, 0x02, 0xff, 0xfe])
       const signature = await sign({
-        privateKeyPath: TEST_ED25519_PRIVATE,
+        privateKeyPath: TEST_PRIVATE,
         data: binaryData,
       })
 
@@ -239,7 +195,7 @@ describe('crypto', () => {
 
     it('should handle empty string', async () => {
       const signature = await sign({
-        privateKeyPath: TEST_ED25519_PRIVATE,
+        privateKeyPath: TEST_PRIVATE,
         data: '',
       })
 
@@ -249,11 +205,11 @@ describe('crypto', () => {
 
     it('should produce different signatures for different data', async () => {
       const sig1 = await sign({
-        privateKeyPath: TEST_ED25519_PRIVATE,
+        privateKeyPath: TEST_PRIVATE,
         data: 'data1',
       })
       const sig2 = await sign({
-        privateKeyPath: TEST_ED25519_PRIVATE,
+        privateKeyPath: TEST_PRIVATE,
         data: 'data2',
       })
 
@@ -263,11 +219,11 @@ describe('crypto', () => {
     it('should produce consistent signatures for same data', async () => {
       const data = 'consistent test data'
       const sig1 = await sign({
-        privateKeyPath: TEST_ED25519_PRIVATE,
+        privateKeyPath: TEST_PRIVATE,
         data,
       })
       const sig2 = await sign({
-        privateKeyPath: TEST_ED25519_PRIVATE,
+        privateKeyPath: TEST_PRIVATE,
         data,
       })
 
@@ -276,31 +232,15 @@ describe('crypto', () => {
   })
 
   describe('verify', () => {
-    it('should return true for valid Ed25519 signature', async () => {
+    it('should return true for valid signature', async () => {
       const data = 'test verification data'
       const signature = await sign({
-        privateKeyPath: TEST_ED25519_PRIVATE,
+        privateKeyPath: TEST_PRIVATE,
         data,
       })
 
       const isValid = await verify({
-        publicKeyPath: TEST_ED25519_PUBLIC,
-        data,
-        signature,
-      })
-
-      expect(isValid).toBe(true)
-    })
-
-    it('should return true for valid RSA signature', async () => {
-      const data = 'test rsa verification'
-      const signature = await sign({
-        privateKeyPath: TEST_RSA_PRIVATE,
-        data,
-      })
-
-      const isValid = await verify({
-        publicKeyPath: TEST_RSA_PUBLIC,
+        publicKeyPath: TEST_PUBLIC,
         data,
         signature,
       })
@@ -311,12 +251,12 @@ describe('crypto', () => {
     it('should return false for tampered data', async () => {
       const originalData = 'original data'
       const signature = await sign({
-        privateKeyPath: TEST_ED25519_PRIVATE,
+        privateKeyPath: TEST_PRIVATE,
         data: originalData,
       })
 
       const isValid = await verify({
-        publicKeyPath: TEST_ED25519_PUBLIC,
+        publicKeyPath: TEST_PUBLIC,
         data: 'tampered data',
         signature,
       })
@@ -327,7 +267,7 @@ describe('crypto', () => {
     it('should return false for tampered signature', async () => {
       const data = 'test data'
       const signature = await sign({
-        privateKeyPath: TEST_ED25519_PRIVATE,
+        privateKeyPath: TEST_PRIVATE,
         data,
       })
 
@@ -337,26 +277,9 @@ describe('crypto', () => {
       const tamperedSig = sigBuffer.toString('base64')
 
       const isValid = await verify({
-        publicKeyPath: TEST_ED25519_PUBLIC,
+        publicKeyPath: TEST_PUBLIC,
         data,
         signature: tamperedSig,
-      })
-
-      expect(isValid).toBe(false)
-    })
-
-    it('should return false when using wrong public key', async () => {
-      const data = 'test data'
-      const signature = await sign({
-        privateKeyPath: TEST_ED25519_PRIVATE,
-        data,
-      })
-
-      // Try to verify with RSA public key instead
-      const isValid = await verify({
-        publicKeyPath: TEST_RSA_PUBLIC,
-        data,
-        signature,
       })
 
       expect(isValid).toBe(false)
@@ -375,12 +298,12 @@ describe('crypto', () => {
     it('should handle binary data', async () => {
       const binaryData = Buffer.from([0x00, 0x01, 0x02, 0xff, 0xfe])
       const signature = await sign({
-        privateKeyPath: TEST_ED25519_PRIVATE,
+        privateKeyPath: TEST_PRIVATE,
         data: binaryData,
       })
 
       const isValid = await verify({
-        publicKeyPath: TEST_ED25519_PUBLIC,
+        publicKeyPath: TEST_PUBLIC,
         data: binaryData,
         signature,
       })
@@ -391,12 +314,12 @@ describe('crypto', () => {
     it('should handle empty string', async () => {
       const data = ''
       const signature = await sign({
-        privateKeyPath: TEST_ED25519_PRIVATE,
+        privateKeyPath: TEST_PRIVATE,
         data,
       })
 
       const isValid = await verify({
-        publicKeyPath: TEST_ED25519_PUBLIC,
+        publicKeyPath: TEST_PUBLIC,
         data,
         signature,
       })
@@ -406,7 +329,7 @@ describe('crypto', () => {
 
     it('should return false for invalid base64 signature', async () => {
       const isValid = await verify({
-        publicKeyPath: TEST_ED25519_PUBLIC,
+        publicKeyPath: TEST_PUBLIC,
         data: 'test data',
         signature: 'not-valid-base64!!!',
       })
@@ -419,12 +342,12 @@ describe('crypto', () => {
     it('should handle large data', async () => {
       const largeData = 'x'.repeat(1024 * 1024) // 1MB of data
       const signature = await sign({
-        privateKeyPath: TEST_ED25519_PRIVATE,
+        privateKeyPath: TEST_PRIVATE,
         data: largeData,
       })
 
       const isValid = await verify({
-        publicKeyPath: TEST_ED25519_PUBLIC,
+        publicKeyPath: TEST_PUBLIC,
         data: largeData,
         signature,
       })
@@ -500,10 +423,9 @@ describe('crypto', () => {
       }
     })
 
-    it('should complete full workflow with Ed25519', async () => {
+    it('should complete full workflow with generated keys', async () => {
       // Generate keypair
       await generateKeyPair({
-        algorithm: 'ed25519',
         privatePath,
         publicPath,
       })
@@ -525,35 +447,9 @@ describe('crypto', () => {
       expect(isValid).toBe(true)
     })
 
-    it('should complete full workflow with RSA', async () => {
-      // Generate keypair
-      await generateKeyPair({
-        algorithm: 'rsa',
-        privatePath,
-        publicPath,
-      })
-
-      // Sign data
-      const testData = 'rsa integration test'
-      const signature = await sign({
-        privateKeyPath: privatePath,
-        data: testData,
-      })
-
-      // Verify signature
-      const isValid = await verify({
-        publicKeyPath: publicPath,
-        data: testData,
-        signature,
-      })
-
-      expect(isValid).toBe(true)
-    })
-
     it('should detect tampering in full workflow', async () => {
       // Generate keypair
       await generateKeyPair({
-        algorithm: 'ed25519',
         privatePath,
         publicPath,
       })

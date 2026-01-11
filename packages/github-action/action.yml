@@ -7,10 +7,14 @@ branding:
   color: 'green'
 
 inputs:
-  config-path:
-    description: 'Path to attest-it config file'
+  working-directory:
+    description: 'Directory to run attest-it from (defaults to repository root)'
     required: false
-    default: '.attest-it/config.yaml'
+    default: '.'
+
+  config-path:
+    description: 'Path to attest-it config file (relative to working-directory)'
+    required: false
 
   suite:
     description: 'Verify specific suite only'
@@ -35,4 +39,4 @@ outputs:
 
 runs:
   using: 'node20'
-  main: 'dist/index.js'
+  main: 'dist/index.cjs'

@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1",
+  "attestations": [
+    {
+      "suite": "unit-tests",
+      "fingerprint": "sha256:71df8fb9583814425140c3c1af38be6c7cb05abb0e6aa007653ffe7d8bff1500",
+      "attestedAt": "2026-01-11T20:34:23.956Z",
+      "attestedBy": "test-fixture-generator",
+      "command": "echo \"tests passed\"",
+      "exitCode": 0
+    }
+  ],
+  "signature": "WWkscNeGPxwWoCEd3gIrh9UJUDsIv8IZfz1PRtrhQHdFTVCOkqquDgjySValU4DXuQEvTLqScYUunccny2axfBwdIkvvk8huEs2v5Z+XxqNW0vOh1boAe6haeB0O7hUwdNfXgnlaUSjACZfkfaaKsohvWI0gigjyI8XBXArYitRJ33e4d/rd1KnvvU/P7hTSOQfktNl2LJy7AfvcitGJgp22+ntZP8Flr77TeDd+mWkqnTBrREVKt9NFYbLcezQ+quGeyfcyWb4oF5Qgodgc0R+n7nCiBfwYJFlSH7dEpa8BRzv7Qoj0G18RdHJVT/iYTiAEIgZIB5uvmgD1Jvj0tw=="
+}
