@@ -9,4 +9,6 @@ export default defineConfig({
   noExternal: [/.*/],
   // Single file output
   splitting: false,
+  // Shim import.meta.url for CJS compatibility
+  shims: true,
 })
