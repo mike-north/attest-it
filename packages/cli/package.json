@@ -1,6 +1,6 @@
 {
   "name": "@attest-it/cli",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": "Mike North <michael.l.north@gmail.com>",
   "bin": {
     "attest-it": "./dist/bin/attest-it.js"

@@ -1,7 +1,7 @@
 {
   "name": "attest-it",
   "description": "Human-gated test attestation system with cryptographic signing",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "author": "Mike North <michael.l.north@gmail.com>",
   "bin": {
     "attest-it": "./dist/bin/attest-it.js"
