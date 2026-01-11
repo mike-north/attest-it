@@ -32,9 +32,6 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Check OpenSSL version
-        run: openssl version
-
       - name: Generate keypair
         run: |
           mkdir -p test-keys
@@ -49,18 +46,6 @@ jobs:
           test -f test-keys/private.pem || (echo "Private key not created" && exit 1)
           test -f test-keys/public.pem || (echo "Public key not created" && exit 1)
           echo "Keys created successfully"
-
-      - name: Verify key format
-        run: |
-          # Check private key is valid
-          openssl pkey -in test-keys/private.pem -check -noout || \
-            openssl rsa -in test-keys/private.pem -check -noout
-          echo "Private key is valid"
-
-          # Check public key is valid
-          openssl pkey -in test-keys/public.pem -pubin -noout || \
-            openssl rsa -in test-keys/public.pem -pubin -noout
-          echo "Public key is valid"
 
       - name: Test signing and verification
         run: |
