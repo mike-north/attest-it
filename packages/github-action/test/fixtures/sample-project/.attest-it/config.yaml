@@ -1,0 +1,9 @@
+version: 1
+
+settings:
+  maxAgeDays: 30
+
+suites:
+  unit-tests:
+    description: Unit test suite for CI testing
+    command: echo "unit tests passed"

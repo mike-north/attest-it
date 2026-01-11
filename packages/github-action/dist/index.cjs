@@ -34427,10 +34427,15 @@ function resolvePath(relativePath, baseDir) {
 // src/index.ts
 async function run() {
   try {
+    const workingDirectory = core.getInput("working-directory") || ".";
     const configPath = core.getInput("config-path");
     const suite = core.getInput("suite");
     const failOnMissing = core.getInput("fail-on-missing") === "true";
     const strict = core.getInput("strict") === "true";
+    if (workingDirectory !== ".") {
+      core.info(`Changing to working directory: ${workingDirectory}`);
+      process.chdir(workingDirectory);
+    }
     core.info("Loading configuration...");
     const loadedConfig = await loadConfig(configPath || void 0);
     let config = toAttestItConfig(loadedConfig);
