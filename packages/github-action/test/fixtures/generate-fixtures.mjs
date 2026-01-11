@@ -2,12 +2,18 @@
 /**
  * Script to generate test fixtures for the GitHub Action.
  * Run with: node packages/github-action/test/fixtures/generate-fixtures.mjs
+ *
+ * This script uses the actual @attest-it/core library to ensure
+ * the attestation format and signatures are correct.
  */
-import { writeFileSync, mkdirSync, copyFileSync, readFileSync } from 'fs'
+import { writeFileSync, mkdirSync, copyFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import { execSync } from 'child_process'
-import { createHash } from 'crypto'
+import {
+  computeFingerprint,
+  createAttestation,
+  writeSignedAttestations,
+} from '../../../core/dist/index.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -60,74 +66,35 @@ suites:
 writeFileSync(join(validFixture, '.attest-it', 'config.yaml'), config)
 writeFileSync(join(missingFixture, '.attest-it', 'config.yaml'), config)
 
-// Compute fingerprint using the same algorithm as @attest-it/core
-// 1. For each file: sha256(normalizedPath + '\0' + content) → Buffer
-// 2. Sort by relative path
-// 3. Concatenate all Buffers
-// 4. Final: sha256:(sha256(concatenated).hex())
+// Compute fingerprint using the core library
+const fingerprintResult = await computeFingerprint({
+  packages: ['src'],
+  baseDir: validFixture,
+})
 
-const srcFile = join(validFixture, 'src', 'index.ts')
-const srcData = readFileSync(srcFile)
-const normalizedPath = 'src/index.ts'
+console.log('Computed fingerprint:', fingerprintResult.fingerprint)
 
-// Compute file hash: sha256(path + '\0' + content)
-const fileHash = createHash('sha256')
-fileHash.update(normalizedPath)
-fileHash.update('\0')
-fileHash.update(srcData)
-const fileHashBuffer = fileHash.digest()
-
-// Final fingerprint: sha256 of concatenated file hashes (just one file here)
-const finalHash = createHash('sha256').update(fileHashBuffer).digest('hex')
-const fingerprint = `sha256:${finalHash}`
-
-console.log('Computed fingerprint:', fingerprint)
-
-// Create attestation
-const attestation = {
+// Create attestation using the core library
+const attestation = createAttestation({
   suite: 'unit-tests',
-  fingerprint,
-  attestedAt: new Date().toISOString(),
-  attestedBy: 'test-fixture-generator',
+  fingerprint: fingerprintResult.fingerprint,
   command: 'echo "tests passed"',
-  exitCode: 0
-}
+  attestedBy: 'test-fixture-generator',
+})
 
-// Canonicalize attestations (sorted keys, compact JSON)
-function canonicalize(attestations) {
-  const sortedKeys = ['attestedAt', 'attestedBy', 'command', 'exitCode', 'fingerprint', 'suite']
-  return JSON.stringify(attestations.map(a => {
-    const sorted = {}
-    for (const key of sortedKeys) {
-      if (key in a) sorted[key] = a[key]
-    }
-    return sorted
-  }))
-}
+console.log('Created attestation:', JSON.stringify(attestation, null, 2))
 
-const canonical = canonicalize([attestation])
-console.log('Canonical attestations:', canonical)
-
-// Sign with RSA private key using openssl
+// Write signed attestations using the core library
 const privateKeyPath = join(coreTestKeys, 'test-rsa-private.pem')
-const signatureB64 = execSync(
-  `printf '%s' '${canonical}' | openssl pkeyutl -sign -inkey "${privateKeyPath}" | base64`,
-  { encoding: 'utf8' }
-).trim()
+const attestationsPath = join(validFixture, '.attest-it', 'attestations.json')
 
-console.log('Signature (base64):', signatureB64.substring(0, 50) + '...')
-
-// Create attestations file
-const attestationsFile = {
-  schemaVersion: '1',
+await writeSignedAttestations({
   attestations: [attestation],
-  signature: signatureB64
-}
+  privateKeyPath,
+  filePath: attestationsPath,
+})
 
-writeFileSync(
-  join(validFixture, '.attest-it', 'attestations.json'),
-  JSON.stringify(attestationsFile, null, 2)
-)
+console.log('Wrote signed attestations to:', attestationsPath)
 
 // For missing-attestation fixture, don't create attestations.json
 // (the config exists but no attestations)

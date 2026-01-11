@@ -4,11 +4,11 @@
     {
       "suite": "unit-tests",
       "fingerprint": "sha256:71df8fb9583814425140c3c1af38be6c7cb05abb0e6aa007653ffe7d8bff1500",
-      "attestedAt": "2026-01-11T19:27:02.551Z",
+      "attestedAt": "2026-01-11T19:30:13.861Z",
       "attestedBy": "test-fixture-generator",
       "command": "echo \"tests passed\"",
       "exitCode": 0
     }
   ],
-  "signature": "lCttIU9BvC/WZXdeP08Rql16m2PSsAeeWzEsQdS3xoFxoONq3Ip8wkpfQsj4r3Is2/YcYAbGE4BHHNAUF9e0yIP5hQrScM09Mn8mS2prlBjsK5hym6lL0Yuc4JaRv+05FiewYN2DV9D4pSTS88V1mTwXKlVq16w9kfSZinPLIEjG8EjVDjFiY8+a51IxHwB8ihaLIXulT9RI4VRwhNZC2OWW5aufhq9kefipPb33XVxZna8mn0APZ5F/aVwIQIXcI784LP3zXSghvt8zM3wg5TeEHI22Y9ghXCSmDUG3La7vRLhX3g10rLkOeRjMGQy3Tih3ltcuW0UAYTTAwvXdHw=="
+  "signature": "UKDyOpfbRShkFK2PrnYJIq9uROCYtn3ks4p06/av4YbeyktgmaTMGdHKK5kB5yVly/FAjCt1cMJhuGaXsdeRCaYlQ2NafAGJSGvFx1jYlpZZUq6nfMMMaYB17iHIKqdeiNFWBZCje0j+Mby2oHF3LI7XSfbRMHTeuEvYQMyrty0/V531TW3w7naSOXX4SOjWXT3lUlMJqIxGGvff0sN8mfksMpRkY1lpcFKxYdJ5YUorwk7yj0oC5KtF/5zEYaWMc77n3XB4dhGJa8ws0++3RAx7wAlKOOAmVCwF4yBgGn6e3AnKvhycixe4d2hOSqgJfI4R6GIwx2d9SUOJYrwWZg=="
 }
