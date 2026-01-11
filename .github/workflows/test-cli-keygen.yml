@@ -38,7 +38,7 @@ jobs:
       - name: Generate keypair
         run: |
           mkdir -p test-keys
-          pnpm --filter @attest-it/cli exec attest-it keygen \
+          node packages/cli/dist/bin/attest-it.js keygen \
             --algorithm ${{ matrix.algorithm }} \
             --output test-keys/private.pem \
             --public test-keys/public.pem \
