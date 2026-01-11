@@ -1,0 +1,2 @@
+# Mark generated files to collapse diffs and exclude from language stats
+packages/github-action/dist/** linguist-generated=true
