@@ -152,9 +152,5 @@ vite.config.ts.timestamp-*
 # Nx cache
 .nx/
 
-# Changesets
-.changeset/*.md
-!.changeset/README.md
-
 # Claude
 .claude/settings.local.json
