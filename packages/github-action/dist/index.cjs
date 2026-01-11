@@ -19944,7 +19944,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
-// ../core/dist/chunk-4GOPZQ5Y.js
+// ../core/dist/chunk-S256BNDT.js
 async function runOpenSSL(args, stdin) {
   return new Promise((resolve4, reject) => {
     const child = (0, import_child_process.spawn)("openssl", args, {
@@ -20038,7 +20038,9 @@ async function detectKeyAlgorithm(keyPath) {
 async function generateKeyPair(options = {}) {
   await ensureOpenSSLAvailable();
   const {
-    algorithm = "ed25519",
+    // RSA is the default because it's universally supported across all OpenSSL/LibreSSL versions
+    // Ed25519 requires -rawin flag which isn't available on older LibreSSL (macOS)
+    algorithm = "rsa",
     privatePath = getDefaultPrivateKeyPath(),
     publicPath = getDefaultPublicKeyPath(),
     force = false
@@ -20190,8 +20192,8 @@ async function setKeyPermissions(keyPath) {
   }
 }
 var import_child_process, fs, path, os, openSSLChecked;
-var init_chunk_4GOPZQ5Y = __esm({
-  "../core/dist/chunk-4GOPZQ5Y.js"() {
+var init_chunk_S256BNDT = __esm({
+  "../core/dist/chunk-S256BNDT.js"() {
     "use strict";
     init_cjs_shims();
     import_child_process = require("child_process");
@@ -29125,9 +29127,9 @@ var require_canonicalize = __commonJS({
   }
 });
 
-// ../core/dist/crypto-UDLANQS4.js
-var crypto_UDLANQS4_exports = {};
-__export(crypto_UDLANQS4_exports, {
+// ../core/dist/crypto-XZRO6GDS.js
+var crypto_XZRO6GDS_exports = {};
+__export(crypto_XZRO6GDS_exports, {
   checkOpenSSL: () => checkOpenSSL,
   generateKeyPair: () => generateKeyPair,
   getDefaultPrivateKeyPath: () => getDefaultPrivateKeyPath,
@@ -29136,11 +29138,11 @@ __export(crypto_UDLANQS4_exports, {
   sign: () => sign,
   verify: () => verify
 });
-var init_crypto_UDLANQS4 = __esm({
-  "../core/dist/crypto-UDLANQS4.js"() {
+var init_crypto_XZRO6GDS = __esm({
+  "../core/dist/crypto-XZRO6GDS.js"() {
     "use strict";
     init_cjs_shims();
-    init_chunk_4GOPZQ5Y();
+    init_chunk_S256BNDT();
   }
 });
 
@@ -29155,7 +29157,7 @@ var core = __toESM(require_core(), 1);
 
 // ../core/dist/index.js
 init_cjs_shims();
-init_chunk_4GOPZQ5Y();
+init_chunk_S256BNDT();
 var fs2 = __toESM(require("fs"), 1);
 var import_fs2 = require("fs");
 var import_promises = require("fs/promises");
@@ -34304,7 +34306,7 @@ function canonicalizeAttestations(attestations) {
   return canonical;
 }
 async function readAndVerifyAttestations(options) {
-  const { verify: verify2 } = await Promise.resolve().then(() => (init_crypto_UDLANQS4(), crypto_UDLANQS4_exports));
+  const { verify: verify2 } = await Promise.resolve().then(() => (init_crypto_XZRO6GDS(), crypto_XZRO6GDS_exports));
   const file = await readAttestations(options.filePath);
   if (!file) {
     throw new Error(`Attestations file not found: ${options.filePath}`);

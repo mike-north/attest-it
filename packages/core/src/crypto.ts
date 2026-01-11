@@ -273,7 +273,9 @@ export async function generateKeyPair(options: KeygenOptions = {}): Promise<KeyP
   await ensureOpenSSLAvailable()
 
   const {
-    algorithm = 'ed25519',
+    // RSA is the default because it's universally supported across all OpenSSL/LibreSSL versions
+    // Ed25519 requires -rawin flag which isn't available on older LibreSSL (macOS)
+    algorithm = 'rsa',
     privatePath = getDefaultPrivateKeyPath(),
     publicPath = getDefaultPublicKeyPath(),
     force = false,
