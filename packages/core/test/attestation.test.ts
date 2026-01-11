@@ -621,7 +621,7 @@ describe('readAndVerifyAttestations', () => {
   const TEST_KEYS_DIR = path.join(__dirname, 'fixtures', 'test-keys')
   const privateKeyPath = path.join(TEST_KEYS_DIR, 'test-private.pem')
   const publicKeyPath = path.join(TEST_KEYS_DIR, 'test-public.pem')
-  const wrongPublicKeyPath = path.join(TEST_KEYS_DIR, 'test-rsa-public.pem')
+  const wrongPublicKeyPath = path.join(TEST_KEYS_DIR, 'test-wrong-public.pem')
 
   beforeEach(() => {
     fs.mkdirSync(TEST_DIR, { recursive: true })
@@ -730,7 +730,7 @@ describe('readAndVerifyAttestations', () => {
   })
 
   it('should throw when using wrong public key', async () => {
-    // Create signed file with Ed25519 key
+    // Create signed file with RSA key
     const attestations = [createTestAttestation()]
     await writeSignedAttestations({
       filePath: testFile,

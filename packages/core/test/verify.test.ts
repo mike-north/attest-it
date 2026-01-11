@@ -31,7 +31,6 @@ function createTestConfig(overrides?: Partial<AttestItConfig>): AttestItConfig {
       maxAgeDays: 30,
       publicKeyPath: path.join(TEST_DIR, 'public.pem'),
       attestationsPath: path.join(TEST_DIR, 'attestations.json'),
-      algorithm: 'ed25519',
     },
     suites: {
       unit: {
@@ -152,7 +151,6 @@ describe('verifyAttestations', () => {
           maxAgeDays: 30,
           publicKeyPath: path.join(TEST_DIR, 'public.pem'),
           attestationsPath: path.join(TEST_DIR, 'attestations.json'),
-          algorithm: 'ed25519',
         },
         suites: {
           unit: {
@@ -292,7 +290,6 @@ describe('verifyAttestations', () => {
           maxAgeDays: 7,
           publicKeyPath: path.join(TEST_DIR, 'public.pem'),
           attestationsPath: path.join(TEST_DIR, 'attestations.json'),
-          algorithm: 'ed25519',
         },
         suites: {
           unit: {
@@ -440,7 +437,6 @@ describe('verifyAttestations', () => {
           maxAgeDays: 30,
           publicKeyPath: path.join(TEST_DIR, 'nonexistent-public.pem'),
           attestationsPath: path.join(TEST_DIR, 'attestations.json'),
-          algorithm: 'ed25519',
         },
         suites: {
           unit: {

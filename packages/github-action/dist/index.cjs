@@ -19944,7 +19944,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
-// ../core/dist/chunk-S256BNDT.js
+// ../core/dist/chunk-E6URLBXW.js
 async function runOpenSSL(args, stdin) {
   return new Promise((resolve4, reject) => {
     const child = (0, import_child_process.spawn)("openssl", args, {
@@ -20027,20 +20027,9 @@ async function cleanupFiles(...paths) {
     }
   }
 }
-async function detectKeyAlgorithm(keyPath) {
-  const result = await runOpenSSL(["pkey", "-in", keyPath, "-text", "-noout", "-pubin"]);
-  const keyInfo = result.exitCode === 0 ? result.stdout.toString() : (await runOpenSSL(["pkey", "-in", keyPath, "-text", "-noout"])).stdout.toString();
-  if (keyInfo.includes("ED25519")) {
-    return "ed25519";
-  }
-  return "rsa";
-}
 async function generateKeyPair(options = {}) {
   await ensureOpenSSLAvailable();
   const {
-    // RSA is the default because it's universally supported across all OpenSSL/LibreSSL versions
-    // Ed25519 requires -rawin flag which isn't available on older LibreSSL (macOS)
-    algorithm = "rsa",
     privatePath = getDefaultPrivateKeyPath(),
     publicPath = getDefaultPublicKeyPath(),
     force = false
@@ -20058,7 +20047,7 @@ async function generateKeyPair(options = {}) {
   await ensureDir(path.dirname(privatePath));
   await ensureDir(path.dirname(publicPath));
   try {
-    const genArgs = algorithm === "ed25519" ? ["genpkey", "-algorithm", "Ed25519", "-out", privatePath] : ["genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048", "-out", privatePath];
+    const genArgs = ["genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048", "-out", privatePath];
     const genResult = await runOpenSSL(genArgs);
     if (genResult.exitCode !== 0) {
       throw new Error(`Failed to generate private key: ${genResult.stderr}`);
@@ -20090,33 +20079,16 @@ async function sign(options) {
   const sigFile = path.join(tmpDir, "sig.bin");
   try {
     await fs.writeFile(dataFile, processBuffer);
-    const algorithm = await detectKeyAlgorithm(privateKeyPath);
-    let result;
-    if (algorithm === "ed25519") {
-      const signArgs = [
-        "pkeyutl",
-        "-sign",
-        "-inkey",
-        privateKeyPath,
-        "-in",
-        dataFile,
-        "-out",
-        sigFile,
-        "-rawin"
-      ];
-      result = await runOpenSSL(signArgs);
-    } else {
-      const signArgs = [
-        "dgst",
-        "-sha256",
-        "-sign",
-        privateKeyPath,
-        "-out",
-        sigFile,
-        dataFile
-      ];
-      result = await runOpenSSL(signArgs);
-    }
+    const signArgs = [
+      "dgst",
+      "-sha256",
+      "-sign",
+      privateKeyPath,
+      "-out",
+      sigFile,
+      dataFile
+    ];
+    const result = await runOpenSSL(signArgs);
     if (result.exitCode !== 0) {
       throw new Error(`Failed to sign data: ${result.stderr}`);
     }
@@ -20144,39 +20116,17 @@ async function verify(options) {
   try {
     await fs.writeFile(dataFile, processBuffer);
     await fs.writeFile(sigFile, sigBuffer);
-    const algorithm = await detectKeyAlgorithm(publicKeyPath);
-    let result;
-    if (algorithm === "ed25519") {
-      const verifyArgs = [
-        "pkeyutl",
-        "-verify",
-        "-pubin",
-        "-inkey",
-        publicKeyPath,
-        "-sigfile",
-        sigFile,
-        "-in",
-        dataFile,
-        "-rawin"
-      ];
-      result = await runOpenSSL(verifyArgs);
-      if (result.exitCode !== 0 && result.exitCode !== 1) {
-        throw new Error(`Verification error: ${result.stderr}`);
-      }
-      return result.exitCode === 0;
-    } else {
-      const verifyArgs = [
-        "dgst",
-        "-sha256",
-        "-verify",
-        publicKeyPath,
-        "-signature",
-        sigFile,
-        dataFile
-      ];
-      result = await runOpenSSL(verifyArgs);
-      return result.exitCode === 0 && result.stdout.toString().includes("Verified OK");
-    }
+    const verifyArgs = [
+      "dgst",
+      "-sha256",
+      "-verify",
+      publicKeyPath,
+      "-signature",
+      sigFile,
+      dataFile
+    ];
+    const result = await runOpenSSL(verifyArgs);
+    return result.exitCode === 0 && result.stdout.toString().includes("Verified OK");
   } finally {
     try {
       await fs.rm(tmpDir, { recursive: true, force: true });
@@ -20192,8 +20142,8 @@ async function setKeyPermissions(keyPath) {
   }
 }
 var import_child_process, fs, path, os, openSSLChecked;
-var init_chunk_S256BNDT = __esm({
-  "../core/dist/chunk-S256BNDT.js"() {
+var init_chunk_E6URLBXW = __esm({
+  "../core/dist/chunk-E6URLBXW.js"() {
     "use strict";
     init_cjs_shims();
     import_child_process = require("child_process");
@@ -29127,9 +29077,9 @@ var require_canonicalize = __commonJS({
   }
 });
 
-// ../core/dist/crypto-XZRO6GDS.js
-var crypto_XZRO6GDS_exports = {};
-__export(crypto_XZRO6GDS_exports, {
+// ../core/dist/crypto-RXCIWZWB.js
+var crypto_RXCIWZWB_exports = {};
+__export(crypto_RXCIWZWB_exports, {
   checkOpenSSL: () => checkOpenSSL,
   generateKeyPair: () => generateKeyPair,
   getDefaultPrivateKeyPath: () => getDefaultPrivateKeyPath,
@@ -29138,11 +29088,11 @@ __export(crypto_XZRO6GDS_exports, {
   sign: () => sign,
   verify: () => verify
 });
-var init_crypto_XZRO6GDS = __esm({
-  "../core/dist/crypto-XZRO6GDS.js"() {
+var init_crypto_RXCIWZWB = __esm({
+  "../core/dist/crypto-RXCIWZWB.js"() {
     "use strict";
     init_cjs_shims();
-    init_chunk_S256BNDT();
+    init_chunk_E6URLBXW();
   }
 });
 
@@ -29157,7 +29107,7 @@ var core = __toESM(require_core(), 1);
 
 // ../core/dist/index.js
 init_cjs_shims();
-init_chunk_S256BNDT();
+init_chunk_E6URLBXW();
 var fs2 = __toESM(require("fs"), 1);
 var import_fs2 = require("fs");
 var import_promises = require("fs/promises");
@@ -34017,9 +33967,9 @@ var settingsSchema = external_exports.object({
   maxAgeDays: external_exports.number().int().positive().default(30),
   publicKeyPath: external_exports.string().default(".attest-it/pubkey.pem"),
   attestationsPath: external_exports.string().default(".attest-it/attestations.json"),
-  defaultCommand: external_exports.string().optional(),
-  algorithm: external_exports.enum(["ed25519", "rsa"]).default("ed25519")
-}).strict();
+  defaultCommand: external_exports.string().optional()
+  // Note: algorithm field was removed - RSA is the only supported algorithm
+}).passthrough();
 var suiteSchema = external_exports.object({
   description: external_exports.string().optional(),
   packages: external_exports.array(external_exports.string().min(1, "Package path cannot be empty")).min(1, "At least one package pattern is required"),
@@ -34122,7 +34072,6 @@ function toAttestItConfig(config) {
       maxAgeDays: config.settings.maxAgeDays,
       publicKeyPath: config.settings.publicKeyPath,
       attestationsPath: config.settings.attestationsPath,
-      algorithm: config.settings.algorithm,
       ...config.settings.defaultCommand !== void 0 && {
         defaultCommand: config.settings.defaultCommand
       }
@@ -34306,7 +34255,7 @@ function canonicalizeAttestations(attestations) {
   return canonical;
 }
 async function readAndVerifyAttestations(options) {
-  const { verify: verify2 } = await Promise.resolve().then(() => (init_crypto_XZRO6GDS(), crypto_XZRO6GDS_exports));
+  const { verify: verify2 } = await Promise.resolve().then(() => (init_crypto_RXCIWZWB(), crypto_RXCIWZWB_exports));
   const file = await readAttestations(options.filePath);
   if (!file) {
     throw new Error(`Attestations file not found: ${options.filePath}`);

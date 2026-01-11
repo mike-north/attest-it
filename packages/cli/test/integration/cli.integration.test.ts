@@ -623,27 +623,15 @@ suites:
       const result = await runCli(['keygen', '--help'], tempDir)
       expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('keygen')
-      expect(result.stdout).toContain('algorithm')
+      expect(result.stdout).toContain('RSA keypair')
     })
 
-    it('generates ed25519 keypair with --force', async () => {
-      const result = await runCli(['keygen', '--algorithm', 'ed25519', '--force'], tempDir)
+    it('generates RSA keypair with --force', async () => {
+      const result = await runCli(['keygen', '--force'], tempDir)
       expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('Keypair generated successfully')
       expect(result.stdout).toContain('Private key')
       expect(result.stdout).toContain('Public key')
-    })
-
-    it('generates rsa keypair with --force', async () => {
-      const result = await runCli(['keygen', '--algorithm', 'rsa', '--force'], tempDir)
-      expect(result.exitCode).toBe(0)
-      expect(result.stdout).toContain('Keypair generated successfully')
-    })
-
-    it('rejects invalid algorithm', async () => {
-      const result = await runCli(['keygen', '--algorithm', 'aes256', '--force'], tempDir)
-      expect(result.exitCode).toBe(2)
-      expect(result.stderr).toContain('Invalid algorithm')
     })
 
     it('uses custom output paths', async () => {

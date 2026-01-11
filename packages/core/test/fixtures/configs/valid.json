@@ -4,8 +4,7 @@
     "maxAgeDays": 30,
     "publicKeyPath": ".attest-it/pubkey.pem",
     "attestationsPath": ".attest-it/attestations.json",
-    "defaultCommand": "pnpm test",
-    "algorithm": "ed25519"
+    "defaultCommand": "pnpm test"
   },
   "suites": {
     "unit": {

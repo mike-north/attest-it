@@ -17,9 +17,9 @@ const settingsSchema = z
     publicKeyPath: z.string().default('.attest-it/pubkey.pem'),
     attestationsPath: z.string().default('.attest-it/attestations.json'),
     defaultCommand: z.string().optional(),
-    algorithm: z.enum(['ed25519', 'rsa']).default('ed25519'),
+    // Note: algorithm field was removed - RSA is the only supported algorithm
   })
-  .strict()
+  .passthrough()
 
 /**
  * Zod schema for a suite configuration.
@@ -275,7 +275,6 @@ export function toAttestItConfig(config: Config): import('./types.js').AttestItC
       maxAgeDays: config.settings.maxAgeDays,
       publicKeyPath: config.settings.publicKeyPath,
       attestationsPath: config.settings.attestationsPath,
-      algorithm: config.settings.algorithm,
       ...(config.settings.defaultCommand !== undefined && {
         defaultCommand: config.settings.defaultCommand,
       }),

@@ -3,7 +3,8 @@
  *
  * @remarks
  * This module provides cryptographic operations using OpenSSL for key management
- * and signature verification. It supports Ed25519 and RSA algorithms.
+ * and signature verification. It uses RSA-2048 with SHA-256 for signatures,
+ * which is universally supported across all OpenSSL and LibreSSL versions.
  *
  * @packageDocumentation
  */
@@ -12,12 +13,6 @@ import { spawn } from 'node:child_process'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import * as os from 'node:os'
-
-/**
- * Supported signature algorithms.
- * @public
- */
-export type Algorithm = 'ed25519' | 'rsa'
 
 /**
  * Paths to a generated keypair.
@@ -35,8 +30,6 @@ export interface KeyPaths {
  * @public
  */
 export interface KeygenOptions {
-  /** Algorithm to use (default: ed25519) */
-  algorithm?: Algorithm
   /** Path for private key (default: OS-specific config dir) */
   privatePath?: string
   /** Path for public key (default: repo root) */
@@ -241,28 +234,11 @@ async function cleanupFiles(...paths: string[]): Promise<void> {
 }
 
 /**
- * Detect the algorithm of a key file by examining its contents.
- * @param keyPath - Path to the key file (public or private)
- * @returns The detected algorithm
- * @internal
- */
-async function detectKeyAlgorithm(keyPath: string): Promise<Algorithm> {
-  const result = await runOpenSSL(['pkey', '-in', keyPath, '-text', '-noout', '-pubin'])
-
-  // If -pubin fails, try without it (for private keys)
-  const keyInfo =
-    result.exitCode === 0
-      ? result.stdout.toString()
-      : (await runOpenSSL(['pkey', '-in', keyPath, '-text', '-noout'])).stdout.toString()
-
-  if (keyInfo.includes('ED25519')) {
-    return 'ed25519'
-  }
-  return 'rsa'
-}
-
-/**
- * Generate a new keypair using OpenSSL.
+ * Generate a new RSA-2048 keypair using OpenSSL.
+ *
+ * RSA-2048 with SHA-256 is used because it's universally supported across
+ * all OpenSSL and LibreSSL versions, including older macOS systems.
+ *
  * @param options - Generation options
  * @returns Paths to generated keys
  * @throws Error if OpenSSL fails or keys exist without force
@@ -273,9 +249,6 @@ export async function generateKeyPair(options: KeygenOptions = {}): Promise<KeyP
   await ensureOpenSSLAvailable()
 
   const {
-    // RSA is the default because it's universally supported across all OpenSSL/LibreSSL versions
-    // Ed25519 requires -rawin flag which isn't available on older LibreSSL (macOS)
-    algorithm = 'rsa',
     privatePath = getDefaultPrivateKeyPath(),
     publicPath = getDefaultPublicKeyPath(),
     force = false,
@@ -299,11 +272,8 @@ export async function generateKeyPair(options: KeygenOptions = {}): Promise<KeyP
   await ensureDir(path.dirname(publicPath))
 
   try {
-    // Generate private key
-    const genArgs =
-      algorithm === 'ed25519'
-        ? ['genpkey', '-algorithm', 'Ed25519', '-out', privatePath]
-        : ['genpkey', '-algorithm', 'RSA', '-pkeyopt', 'rsa_keygen_bits:2048', '-out', privatePath]
+    // Generate RSA-2048 private key
+    const genArgs = ['genpkey', '-algorithm', 'RSA', '-pkeyopt', 'rsa_keygen_bits:2048', '-out', privatePath]
 
     const genResult = await runOpenSSL(genArgs)
     if (genResult.exitCode !== 0) {
@@ -332,7 +302,11 @@ export async function generateKeyPair(options: KeygenOptions = {}): Promise<KeyP
 }
 
 /**
- * Sign data using a private key.
+ * Sign data using an RSA private key with SHA-256.
+ *
+ * Uses `openssl dgst -sha256 -sign` which is universally supported across
+ * all OpenSSL and LibreSSL versions.
+ *
  * @param options - Signing options
  * @returns Base64-encoded signature
  * @throws Error if signing fails
@@ -352,7 +326,7 @@ export async function sign(options: SignOptions): Promise<string> {
   // Convert data to Buffer
   const dataBuffer = typeof data === 'string' ? Buffer.from(data, 'utf8') : data
 
-  // OpenSSL pkeyutl cannot handle empty files, so we need to add a single byte
+  // OpenSSL dgst cannot handle empty files, so we need to add a single byte
   // for empty data and document this limitation
   const processBuffer = dataBuffer.length === 0 ? Buffer.from([0x00]) : dataBuffer
 
@@ -366,39 +340,17 @@ export async function sign(options: SignOptions): Promise<string> {
     // Write data to temp file
     await fs.writeFile(dataFile, processBuffer)
 
-    // Detect key algorithm to determine signing method
-    const algorithm = await detectKeyAlgorithm(privateKeyPath)
-
-    let result: SpawnResult
-
-    if (algorithm === 'ed25519') {
-      // Ed25519: use pkeyutl with -rawin for raw data signing
-      const signArgs = [
-        'pkeyutl',
-        '-sign',
-        '-inkey',
-        privateKeyPath,
-        '-in',
-        dataFile,
-        '-out',
-        sigFile,
-        '-rawin',
-      ]
-      result = await runOpenSSL(signArgs)
-    } else {
-      // RSA: use dgst command for cross-platform compatibility
-      // (pkeyutl -digest is not supported by LibreSSL on macOS)
-      const signArgs = [
-        'dgst',
-        '-sha256',
-        '-sign',
-        privateKeyPath,
-        '-out',
-        sigFile,
-        dataFile,
-      ]
-      result = await runOpenSSL(signArgs)
-    }
+    // Sign using openssl dgst -sha256 (cross-platform compatible)
+    const signArgs = [
+      'dgst',
+      '-sha256',
+      '-sign',
+      privateKeyPath,
+      '-out',
+      sigFile,
+      dataFile,
+    ]
+    const result = await runOpenSSL(signArgs)
 
     if (result.exitCode !== 0) {
       throw new Error(`Failed to sign data: ${result.stderr}`)
@@ -418,7 +370,11 @@ export async function sign(options: SignOptions): Promise<string> {
 }
 
 /**
- * Verify a signature using a public key.
+ * Verify a signature using an RSA public key with SHA-256.
+ *
+ * Uses `openssl dgst -sha256 -verify` which is universally supported across
+ * all OpenSSL and LibreSSL versions.
+ *
  * @param options - Verification options
  * @returns true if signature is valid
  * @throws Error if verification fails (not just invalid signature)
@@ -438,7 +394,7 @@ export async function verify(options: VerifyOptions): Promise<boolean> {
   // Convert data to Buffer
   const dataBuffer = typeof data === 'string' ? Buffer.from(data, 'utf8') : data
 
-  // OpenSSL pkeyutl cannot handle empty files, so we use the same workaround
+  // OpenSSL dgst cannot handle empty files, so we use the same workaround
   // as in sign() - add a single byte for empty data
   const processBuffer = dataBuffer.length === 0 ? Buffer.from([0x00]) : dataBuffer
 
@@ -456,50 +412,21 @@ export async function verify(options: VerifyOptions): Promise<boolean> {
     await fs.writeFile(dataFile, processBuffer)
     await fs.writeFile(sigFile, sigBuffer)
 
-    // Detect key algorithm to determine verification method
-    const algorithm = await detectKeyAlgorithm(publicKeyPath)
+    // Verify using openssl dgst -sha256 (cross-platform compatible)
+    const verifyArgs = [
+      'dgst',
+      '-sha256',
+      '-verify',
+      publicKeyPath,
+      '-signature',
+      sigFile,
+      dataFile,
+    ]
+    const result = await runOpenSSL(verifyArgs)
 
-    let result: SpawnResult
-
-    if (algorithm === 'ed25519') {
-      // Ed25519: use pkeyutl with -rawin for raw data verification
-      const verifyArgs = [
-        'pkeyutl',
-        '-verify',
-        '-pubin',
-        '-inkey',
-        publicKeyPath,
-        '-sigfile',
-        sigFile,
-        '-in',
-        dataFile,
-        '-rawin',
-      ]
-      result = await runOpenSSL(verifyArgs)
-
-      // pkeyutl: Exit code 0 means valid, 1 means invalid
-      if (result.exitCode !== 0 && result.exitCode !== 1) {
-        throw new Error(`Verification error: ${result.stderr}`)
-      }
-      return result.exitCode === 0
-    } else {
-      // RSA: use dgst command for cross-platform compatibility
-      // (pkeyutl -digest is not supported by LibreSSL on macOS)
-      const verifyArgs = [
-        'dgst',
-        '-sha256',
-        '-verify',
-        publicKeyPath,
-        '-signature',
-        sigFile,
-        dataFile,
-      ]
-      result = await runOpenSSL(verifyArgs)
-
-      // dgst -verify: Exit code 0 means valid, non-0 means invalid
-      // Output contains "Verified OK" on success
-      return result.exitCode === 0 && result.stdout.toString().includes('Verified OK')
-    }
+    // dgst -verify: Exit code 0 means valid, non-0 means invalid
+    // Output contains "Verified OK" on success
+    return result.exitCode === 0 && result.stdout.toString().includes('Verified OK')
   } finally {
     // Clean up temp directory and all files within it
     try {

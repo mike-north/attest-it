@@ -29,7 +29,6 @@ describe('config', () => {
         expect(config.settings.publicKeyPath).toBe('.attest-it/pubkey.pem')
         expect(config.settings.attestationsPath).toBe('.attest-it/attestations.json')
         expect(config.settings.defaultCommand).toBe('pnpm test')
-        expect(config.settings.algorithm).toBe('ed25519')
 
         const unitSuite = config.suites.unit
         expect(unitSuite).toBeDefined()
@@ -53,7 +52,6 @@ describe('config', () => {
         expect(config.settings.publicKeyPath).toBe('.attest-it/pubkey.pem')
         expect(config.settings.attestationsPath).toBe('.attest-it/attestations.json')
         expect(config.settings.defaultCommand).toBe('pnpm test')
-        expect(config.settings.algorithm).toBe('ed25519')
 
         expect(config.suites.unit).toBeDefined()
         expect(config.suites.integration).toBeDefined()
@@ -67,7 +65,6 @@ describe('config', () => {
         expect(config.settings.maxAgeDays).toBe(30) // default
         expect(config.settings.publicKeyPath).toBe('.attest-it/pubkey.pem') // default
         expect(config.settings.attestationsPath).toBe('.attest-it/attestations.json') // default
-        expect(config.settings.algorithm).toBe('ed25519') // default
         expect(config.settings.defaultCommand).toBeUndefined()
 
         const unitSuite = config.suites.unit
@@ -83,7 +80,6 @@ describe('config', () => {
         expect(config.settings.maxAgeDays).toBe(30)
         expect(config.settings.publicKeyPath).toBe('.attest-it/pubkey.pem')
         expect(config.settings.attestationsPath).toBe('.attest-it/attestations.json')
-        expect(config.settings.algorithm).toBe('ed25519')
       })
     })
 
@@ -148,29 +144,8 @@ suites:
         }
       })
 
-      it('should reject config with invalid algorithm', async () => {
-        const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-config-'))
-        const configPath = path.join(tempDir, 'config.yaml')
-
-        try {
-          fs.writeFileSync(
-            configPath,
-            `
-version: 1
-settings:
-  algorithm: invalid-algo
-suites:
-  unit:
-    packages:
-      - '@attest-it/core'
-`,
-          )
-
-          await expect(loadConfig(configPath)).rejects.toThrow(ConfigValidationError)
-        } finally {
-          fs.rmSync(tempDir, { recursive: true, force: true })
-        }
-      })
+      // Note: algorithm field was removed - RSA is the only supported algorithm
+      // Unknown fields in settings are now ignored for backwards compatibility
 
       it('should reject config with negative maxAgeDays', async () => {
         const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-config-'))
@@ -616,7 +591,6 @@ suites:
             maxAgeDays: 30,
             publicKeyPath: '.attest-it/pubkey.pem',
             attestationsPath: '.attest-it/attestations.json',
-            algorithm: 'ed25519',
           },
           suites: {
             unit: {
@@ -639,7 +613,6 @@ suites:
             maxAgeDays: 30,
             publicKeyPath: '/absolute/path/to/pubkey.pem',
             attestationsPath: '/absolute/path/to/attestations.json',
-            algorithm: 'ed25519',
           },
           suites: {
             unit: {
@@ -691,7 +664,6 @@ suites:
             maxAgeDays: 30,
             publicKeyPath: '../keys/pubkey.pem',
             attestationsPath: '.attest-it/attestations.json',
-            algorithm: 'ed25519',
           },
           suites: {
             unit: {
@@ -713,7 +685,6 @@ suites:
             maxAgeDays: 30,
             publicKeyPath: 'keys\\pubkey.pem',
             attestationsPath: 'attestations\\data.json',
-            algorithm: 'ed25519',
           },
           suites: {
             unit: {

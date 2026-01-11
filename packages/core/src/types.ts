@@ -16,8 +16,6 @@ export interface AttestItSettings {
   attestationsPath: string
   /** Default command to execute for attestation (can be overridden per suite) */
   defaultCommand?: string
-  /** Cryptographic algorithm to use for signatures */
-  algorithm: 'ed25519' | 'rsa'
 }
 
 /**
