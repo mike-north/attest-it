@@ -8,13 +8,12 @@ on:
 
 jobs:
   test-keygen:
-    name: keygen (${{ matrix.os }}, ${{ matrix.algorithm }})
+    name: keygen (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-        algorithm: [ed25519, rsa]
 
     steps:
       - uses: actions/checkout@v4
@@ -36,7 +35,6 @@ jobs:
         run: |
           mkdir -p test-keys
           node packages/cli/dist/bin/attest-it.js keygen \
-            --algorithm ${{ matrix.algorithm }} \
             --output test-keys/private.pem \
             --public test-keys/public.pem \
             --force
