@@ -364,27 +364,39 @@ export async function sign(options: SignOptions): Promise<string> {
     // Write data to temp file
     await fs.writeFile(dataFile, processBuffer)
 
-    // Detect key algorithm to determine if we need -rawin flag
+    // Detect key algorithm to determine signing method
     const algorithm = await detectKeyAlgorithm(privateKeyPath)
 
-    // Build signing command - Ed25519 requires -rawin flag
-    const signArgs = [
-      'pkeyutl',
-      '-sign',
-      '-inkey',
-      privateKeyPath,
-      '-in',
-      dataFile,
-      '-out',
-      sigFile,
-    ]
+    let result: SpawnResult
 
     if (algorithm === 'ed25519') {
-      signArgs.push('-rawin')
+      // Ed25519: use pkeyutl with -rawin for raw data signing
+      const signArgs = [
+        'pkeyutl',
+        '-sign',
+        '-inkey',
+        privateKeyPath,
+        '-in',
+        dataFile,
+        '-out',
+        sigFile,
+        '-rawin',
+      ]
+      result = await runOpenSSL(signArgs)
+    } else {
+      // RSA: use dgst command for cross-platform compatibility
+      // (pkeyutl -digest is not supported by LibreSSL on macOS)
+      const signArgs = [
+        'dgst',
+        '-sha256',
+        '-sign',
+        privateKeyPath,
+        '-out',
+        sigFile,
+        dataFile,
+      ]
+      result = await runOpenSSL(signArgs)
     }
-
-    // Sign the data
-    const result = await runOpenSSL(signArgs)
 
     if (result.exitCode !== 0) {
       throw new Error(`Failed to sign data: ${result.stderr}`)
@@ -442,36 +454,50 @@ export async function verify(options: VerifyOptions): Promise<boolean> {
     await fs.writeFile(dataFile, processBuffer)
     await fs.writeFile(sigFile, sigBuffer)
 
-    // Detect key algorithm to determine if we need -rawin flag
+    // Detect key algorithm to determine verification method
     const algorithm = await detectKeyAlgorithm(publicKeyPath)
 
-    // Build verification command - Ed25519 requires -rawin flag
-    const verifyArgs = [
-      'pkeyutl',
-      '-verify',
-      '-pubin',
-      '-inkey',
-      publicKeyPath,
-      '-sigfile',
-      sigFile,
-      '-in',
-      dataFile,
-    ]
+    let result: SpawnResult
 
     if (algorithm === 'ed25519') {
-      verifyArgs.push('-rawin')
+      // Ed25519: use pkeyutl with -rawin for raw data verification
+      const verifyArgs = [
+        'pkeyutl',
+        '-verify',
+        '-pubin',
+        '-inkey',
+        publicKeyPath,
+        '-sigfile',
+        sigFile,
+        '-in',
+        dataFile,
+        '-rawin',
+      ]
+      result = await runOpenSSL(verifyArgs)
+
+      // pkeyutl: Exit code 0 means valid, 1 means invalid
+      if (result.exitCode !== 0 && result.exitCode !== 1) {
+        throw new Error(`Verification error: ${result.stderr}`)
+      }
+      return result.exitCode === 0
+    } else {
+      // RSA: use dgst command for cross-platform compatibility
+      // (pkeyutl -digest is not supported by LibreSSL on macOS)
+      const verifyArgs = [
+        'dgst',
+        '-sha256',
+        '-verify',
+        publicKeyPath,
+        '-signature',
+        sigFile,
+        dataFile,
+      ]
+      result = await runOpenSSL(verifyArgs)
+
+      // dgst -verify: Exit code 0 means valid, non-0 means invalid
+      // Output contains "Verified OK" on success
+      return result.exitCode === 0 && result.stdout.toString().includes('Verified OK')
     }
-
-    // Verify the signature
-    const result = await runOpenSSL(verifyArgs)
-
-    // Exit code 0 means valid signature, 1 means invalid
-    // Any other exit code or stderr output indicates an error
-    if (result.exitCode !== 0 && result.exitCode !== 1) {
-      throw new Error(`Verification error: ${result.stderr}`)
-    }
-
-    return result.exitCode === 0
   } finally {
     // Clean up temp directory and all files within it
     try {

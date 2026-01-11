@@ -19947,7 +19947,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
-// ../core/dist/chunk-G7DLLYSI.js
+// ../core/dist/chunk-4GOPZQ5Y.js
 import { spawn } from "child_process";
 import * as fs from "fs/promises";
 import * as path2 from "path";
@@ -20096,20 +20096,32 @@ async function sign(options) {
   try {
     await fs.writeFile(dataFile, processBuffer);
     const algorithm = await detectKeyAlgorithm(privateKeyPath);
-    const signArgs = [
-      "pkeyutl",
-      "-sign",
-      "-inkey",
-      privateKeyPath,
-      "-in",
-      dataFile,
-      "-out",
-      sigFile
-    ];
+    let result;
     if (algorithm === "ed25519") {
-      signArgs.push("-rawin");
+      const signArgs = [
+        "pkeyutl",
+        "-sign",
+        "-inkey",
+        privateKeyPath,
+        "-in",
+        dataFile,
+        "-out",
+        sigFile,
+        "-rawin"
+      ];
+      result = await runOpenSSL(signArgs);
+    } else {
+      const signArgs = [
+        "dgst",
+        "-sha256",
+        "-sign",
+        privateKeyPath,
+        "-out",
+        sigFile,
+        dataFile
+      ];
+      result = await runOpenSSL(signArgs);
     }
-    const result = await runOpenSSL(signArgs);
     if (result.exitCode !== 0) {
       throw new Error(`Failed to sign data: ${result.stderr}`);
     }
@@ -20138,25 +20150,38 @@ async function verify(options) {
     await fs.writeFile(dataFile, processBuffer);
     await fs.writeFile(sigFile, sigBuffer);
     const algorithm = await detectKeyAlgorithm(publicKeyPath);
-    const verifyArgs = [
-      "pkeyutl",
-      "-verify",
-      "-pubin",
-      "-inkey",
-      publicKeyPath,
-      "-sigfile",
-      sigFile,
-      "-in",
-      dataFile
-    ];
+    let result;
     if (algorithm === "ed25519") {
-      verifyArgs.push("-rawin");
+      const verifyArgs = [
+        "pkeyutl",
+        "-verify",
+        "-pubin",
+        "-inkey",
+        publicKeyPath,
+        "-sigfile",
+        sigFile,
+        "-in",
+        dataFile,
+        "-rawin"
+      ];
+      result = await runOpenSSL(verifyArgs);
+      if (result.exitCode !== 0 && result.exitCode !== 1) {
+        throw new Error(`Verification error: ${result.stderr}`);
+      }
+      return result.exitCode === 0;
+    } else {
+      const verifyArgs = [
+        "dgst",
+        "-sha256",
+        "-verify",
+        publicKeyPath,
+        "-signature",
+        sigFile,
+        dataFile
+      ];
+      result = await runOpenSSL(verifyArgs);
+      return result.exitCode === 0 && result.stdout.toString().includes("Verified OK");
     }
-    const result = await runOpenSSL(verifyArgs);
-    if (result.exitCode !== 0 && result.exitCode !== 1) {
-      throw new Error(`Verification error: ${result.stderr}`);
-    }
-    return result.exitCode === 0;
   } finally {
     try {
       await fs.rm(tmpDir, { recursive: true, force: true });
@@ -20172,8 +20197,8 @@ async function setKeyPermissions(keyPath) {
   }
 }
 var openSSLChecked;
-var init_chunk_G7DLLYSI = __esm({
-  "../core/dist/chunk-G7DLLYSI.js"() {
+var init_chunk_4GOPZQ5Y = __esm({
+  "../core/dist/chunk-4GOPZQ5Y.js"() {
     "use strict";
     init_esm_shims();
     openSSLChecked = false;
@@ -29103,9 +29128,9 @@ var require_canonicalize = __commonJS({
   }
 });
 
-// ../core/dist/crypto-V2NZX5KO.js
-var crypto_V2NZX5KO_exports = {};
-__export(crypto_V2NZX5KO_exports, {
+// ../core/dist/crypto-UDLANQS4.js
+var crypto_UDLANQS4_exports = {};
+__export(crypto_UDLANQS4_exports, {
   checkOpenSSL: () => checkOpenSSL,
   generateKeyPair: () => generateKeyPair,
   getDefaultPrivateKeyPath: () => getDefaultPrivateKeyPath,
@@ -29114,11 +29139,11 @@ __export(crypto_V2NZX5KO_exports, {
   sign: () => sign,
   verify: () => verify
 });
-var init_crypto_V2NZX5KO = __esm({
-  "../core/dist/crypto-V2NZX5KO.js"() {
+var init_crypto_UDLANQS4 = __esm({
+  "../core/dist/crypto-UDLANQS4.js"() {
     "use strict";
     init_esm_shims();
-    init_chunk_G7DLLYSI();
+    init_chunk_4GOPZQ5Y();
   }
 });
 
@@ -29128,7 +29153,7 @@ var core = __toESM(require_core(), 1);
 
 // ../core/dist/index.js
 init_esm_shims();
-init_chunk_G7DLLYSI();
+init_chunk_4GOPZQ5Y();
 var import_yaml = __toESM(require_dist(), 1);
 import * as fs2 from "fs";
 import { readFileSync as readFileSync2 } from "fs";
@@ -34277,7 +34302,7 @@ function canonicalizeAttestations(attestations) {
   return canonical;
 }
 async function readAndVerifyAttestations(options) {
-  const { verify: verify2 } = await Promise.resolve().then(() => (init_crypto_V2NZX5KO(), crypto_V2NZX5KO_exports));
+  const { verify: verify2 } = await Promise.resolve().then(() => (init_crypto_UDLANQS4(), crypto_UDLANQS4_exports));
   const file = await readAttestations(options.filePath);
   if (!file) {
     throw new Error(`Attestations file not found: ${options.filePath}`);
