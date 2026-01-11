@@ -7,9 +7,6 @@
 import { z } from 'zod';
 
 // @public
-export type Algorithm = 'ed25519' | 'rsa';
-
-// @public
 export interface Attestation {
     attestedAt: string;
     attestedBy: string;
@@ -35,7 +32,6 @@ export interface AttestItConfig {
 
 // @public
 export interface AttestItSettings {
-    algorithm: 'ed25519' | 'rsa';
     attestationsPath: string;
     defaultCommand?: string;
     maxAgeDays: number;
@@ -117,7 +113,6 @@ export function getDefaultPublicKeyPath(): string;
 
 // @public
 export interface KeygenOptions {
-    algorithm?: Algorithm;
     force?: boolean;
     privatePath?: string;
     publicPath?: string;

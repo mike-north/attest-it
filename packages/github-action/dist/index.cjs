@@ -19944,7 +19944,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
-// ../core/dist/chunk-E6URLBXW.js
+// ../core/dist/chunk-CEE7ONNG.js
 async function runOpenSSL(args, stdin) {
   return new Promise((resolve4, reject) => {
     const child = (0, import_child_process.spawn)("openssl", args, {
@@ -20047,7 +20047,15 @@ async function generateKeyPair(options = {}) {
   await ensureDir(path.dirname(privatePath));
   await ensureDir(path.dirname(publicPath));
   try {
-    const genArgs = ["genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:2048", "-out", privatePath];
+    const genArgs = [
+      "genpkey",
+      "-algorithm",
+      "RSA",
+      "-pkeyopt",
+      "rsa_keygen_bits:2048",
+      "-out",
+      privatePath
+    ];
     const genResult = await runOpenSSL(genArgs);
     if (genResult.exitCode !== 0) {
       throw new Error(`Failed to generate private key: ${genResult.stderr}`);
@@ -20079,15 +20087,7 @@ async function sign(options) {
   const sigFile = path.join(tmpDir, "sig.bin");
   try {
     await fs.writeFile(dataFile, processBuffer);
-    const signArgs = [
-      "dgst",
-      "-sha256",
-      "-sign",
-      privateKeyPath,
-      "-out",
-      sigFile,
-      dataFile
-    ];
+    const signArgs = ["dgst", "-sha256", "-sign", privateKeyPath, "-out", sigFile, dataFile];
     const result = await runOpenSSL(signArgs);
     if (result.exitCode !== 0) {
       throw new Error(`Failed to sign data: ${result.stderr}`);
@@ -20142,8 +20142,8 @@ async function setKeyPermissions(keyPath) {
   }
 }
 var import_child_process, fs, path, os, openSSLChecked;
-var init_chunk_E6URLBXW = __esm({
-  "../core/dist/chunk-E6URLBXW.js"() {
+var init_chunk_CEE7ONNG = __esm({
+  "../core/dist/chunk-CEE7ONNG.js"() {
     "use strict";
     init_cjs_shims();
     import_child_process = require("child_process");
@@ -29077,9 +29077,9 @@ var require_canonicalize = __commonJS({
   }
 });
 
-// ../core/dist/crypto-RXCIWZWB.js
-var crypto_RXCIWZWB_exports = {};
-__export(crypto_RXCIWZWB_exports, {
+// ../core/dist/crypto-VAXWUGKL.js
+var crypto_VAXWUGKL_exports = {};
+__export(crypto_VAXWUGKL_exports, {
   checkOpenSSL: () => checkOpenSSL,
   generateKeyPair: () => generateKeyPair,
   getDefaultPrivateKeyPath: () => getDefaultPrivateKeyPath,
@@ -29088,11 +29088,11 @@ __export(crypto_RXCIWZWB_exports, {
   sign: () => sign,
   verify: () => verify
 });
-var init_crypto_RXCIWZWB = __esm({
-  "../core/dist/crypto-RXCIWZWB.js"() {
+var init_crypto_VAXWUGKL = __esm({
+  "../core/dist/crypto-VAXWUGKL.js"() {
     "use strict";
     init_cjs_shims();
-    init_chunk_E6URLBXW();
+    init_chunk_CEE7ONNG();
   }
 });
 
@@ -29107,7 +29107,7 @@ var core = __toESM(require_core(), 1);
 
 // ../core/dist/index.js
 init_cjs_shims();
-init_chunk_E6URLBXW();
+init_chunk_CEE7ONNG();
 var fs2 = __toESM(require("fs"), 1);
 var import_fs2 = require("fs");
 var import_promises = require("fs/promises");
@@ -34255,7 +34255,7 @@ function canonicalizeAttestations(attestations) {
   return canonical;
 }
 async function readAndVerifyAttestations(options) {
-  const { verify: verify2 } = await Promise.resolve().then(() => (init_crypto_RXCIWZWB(), crypto_RXCIWZWB_exports));
+  const { verify: verify2 } = await Promise.resolve().then(() => (init_crypto_VAXWUGKL(), crypto_VAXWUGKL_exports));
   const file = await readAttestations(options.filePath);
   if (!file) {
     throw new Error(`Attestations file not found: ${options.filePath}`);
