@@ -49,6 +49,8 @@ web_modules/
 
 # Build output
 dist/
+# Exception: GitHub Action must have dist committed
+!packages/github-action/dist/
 
 # API Extractor temp files
 **/temp/
@@ -89,7 +91,6 @@ out
 
 # Nuxt.js build / generate output
 .nuxt
-dist
 .output
 
 # Gatsby files
