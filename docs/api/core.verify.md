@@ -4,7 +4,9 @@
 
 ## verify() function
 
-Verify a signature using a public key.
+Verify a signature using an RSA public key with SHA-256.
+
+Uses `openssl dgst -sha256 -verify` which is universally supported across all OpenSSL and LibreSSL versions.
 
 **Signature:**
 

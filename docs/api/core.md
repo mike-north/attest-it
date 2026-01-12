@@ -155,7 +155,9 @@ Searches in this order: 1. .attest-it/config.yaml 2. .attest-it/config.yml 3. .a
 
 </td><td>
 
-Generate a new keypair using OpenSSL.
+Generate a new RSA-2048 keypair using OpenSSL.
+
+RSA-2048 with SHA-256 is used because it's universally supported across all OpenSSL and LibreSSL versions, including older macOS systems.
 
 
 </td></tr>
@@ -293,7 +295,9 @@ Set restrictive permissions on a private key file.
 
 </td><td>
 
-Sign data using a private key.
+Sign data using an RSA private key with SHA-256.
+
+Uses `openssl dgst -sha256 -sign` which is universally supported across all OpenSSL and LibreSSL versions.
 
 
 </td></tr>
@@ -332,7 +336,9 @@ This is an immutable operation that returns a new array.
 
 </td><td>
 
-Verify a signature using a public key.
+Verify a signature using an RSA public key with SHA-256.
+
+Uses `openssl dgst -sha256 -verify` which is universally supported across all OpenSSL and LibreSSL versions.
 
 
 </td></tr>
@@ -621,17 +627,6 @@ Description
 
 </th></tr></thead>
 <tbody><tr><td>
-
-[Algorithm](./core.algorithm.md)
-
-
-</td><td>
-
-Supported signature algorithms.
-
-
-</td></tr>
-<tr><td>
 
 [Config](./core.config.md)
 
