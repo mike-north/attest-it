@@ -1,5 +1,16 @@
 # attest-it
 
+## 0.1.0
+
+### Minor Changes
+
+- 49c778c: Simplified `attest-it init` command
+
+### Patch Changes
+
+- Updated dependencies [49c778c]
+  - @attest-it/cli@0.1.0
+
 ## 0.0.2
 
 ### Patch Changes
