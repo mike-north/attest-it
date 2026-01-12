@@ -37,25 +37,6 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
-[algorithm](./core.attestitsettings.algorithm.md)
-
-
-</td><td>
-
-
-</td><td>
-
-'ed25519' \| 'rsa'
-
-
-</td><td>
-
-Cryptographic algorithm to use for signatures
-
-
-</td></tr>
-<tr><td>
-
 [attestationsPath](./core.attestitsettings.attestationspath.md)
 
 

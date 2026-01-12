@@ -4,7 +4,9 @@
 
 ## sign() function
 
-Sign data using a private key.
+Sign data using an RSA private key with SHA-256.
+
+Uses `openssl dgst -sha256 -sign` which is universally supported across all OpenSSL and LibreSSL versions.
 
 **Signature:**
 

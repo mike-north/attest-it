@@ -37,25 +37,6 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
-[algorithm?](./core.keygenoptions.algorithm.md)
-
-
-</td><td>
-
-
-</td><td>
-
-[Algorithm](./core.algorithm.md)
-
-
-</td><td>
-
-_(Optional)_ Algorithm to use (default: ed25519)
-
-
-</td></tr>
-<tr><td>
-
 [force?](./core.keygenoptions.force.md)
 
 

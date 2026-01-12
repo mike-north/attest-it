@@ -20,8 +20,6 @@ vi.mock('node:fs', async () => {
 // Mock prompts
 vi.mock('../src/utils/prompts.js', () => ({
   confirmAction: vi.fn(),
-  getInput: vi.fn(),
-  selectOption: vi.fn(),
 }))
 
 // Mock console methods
@@ -36,7 +34,7 @@ const mockProcessExit = vi.spyOn(process, 'exit').mockImplementation(() => {
 })
 
 // Import mocked functions
-const { confirmAction, getInput, selectOption } = await import('../src/utils/prompts.js')
+const { confirmAction } = await import('../src/utils/prompts.js')
 
 interface ConfigStructure {
   version: number
@@ -46,14 +44,7 @@ interface ConfigStructure {
     attestationsPath: string
     algorithm: string
   }
-  suites: Record<
-    string,
-    {
-      description?: string
-      packages: string[]
-      command: string
-    }
-  >
+  suites: Record<string, unknown>
 }
 
 function hasVersionField(value: object): value is { version: unknown } {
@@ -112,13 +103,6 @@ describe('init command', () => {
     vi.mocked(fs.promises.mkdir).mockResolvedValue(undefined)
     vi.mocked(fs.promises.writeFile).mockResolvedValue(undefined)
     vi.mocked(confirmAction).mockResolvedValue(false)
-    vi.mocked(getInput)
-      .mockResolvedValueOnce('30') // maxAgeDays
-      .mockResolvedValueOnce('example') // suite name
-      .mockResolvedValueOnce('Example test suite') // description
-      .mockResolvedValueOnce('packages/example') // packages
-      .mockResolvedValueOnce('pnpm vitest packages/example') // command
-    vi.mocked(selectOption).mockResolvedValue('ed25519')
   })
 
   afterEach(() => {
@@ -127,8 +111,6 @@ describe('init command', () => {
 
   describe('positive cases', () => {
     it('should create config file in correct location', async () => {
-      vi.mocked(confirmAction).mockResolvedValue(false) // no more suites
-
       await runInit({
         path: '.attest-it/config.yaml',
       })
@@ -141,8 +123,6 @@ describe('init command', () => {
     })
 
     it('should create parent directories', async () => {
-      vi.mocked(confirmAction).mockResolvedValue(false)
-
       await runInit({
         path: '.attest-it/config.yaml',
       })
@@ -152,9 +132,7 @@ describe('init command', () => {
       })
     })
 
-    it('should output YAML by default', async () => {
-      vi.mocked(confirmAction).mockResolvedValue(false)
-
+    it('should output valid YAML', async () => {
       await runInit({
         path: '.attest-it/config.yaml',
       })
@@ -166,7 +144,6 @@ describe('init command', () => {
       const contentArg: unknown = writeCall[1]
       expect(typeof contentArg).toBe('string')
 
-      // Type guard for string
       if (typeof contentArg !== 'string') {
         throw new Error('Expected content to be string')
       }
@@ -177,46 +154,9 @@ describe('init command', () => {
       }).not.toThrow()
     })
 
-    it('should output JSON with --json flag', async () => {
-      vi.mocked(confirmAction).mockResolvedValue(false)
-
+    it('should include sensible default settings', async () => {
       await runInit({
         path: '.attest-it/config.yaml',
-        json: true,
-      })
-
-      const writeCall = vi.mocked(fs.promises.writeFile).mock.calls[0]
-      expect(writeCall).toBeDefined()
-      if (!writeCall) throw new Error('Expected writeFile to be called')
-
-      const contentArg: unknown = writeCall[1]
-      expect(typeof contentArg).toBe('string')
-
-      // Type guard for string
-      if (typeof contentArg !== 'string') {
-        throw new Error('Expected content to be string')
-      }
-
-      // Should be valid JSON
-      expect(() => {
-        JSON.parse(contentArg)
-      }).not.toThrow()
-    })
-
-    it('should include all user inputs in config', async () => {
-      vi.mocked(getInput).mockReset()
-      vi.mocked(getInput)
-        .mockResolvedValueOnce('45') // maxAgeDays
-        .mockResolvedValueOnce('my-suite') // suite name
-        .mockResolvedValueOnce('My custom suite') // description
-        .mockResolvedValueOnce('packages/my-suite') // packages
-        .mockResolvedValueOnce('npm test') // command
-      vi.mocked(selectOption).mockResolvedValue('rsa')
-      vi.mocked(confirmAction).mockResolvedValue(false)
-
-      await runInit({
-        path: '.attest-it/config.yaml',
-        json: true,
       })
 
       const writeCall = vi.mocked(fs.promises.writeFile).mock.calls[0]
@@ -227,23 +167,21 @@ describe('init command', () => {
       if (typeof contentArg !== 'string') {
         throw new Error('Expected content to be string')
       }
-      const config: unknown = JSON.parse(contentArg)
+
+      const config: unknown = YAML.parse(contentArg)
 
       if (!isConfigStructure(config)) {
         throw new Error('Expected valid config structure')
       }
 
-      expect(config.settings.maxAgeDays).toBe(45)
+      expect(config.settings.maxAgeDays).toBe(30)
       expect(config.settings.algorithm).toBe('rsa')
-      expect(config.suites['my-suite']).toBeDefined()
-      expect(config.suites['my-suite']?.description).toBe('My custom suite')
-      expect(config.suites['my-suite']?.packages).toEqual(['packages/my-suite'])
-      expect(config.suites['my-suite']?.command).toBe('npm test')
+      expect(config.settings.publicKeyPath).toBe('.attest-it/pubkey.pem')
+      expect(config.settings.attestationsPath).toBe('.attest-it/attestations.json')
     })
 
     it('should overwrite with --force flag', async () => {
       vi.mocked(fs.existsSync).mockReturnValue(true)
-      vi.mocked(confirmAction).mockResolvedValue(false)
 
       await runInit({
         path: '.attest-it/config.yaml',
@@ -251,87 +189,11 @@ describe('init command', () => {
       })
 
       // Should not prompt for confirmation
-      expect(confirmAction).toHaveBeenCalledTimes(1) // Only for "add more suites"
+      expect(confirmAction).not.toHaveBeenCalled()
       expect(fs.promises.writeFile).toHaveBeenCalled()
     })
 
-    it('should support multiple suites', async () => {
-      vi.mocked(getInput).mockReset()
-      vi.mocked(getInput)
-        .mockResolvedValueOnce('30') // maxAgeDays
-        .mockResolvedValueOnce('suite1') // first suite name
-        .mockResolvedValueOnce('First suite') // description
-        .mockResolvedValueOnce('packages/suite1') // packages
-        .mockResolvedValueOnce('npm test suite1') // command
-        .mockResolvedValueOnce('suite2') // second suite name
-        .mockResolvedValueOnce('Second suite') // description
-        .mockResolvedValueOnce('packages/suite2') // packages
-        .mockResolvedValueOnce('npm test suite2') // command
-      vi.mocked(confirmAction)
-        .mockResolvedValueOnce(true) // add another suite
-        .mockResolvedValueOnce(false) // no more suites
-
-      await runInit({
-        path: '.attest-it/config.yaml',
-        json: true,
-      })
-
-      const writeCall = vi.mocked(fs.promises.writeFile).mock.calls[0]
-      expect(writeCall).toBeDefined()
-      if (!writeCall) throw new Error('Expected writeFile to be called')
-
-      const contentArg: unknown = writeCall[1]
-      if (typeof contentArg !== 'string') {
-        throw new Error('Expected content to be string')
-      }
-      const config: unknown = JSON.parse(contentArg)
-
-      if (!isConfigStructure(config)) {
-        throw new Error('Expected valid config structure')
-      }
-
-      expect(Object.keys(config.suites)).toEqual(['suite1', 'suite2'])
-    })
-
-    it('should handle comma-separated packages', async () => {
-      vi.mocked(getInput).mockReset()
-      vi.mocked(getInput)
-        .mockResolvedValueOnce('30') // maxAgeDays
-        .mockResolvedValueOnce('multi-pkg') // suite name
-        .mockResolvedValueOnce('Multi-package suite') // description
-        .mockResolvedValueOnce('packages/pkg1, packages/pkg2, packages/pkg3') // packages
-        .mockResolvedValueOnce('npm test') // command
-      vi.mocked(confirmAction).mockResolvedValue(false)
-
-      await runInit({
-        path: '.attest-it/config.yaml',
-        json: true,
-      })
-
-      const writeCall = vi.mocked(fs.promises.writeFile).mock.calls[0]
-      expect(writeCall).toBeDefined()
-      if (!writeCall) throw new Error('Expected writeFile to be called')
-
-      const contentArg: unknown = writeCall[1]
-      if (typeof contentArg !== 'string') {
-        throw new Error('Expected content to be string')
-      }
-      const config: unknown = JSON.parse(contentArg)
-
-      if (!isConfigStructure(config)) {
-        throw new Error('Expected valid config structure')
-      }
-
-      expect(config.suites['multi-pkg']?.packages).toEqual([
-        'packages/pkg1',
-        'packages/pkg2',
-        'packages/pkg3',
-      ])
-    })
-
     it('should display success message', async () => {
-      vi.mocked(confirmAction).mockResolvedValue(false)
-
       await runInit({
         path: '.attest-it/config.yaml',
       })
@@ -340,22 +202,18 @@ describe('init command', () => {
     })
 
     it('should display next steps', async () => {
-      vi.mocked(confirmAction).mockResolvedValue(false)
-
       await runInit({
         path: '.attest-it/config.yaml',
       })
 
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Next steps:'))
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('attest-it keygen'))
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('attest-it status'))
     })
 
     it('should set config version to 1', async () => {
-      vi.mocked(confirmAction).mockResolvedValue(false)
-
       await runInit({
         path: '.attest-it/config.yaml',
-        json: true,
       })
 
       const writeCall = vi.mocked(fs.promises.writeFile).mock.calls[0]
@@ -366,7 +224,7 @@ describe('init command', () => {
       if (typeof contentArg !== 'string') {
         throw new Error('Expected content to be string')
       }
-      const config: unknown = JSON.parse(contentArg)
+      const config: unknown = YAML.parse(contentArg)
 
       if (!isConfigStructure(config)) {
         throw new Error('Expected valid config structure')
@@ -375,17 +233,66 @@ describe('init command', () => {
       expect(config.version).toBe(1)
     })
 
-    it('should create attestations directory', async () => {
-      vi.mocked(confirmAction).mockResolvedValue(false)
-
+    it('should create config directory', async () => {
       await runInit({
         path: '.attest-it/config.yaml',
       })
 
-      // Should create .attest-it directory
       expect(fs.promises.mkdir).toHaveBeenCalledWith(expect.stringContaining('.attest-it'), {
         recursive: true,
       })
+    })
+
+    it('should include commented example suites in template', async () => {
+      await runInit({
+        path: '.attest-it/config.yaml',
+      })
+
+      const writeCall = vi.mocked(fs.promises.writeFile).mock.calls[0]
+      expect(writeCall).toBeDefined()
+      if (!writeCall) throw new Error('Expected writeFile to be called')
+
+      const contentArg: unknown = writeCall[1]
+      if (typeof contentArg !== 'string') {
+        throw new Error('Expected content to be string')
+      }
+
+      // Should contain commented examples
+      expect(contentArg).toContain('# Example:')
+      expect(contentArg).toContain('# suites:')
+      expect(contentArg).toContain('#   visual-tests:')
+    })
+
+    it('should have empty suites object by default', async () => {
+      await runInit({
+        path: '.attest-it/config.yaml',
+      })
+
+      const writeCall = vi.mocked(fs.promises.writeFile).mock.calls[0]
+      expect(writeCall).toBeDefined()
+      if (!writeCall) throw new Error('Expected writeFile to be called')
+
+      const contentArg: unknown = writeCall[1]
+      if (typeof contentArg !== 'string') {
+        throw new Error('Expected content to be string')
+      }
+      const config: unknown = YAML.parse(contentArg)
+
+      if (!isConfigStructure(config)) {
+        throw new Error('Expected valid config structure')
+      }
+
+      expect(config.suites).toEqual({})
+    })
+
+    it('should tell user to edit the config file', async () => {
+      await runInit({
+        path: '.attest-it/config.yaml',
+      })
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Edit .attest-it/config.yaml'),
+      )
     })
   })
 
@@ -405,43 +312,23 @@ describe('init command', () => {
       expect(fs.promises.writeFile).not.toHaveBeenCalled()
     })
 
-    it('should validate maxAgeDays input', async () => {
-      vi.mocked(getInput)
-        .mockResolvedValueOnce('30') // Will be called for validation
-        .mockResolvedValueOnce('example')
-        .mockResolvedValueOnce('Example suite')
-        .mockResolvedValueOnce('packages/example')
-        .mockResolvedValueOnce('npm test')
+    it('should prompt for confirmation when config exists', async () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(confirmAction).mockResolvedValue(true)
 
       await runInit({
         path: '.attest-it/config.yaml',
       })
 
-      // Check that getInput was called with validate function
-      const maxAgeDaysCall = vi.mocked(getInput).mock.calls[0]
-      if (!maxAgeDaysCall) {
-        throw new Error('Expected getInput to be called')
-      }
-
-      const options = maxAgeDaysCall[0]
-      if (!options.validate) {
-        throw new Error('Expected validate function')
-      }
-
-      // Test the validate function
-      expect(options.validate('30')).toBe(true)
-      expect(options.validate('0')).toBe('Must be a positive number')
-      expect(options.validate('-5')).toBe('Must be a positive number')
-      expect(options.validate('abc')).toBe('Must be a positive number')
+      expect(confirmAction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: expect.stringContaining('Overwrite'),
+        }),
+      )
+      expect(fs.promises.writeFile).toHaveBeenCalled()
     })
 
-    // Note: Testing the "at least one suite required" case is difficult
-    // because the validation function in getInput prevents empty suite names.
-    // The error case in the code (suites.length === 0) is unreachable in practice
-    // due to the validation logic. This is by design.
-
     it('should handle file write errors', async () => {
-      vi.mocked(confirmAction).mockResolvedValue(false)
       vi.mocked(fs.promises.writeFile).mockRejectedValue(new Error('Permission denied'))
 
       await expect(async () => {
@@ -455,7 +342,6 @@ describe('init command', () => {
     })
 
     it('should handle directory creation errors', async () => {
-      vi.mocked(confirmAction).mockResolvedValue(false)
       vi.mocked(fs.promises.mkdir).mockRejectedValue(new Error('Cannot create directory'))
 
       await expect(async () => {
@@ -471,7 +357,6 @@ describe('init command', () => {
     })
 
     it('should handle unknown error types', async () => {
-      vi.mocked(confirmAction).mockResolvedValue(false)
       vi.mocked(fs.promises.writeFile).mockRejectedValue('string error')
 
       await expect(async () => {
@@ -483,203 +368,10 @@ describe('init command', () => {
       expect(mockProcessExit).toHaveBeenCalledWith(2)
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Unknown error'))
     })
-
-    it('should validate suite name is not empty', async () => {
-      vi.mocked(getInput)
-        .mockResolvedValueOnce('30') // maxAgeDays
-        .mockResolvedValueOnce('example') // suite name (will be validated)
-        .mockResolvedValueOnce('Example suite')
-        .mockResolvedValueOnce('packages/example')
-        .mockResolvedValueOnce('npm test')
-
-      await runInit({
-        path: '.attest-it/config.yaml',
-      })
-
-      // Check that getInput was called with validate function for suite name
-      const suiteNameCall = vi.mocked(getInput).mock.calls[1]
-      if (!suiteNameCall) {
-        throw new Error('Expected getInput to be called')
-      }
-
-      const options = suiteNameCall[0]
-      if (!options.validate) {
-        throw new Error('Expected validate function')
-      }
-
-      // Test the validate function
-      expect(options.validate('example')).toBe(true)
-      expect(options.validate('')).toBe('Required')
-    })
-
-    it('should validate packages input is not empty', async () => {
-      vi.mocked(getInput)
-        .mockResolvedValueOnce('30') // maxAgeDays
-        .mockResolvedValueOnce('example') // suite name
-        .mockResolvedValueOnce('Example suite')
-        .mockResolvedValueOnce('packages/example') // packages (will be validated)
-        .mockResolvedValueOnce('npm test')
-
-      await runInit({
-        path: '.attest-it/config.yaml',
-      })
-
-      // Check that getInput was called with validate function for packages
-      const packagesCall = vi.mocked(getInput).mock.calls[3]
-      if (!packagesCall) {
-        throw new Error('Expected getInput to be called')
-      }
-
-      const options = packagesCall[0]
-      if (!options.validate) {
-        throw new Error('Expected validate function')
-      }
-
-      // Test the validate function
-      expect(options.validate('packages/example')).toBe(true)
-      expect(options.validate('')).toBe('At least one package required')
-    })
   })
 
   describe('edge cases', () => {
-    it('should handle empty description (optional)', async () => {
-      vi.mocked(getInput).mockReset()
-      vi.mocked(getInput)
-        .mockResolvedValueOnce('30') // maxAgeDays
-        .mockResolvedValueOnce('example') // suite name
-        .mockResolvedValueOnce('') // empty description
-        .mockResolvedValueOnce('packages/example') // packages
-        .mockResolvedValueOnce('npm test') // command
-      vi.mocked(confirmAction).mockResolvedValue(false)
-
-      await runInit({
-        path: '.attest-it/config.yaml',
-        json: true,
-      })
-
-      const writeCall = vi.mocked(fs.promises.writeFile).mock.calls[0]
-      expect(writeCall).toBeDefined()
-      if (!writeCall) throw new Error('Expected writeFile to be called')
-
-      const contentArg: unknown = writeCall[1]
-      if (typeof contentArg !== 'string') {
-        throw new Error('Expected content to be string')
-      }
-      const config: unknown = JSON.parse(contentArg)
-
-      if (!isConfigStructure(config)) {
-        throw new Error('Expected valid config structure')
-      }
-
-      // Description should be undefined when empty
-      expect(config.suites.example?.description).toBeUndefined()
-    })
-
-    it('should trim whitespace from packages', async () => {
-      vi.mocked(getInput).mockReset()
-      vi.mocked(getInput)
-        .mockResolvedValueOnce('30') // maxAgeDays
-        .mockResolvedValueOnce('example') // suite name
-        .mockResolvedValueOnce('Example suite')
-        .mockResolvedValueOnce('  packages/a  ,  packages/b  , packages/c ') // packages with whitespace
-        .mockResolvedValueOnce('npm test')
-      vi.mocked(confirmAction).mockResolvedValue(false)
-
-      await runInit({
-        path: '.attest-it/config.yaml',
-        json: true,
-      })
-
-      const writeCall = vi.mocked(fs.promises.writeFile).mock.calls[0]
-      expect(writeCall).toBeDefined()
-      if (!writeCall) throw new Error('Expected writeFile to be called')
-
-      const contentArg: unknown = writeCall[1]
-      if (typeof contentArg !== 'string') {
-        throw new Error('Expected content to be string')
-      }
-      const config: unknown = JSON.parse(contentArg)
-
-      if (!isConfigStructure(config)) {
-        throw new Error('Expected valid config structure')
-      }
-
-      expect(config.suites.example?.packages).toEqual(['packages/a', 'packages/b', 'packages/c'])
-    })
-
-    it('should filter out empty package entries', async () => {
-      // Clear and reset mocks completely
-      vi.mocked(getInput).mockReset()
-      vi.mocked(getInput)
-        .mockResolvedValueOnce('30') // maxAgeDays
-        .mockResolvedValueOnce('example') // suite name
-        .mockResolvedValueOnce('Example suite')
-        .mockResolvedValueOnce('packages/a,,packages/b,,,packages/c') // packages with empty entries
-        .mockResolvedValueOnce('npm test')
-      vi.mocked(confirmAction).mockResolvedValue(false)
-
-      await runInit({
-        path: '.attest-it/config.yaml',
-        json: true,
-      })
-
-      const writeCall = vi.mocked(fs.promises.writeFile).mock.calls[0]
-      expect(writeCall).toBeDefined()
-      if (!writeCall) throw new Error('Expected writeFile to be called')
-
-      const contentArg: unknown = writeCall[1]
-      if (typeof contentArg !== 'string') {
-        throw new Error('Expected content to be string')
-      }
-      const config: unknown = JSON.parse(contentArg)
-
-      if (!isConfigStructure(config)) {
-        throw new Error('Expected valid config structure')
-      }
-
-      expect(config.suites.example?.packages).toEqual(['packages/a', 'packages/b', 'packages/c'])
-    })
-
-    it('should use default values for inputs', async () => {
-      // Clear and reset mocks completely
-      vi.mocked(getInput).mockReset()
-      vi.mocked(getInput)
-        .mockResolvedValueOnce('30') // maxAgeDays (default)
-        .mockResolvedValueOnce('my-suite') // suite name
-        .mockResolvedValueOnce('')
-        .mockResolvedValueOnce('packages/my-suite') // will use default in actual run
-        .mockResolvedValueOnce('pnpm vitest packages/my-suite') // will use default
-      vi.mocked(confirmAction).mockResolvedValue(false)
-
-      await runInit({
-        path: '.attest-it/config.yaml',
-      })
-
-      // Check that defaults were provided
-      const maxAgeDaysCall = vi.mocked(getInput).mock.calls[0]
-      if (!maxAgeDaysCall) {
-        throw new Error('Expected call')
-      }
-      const maxAgeDaysOptions = maxAgeDaysCall[0]
-      if (!maxAgeDaysOptions.default) {
-        throw new Error('Expected options with default')
-      }
-      expect(maxAgeDaysOptions.default).toBe('30')
-
-      const packagesCall = vi.mocked(getInput).mock.calls[3]
-      if (!packagesCall) {
-        throw new Error('Expected call')
-      }
-      const packagesOptions = packagesCall[0]
-      if (!packagesOptions.default) {
-        throw new Error('Expected options with default')
-      }
-      expect(packagesOptions.default).toContain('my-suite')
-    })
-
     it('should resolve relative config paths', async () => {
-      vi.mocked(confirmAction).mockResolvedValue(false)
-
       await runInit({
         path: '../some/path/config.yaml',
       })
@@ -692,62 +384,30 @@ describe('init command', () => {
       )
     })
 
-    it('should handle both ed25519 and rsa algorithms', async () => {
-      // Test ed25519
-      vi.mocked(selectOption).mockResolvedValue('ed25519')
-      vi.mocked(confirmAction).mockResolvedValue(false)
-
+    it('should create directories for nested paths', async () => {
       await runInit({
-        path: '.attest-it/config.yaml',
-        json: true,
+        path: 'deep/nested/path/config.yaml',
       })
 
-      let writeCall = vi.mocked(fs.promises.writeFile).mock.calls[0]
-      if (!writeCall) {
-        throw new Error('Expected writeFile to be called')
-      }
+      expect(fs.promises.mkdir).toHaveBeenCalledWith(path.resolve('deep/nested/path'), {
+        recursive: true,
+      })
+    })
 
-      let contentArg: unknown = writeCall[1]
+    it('should use rsa algorithm', async () => {
+      await runInit({
+        path: '.attest-it/config.yaml',
+      })
+
+      const writeCall = vi.mocked(fs.promises.writeFile).mock.calls[0]
+      expect(writeCall).toBeDefined()
+      if (!writeCall) throw new Error('Expected writeFile to be called')
+
+      const contentArg: unknown = writeCall[1]
       if (typeof contentArg !== 'string') {
         throw new Error('Expected content to be string')
       }
-      let config: unknown = JSON.parse(contentArg)
-
-      if (!isConfigStructure(config)) {
-        throw new Error('Expected valid config structure')
-      }
-
-      expect(config.settings.algorithm).toBe('ed25519')
-
-      // Reset and test rsa
-      vi.clearAllMocks()
-      vi.mocked(fs.existsSync).mockReturnValue(false)
-      vi.mocked(fs.promises.mkdir).mockResolvedValue(undefined)
-      vi.mocked(fs.promises.writeFile).mockResolvedValue(undefined)
-      vi.mocked(getInput)
-        .mockResolvedValueOnce('30')
-        .mockResolvedValueOnce('example')
-        .mockResolvedValueOnce('Example suite')
-        .mockResolvedValueOnce('packages/example')
-        .mockResolvedValueOnce('npm test')
-      vi.mocked(selectOption).mockResolvedValue('rsa')
-      vi.mocked(confirmAction).mockResolvedValue(false)
-
-      await runInit({
-        path: '.attest-it/config.yaml',
-        json: true,
-      })
-
-      writeCall = vi.mocked(fs.promises.writeFile).mock.calls[0]
-      if (!writeCall) {
-        throw new Error('Expected writeFile to be called')
-      }
-
-      contentArg = writeCall[1]
-      if (typeof contentArg !== 'string') {
-        throw new Error('Expected content to be string')
-      }
-      config = JSON.parse(contentArg)
+      const config: unknown = YAML.parse(contentArg)
 
       if (!isConfigStructure(config)) {
         throw new Error('Expected valid config structure')

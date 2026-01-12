@@ -4,7 +4,9 @@
 
 ## generateKeyPair() function
 
-Generate a new keypair using OpenSSL.
+Generate a new RSA-2048 keypair using OpenSSL.
+
+RSA-2048 with SHA-256 is used because it's universally supported across all OpenSSL and LibreSSL versions, including older macOS systems.
 
 **Signature:**
 
