@@ -1,7 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "ignoreDependencies": ["@nx/js", "lint-staged", "@types/picomatch"],
-  "ignoreBinaries": ["api-documenter"],
   "ignore": ["**/vitest.config.*", "**/test/fixtures/**", "**/fixtures/**"],
   "workspaces": {
     "packages/core": {
