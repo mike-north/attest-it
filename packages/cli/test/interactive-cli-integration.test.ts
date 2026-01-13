@@ -254,11 +254,12 @@ describe('Interactive CLI Integration Tests', () => {
       await setupProject(project)
 
       // Run without --dry-run to test actual execution
-      // Use --yes to skip confirmation prompt
-      const result = await execa('node', [CLI_PATH, 'run', '--suite', 'unit-tests', '--yes'], {
+      // Provide confirmation via stdin
+      const result = await execa('node', [CLI_PATH, 'run', '--suite', 'unit-tests'], {
         cwd: project.baseDir,
         reject: false,
         timeout: 30000, // Increased for CI stability
+        input: 'y\n',
       })
 
       // Should succeed (exit code 0)
@@ -341,10 +342,11 @@ describe('Interactive CLI Integration Tests', () => {
       await setupProject(project)
 
       // Run a specific suite and attest it (suite-1 from createAllMissingFixture)
-      const result = await execa('node', [CLI_PATH, 'run', '--suite', 'suite-1', '--yes'], {
+      const result = await execa('node', [CLI_PATH, 'run', '--suite', 'suite-1'], {
         cwd: project.baseDir,
         reject: false,
         timeout: 30000, // Increased for CI stability
+        input: 'y\n',
       })
 
       // Should succeed
@@ -395,10 +397,11 @@ describe('Interactive CLI Integration Tests', () => {
       })
 
       // Re-attest the suite
-      const result = await execa('node', [CLI_PATH, 'run', '--suite', 'test-suite', '--yes'], {
+      const result = await execa('node', [CLI_PATH, 'run', '--suite', 'test-suite'], {
         cwd: project.baseDir,
         reject: false,
         timeout: 10000,
+        input: 'y\n',
       })
 
       // Should succeed
