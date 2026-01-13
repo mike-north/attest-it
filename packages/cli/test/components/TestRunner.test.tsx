@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import * as React from 'react'
-import { render, type RenderOptions } from 'ink-testing-library'
-import { TestRunner, type RunResults } from '../../src/components/TestRunner.js'
+import { render } from 'ink-testing-library'
+import { TestRunner } from '../../src/components/TestRunner.js'
 
 describe('TestRunner component', () => {
   let executeTest: ReturnType<typeof vi.fn>
@@ -148,7 +148,7 @@ describe('TestRunner component', () => {
       executeTest.mockResolvedValue(true)
       createAttestation.mockResolvedValue(undefined)
 
-      const { stdin, lastFrame } = render(
+      const { stdin } = render(
         <TestRunner
           suites={['suite-1']}
           executeTest={executeTest}

@@ -4,26 +4,16 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { spawn } from 'node:child_process'
-import * as fs from 'node:fs'
-import * as os from 'node:os'
 import type { EventEmitter } from 'node:events'
 import {
   loadConfig,
-  computeFingerprint,
   readAttestations,
-  writeSignedAttestations,
-  upsertAttestation,
-  createAttestation,
-  getDefaultPrivateKeyPath,
   type Config,
   type Attestation,
-  type AttestationsFile,
 } from '@attest-it/core'
 
 // Mock dependencies
 vi.mock('node:child_process')
-vi.mock('node:fs')
-vi.mock('node:os')
 vi.mock('@attest-it/core')
 vi.mock('ink', () => ({
   render: vi.fn(() => ({
@@ -43,7 +33,7 @@ vi.mock('../src/utils/output.js', () => ({
 // Import after mocks
 import { runInteractive } from '../src/commands/run-interactive.js'
 import { getAllSuiteStatuses } from '../src/commands/run-utils.js'
-import { loadSession, saveSession, clearSession } from '../src/session/session.js'
+import { loadSession } from '../src/session/session.js'
 import { log, error } from '../src/utils/output.js'
 import { ExitCode } from '../src/utils/exit-codes.js'
 
