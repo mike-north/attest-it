@@ -183,12 +183,12 @@ describe('TestRunner component', () => {
         />,
       )
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       // Simulate user pressing uppercase Y (should work due to toLowerCase)
       stdin.write('Y')
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       expect(createAttestation).toHaveBeenCalledWith('suite-1')
     })
@@ -404,16 +404,16 @@ describe('TestRunner component', () => {
       )
 
       // Complete suite-1
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
       stdin.write('y')
 
       // suite-2 fails automatically, suite-3 starts
-      await new Promise((resolve) => setTimeout(resolve, 20))
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
       // Skip suite-3
       stdin.write('n')
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       expect(onComplete).toHaveBeenCalledWith({
         completed: ['suite-1'],
