@@ -36,10 +36,7 @@ function getPackageVersion(): string {
   // Try multiple paths since tsup creates separate bundles for each entry point:
   // - dist/index.js (library entry) needs ../package.json
   // - dist/bin/attest-it.js (CLI entry) needs ../../package.json
-  const possiblePaths = [
-    join(__dirname, '../package.json'),
-    join(__dirname, '../../package.json'),
-  ]
+  const possiblePaths = [join(__dirname, '../package.json'), join(__dirname, '../../package.json')]
 
   for (const packageJsonPath of possiblePaths) {
     try {
@@ -47,9 +44,7 @@ function getPackageVersion(): string {
       const packageJsonData: unknown = JSON.parse(content)
 
       if (!hasVersion(packageJsonData)) {
-        throw new Error(
-          `Invalid package.json at ${packageJsonPath}: missing version field`,
-        )
+        throw new Error(`Invalid package.json at ${packageJsonPath}: missing version field`)
       }
 
       cachedVersion = packageJsonData.version
