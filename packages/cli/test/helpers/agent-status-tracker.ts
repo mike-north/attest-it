@@ -7,7 +7,6 @@
 
 import { writeFile, rename } from 'node:fs/promises'
 import { join, dirname } from 'node:path'
-import { tmpdir } from 'node:os'
 
 /**
  * Status object for manual test runs, designed for AI agent consumption.
