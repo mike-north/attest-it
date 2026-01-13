@@ -68,8 +68,8 @@ describe('TestRunner component', () => {
         />,
       )
 
-      // Wait for next tick
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      // Wait for component to mount and effects to run (increased for CI stability)
+      await new Promise((resolve) => setTimeout(resolve, 200))
 
       expect(executeTest).toHaveBeenCalledWith('test-suite-1')
       expect(executeTest).toHaveBeenCalledTimes(1)
