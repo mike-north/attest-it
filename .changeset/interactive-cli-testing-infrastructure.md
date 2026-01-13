@@ -29,6 +29,8 @@ This infrastructure enables systematic testing of the interactive CLI experience
 - Wraps keygen and attestation operations with clear error messages when signature-related failures occur
 - Explicitly distinguishes signature issues (require human intervention) from other test failures (AI can help fix)
 - Prevents futile retry loops when private keys are missing, corrupted, or have permission issues
+- Created comprehensive AI Assistant Guide (`/AI_ASSISTANT_GUIDE.md`) optimized for RAG systems
+- Error messages link directly to the guide for AI assistants examining CI/CD logs
 
 **Fixes:**
 - Updated README exit codes table to match implementation (6 codes instead of 2)
