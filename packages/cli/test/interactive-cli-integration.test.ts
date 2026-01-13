@@ -82,9 +82,7 @@ async function setupProject(proj: Project): Promise<void> {
       const configPath = join(proj.baseDir, '.attest-it', 'config.yaml')
       const config = await fs.readFile(configPath, 'utf-8')
       if (config.includes('/home/runner/.config')) {
-        console.warn(
-          'WARNING: Config still has default paths instead of project-local paths!',
-        )
+        console.warn('WARNING: Config still has default paths instead of project-local paths!')
       }
     }
 
