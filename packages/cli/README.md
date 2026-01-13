@@ -94,10 +94,14 @@ All commands support these global options:
 
 ## Exit Codes
 
-| Code | Meaning                      |
-| ---- | ---------------------------- |
-| 0    | Success                      |
-| 1    | Verification failed or error |
+| Code | Constant     | Meaning                             |
+| ---- | ------------ | ----------------------------------- |
+| 0    | SUCCESS      | Operation completed successfully    |
+| 1    | FAILURE      | Tests failed or attestation invalid |
+| 2    | NO_WORK      | Nothing needed attestation          |
+| 3    | CONFIG_ERROR | Configuration or validation error   |
+| 4    | CANCELLED    | User cancelled the operation        |
+| 5    | MISSING_KEY  | Missing required key file           |
 
 ## Programmatic Usage
 
