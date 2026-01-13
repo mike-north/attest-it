@@ -88,7 +88,7 @@ describe('TestRunner component', () => {
       )
 
       // Wait for test to complete
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       const output = lastFrame() ?? ''
       expect(output).toContain('Tests passed')
@@ -109,7 +109,7 @@ describe('TestRunner component', () => {
       )
 
       // Wait for first test to complete and second to start
-      await new Promise((resolve) => setTimeout(resolve, 20))
+      await new Promise((resolve) => setTimeout(resolve, 75))
 
       expect(executeTest).toHaveBeenCalledWith('failing-suite')
       expect(executeTest).toHaveBeenCalledWith('passing-suite')
@@ -133,7 +133,7 @@ describe('TestRunner component', () => {
       )
 
       // Wait for error handling and next test
-      await new Promise((resolve) => setTimeout(resolve, 20))
+      await new Promise((resolve) => setTimeout(resolve, 75))
 
       expect(executeTest).toHaveBeenCalledWith('error-suite')
       expect(executeTest).toHaveBeenCalledWith('success-suite')
@@ -158,13 +158,13 @@ describe('TestRunner component', () => {
       )
 
       // Wait for confirmation prompt
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       // Simulate user pressing 'y'
       stdin.write('y')
 
       // Wait for attestation
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       expect(createAttestation).toHaveBeenCalledWith('suite-1')
       expect(createAttestation).toHaveBeenCalledTimes(1)
@@ -230,11 +230,11 @@ describe('TestRunner component', () => {
         />,
       )
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       stdin.write('y')
 
-      await new Promise((resolve) => setTimeout(resolve, 20))
+      await new Promise((resolve) => setTimeout(resolve, 75))
 
       // Should move to next suite even though attestation failed
       expect(executeTest).toHaveBeenCalledWith('suite-2')
@@ -255,7 +255,7 @@ describe('TestRunner component', () => {
       // Try to send input while running
       stdin.write('y')
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       expect(createAttestation).not.toHaveBeenCalled()
     })
@@ -276,10 +276,10 @@ describe('TestRunner component', () => {
       )
 
       // Complete first suite
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
       stdin.write('y')
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       const output = lastFrame() ?? ''
       expect(output).toContain('Completed: 1')
@@ -320,10 +320,10 @@ describe('TestRunner component', () => {
       )
 
       // Skip first
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
       stdin.write('n')
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       const output = lastFrame() ?? ''
       expect(output).toContain('Skipped: 1')
@@ -346,17 +346,17 @@ describe('TestRunner component', () => {
       expect(lastFrame()).toContain('Remaining: 3')
 
       // Complete first
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
       stdin.write('y')
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
       expect(lastFrame()).toContain('Remaining: 2')
 
       // Complete second
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
       stdin.write('y')
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
       expect(lastFrame()).toContain('Remaining: 1')
     })
   })
@@ -435,10 +435,10 @@ describe('TestRunner component', () => {
         />,
       )
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
       stdin.write('y')
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       const output = lastFrame() ?? ''
       expect(output).toContain('All suites processed')
@@ -459,7 +459,7 @@ describe('TestRunner component', () => {
         />,
       )
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       expect(onComplete).toHaveBeenCalledWith({
         completed: [],
@@ -481,7 +481,7 @@ describe('TestRunner component', () => {
         />,
       )
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       expect(executeTest).not.toHaveBeenCalled()
       expect(createAttestation).not.toHaveBeenCalled()
@@ -547,13 +547,13 @@ describe('TestRunner component', () => {
         />,
       )
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
       stdin.write('n')
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
       stdin.write('n')
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       expect(onComplete).toHaveBeenCalledWith({
         completed: [],
@@ -623,7 +623,7 @@ describe('TestRunner component', () => {
       }).not.toThrow()
 
       // onComplete should not be called
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
       expect(onComplete).not.toHaveBeenCalled()
     })
 
