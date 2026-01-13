@@ -16,25 +16,26 @@ const __dirname = dirname(__filename)
 
 // Try to find package.json - it could be at different relative paths
 // depending on whether we're running from dist/index.js or dist/bin/attest-it.js
-function findPackageJson(): string {
+function findPackageJson(): { content: string; path: string } {
   const possiblePaths = [
-    join(__dirname, '../package.json'),      // from dist/index.js
-    join(__dirname, '../../package.json'),   // from dist/bin/attest-it.js
+    join(__dirname, '../package.json'), // from dist/index.js
+    join(__dirname, '../../package.json'), // from dist/bin/attest-it.js
   ]
-  
+
   for (const path of possiblePaths) {
     try {
       const content = readFileSync(path, 'utf-8')
-      return content
+      return { content, path }
     } catch {
       // Try next path
     }
   }
-  
+
   throw new Error('Could not find package.json')
 }
 
-const packageJsonData: unknown = JSON.parse(findPackageJson())
+const packageJsonResult = findPackageJson()
+const packageJsonData: unknown = JSON.parse(packageJsonResult.content)
 
 // Type guard for package.json structure
 function hasVersion(data: unknown): data is { version: string } {
@@ -48,7 +49,9 @@ function hasVersion(data: unknown): data is { version: string } {
 }
 
 if (!hasVersion(packageJsonData)) {
-  throw new Error('Invalid package.json: missing version field')
+  throw new Error(
+    `Invalid package.json at ${packageJsonResult.path}: missing version field`,
+  )
 }
 
 const packageVersion = packageJsonData.version
