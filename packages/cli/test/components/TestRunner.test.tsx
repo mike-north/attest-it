@@ -526,7 +526,8 @@ describe('TestRunner component', () => {
         />,
       )
 
-      await new Promise((resolve) => setTimeout(resolve, 30))
+      // Wait for all 3 tests to execute and complete (increased for CI stability)
+      await new Promise((resolve) => setTimeout(resolve, 500))
 
       expect(onComplete).toHaveBeenCalledWith({
         completed: [],

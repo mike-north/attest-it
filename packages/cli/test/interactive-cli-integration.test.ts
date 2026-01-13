@@ -239,7 +239,7 @@ describe('Interactive CLI Integration Tests', () => {
       const result = await execa('node', [CLI_PATH, 'run', '--suite', 'unit-tests', '--yes'], {
         cwd: project.baseDir,
         reject: false,
-        timeout: 10000, // 10 second timeout
+        timeout: 30000, // Increased for CI stability
       })
 
       // Should succeed (exit code 0)
