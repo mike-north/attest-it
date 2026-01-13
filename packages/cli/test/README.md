@@ -117,6 +117,10 @@ pnpm test
 
 Interactive tool for manual visual validation. Creates real projects and launches the CLI for hands-on testing.
 
+**⚠️ Important:** The test suites use **dummy commands** (simple `console.log` statements) that don't test real code. This is intentional - the manual test runner is for validating the **CLI interface** (visual rendering, keyboard shortcuts, status displays, etc.), not for demonstrating real test workflows.
+
+In a real `attest-it` project, suites would run actual tests (like `npm test`, `pytest`, etc.) and you would manually review the test output before attesting.
+
 **Run the manual test runner:**
 
 ```bash

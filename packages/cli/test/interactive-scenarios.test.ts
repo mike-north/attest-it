@@ -14,9 +14,9 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   createMultiSuiteFixture,
-  createAllValidFixture,
   createAllMissingFixture,
   createComplexGroupsFixture,
+  createProjectFixture,
 } from './helpers/fixture-factory.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -66,11 +66,32 @@ async function runCommand(
  * Setup helper to initialize a project for CLI use
  */
 async function setupProject(proj: Project): Promise<void> {
-  // Generate keypair (like integration tests do)
-  await runCli(
-    ['keygen', '--force', '--public', '.attest-it/pubkey.pem'],
+  // Generate keypair with project-local private key to avoid conflicts
+  const privateKeyPath = join(proj.baseDir, '.attest-it', 'private.pem');
+  const publicKeyPath = join(proj.baseDir, '.attest-it', 'pubkey.pem');
+
+  const keygenResult = await runCli(
+    ['keygen', '--force', '--output', privateKeyPath, '--public', publicKeyPath],
     proj.baseDir,
   );
+
+  if (keygenResult.exitCode !== 0) {
+    throw new Error(
+      `Keygen failed:\nExit code: ${keygenResult.exitCode}\n` +
+      `Stderr: ${keygenResult.stderr}\nStdout: ${keygenResult.stdout}`
+    );
+  }
+
+  // Verify keypair was created
+  const fs = await import('node:fs/promises');
+  try {
+    await fs.access(publicKeyPath);
+    await fs.access(privateKeyPath);
+  } catch {
+    throw new Error(
+      `Keypair not created:\nPublic key: ${publicKeyPath}\nPrivate key: ${privateKeyPath}`
+    );
+  }
 
   // Git init is already done by fixture factory, but ensure keypair is committed
   await runCommand('git add .', proj.baseDir);
@@ -84,14 +105,10 @@ async function setupProject(proj: Project): Promise<void> {
  * Check if git working tree is clean
  */
 async function checkGitStatus(cwd: string): Promise<string> {
-  try {
-    const result = await execa('git', ['status', '--porcelain'], {
-      cwd,
-    });
-    return result.stdout.trim();
-  } catch {
-    return 'error';
-  }
+  const result = await execa('git', ['status', '--porcelain'], {
+    cwd,
+  });
+  return result.stdout.trim();
 }
 
 describe('Interactive CLI Scenarios with fixturify-project', () => {
@@ -139,14 +156,23 @@ describe('Interactive CLI Scenarios with fixturify-project', () => {
       expect(result.stdout).toContain('type-check');
     });
 
-    it('should create an all-valid project fixture', async () => {
-      project = await createAllValidFixture();
+    it('should create a simple project fixture', async () => {
+      project = await createProjectFixture({
+        name: 'simple-test',
+        suites: [
+          {
+            name: 'tests',
+            command: 'node -e "console.log(\'tests passed\')"',
+            maxAge: '30d',
+          },
+        ],
+      });
       await setupProject(project);
 
       const result = await runCli(['status'], project.baseDir);
 
-      // Exit code 0 = all valid, 1 = has pending suites
-      expect([0, 1]).toContain(result.exitCode);
+      // Exit code 1 = has pending suites (since no attestations created yet)
+      expect(result.exitCode).toBe(1);
       expect(result.stdout).toContain('tests');
     });
 

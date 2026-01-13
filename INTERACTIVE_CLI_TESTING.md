@@ -27,6 +27,13 @@ This creates a temporary project and presents an interactive menu where you can:
 - Try different CLI commands
 - Check for visual artifacts
 
+**⚠️ Important Note:** The test suites in the manual test runner use **dummy commands** (simple `console.log` statements) for UI testing purposes. They don't test real code - this is intentional. The manual test runner is for validating the **CLI interface itself** (visual rendering, keyboard shortcuts, colors, etc.), not for demonstrating a real workflow.
+
+In a real project, you would:
+1. Configure suites to run actual tests (`npm test`, `pytest`, etc.)
+2. Review the real test output manually
+3. Attest that you verified the tests passed
+
 ### 2. Try Different Scenarios
 
 ```bash
@@ -38,9 +45,6 @@ pnpm test:manual all-missing
 
 # Complex groups structure (6 suites)
 pnpm test:manual complex
-
-# All suites have expired attestations
-pnpm test:manual all-expired
 
 # Project with failing tests
 pnpm test:manual failing
@@ -80,27 +84,17 @@ All tests are now passing ✅
 - **Suites:** 5 suites (unit-tests, integration-tests, e2e-tests, linting, type-check)
 - **Use for:** Testing status badges, interactive selection, filtering
 
-### 2. All Valid
-- **Fixture:** `createAllValidFixture()`
-- **Suites:** 1 suite with valid attestation
-- **Use for:** Testing "nothing to do" state
-
-### 3. All Missing
+### 2. All Missing
 - **Fixture:** `createAllMissingFixture()`
 - **Suites:** 3 suites with no attestations
 - **Use for:** First-run experience, bulk operations
 
-### 4. All Expired
-- **Fixture:** `createAllExpiredFixture()`
-- **Suites:** 2 suites with expired attestations
-- **Use for:** Expiration detection
-
-### 5. Complex Groups
+### 3. Complex Groups
 - **Fixture:** `createComplexGroupsFixture()`
 - **Suites:** 6 suites across multiple groups
 - **Use for:** Group filtering, handling many suites
 
-### 6. Failing Suite
+### 4. Failing Suite
 - **Fixture:** `createFailingSuiteFixture()`
 - **Suites:** 1 passing + 1 failing
 - **Use for:** Error handling
@@ -160,16 +154,20 @@ await project.dispose(); // Clean up
 ## Dependencies Added
 
 - `fixturify-project@^7.1.3` - For creating realistic test projects
+- `execa@^9.6.1` - For reliable command execution (replaces raw `child_process` APIs)
 
 ## Test Results
 
-✅ All 6 automated tests passing:
-1. **Clean git working tree verification** - Ensures no uncommitted changes after setup
-2. Multi-suite project fixture creation
-3. All-valid project fixture creation
-4. All-missing project fixture creation
-5. Complex groups project fixture creation
-6. Help command on fixture projects
+✅ **All 18 automated integration tests passing**, including:
+- Git working tree validation
+- Exit code handling (0, 1, and error states)
+- Dry run mode
+- Suite filtering
+- Direct suite execution
+- Configuration validation
+- First-time use workflow (no attestations)
+- Re-attestation workflow
+- "Nothing to do" workflow (all valid)
 
 ## Important Notes
 
@@ -217,5 +215,5 @@ Read the comprehensive guides:
 ---
 
 **Status:** ✅ Complete and Ready to Use
-**Tests:** ✅ All 5 automated tests passing
+**Tests:** ✅ All 18 automated integration tests passing (539 total tests across all test files)
 **Created:** January 2026

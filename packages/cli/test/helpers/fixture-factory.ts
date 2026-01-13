@@ -15,35 +15,13 @@ export interface SuiteConfig {
   groups?: string[];
 }
 
-export interface AttestationConfig {
-  suiteName: string;
-  /**
-   * Number of days ago the attestation was created.
-   * Positive = in the past, negative = in the future (for testing)
-   */
-  daysOld?: number;
-  /**
-   * Whether to use a different fingerprint than the current test would produce
-   */
-  wrongFingerprint?: boolean;
-  /**
-   * Whether to make the signature invalid
-   */
-  invalidSignature?: boolean;
-}
-
 export interface ProjectFixtureOptions {
   name?: string;
   suites?: SuiteConfig[];
-  attestations?: AttestationConfig[];
   /**
    * Whether to initialize as a git repository
    */
   initGit?: boolean;
-  /**
-   * Whether to generate keypair
-   */
-  generateKeys?: boolean;
   /**
    * Additional files to include in the project
    */
@@ -79,9 +57,7 @@ export async function createProjectFixture(
   const {
     name = 'test-project',
     suites = [DEFAULT_PASSING_SUITE],
-    attestations = [],
     initGit = true,
-    generateKeys = true,
     files = {},
   } = options;
 
@@ -120,6 +96,7 @@ export async function createProjectFixture(
 
   // Add settings section
   yamlLines.push('settings:');
+  yamlLines.push('  privateKeyPath: .attest-it/private.pem');
   yamlLines.push('  publicKeyPath: .attest-it/pubkey.pem');
   yamlLines.push('  attestationsPath: .attest-it/attestations.json');
 
@@ -148,6 +125,9 @@ export async function createProjectFixture(
         yamlLines.push(`      - ${pkg}`);
       });
     }
+    // Add ignore pattern to exclude .attest-it directory from fingerprinting
+    yamlLines.push(`    ignore:`);
+    yamlLines.push(`      - .attest-it/**`);
   });
 
   const yamlContent = yamlLines.join('\n');
@@ -194,74 +174,47 @@ export async function createProjectFixture(
     });
   }
 
-  // Generate keypair if requested
-  if (generateKeys) {
-    const cliPath = join(
-      process.cwd(),
-      '../../packages/cli/dist/bin/attest-it.js',
-    );
-    try {
-      await execa('node', [cliPath, 'keygen', '--force'], {
-        cwd: project.baseDir,
-      });
-    } catch (error) {
-      console.warn(
-        'Could not generate keys (CLI may not be built):',
-        error,
-      );
-    }
-  }
-
-  // Create attestations if requested
-  for (const attestation of attestations) {
-    await createAttestation(project, attestation);
-  }
+  // Note: Don't generate keypair here - let tests call setupProject() to do it
+  // This ensures the keypair is generated and committed BEFORE creating attestations
 
   return project;
 }
 
 /**
- * Creates an attestation for a suite
+ * Create a real attestation by running the CLI.
+ *
+ * This runs the actual test suite and generates a cryptographically signed
+ * attestation, ensuring tests validate real-world behavior.
+ *
+ * @param projectDir - Absolute path to the project directory
+ * @param suiteName - Name of the suite to attest (must exist in config)
+ * @param cliPath - Absolute path to the attest-it CLI executable
+ * @throws {Error} If the suite doesn't exist or attestation creation fails
+ * @example
+ * await createRealAttestation(
+ *   '/tmp/test-project',
+ *   'unit-tests',
+ *   '/path/to/cli/dist/bin/attest-it.js'
+ * );
  */
-async function createAttestation(
-  project: Project,
-  config: AttestationConfig,
+export async function createRealAttestation(
+  projectDir: string,
+  suiteName: string,
+  cliPath: string,
 ): Promise<void> {
-  const { suiteName, daysOld = 0, wrongFingerprint = false } = config;
+  const result = await execa('node', [cliPath, 'run', '--suite', suiteName, '--yes'], {
+    cwd: projectDir,
+    reject: false,
+  });
 
-  // For now, just create a placeholder attestation file
-  // In a real implementation, we'd need to:
-  // 1. Run the test to get the real fingerprint
-  // 2. Sign it with the private key
-  // 3. Adjust the timestamp if daysOld is set
-  // 4. Modify the fingerprint if wrongFingerprint is true
-
-  const attestationPath = `.attest-it/attestations/${suiteName}.json`;
-
-  // Calculate timestamp
-  const now = Date.now();
-  const timestamp = new Date(now - daysOld * 24 * 60 * 60 * 1000).toISOString();
-
-  const attestation = {
-    suite: suiteName,
-    timestamp,
-    fingerprint: wrongFingerprint ? 'wrong-fingerprint' : 'placeholder',
-    signature: 'placeholder-signature',
-  };
-
-  // Add to project files
-  if (!project.files['.attest-it']) {
-    project.files['.attest-it'] = {};
+  if (result.exitCode !== 0) {
+    throw new Error(
+      `Failed to create attestation for suite "${suiteName}":\n` +
+      `Exit code: ${result.exitCode}\n` +
+      `Stdout: ${result.stdout}\n` +
+      `Stderr: ${result.stderr}`
+    );
   }
-  const attestItDir = project.files['.attest-it'] as Record<string, unknown>;
-  if (!attestItDir.attestations) {
-    attestItDir.attestations = {};
-  }
-  const attestationsDir = attestItDir.attestations as Record<string, unknown>;
-  attestationsDir[`${suiteName}.json`] = JSON.stringify(attestation, null, 2);
-
-  // Re-write the project
-  await project.write();
 }
 
 /**
@@ -302,34 +255,6 @@ export async function createMultiSuiteFixture(): Promise<Project> {
         groups: ['quality'],
       },
     ],
-    attestations: [
-      // unit-tests: fresh attestation
-      { suiteName: 'unit-tests', daysOld: 1 },
-      // integration-tests: expired
-      { suiteName: 'integration-tests', daysOld: 10 },
-      // e2e-tests: no attestation (missing)
-      // linting: wrong fingerprint
-      { suiteName: 'linting', wrongFingerprint: true },
-      // type-check: fresh and valid
-      { suiteName: 'type-check', daysOld: 0 },
-    ],
-  });
-}
-
-/**
- * Pre-configured fixture: All valid suites
- */
-export async function createAllValidFixture(): Promise<Project> {
-  return createProjectFixture({
-    name: 'all-valid-project',
-    suites: [
-      {
-        name: 'tests',
-        command: 'node -e "console.log(\'tests passed\')"',
-        maxAge: '30d',
-      },
-    ],
-    attestations: [{ suiteName: 'tests', daysOld: 1 }],
   });
 }
 
@@ -355,32 +280,6 @@ export async function createAllMissingFixture(): Promise<Project> {
         command: 'node -e "console.log(\'test 3\')"',
         maxAge: '30d',
       },
-    ],
-    attestations: [],
-  });
-}
-
-/**
- * Pre-configured fixture: All expired attestations
- */
-export async function createAllExpiredFixture(): Promise<Project> {
-  return createProjectFixture({
-    name: 'all-expired-project',
-    suites: [
-      {
-        name: 'suite-1',
-        command: 'node -e "console.log(\'test 1\')"',
-        maxAge: '30d',
-      },
-      {
-        name: 'suite-2',
-        command: 'node -e "console.log(\'test 2\')"',
-        maxAge: '7d',
-      },
-    ],
-    attestations: [
-      { suiteName: 'suite-1', daysOld: 35 },
-      { suiteName: 'suite-2', daysOld: 10 },
     ],
   });
 }
@@ -429,7 +328,6 @@ export async function createComplexGroupsFixture(): Promise<Project> {
         groups: ['security', 'quality'],
       },
     ],
-    attestations: [],
   });
 }
 
@@ -440,6 +338,5 @@ export async function createFailingSuiteFixture(): Promise<Project> {
   return createProjectFixture({
     name: 'failing-suite-project',
     suites: [DEFAULT_PASSING_SUITE, DEFAULT_FAILING_SUITE],
-    attestations: [],
   });
 }

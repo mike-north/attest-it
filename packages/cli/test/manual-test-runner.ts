@@ -15,9 +15,7 @@
  *
  * Scenarios:
  *   multi-suite   - Project with 5 suites in various states (default)
- *   all-valid     - All suites have valid attestations
  *   all-missing   - All suites are missing attestations
- *   all-expired   - All suites have expired attestations
  *   complex       - Complex groups structure with 6 suites
  *   failing       - Project with a failing test suite
  *   all           - Run all scenarios in sequence
@@ -29,9 +27,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 import {
   createMultiSuiteFixture,
-  createAllValidFixture,
   createAllMissingFixture,
-  createAllExpiredFixture,
   createComplexGroupsFixture,
   createFailingSuiteFixture,
 } from './helpers/fixture-factory.js';
@@ -82,24 +78,6 @@ const scenarios: Record<string, Scenario> = {
     ],
   },
 
-  'all-valid': {
-    name: 'All Valid Suites',
-    description: 'All suites have fresh, valid attestations',
-    createFixture: createAllValidFixture,
-    commands: [
-      {
-        name: 'status',
-        args: ['status'],
-        description: 'Should show all suites as VALID',
-      },
-      {
-        name: 'run',
-        args: ['run'],
-        description: 'Should show message about no pending suites',
-      },
-    ],
-  },
-
   'all-missing': {
     name: 'All Missing Attestations',
     description: 'All suites are missing attestations',
@@ -119,24 +97,6 @@ const scenarios: Record<string, Scenario> = {
         name: 'run-all-dry',
         args: ['run', '--all', '--dry-run'],
         description: 'Dry run of all missing suites',
-      },
-    ],
-  },
-
-  'all-expired': {
-    name: 'All Expired Attestations',
-    description: 'All suites have expired attestations',
-    createFixture: createAllExpiredFixture,
-    commands: [
-      {
-        name: 'status',
-        args: ['status'],
-        description: 'Should show all suites as STALE',
-      },
-      {
-        name: 'run-interactive',
-        args: ['run'],
-        description: 'Interactive selection to re-attest',
       },
     ],
   },
@@ -329,6 +289,20 @@ async function runScenario(scenarioKey: string): Promise<void> {
   }
 
   console.log('✓ Setup complete');
+  console.log('\n' + '='.repeat(80));
+  console.log('⚠️  IMPORTANT: This is a DEMO project for UI testing only!');
+  console.log('='.repeat(80));
+  console.log('The "tests" are dummy commands that just print messages.');
+  console.log('They do NOT test real code - this is for validating the CLI interface:');
+  console.log('  • Visual rendering and colors');
+  console.log('  • Keyboard shortcuts and interactions');
+  console.log('  • Status badge display');
+  console.log('  • Checking for visual artifacts');
+  console.log('\nIn a real project, you would:');
+  console.log('  1. Run actual tests (npm test, pytest, etc.)');
+  console.log('  2. Review the test output manually');
+  console.log('  3. Attest that you verified the tests passed');
+  console.log('='.repeat(80));
   console.log(
     '\nNote: This is a temporary project that will be cleaned up when you exit.',
   );

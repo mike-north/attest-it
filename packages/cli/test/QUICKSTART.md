@@ -21,6 +21,8 @@ pnpm test:manual
 
 This creates a temporary project with 5 suites in various states and presents an interactive menu.
 
+**⚠️ IMPORTANT:** The test suites use **dummy commands** (just `console.log` statements) for UI testing purposes. They don't test real code. This is intentional - the manual test runner is for validating the **CLI interface itself** (visual rendering, keyboard shortcuts, colors, etc.), not for demonstrating a real workflow.
+
 ### 2. Try different commands
 
 Select commands from the menu to see:
