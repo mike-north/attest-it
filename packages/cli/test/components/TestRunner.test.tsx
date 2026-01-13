@@ -206,12 +206,12 @@ describe('TestRunner component', () => {
         />,
       )
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       // Skip attestation
       stdin.write('n')
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       expect(createAttestation).not.toHaveBeenCalledWith('suite-1')
       expect(executeTest).toHaveBeenCalledWith('suite-2')
@@ -376,13 +376,13 @@ describe('TestRunner component', () => {
       )
 
       // Complete both suites
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
       stdin.write('y')
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
       stdin.write('y')
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       expect(onComplete).toHaveBeenCalledTimes(1)
     })
@@ -502,10 +502,10 @@ describe('TestRunner component', () => {
         />,
       )
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
       stdin.write('y')
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       expect(onComplete).toHaveBeenCalledWith({
         completed: ['only-suite'],
@@ -580,22 +580,22 @@ describe('TestRunner component', () => {
       )
 
       // Complete suite-1
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
       stdin.write('y')
 
       // suite-2 fails, suite-3 starts
-      await new Promise((resolve) => setTimeout(resolve, 20))
+      await new Promise((resolve) => setTimeout(resolve, 100))
 
       // Skip suite-3
       stdin.write('n')
 
       // suite-4 starts
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       // Complete suite-4
       stdin.write('y')
 
-      await new Promise((resolve) => setTimeout(resolve, 10))
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       expect(onComplete).toHaveBeenCalledWith({
         completed: ['suite-1', 'suite-4'],
