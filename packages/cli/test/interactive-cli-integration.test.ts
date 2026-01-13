@@ -22,6 +22,7 @@ import {
   createAllMissingFixture,
   createProjectFixture,
   createRealAttestation,
+  verifyProjectReady,
 } from './helpers/fixture-factory.js'
 import { wrapWithSignatureErrorDetection } from './helpers/ai-friendly-errors.js'
 
@@ -36,9 +37,18 @@ async function setupProject(proj: Project): Promise<void> {
   return wrapWithSignatureErrorDetection(async () => {
     const { join } = await import('node:path')
 
+    // Verify project is ready before proceeding
+    await verifyProjectReady(proj.baseDir)
+
     // Generate keypair with project-local private key to avoid conflicts
     const privateKeyPath = join(proj.baseDir, '.attest-it', 'private.pem')
     const publicKeyPath = join(proj.baseDir, '.attest-it', 'pubkey.pem')
+
+    if (process.env.CI) {
+      console.log(`Setting up project at: ${proj.baseDir}`)
+      console.log(`Private key path: ${privateKeyPath}`)
+      console.log(`Public key path: ${publicKeyPath}`)
+    }
 
     const keygenResult = await execa(
       'node',
@@ -65,6 +75,17 @@ async function setupProject(proj: Project): Promise<void> {
       throw new Error(
         `Keypair not created:\nPublic key: ${publicKeyPath}\nPrivate key: ${privateKeyPath}`,
       )
+    }
+
+    // Verify config is using correct paths in CI
+    if (process.env.CI) {
+      const configPath = join(proj.baseDir, '.attest-it', 'config.yaml')
+      const config = await fs.readFile(configPath, 'utf-8')
+      if (config.includes('/home/runner/.config')) {
+        console.warn(
+          'WARNING: Config still has default paths instead of project-local paths!',
+        )
+      }
     }
 
     // Commit the keypair
