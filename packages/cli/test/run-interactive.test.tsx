@@ -5,12 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { spawn } from 'node:child_process'
 import type { EventEmitter } from 'node:events'
-import {
-  loadConfig,
-  readAttestations,
-  type Config,
-  type Attestation,
-} from '@attest-it/core'
+import { loadConfig, readAttestations, type Config, type Attestation } from '@attest-it/core'
 
 // Mock dependencies
 vi.mock('node:child_process')
