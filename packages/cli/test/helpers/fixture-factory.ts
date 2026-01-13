@@ -93,11 +93,15 @@ export async function createProjectFixture(options: ProjectFixtureOptions = {}):
   // Generate YAML content with correct format
   const yamlLines = ['version: 1', '']
 
-  // Add settings section
+  // Add settings section with absolute paths for CI reliability
+  const privateKeyPath = join(project.baseDir, '.attest-it', 'private.pem')
+  const publicKeyPath = join(project.baseDir, '.attest-it', 'pubkey.pem')
+  const attestationsPath = join(project.baseDir, '.attest-it', 'attestations.json')
+
   yamlLines.push('settings:')
-  yamlLines.push('  privateKeyPath: .attest-it/private.pem')
-  yamlLines.push('  publicKeyPath: .attest-it/pubkey.pem')
-  yamlLines.push('  attestationsPath: .attest-it/attestations.json')
+  yamlLines.push(`  privateKeyPath: ${privateKeyPath}`)
+  yamlLines.push(`  publicKeyPath: ${publicKeyPath}`)
+  yamlLines.push(`  attestationsPath: ${attestationsPath}`)
 
   // Add default max age if any suite has one
   const maxAges = suites.map((s) => s.maxAge).filter((age): age is string => age !== undefined)
@@ -199,21 +203,19 @@ export async function createRealAttestation(
   suiteName: string,
   cliPath: string,
 ): Promise<void> {
-  return wrapWithSignatureErrorDetection(async () => {
-    const result = await execa('node', [cliPath, 'run', '--suite', suiteName, '--yes'], {
-      cwd: projectDir,
-      reject: false,
-    })
+  const result = await execa('node', [cliPath, 'run', '--suite', suiteName, '--yes'], {
+    cwd: projectDir,
+    reject: false,
+  })
 
-    if (result.exitCode !== 0) {
-      throw new Error(
-        `Failed to create attestation for suite "${suiteName}":\n` +
-          `Exit code: ${result.exitCode}\n` +
-          `Stdout: ${result.stdout}\n` +
-          `Stderr: ${result.stderr}`,
-      )
-    }
-  }, `Creating attestation for suite "${suiteName}" in ${projectDir}`)
+  if (result.exitCode !== 0) {
+    throw new Error(
+      `Failed to create attestation for suite "${suiteName}":\n` +
+        `Exit code: ${result.exitCode}\n` +
+        `Stdout: ${result.stdout}\n` +
+        `Stderr: ${result.stderr}`,
+    )
+  }
 }
 
 /**
