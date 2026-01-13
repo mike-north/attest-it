@@ -365,12 +365,14 @@ while (true) {
 ### Output File Format
 
 The markdown output includes:
+
 - **Header**: Scenario info and project path
 - **Agent Instructions**: Complete guide to attest-it and how to work with users
 - **Command Sections**: Each command's output with timestamps and exit codes
 - **Summary**: Final statistics
 
 The JSON status file provides:
+
 ```json
 {
   "version": 1,
@@ -386,6 +388,7 @@ The JSON status file provides:
 ### Understanding Agent Instructions
 
 The output file includes comprehensive instructions explaining:
+
 - What attest-it is (human-gated test attestation)
 - Why manual tests are needed (UI validation, OAuth flows, etc.)
 - The security model (asymmetric crypto prevents AI from faking attestations)

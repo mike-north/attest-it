@@ -22,13 +22,18 @@ export async function confirmAction(options: ConfirmOptions): Promise<boolean> {
   const contentPadding = ' '.repeat(boxWidth - message.length - 1)
 
   // Box drawing with yellow border
-  const topBorder = theme.yellow(`${BOX_CHARS.topLeft}${BOX_CHARS.horizontal.repeat(boxWidth)}${BOX_CHARS.topRight}`)
-  const bottomBorder = theme.yellow(`${BOX_CHARS.bottomLeft}${BOX_CHARS.horizontal.repeat(boxWidth)}${BOX_CHARS.bottomRight}`)
+  const topBorder = theme.yellow(
+    `${BOX_CHARS.topLeft}${BOX_CHARS.horizontal.repeat(boxWidth)}${BOX_CHARS.topRight}`,
+  )
+  const bottomBorder = theme.yellow(
+    `${BOX_CHARS.bottomLeft}${BOX_CHARS.horizontal.repeat(boxWidth)}${BOX_CHARS.bottomRight}`,
+  )
 
   // Content line with yellow border and normal text
-  const contentLine = theme.yellow(BOX_CHARS.vertical) +
-                      ` ${message}${contentPadding}` +
-                      theme.yellow(BOX_CHARS.vertical)
+  const contentLine =
+    theme.yellow(BOX_CHARS.vertical) +
+    ` ${message}${contentPadding}` +
+    theme.yellow(BOX_CHARS.vertical)
 
   // Display the styled box
   console.log('')
