@@ -238,7 +238,7 @@ describe('CLI Integration Tests', () => {
     it('shows version', async () => {
       const result = await runCli(['--version'], tempDir)
       expect(result.exitCode).toBe(0)
-      expect(result.stdout).toContain('0.0.1')
+      expect(result.stdout).toContain('0.2.0')
     })
   })
 

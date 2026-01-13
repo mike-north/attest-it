@@ -17,6 +17,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "esModuleInterop": false,
-    "allowSyntheticDefaultImports": false
+    "allowSyntheticDefaultImports": false,
+    "resolveJsonModule": true
   }
 }
