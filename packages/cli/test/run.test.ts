@@ -117,7 +117,7 @@ describe('buildCommand', () => {
       delete config.settings.defaultCommand
 
       expect(() => buildCommand(config)).toThrow('process.exit called')
-      expect(mockProcessExit).toHaveBeenCalledWith(2)
+      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
       mockProcessExit.mockRestore()
     })
   })

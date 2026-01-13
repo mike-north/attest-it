@@ -1,3 +1,3 @@
 import { run } from '../src/index.js'
 
-run()
+void run()

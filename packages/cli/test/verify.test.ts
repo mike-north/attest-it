@@ -116,13 +116,13 @@ describe('verify command', () => {
       expect(mockProcessExit).toHaveBeenCalledWith(1)
     })
 
-    it('should exit with code 2 on config error', async () => {
+    it('should exit with code 3 on config error', async () => {
       vi.mocked(loadConfig).mockRejectedValue(new Error('Config not found'))
 
       await runVerify({})
 
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Config not found'))
-      expect(mockProcessExit).toHaveBeenCalledWith(2)
+      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
     })
 
     it('should filter to specific suite with --suite option', async () => {
@@ -158,14 +158,14 @@ describe('verify command', () => {
       expect(mockProcessExit).toHaveBeenCalledWith(0)
     })
 
-    it('should exit with code 2 when specified suite does not exist', async () => {
+    it('should exit with code 3 when specified suite does not exist', async () => {
       const mockConfig = createMockConfig()
       vi.mocked(loadConfig).mockResolvedValue(mockConfig)
 
       await runVerify({ suite: 'nonexistent-suite' })
 
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('not found'))
-      expect(mockProcessExit).toHaveBeenCalledWith(2)
+      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
     })
 
     it('should output JSON with --json option', async () => {
@@ -507,7 +507,7 @@ describe('verify command', () => {
       await runVerify({})
 
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Unknown error'))
-      expect(mockProcessExit).toHaveBeenCalledWith(2)
+      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
     })
 
     it('should handle empty suite list', async () => {

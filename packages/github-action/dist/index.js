@@ -33974,14 +33974,16 @@ var suiteSchema = external_exports.object({
   files: external_exports.array(external_exports.string().min(1, "File path cannot be empty")).optional(),
   ignore: external_exports.array(external_exports.string().min(1, "Ignore pattern cannot be empty")).optional(),
   command: external_exports.string().optional(),
-  invalidates: external_exports.array(external_exports.string().min(1, "Invalidated suite name cannot be empty")).optional()
+  invalidates: external_exports.array(external_exports.string().min(1, "Invalidated suite name cannot be empty")).optional(),
+  depends_on: external_exports.array(external_exports.string().min(1, "Dependency suite name cannot be empty")).optional()
 }).strict();
 var configSchema = external_exports.object({
   version: external_exports.literal(1),
   settings: settingsSchema.default({}),
   suites: external_exports.record(external_exports.string(), suiteSchema).refine((suites) => Object.keys(suites).length >= 1, {
     message: "At least one suite must be defined"
-  })
+  }),
+  groups: external_exports.record(external_exports.string(), external_exports.array(external_exports.string().min(1, "Suite name in group cannot be empty"))).optional()
 }).strict();
 var ConfigValidationError = class extends Error {
   constructor(message, issues) {
@@ -34083,10 +34085,12 @@ function toAttestItConfig(config) {
           ...suite.files !== void 0 && { files: suite.files },
           ...suite.ignore !== void 0 && { ignore: suite.ignore },
           ...suite.command !== void 0 && { command: suite.command },
-          ...suite.invalidates !== void 0 && { invalidates: suite.invalidates }
+          ...suite.invalidates !== void 0 && { invalidates: suite.invalidates },
+          ...suite.depends_on !== void 0 && { depends_on: suite.depends_on }
         }
       ])
-    )
+    ),
+    ...config.groups !== void 0 && { groups: config.groups }
   };
 }
 var LARGE_FILE_THRESHOLD = 50 * 1024 * 1024;

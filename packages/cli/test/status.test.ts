@@ -240,22 +240,22 @@ describe('status command', () => {
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('EXPIRED'))
     })
 
-    it('should return exit code 2 when config not found', async () => {
+    it('should return exit code 3 when config not found', async () => {
       vi.mocked(loadConfig).mockRejectedValue(new Error('Config not found'))
 
       await runStatus({ json: false })
 
-      expect(mockProcessExit).toHaveBeenCalledWith(2)
+      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Config not found'))
     })
 
-    it('should return exit code 2 when suite does not exist', async () => {
+    it('should return exit code 3 when suite does not exist', async () => {
       const config = createMockConfig()
       vi.mocked(loadConfig).mockResolvedValue(config)
 
       await runStatus({ suite: 'nonexistent-suite', json: false })
 
-      expect(mockProcessExit).toHaveBeenCalledWith(2)
+      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
       expect(mockConsoleError).toHaveBeenCalledWith(
         expect.stringContaining('Suite "nonexistent-suite" not found'),
       )
@@ -349,7 +349,7 @@ describe('status command', () => {
 
       await runStatus({ json: false })
 
-      expect(mockProcessExit).toHaveBeenCalledWith(2)
+      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Unknown error'))
     })
   })

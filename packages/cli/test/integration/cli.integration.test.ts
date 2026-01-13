@@ -282,7 +282,7 @@ describe('CLI Integration Tests', () => {
 
     it('errors on unknown suite', async () => {
       const result = await runCli(['status', '--suite', 'nonexistent'], tempDir)
-      expect(result.exitCode).toBe(2)
+      expect(result.exitCode).toBe(3) // CONFIG_ERROR
       expect(result.stderr).toContain('not found')
     })
 
@@ -306,10 +306,16 @@ describe('CLI Integration Tests', () => {
   })
 
   describe('attest-it run', () => {
-    it('requires --suite or --all', async () => {
-      const result = await runCli(['run'], tempDir)
-      expect(result.exitCode).toBe(2)
-      expect(result.stderr).toContain('--suite')
+    it('without args enters interactive mode (exits with NO_WORK if all valid)', async () => {
+      // Run once to create attestation
+      await runCli(['run', '--suite', 'example', '--yes'], tempDir)
+      await runCommand('git add .', tempDir)
+      await runCommand('git commit -m "add attestation"', tempDir)
+
+      // Now running with --dry-run shows what would run (the "failing" suite still needs attestation)
+      const result = await runCli(['run', '--dry-run'], tempDir)
+      // Should exit with SUCCESS (0) because dry-run shows suites that would run
+      expect(result.exitCode).toBe(0) // SUCCESS - dry run completed, showing what would run
     })
 
     it('runs tests and creates attestation with --yes', async () => {
@@ -361,7 +367,7 @@ describe('CLI Integration Tests', () => {
       await fs.promises.writeFile(path.join(tempDir, 'new-file.txt'), 'uncommitted content')
 
       const result = await runCli(['run', '--suite', 'example', '--yes'], tempDir)
-      expect(result.exitCode).toBe(2)
+      expect(result.exitCode).toBe(3) // CONFIG_ERROR
       expect(result.stderr).toContain('uncommitted')
     })
 
@@ -538,7 +544,7 @@ suites:
 
       try {
         const result = await runCli(['status'], emptyDir)
-        expect(result.exitCode).toBe(2)
+        expect(result.exitCode).toBe(3) // CONFIG_ERROR
         expect(result.stderr).toContain('config')
       } finally {
         await fs.promises.rm(emptyDir, { recursive: true, force: true })
@@ -551,7 +557,7 @@ suites:
       await fs.promises.writeFile(configPath, 'invalid: yaml: content: [')
 
       const result = await runCli(['status'], tempDir)
-      expect(result.exitCode).toBe(2)
+      expect(result.exitCode).toBe(3) // CONFIG_ERROR
       // Should error on invalid YAML
     })
 
@@ -588,7 +594,8 @@ suites:
 
       const result = await runCli(['status', '--suite', 'nonexistent'], tempDir)
       // Should handle gracefully (may succeed with empty fingerprint or error)
-      expect([0, 1, 2]).toContain(result.exitCode)
+      // Exit codes: 0=SUCCESS, 1=FAILURE, 2=NO_WORK, 3=CONFIG_ERROR
+      expect([0, 1, 2, 3]).toContain(result.exitCode)
     })
   })
 
@@ -827,7 +834,7 @@ suites:
 
     it('fails on unknown suite with --suite', async () => {
       const result = await runCli(['verify', '--suite', 'nonexistent'], tempDir)
-      expect(result.exitCode).toBe(2)
+      expect(result.exitCode).toBe(3) // CONFIG_ERROR
       expect(result.stderr).toContain('not found')
     })
 

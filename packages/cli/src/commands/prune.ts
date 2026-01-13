@@ -156,7 +156,7 @@ async function runPrune(options: PruneOptions): Promise<void> {
     } else {
       error('Unknown error occurred')
     }
-    process.exit(2)
+    process.exit(ExitCode.CONFIG_ERROR)
     return
   }
 }

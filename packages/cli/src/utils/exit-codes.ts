@@ -16,12 +16,14 @@ export const ExitCode = {
   SUCCESS: 0,
   /** Tests failed or attestation invalid */
   FAILURE: 1,
+  /** Nothing needed attestation */
+  NO_WORK: 2,
   /** Configuration or validation error */
-  CONFIG_ERROR: 2,
+  CONFIG_ERROR: 3,
   /** User cancelled the operation */
-  CANCELLED: 3,
+  CANCELLED: 4,
   /** Missing required key file */
-  MISSING_KEY: 4,
+  MISSING_KEY: 5,
 } as const
 
 /**

@@ -35,6 +35,8 @@ export interface SuiteConfig {
   command?: string
   /** Other suite names that, when changed, invalidate this suite's attestation */
   invalidates?: string[]
+  /** Array of suite names this suite depends on */
+  depends_on?: string[]
 }
 
 /**
@@ -48,6 +50,8 @@ export interface AttestItConfig {
   settings: AttestItSettings
   /** Named test suites with their configurations */
   suites: Record<string, SuiteConfig>
+  /** Named groups of suites */
+  groups?: Record<string, string[]>
 }
 
 /**

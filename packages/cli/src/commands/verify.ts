@@ -120,7 +120,7 @@ async function runVerify(options: VerifyOptions): Promise<void> {
     } else {
       error('Unknown error occurred')
     }
-    process.exit(2)
+    process.exit(ExitCode.CONFIG_ERROR)
   }
 }
 

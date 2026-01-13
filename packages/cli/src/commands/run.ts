@@ -20,13 +20,18 @@ import {
 import { log, success, error, warn, verbose } from '../utils/output.js'
 import { confirmAction } from '../utils/prompts.js'
 import { ExitCode } from '../utils/exit-codes.js'
+import { runInteractive } from './run-interactive.js'
+import { getAllSuiteStatuses } from './run-utils.js'
 
 export const runCommand = new Command('run')
   .description('Execute tests and create attestation')
-  .option('-s, --suite <name>', 'Run specific suite (required unless --all)')
+  .option('-s, --suite <name>', 'Run specific suite (required unless --all or interactive mode)')
   .option('-a, --all', 'Run all suites needing attestation')
   .option('--no-attest', 'Run tests without creating attestation')
   .option('-y, --yes', 'Skip confirmation prompt')
+  .option('--dry-run', 'Show what would run without executing')
+  .option('-c, --continue', 'Resume interrupted session')
+  .option('--filter <pattern>', 'Filter suites by pattern (glob-style)')
   .action(async (options: RunOptions) => {
     await runTests(options)
   })
@@ -36,147 +41,50 @@ interface RunOptions {
   all?: boolean
   attest?: boolean // Note: --no-attest sets this to false
   yes?: boolean
+  dryRun?: boolean
+  continue?: boolean
+  filter?: string
 }
 
 /**
  * Run tests and create attestations.
  *
- * Executes test commands for specified suite(s), computes fingerprints,
- * and creates signed attestations upon successful test completion.
+ * Routes to the appropriate execution mode based on options:
+ * - Direct mode: --suite specified
+ * - All pending mode: --all specified
+ * - Interactive mode: no --suite and no --all
  *
  * @param options - Command options
- * @param options.suite - Run specific suite (required unless --all)
+ * @param options.suite - Run specific suite
  * @param options.all - Run all suites needing attestation
  * @param options.attest - Create attestation after tests (default: true)
  * @param options.yes - Skip confirmation prompt
+ * @param options.dryRun - Show what would run without executing
+ * @param options.continue - Resume interrupted session
+ * @param options.filter - Filter suites by pattern
  * @public
  */
 async function runTests(options: RunOptions): Promise<void> {
   try {
-    // Validate options
-    if (!options.suite && !options.all) {
-      error('Either --suite or --all is required')
-      process.exit(ExitCode.CONFIG_ERROR)
+    // If --suite provided, use existing direct mode
+    if (options.suite) {
+      await runDirectMode(options)
+      return
     }
 
-    // Load config
-    const config = await loadConfig()
-
-    // Determine which suites to run
-    const suitesToRun = options.all
-      ? Object.keys(config.suites)
-      : options.suite
-        ? [options.suite]
-        : []
-
-    // Validate suite exists
-    if (options.suite && !config.suites[options.suite]) {
-      error(`Suite "${options.suite}" not found in config`)
-      process.exit(ExitCode.CONFIG_ERROR)
+    // If --all with no --suite, run all pending non-interactively
+    if (options.all) {
+      await runAllPending(options)
+      return
     }
 
-    // Check for dirty working tree
-    const isDirty = await checkDirtyWorkingTree()
-    if (isDirty) {
-      error('Working tree has uncommitted changes. Please commit or stash before attesting.')
-      process.exit(ExitCode.CONFIG_ERROR)
-    }
-
-    // Process each suite
-    for (const suiteName of suitesToRun) {
-      // eslint-disable-next-line security/detect-object-injection -- suiteName is from validated config keys
-      const suiteConfig = config.suites[suiteName]
-      if (!suiteConfig) continue
-
-      log(`\n=== Running suite: ${suiteName} ===\n`)
-
-      // Compute fingerprint before running
-      const fingerprintOptions = {
-        packages: suiteConfig.packages,
-        ...(suiteConfig.ignore && { ignore: suiteConfig.ignore }),
-      }
-      const fingerprintResult = await computeFingerprint(fingerprintOptions)
-      verbose(`Fingerprint: ${fingerprintResult.fingerprint}`)
-      verbose(`Files: ${String(fingerprintResult.fileCount)}`)
-
-      // Build the test command
-      const command = buildCommand(config, suiteConfig.command, suiteConfig.files)
-      log(`Running: ${command}`)
-      log('')
-
-      // Execute tests
-      const exitCode = await executeCommand(command)
-
-      if (exitCode !== 0) {
-        error(`Tests failed with exit code ${String(exitCode)}`)
-        process.exit(ExitCode.FAILURE)
-      }
-
-      success('Tests passed!')
-
-      // Skip attestation if --no-attest
-      if (options.attest === false) {
-        log('Skipping attestation (--no-attest)')
-        continue
-      }
-
-      // Confirm attestation
-      const shouldAttest =
-        options.yes ??
-        (await confirmAction({
-          message: 'Create attestation?',
-          default: true,
-        }))
-
-      if (!shouldAttest) {
-        warn('Attestation cancelled')
-        process.exit(ExitCode.CANCELLED)
-      }
-
-      // Create attestation
-      const attestation = createAttestation({
-        suite: suiteName,
-        fingerprint: fingerprintResult.fingerprint,
-        command,
-        attestedBy: os.userInfo().username,
-      })
-
-      // Load existing attestations
-      const attestationsPath = config.settings.attestationsPath
-      const existingFile = await readAttestations(attestationsPath)
-      const existingAttestations = existingFile?.attestations ?? []
-
-      // Upsert the new attestation
-      const newAttestations = upsertAttestation(existingAttestations, attestation)
-
-      // Get private key path (from config or default)
-      const privateKeyPath = getDefaultPrivateKeyPath()
-
-      // Check if private key exists
-      if (!fs.existsSync(privateKeyPath)) {
-        error(`Private key not found: ${privateKeyPath}`)
-        error('Run "attest-it keygen" first to generate a keypair.')
-        process.exit(ExitCode.MISSING_KEY)
-      }
-
-      // Write signed attestations
-      await writeSignedAttestations({
-        filePath: attestationsPath,
-        attestations: newAttestations,
-        privateKeyPath,
-      })
-
-      success(`Attestation created for ${suiteName}`)
-      log(`  Fingerprint: ${fingerprintResult.fingerprint}`)
-      log(`  Attested by: ${attestation.attestedBy}`)
-      log(`  Attested at: ${attestation.attestedAt}`)
-    }
-
-    log('')
-    success('All suites completed!')
-    log(
-      `\nTo commit: git add ${config.settings.attestationsPath} && git commit -m "Update attestations"`,
-    )
+    // No --suite and no --all means interactive mode
+    // This includes: no args, --dry-run, --continue, --filter
+    await runInteractive({
+      dryRun: options.dryRun,
+      continue: options.continue,
+      filter: options.filter,
+    })
   } catch (err) {
     if (err instanceof Error) {
       error(err.message)
@@ -325,6 +233,204 @@ async function checkDirtyWorkingTree(): Promise<boolean> {
       resolve(false)
     })
   })
+}
+
+/**
+ * Run tests for a specific suite (direct mode with --suite).
+ *
+ * @param options - Run options with suite specified
+ * @public
+ */
+async function runDirectMode(options: RunOptions): Promise<void> {
+  if (!options.suite) {
+    error('Suite name is required for direct mode')
+    process.exit(ExitCode.CONFIG_ERROR)
+  }
+
+  // Load config
+  const config = await loadConfig()
+
+  // Validate suite exists
+  if (!config.suites[options.suite]) {
+    error(`Suite "${options.suite}" not found in config`)
+    process.exit(ExitCode.CONFIG_ERROR)
+  }
+
+  // Check for dirty working tree
+  const isDirty = await checkDirtyWorkingTree()
+  if (isDirty) {
+    error('Working tree has uncommitted changes. Please commit or stash before attesting.')
+    process.exit(ExitCode.CONFIG_ERROR)
+  }
+
+  // Run the suite
+  await runSingleSuite(options.suite, config, options)
+
+  log('')
+  success('Suite completed!')
+  log(
+    `\nTo commit: git add ${config.settings.attestationsPath} && git commit -m "Update attestations"`,
+  )
+}
+
+/**
+ * Run all suites that need attestation (--all mode).
+ *
+ * @param options - Run options
+ * @public
+ */
+async function runAllPending(options: RunOptions): Promise<void> {
+  const config = await loadConfig()
+  const allSuites = await getAllSuiteStatuses(config)
+  const pendingSuites = allSuites.filter((s) => s.status !== 'VALID')
+
+  if (pendingSuites.length === 0) {
+    log('All suites are valid. Nothing to run.')
+    process.exit(ExitCode.NO_WORK)
+  }
+
+  // Apply filter if specified
+  let suitesToRun = pendingSuites
+  if (options.filter) {
+    const regex = new RegExp('^' + options.filter.replace(/\*/g, '.*') + '$', 'i')
+    suitesToRun = pendingSuites.filter((s) => regex.test(s.name))
+
+    if (suitesToRun.length === 0) {
+      log(`No suites match filter: ${options.filter}`)
+      process.exit(ExitCode.NO_WORK)
+    }
+  }
+
+  // Dry run - just show and exit
+  if (options.dryRun) {
+    log(`Would run ${String(suitesToRun.length)} suite(s):`)
+    suitesToRun.forEach((s, i) => {
+      log(`  ${String(i + 1)}. ${s.name} (${s.status})`)
+    })
+    process.exit(ExitCode.SUCCESS)
+  }
+
+  // Check for dirty working tree
+  const isDirty = await checkDirtyWorkingTree()
+  if (isDirty) {
+    error('Working tree has uncommitted changes. Please commit or stash before attesting.')
+    process.exit(ExitCode.CONFIG_ERROR)
+  }
+
+  // Run each suite using existing direct mode logic
+  for (const suite of suitesToRun) {
+    await runSingleSuite(suite.name, config, options)
+  }
+
+  log('')
+  success('All suites completed!')
+  log(
+    `\nTo commit: git add ${config.settings.attestationsPath} && git commit -m "Update attestations"`,
+  )
+}
+
+/**
+ * Run a single suite's tests and optionally create an attestation.
+ *
+ * @param suiteName - Name of the suite to run
+ * @param config - Configuration object
+ * @param options - Run options
+ * @public
+ */
+async function runSingleSuite(
+  suiteName: string,
+  config: Config,
+  options: RunOptions,
+): Promise<void> {
+  // eslint-disable-next-line security/detect-object-injection -- suiteName is from validated config keys
+  const suiteConfig = config.suites[suiteName]
+  if (!suiteConfig) {
+    error(`Suite "${suiteName}" not found in config`)
+    process.exit(ExitCode.CONFIG_ERROR)
+  }
+
+  log(`\n=== Running suite: ${suiteName} ===\n`)
+
+  // Compute fingerprint before running
+  const fingerprintOptions = {
+    packages: suiteConfig.packages,
+    ...(suiteConfig.ignore && { ignore: suiteConfig.ignore }),
+  }
+  const fingerprintResult = await computeFingerprint(fingerprintOptions)
+  verbose(`Fingerprint: ${fingerprintResult.fingerprint}`)
+  verbose(`Files: ${String(fingerprintResult.fileCount)}`)
+
+  // Build the test command
+  const command = buildCommand(config, suiteConfig.command, suiteConfig.files)
+  log(`Running: ${command}`)
+  log('')
+
+  // Execute tests
+  const exitCode = await executeCommand(command)
+
+  if (exitCode !== 0) {
+    error(`Tests failed with exit code ${String(exitCode)}`)
+    process.exit(ExitCode.FAILURE)
+  }
+
+  success('Tests passed!')
+
+  // Skip attestation if --no-attest
+  if (options.attest === false) {
+    log('Skipping attestation (--no-attest)')
+    return
+  }
+
+  // Confirm attestation
+  const shouldAttest =
+    options.yes ??
+    (await confirmAction({
+      message: 'Create attestation?',
+      default: true,
+    }))
+
+  if (!shouldAttest) {
+    warn('Attestation cancelled')
+    process.exit(ExitCode.CANCELLED)
+  }
+
+  // Create attestation
+  const attestation = createAttestation({
+    suite: suiteName,
+    fingerprint: fingerprintResult.fingerprint,
+    command,
+    attestedBy: os.userInfo().username,
+  })
+
+  // Load existing attestations
+  const attestationsPath = config.settings.attestationsPath
+  const existingFile = await readAttestations(attestationsPath)
+  const existingAttestations = existingFile?.attestations ?? []
+
+  // Upsert the new attestation
+  const newAttestations = upsertAttestation(existingAttestations, attestation)
+
+  // Get private key path (from config or default)
+  const privateKeyPath = getDefaultPrivateKeyPath()
+
+  // Check if private key exists
+  if (!fs.existsSync(privateKeyPath)) {
+    error(`Private key not found: ${privateKeyPath}`)
+    error('Run "attest-it keygen" first to generate a keypair.')
+    process.exit(ExitCode.MISSING_KEY)
+  }
+
+  // Write signed attestations
+  await writeSignedAttestations({
+    filePath: attestationsPath,
+    attestations: newAttestations,
+    privateKeyPath,
+  })
+
+  success(`Attestation created for ${suiteName}`)
+  log(`  Fingerprint: ${fingerprintResult.fingerprint}`)
+  log(`  Attested by: ${attestation.attestedBy}`)
+  log(`  Attested at: ${attestation.attestedAt}`)
 }
 
 // Export for testing
