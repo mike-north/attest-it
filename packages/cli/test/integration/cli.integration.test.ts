@@ -15,6 +15,7 @@ import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import * as os from 'node:os'
 import { writeSignedAttestations, type Attestation } from '@attest-it/core'
+import packageJson from '../../package.json' with { type: 'json' }
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // Use the built CLI from dist directory
@@ -238,7 +239,7 @@ describe('CLI Integration Tests', () => {
     it('shows version', async () => {
       const result = await runCli(['--version'], tempDir)
       expect(result.exitCode).toBe(0)
-      expect(result.stdout).toContain('0.2.0')
+      expect(result.stdout).toContain(packageJson.version)
     })
   })
 
