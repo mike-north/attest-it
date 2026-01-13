@@ -53,6 +53,7 @@ A comprehensive testing infrastructure for validating the `attest-it` interactiv
 ## Pre-configured Test Scenarios
 
 ### 1. Multi-Suite Project (Default)
+
 - **Fixture:** `createMultiSuiteFixture()`
 - **What it creates:** 5 suites with mixed states
   - unit-tests: VALID (1 day old)
@@ -63,21 +64,25 @@ A comprehensive testing infrastructure for validating the `attest-it` interactiv
 - **Use case:** General testing, status badge rendering, interactive selection
 
 ### 2. All Valid
+
 - **Fixture:** `createAllValidFixture()`
 - **What it creates:** 1 suite with valid attestation
 - **Use case:** Testing "nothing to do" state, edge case handling
 
 ### 3. All Missing
+
 - **Fixture:** `createAllMissingFixture()`
 - **What it creates:** 3 suites with no attestations
 - **Use case:** First-run experience, bulk operations, "select all"
 
 ### 4. All Expired
+
 - **Fixture:** `createAllExpiredFixture()`
 - **What it creates:** 2 suites with expired attestations
 - **Use case:** Expiration detection, re-attestation workflow
 
 ### 5. Complex Groups
+
 - **Fixture:** `createComplexGroupsFixture()`
 - **What it creates:** 6 suites across multiple groups
   - Frontend: unit + integration
@@ -87,6 +92,7 @@ A comprehensive testing infrastructure for validating the `attest-it` interactiv
 - **Use case:** Group filtering, handling many suites, organization
 
 ### 6. Failing Suite
+
 - **Fixture:** `createFailingSuiteFixture()`
 - **What it creates:** 1 passing + 1 failing suite
 - **Use case:** Error handling, failure states, graceful degradation
@@ -177,7 +183,7 @@ pnpm test:manual
 ### Example 2: Create Custom Fixture in Code
 
 ```typescript
-import { createProjectFixture } from './helpers/fixture-factory.js';
+import { createProjectFixture } from './helpers/fixture-factory.js'
 
 const project = await createProjectFixture({
   name: 'my-test-project',
@@ -189,47 +195,45 @@ const project = await createProjectFixture({
       groups: ['tests'],
     },
   ],
-  attestations: [
-    { suiteName: 'custom-suite', daysOld: 5 },
-  ],
+  attestations: [{ suiteName: 'custom-suite', daysOld: 5 }],
   files: {
     'README.md': '# Test Project',
     'src/index.ts': 'console.log("test")',
   },
-});
+})
 
-console.log('Project at:', project.baseDir);
+console.log('Project at:', project.baseDir)
 
 // Use project...
 
-await project.dispose(); // Clean up
+await project.dispose() // Clean up
 ```
 
 ### Example 3: Add to Automated Test
 
 ```typescript
-import { describe, it, expect, afterEach } from 'vitest';
-import { createMultiSuiteFixture } from './helpers/fixture-factory.js';
-import type { Project } from 'fixturify-project';
+import { describe, it, expect, afterEach } from 'vitest'
+import { createMultiSuiteFixture } from './helpers/fixture-factory.js'
+import type { Project } from 'fixturify-project'
 
 describe('My Test', () => {
-  let project: Project | null = null;
+  let project: Project | null = null
 
   afterEach(async () => {
     if (project) {
-      await project.dispose();
-      project = null;
+      await project.dispose()
+      project = null
     }
-  });
+  })
 
   it('should work with multi-suite project', async () => {
-    project = await createMultiSuiteFixture();
+    project = await createMultiSuiteFixture()
 
-    const result = await runCli(['status'], project.baseDir);
+    const result = await runCli(['status'], project.baseDir)
 
-    expect(result.stdout).toContain('VALID');
-  });
-});
+    expect(result.stdout).toContain('VALID')
+  })
+})
 ```
 
 ## Visual Validation Checklist
@@ -237,6 +241,7 @@ describe('My Test', () => {
 When manually testing, verify:
 
 ### Status Command
+
 - [ ] Status badges display correctly (VALID, MISSING, STALE, CHANGED, INVALID)
 - [ ] Colors: green (valid), yellow (warnings), red (errors)
 - [ ] No text wrapping issues
@@ -244,6 +249,7 @@ When manually testing, verify:
 - [ ] Suite names and reasons are readable
 
 ### Interactive Selection
+
 - [ ] Suite table renders correctly
 - [ ] Checkboxes [✓] and [ ] display properly
 - [ ] Number indicators (1-9) visible
@@ -252,6 +258,7 @@ When manually testing, verify:
 - [ ] No terminal artifacts when redrawing
 
 ### Test Runner
+
 - [ ] Progress displays correctly
 - [ ] Test output is readable
 - [ ] Attestation prompts are clear
@@ -259,6 +266,7 @@ When manually testing, verify:
 - [ ] Summary shows completed/failed/skipped counts
 
 ### Common Artifacts to Check For
+
 - [ ] No text overlapping
 - [ ] No incomplete clearing
 - [ ] No color bleeding
@@ -294,18 +302,21 @@ Flow:
 ## Benefits
 
 ### For Developers
+
 1. **Faster testing** - No manual project setup
 2. **Consistent scenarios** - Same projects every time
 3. **Easy reproduction** - Recreate any state easily
 4. **Better coverage** - Test edge cases that are hard to create manually
 
 ### For Manual Testing
+
 1. **Quick validation** - Run `pnpm test:manual` and test immediately
 2. **Multiple scenarios** - Switch between project states easily
 3. **No cleanup needed** - Projects auto-delete
 4. **Realistic** - Tests with actual projects, not mocks
 
 ### For CI/CD
+
 1. **Automated validation** - Catch regressions automatically
 2. **Fast execution** - Tests run in temp directories
 3. **Isolated** - Each test gets a fresh project
@@ -314,12 +325,14 @@ Flow:
 ## Next Steps
 
 ### Immediate
+
 1. ✅ Infrastructure created
 2. ⏭️ Build CLI: `pnpm build`
 3. ⏭️ Run manual tests: `pnpm test:manual`
 4. ⏭️ Run automated tests: `pnpm test`
 
 ### Future Enhancements
+
 - [ ] Add more edge case scenarios
 - [ ] Capture screenshots in automated tests
 - [ ] Add performance benchmarks
@@ -329,6 +342,7 @@ Flow:
 ## Related Files
 
 ### Source Files (What We're Testing)
+
 - `/packages/cli/src/commands/run-interactive.tsx` - Main interactive command
 - `/packages/cli/src/components/` - React/Ink UI components
   - `InteractiveRun.tsx` - Main orchestrator
@@ -338,6 +352,7 @@ Flow:
   - `StatusBadge.tsx` - Colored status indicators
 
 ### Existing Tests
+
 - `/packages/cli/test/run-interactive.test.tsx` - Unit tests
 - `/packages/cli/test/components/InteractiveRun.test.tsx` - Component tests
 - `/packages/cli/test/integration/cli.integration.test.ts` - Integration tests
@@ -345,7 +360,9 @@ Flow:
 ## FAQ
 
 ### Q: Why use fixturify-project instead of manual file creation?
+
 A: Fixturify-project provides:
+
 - Automatic temp directory management
 - Declarative file structures
 - Type-safe project definitions
@@ -353,32 +370,40 @@ A: Fixturify-project provides:
 - Realistic project hierarchies
 
 ### Q: How do I add a new test scenario?
+
 A:
+
 1. Add factory function to `fixture-factory.ts`
 2. Add test case to `interactive-scenarios.test.ts`
 3. Add scenario to `manual-test-runner.ts`
 4. Update documentation
 
 ### Q: Can I keep a project around for debugging?
+
 A: Yes, don't call `project.dispose()`:
+
 ```typescript
-const project = await createMultiSuiteFixture();
-console.log('Project at:', project.baseDir);
+const project = await createMultiSuiteFixture()
+console.log('Project at:', project.baseDir)
 // Don't dispose - project stays in temp directory
 ```
 
 ### Q: How do I test with a dirty git working tree?
+
 A: Set `initGit: false` or make changes after creation:
+
 ```typescript
-const project = await createProjectFixture({ initGit: false });
+const project = await createProjectFixture({ initGit: false })
 // Or:
-const project = await createProjectFixture({ initGit: true });
+const project = await createProjectFixture({ initGit: true })
 // Make changes...
-await execAsync('echo "new file" > test.txt', { cwd: project.baseDir });
+await execAsync('echo "new file" > test.txt', { cwd: project.baseDir })
 ```
 
 ### Q: Can I customize the attestation signature?
+
 A: Currently attestations are placeholders. For full attestations, you need to:
+
 1. Run the actual test
 2. Sign with the private key
 3. Save the attestation file

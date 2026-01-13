@@ -22,6 +22,7 @@ pnpm test:manual
 ```
 
 This creates a temporary project and presents an interactive menu where you can:
+
 - View status badges in different states
 - Test the interactive selection UI
 - Try different CLI commands
@@ -30,6 +31,7 @@ This creates a temporary project and presents an interactive menu where you can:
 **⚠️ Important Note:** The test suites in the manual test runner use **dummy commands** (simple `console.log` statements) for UI testing purposes. They don't test real code - this is intentional. The manual test runner is for validating the **CLI interface itself** (visual rendering, keyboard shortcuts, colors, etc.), not for demonstrating a real workflow.
 
 In a real project, you would:
+
 1. Configure suites to run actual tests (`npm test`, `pytest`, etc.)
 2. Review the real test output manually
 3. Attest that you verified the tests passed
@@ -64,37 +66,44 @@ All tests are now passing ✅
 ## Files Created
 
 ### Core Infrastructure
+
 - `packages/cli/test/helpers/fixture-factory.ts` - Factory for creating test projects
 - `packages/cli/test/interactive-scenarios.test.ts` - Automated integration tests (5 passing tests)
 - `packages/cli/test/manual-test-runner.ts` - Interactive manual testing tool
 
 ### Documentation
+
 - `packages/cli/test/README.md` - Comprehensive testing guide
 - `packages/cli/test/QUICKSTART.md` - 5-minute getting started guide
 - `packages/cli/test/TESTING_SUMMARY.md` - Complete infrastructure overview
 - `packages/cli/test/examples/basic-fixture-usage.ts` - Code examples
 
 ### Configuration
+
 - `packages/cli/package.json` - Added `fixturify-project` dependency and `test:manual` script
 
 ## Pre-configured Test Scenarios
 
 ### 1. Multi-Suite Project (Default)
+
 - **Fixture:** `createMultiSuiteFixture()`
 - **Suites:** 5 suites (unit-tests, integration-tests, e2e-tests, linting, type-check)
 - **Use for:** Testing status badges, interactive selection, filtering
 
 ### 2. All Missing
+
 - **Fixture:** `createAllMissingFixture()`
 - **Suites:** 3 suites with no attestations
 - **Use for:** First-run experience, bulk operations
 
 ### 3. Complex Groups
+
 - **Fixture:** `createComplexGroupsFixture()`
 - **Suites:** 6 suites across multiple groups
 - **Use for:** Group filtering, handling many suites
 
 ### 4. Failing Suite
+
 - **Fixture:** `createFailingSuiteFixture()`
 - **Suites:** 1 passing + 1 failing
 - **Use for:** Error handling
@@ -104,6 +113,7 @@ All tests are now passing ✅
 When using the manual test runner, check for:
 
 ### Status Command
+
 - [ ] Status badges display correctly
 - [ ] Colors: green (VALID), yellow (warnings), red (errors)
 - [ ] Table alignment
@@ -111,6 +121,7 @@ When using the manual test runner, check for:
 - [ ] No text wrapping issues
 
 ### Interactive Selection
+
 - [ ] Suite table renders correctly
 - [ ] Checkboxes `[✓]` and `[ ]` display properly
 - [ ] Number indicators (1-9) visible
@@ -118,6 +129,7 @@ When using the manual test runner, check for:
 - [ ] No terminal artifacts when redrawing
 
 ### Common Artifacts to Check
+
 - [ ] No text overlapping
 - [ ] No incomplete screen clearing
 - [ ] No color bleeding
@@ -130,7 +142,7 @@ When using the manual test runner, check for:
 ### Create a Custom Test Project
 
 ```typescript
-import { createProjectFixture } from './helpers/fixture-factory.js';
+import { createProjectFixture } from './helpers/fixture-factory.js'
 
 const project = await createProjectFixture({
   name: 'my-test-project',
@@ -142,13 +154,13 @@ const project = await createProjectFixture({
       groups: ['tests'],
     },
   ],
-});
+})
 
-console.log('Project at:', project.baseDir);
+console.log('Project at:', project.baseDir)
 
 // Use project for testing...
 
-await project.dispose(); // Clean up
+await project.dispose() // Clean up
 ```
 
 ## Dependencies Added
@@ -159,6 +171,7 @@ await project.dispose(); // Clean up
 ## Test Results
 
 ✅ **All 18 automated integration tests passing**, including:
+
 - Git working tree validation
 - Exit code handling (0, 1, and error states)
 - Dry run mode
@@ -172,6 +185,7 @@ await project.dispose(); // Clean up
 ## Important Notes
 
 **Exit Codes:** The `attest-it` CLI uses exit codes to indicate status:
+
 - **Exit code 0** = All suites are valid, nothing to do
 - **Exit code 1** = Has pending suites (NEEDS_ATTESTATION, STALE, etc.) - **this is NOT an error!**
 - **Exit code 3+** = Actual errors (config validation failed, missing files, etc.)
@@ -181,6 +195,7 @@ The manual test runner has been updated to treat exit codes 0 and 1 as success.
 ## Next Steps
 
 ### For Testing Visual Artifacts
+
 1. Run `pnpm test:manual`
 2. Select different scenarios
 3. Try all commands in the menu
@@ -188,13 +203,16 @@ The manual test runner has been updated to treat exit codes 0 and 1 as success.
 5. Test keyboard interactions
 
 ### For Adding New Scenarios
+
 1. Add fixture function to `fixture-factory.ts`
 2. Add test case to `interactive-scenarios.test.ts`
 3. Add scenario to `manual-test-runner.ts`
 4. Update documentation
 
 ### For CI/CD
+
 The automated tests can be run in CI:
+
 ```bash
 pnpm test interactive-scenarios
 ```
@@ -202,6 +220,7 @@ pnpm test interactive-scenarios
 ## Documentation
 
 Read the comprehensive guides:
+
 - **Quick Start:** `packages/cli/test/QUICKSTART.md`
 - **Full Guide:** `packages/cli/test/README.md`
 - **Infrastructure:** `packages/cli/test/TESTING_SUMMARY.md`

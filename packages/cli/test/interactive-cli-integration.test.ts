@@ -11,147 +11,142 @@
  * Unlike the basic fixture tests, these test the ACTUAL interactive behavior.
  */
 
-import { describe, it, expect, afterEach } from 'vitest';
-import type { Project } from 'fixturify-project';
-import { execa } from 'execa';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
-import { writeSignedAttestations, getDefaultPrivateKeyPath } from '@attest-it/core';
+import { describe, it, expect, afterEach } from 'vitest'
+import type { Project } from 'fixturify-project'
+import { execa } from 'execa'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+import { writeSignedAttestations, getDefaultPrivateKeyPath } from '@attest-it/core'
 import {
   createMultiSuiteFixture,
   createAllMissingFixture,
   createProjectFixture,
   createRealAttestation,
-} from './helpers/fixture-factory.js';
+} from './helpers/fixture-factory.js'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const CLI_PATH = join(__dirname, '../dist/bin/attest-it.js');
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+const CLI_PATH = join(__dirname, '../dist/bin/attest-it.js')
 
 /**
  * Setup helper to initialize a project for CLI use
  */
 async function setupProject(proj: Project): Promise<void> {
-  const { join } = await import('node:path');
+  const { join } = await import('node:path')
 
   // Generate keypair with project-local private key to avoid conflicts
-  const privateKeyPath = join(proj.baseDir, '.attest-it', 'private.pem');
-  const publicKeyPath = join(proj.baseDir, '.attest-it', 'pubkey.pem');
+  const privateKeyPath = join(proj.baseDir, '.attest-it', 'private.pem')
+  const publicKeyPath = join(proj.baseDir, '.attest-it', 'pubkey.pem')
 
-  const keygenResult = await execa('node', [
-    CLI_PATH,
-    'keygen',
-    '--force',
-    '--output', privateKeyPath,
-    '--public', publicKeyPath
-  ], {
-    cwd: proj.baseDir,
-    reject: false,
-  });
+  const keygenResult = await execa(
+    'node',
+    [CLI_PATH, 'keygen', '--force', '--output', privateKeyPath, '--public', publicKeyPath],
+    {
+      cwd: proj.baseDir,
+      reject: false,
+    },
+  )
 
   if (keygenResult.exitCode !== 0) {
     throw new Error(
       `Keygen failed:\nExit code: ${keygenResult.exitCode}\n` +
-      `Stderr: ${keygenResult.stderr}\nStdout: ${keygenResult.stdout}`
-    );
+        `Stderr: ${keygenResult.stderr}\nStdout: ${keygenResult.stdout}`,
+    )
   }
 
   // Verify keypair was created
-  const fs = await import('node:fs/promises');
+  const fs = await import('node:fs/promises')
   try {
-    await fs.access(publicKeyPath);
-    await fs.access(privateKeyPath);
+    await fs.access(publicKeyPath)
+    await fs.access(privateKeyPath)
   } catch {
     throw new Error(
-      `Keypair not created:\nPublic key: ${publicKeyPath}\nPrivate key: ${privateKeyPath}`
-    );
+      `Keypair not created:\nPublic key: ${publicKeyPath}\nPrivate key: ${privateKeyPath}`,
+    )
   }
 
   // Commit the keypair
-  await execa('git', ['add', '.'], { cwd: proj.baseDir });
+  await execa('git', ['add', '.'], { cwd: proj.baseDir })
   await execa('git', ['commit', '-m', 'Add keypair', '--allow-empty'], {
     cwd: proj.baseDir,
-  });
+  })
 }
 
 /**
  * Check if git working tree is clean
  */
 async function checkGitStatus(cwd: string): Promise<string> {
-  const result = await execa('git', ['status', '--porcelain'], { cwd });
-  return result.stdout.trim();
+  const result = await execa('git', ['status', '--porcelain'], { cwd })
+  return result.stdout.trim()
 }
 
 describe('Interactive CLI Integration Tests', () => {
-  let project: Project | null = null;
+  let project: Project | null = null
 
   afterEach(async () => {
     if (project) {
-      await project.dispose();
-      project = null;
+      await project.dispose()
+      project = null
     }
-  });
+  })
 
   describe('Git working tree validation', () => {
     it('should reject running with uncommitted changes', async () => {
-      project = await createMultiSuiteFixture();
-      await setupProject(project);
+      project = await createMultiSuiteFixture()
+      await setupProject(project)
 
       // Create uncommitted file
-      const fs = await import('node:fs/promises');
-      await fs.writeFile(
-        join(project.baseDir, 'uncommitted.txt'),
-        'uncommitted content',
-      );
+      const fs = await import('node:fs/promises')
+      await fs.writeFile(join(project.baseDir, 'uncommitted.txt'), 'uncommitted content')
 
       // Try to run a specific suite (not dry-run, because that's buggy)
       const result = await execa('node', [CLI_PATH, 'run', '--suite', 'unit-tests'], {
         cwd: project.baseDir,
         reject: false,
-      });
+      })
 
       // Should fail (exit code will be non-zero)
-      expect(result.exitCode).toBeGreaterThan(0);
-      expect(result.stderr).toContain('Working tree has uncommitted changes');
-    });
+      expect(result.exitCode).toBeGreaterThan(0)
+      expect(result.stderr).toContain('Working tree has uncommitted changes')
+    })
 
     it('should allow running with clean working tree', async () => {
-      project = await createMultiSuiteFixture();
-      await setupProject(project);
+      project = await createMultiSuiteFixture()
+      await setupProject(project)
 
       // Verify working tree is clean
-      const gitStatus = await checkGitStatus(project.baseDir);
-      expect(gitStatus).toBe('');
+      const gitStatus = await checkGitStatus(project.baseDir)
+      expect(gitStatus).toBe('')
 
       // Should be able to run
       const result = await execa('node', [CLI_PATH, 'run', '--dry-run', '--all'], {
         cwd: project.baseDir,
         reject: false,
-      });
+      })
 
       // Exit code 0 or 1 are both success (0 = all valid, 1 = has pending)
-      expect([0, 1]).toContain(result.exitCode);
-    });
-  });
+      expect([0, 1]).toContain(result.exitCode)
+    })
+  })
 
   describe('Exit code handling', () => {
     it('should return exit code 1 when there are pending suites', async () => {
-      project = await createAllMissingFixture();
-      await setupProject(project);
+      project = await createAllMissingFixture()
+      await setupProject(project)
 
       const result = await execa('node', [CLI_PATH, 'status'], {
         cwd: project.baseDir,
         reject: false,
-      });
+      })
 
       // Exit code 1 = has pending suites (NOT an error)
-      expect(result.exitCode).toBe(1);
-      expect(result.stdout).toContain('NEEDS_ATTESTATION');
-    });
+      expect(result.exitCode).toBe(1)
+      expect(result.stdout).toContain('NEEDS_ATTESTATION')
+    })
 
     it('should return exit code 0 when all suites are valid', async () => {
-      project = await createMultiSuiteFixture();
-      await setupProject(project);
+      project = await createMultiSuiteFixture()
+      await setupProject(project)
 
       // Create attestations for all suites to make them valid
       // (This would require actually running and attesting, which is complex)
@@ -159,122 +154,110 @@ describe('Interactive CLI Integration Tests', () => {
       const result = await execa('node', [CLI_PATH, 'status'], {
         cwd: project.baseDir,
         reject: false,
-      });
+      })
 
       // Should not crash
-      expect([0, 1]).toContain(result.exitCode);
-    });
+      expect([0, 1]).toContain(result.exitCode)
+    })
 
     it('should return exit code 3 for actual errors', async () => {
-      project = await createMultiSuiteFixture();
+      project = await createMultiSuiteFixture()
       // Don't set up project - missing keypair should cause error
 
       const result = await execa('node', [CLI_PATH, 'status'], {
         cwd: project.baseDir,
         reject: false,
-      });
+      })
 
       // Should fail with actual error (missing public key)
-      expect(result.exitCode).toBeGreaterThanOrEqual(1);
-    });
-  });
+      expect(result.exitCode).toBeGreaterThanOrEqual(1)
+    })
+  })
 
   describe('Dry run mode', () => {
     it('should not execute tests in dry-run mode', async () => {
-      project = await createMultiSuiteFixture();
-      await setupProject(project);
+      project = await createMultiSuiteFixture()
+      await setupProject(project)
 
       const result = await execa('node', [CLI_PATH, 'run', '--dry-run', '--all'], {
         cwd: project.baseDir,
         reject: false,
-      });
+      })
 
       // Should succeed
-      expect([0, 1]).toContain(result.exitCode);
+      expect([0, 1]).toContain(result.exitCode)
 
       // Should indicate it's a dry run
-      expect(result.stdout.toLowerCase()).toMatch(/dry.*run|would.*run/i);
-    });
+      expect(result.stdout.toLowerCase()).toMatch(/dry.*run|would.*run/i)
+    })
 
     it('should show which suites would be run', async () => {
-      project = await createMultiSuiteFixture();
-      await setupProject(project);
+      project = await createMultiSuiteFixture()
+      await setupProject(project)
 
       const result = await execa('node', [CLI_PATH, 'run', '--dry-run', '--all'], {
         cwd: project.baseDir,
         reject: false,
-      });
+      })
 
       // Should list the suites
-      expect(result.stdout).toContain('unit-tests');
-    });
-  });
+      expect(result.stdout).toContain('unit-tests')
+    })
+  })
 
   describe('Suite filtering', () => {
     it('should filter suites by pattern', async () => {
-      project = await createMultiSuiteFixture();
-      await setupProject(project);
+      project = await createMultiSuiteFixture()
+      await setupProject(project)
 
-      const result = await execa(
-        'node',
-        [CLI_PATH, 'run', '--dry-run', '--filter', '*-tests'],
-        {
-          cwd: project.baseDir,
-          reject: false,
-        },
-      );
+      const result = await execa('node', [CLI_PATH, 'run', '--dry-run', '--filter', '*-tests'], {
+        cwd: project.baseDir,
+        reject: false,
+      })
 
       // Should include suites matching pattern
-      expect(result.stdout).toContain('unit-tests');
-      expect(result.stdout).toContain('integration-tests');
-      expect(result.stdout).toContain('e2e-tests');
+      expect(result.stdout).toContain('unit-tests')
+      expect(result.stdout).toContain('integration-tests')
+      expect(result.stdout).toContain('e2e-tests')
 
       // Should not include suites not matching pattern
-      expect(result.stdout).not.toContain('linting');
-      expect(result.stdout).not.toContain('type-check');
-    });
-  });
+      expect(result.stdout).not.toContain('linting')
+      expect(result.stdout).not.toContain('type-check')
+    })
+  })
 
   describe('Direct suite execution', () => {
-    it(
-      'should run a specific suite directly',
-      async () => {
-        project = await createMultiSuiteFixture();
-        await setupProject(project);
+    it('should run a specific suite directly', async () => {
+      project = await createMultiSuiteFixture()
+      await setupProject(project)
 
-        // Run without --dry-run to test actual execution
-        // Use --yes to skip confirmation prompt
-        const result = await execa(
-          'node',
-          [CLI_PATH, 'run', '--suite', 'unit-tests', '--yes'],
-          {
-            cwd: project.baseDir,
-            reject: false,
-            timeout: 10000, // 10 second timeout
-          },
-        );
+      // Run without --dry-run to test actual execution
+      // Use --yes to skip confirmation prompt
+      const result = await execa('node', [CLI_PATH, 'run', '--suite', 'unit-tests', '--yes'], {
+        cwd: project.baseDir,
+        reject: false,
+        timeout: 10000, // 10 second timeout
+      })
 
-        // Should succeed (exit code 0)
-        expect(result.exitCode).toBe(0);
+      // Should succeed (exit code 0)
+      expect(result.exitCode).toBe(0)
 
-        // Should mention the specific suite
-        expect(result.stdout).toContain('unit-tests');
+      // Should mention the specific suite
+      expect(result.stdout).toContain('unit-tests')
 
-        // Should show test output
-        expect(result.stdout).toContain('unit tests passed');
+      // Should show test output
+      expect(result.stdout).toContain('unit tests passed')
 
-        // Clean up: commit the attestation to avoid affecting other tests
-        await execa('git', ['add', '.'], { cwd: project.baseDir });
-        await execa('git', ['commit', '-m', 'Add attestation', '--allow-empty'], {
-          cwd: project.baseDir,
-        });
-      },
-      15000, // Vitest timeout
-    );
+      // Clean up: commit the attestation to avoid affecting other tests
+      await execa('git', ['add', '.'], { cwd: project.baseDir })
+      await execa('git', ['commit', '-m', 'Add attestation', '--allow-empty'], {
+        cwd: project.baseDir,
+      })
+    }, 15000) // Vitest timeout
 
     it('should error on non-existent suite', async () => {
-      project = await createMultiSuiteFixture();
-      await setupProject(project);
+      project = await createMultiSuiteFixture()
+      await setupProject(project)
 
       const result = await execa(
         'node',
@@ -283,88 +266,81 @@ describe('Interactive CLI Integration Tests', () => {
           cwd: project.baseDir,
           reject: false,
         },
-      );
+      )
 
       // Should fail
-      expect(result.exitCode).not.toBe(0);
-    });
-  });
+      expect(result.exitCode).not.toBe(0)
+    })
+  })
 
   describe('Configuration validation', () => {
     it('should reject invalid configuration', async () => {
-      project = await createMultiSuiteFixture();
+      project = await createMultiSuiteFixture()
 
       // Corrupt the config
-      const fs = await import('node:fs/promises');
-      await fs.writeFile(
-        join(project.baseDir, '.attest-it/config.yaml'),
-        'invalid: yaml: content:',
-      );
+      const fs = await import('node:fs/promises')
+      await fs.writeFile(join(project.baseDir, '.attest-it/config.yaml'), 'invalid: yaml: content:')
 
       const result = await execa('node', [CLI_PATH, 'status'], {
         cwd: project.baseDir,
         reject: false,
-      });
+      })
 
       // Should fail with config error
-      expect(result.exitCode).toBeGreaterThanOrEqual(1);
-      expect(result.stderr).toMatch(/config|yaml|parse/i);
-    });
-  });
+      expect(result.exitCode).toBeGreaterThanOrEqual(1)
+      expect(result.stderr).toMatch(/config|yaml|parse/i)
+    })
+  })
 
   describe('User workflow: First-time use (no attestations)', () => {
     it('should show all suites as needing attestation', async () => {
-      project = await createAllMissingFixture();
-      await setupProject(project);
+      project = await createAllMissingFixture()
+      await setupProject(project)
 
       const result = await execa('node', [CLI_PATH, 'status'], {
         cwd: project.baseDir,
         reject: false,
-      });
+      })
 
       // Exit code 1 = has pending work
-      expect(result.exitCode).toBe(1);
+      expect(result.exitCode).toBe(1)
 
       // All suites should show as NEEDS_ATTESTATION
-      expect(result.stdout).toContain('NEEDS_ATTESTATION');
+      expect(result.stdout).toContain('NEEDS_ATTESTATION')
 
       // Should show multiple suites needing attestation
-      expect(result.stdout).toContain('suite-1');
-      expect(result.stdout).toContain('suite-2');
-      expect(result.stdout).toContain('suite-3');
-    });
+      expect(result.stdout).toContain('suite-1')
+      expect(result.stdout).toContain('suite-2')
+      expect(result.stdout).toContain('suite-3')
+    })
 
     it('should allow running and attesting a suite', async () => {
-      project = await createAllMissingFixture();
-      await setupProject(project);
+      project = await createAllMissingFixture()
+      await setupProject(project)
 
       // Run a specific suite and attest it (suite-1 from createAllMissingFixture)
-      const result = await execa(
-        'node',
-        [CLI_PATH, 'run', '--suite', 'suite-1', '--yes'],
-        {
-          cwd: project.baseDir,
-          reject: false,
-          timeout: 10000,
-        },
-      );
+      const result = await execa('node', [CLI_PATH, 'run', '--suite', 'suite-1', '--yes'], {
+        cwd: project.baseDir,
+        reject: false,
+        timeout: 10000,
+      })
 
       // Should succeed
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(0)
 
       // Should show test passed
-      expect(result.stdout).toMatch(/passed|completed/i);
+      expect(result.stdout).toMatch(/passed|completed/i)
 
       // Should create attestation
-      expect(result.stdout).toMatch(/attestation.*created/i);
+      expect(result.stdout).toMatch(/attestation.*created/i)
 
       // Clean up: commit the attestation to avoid affecting other tests
-      await execa('git', ['add', '.'], { cwd: project.baseDir });
+      await execa('git', ['add', '.'], { cwd: project.baseDir })
       await execa('git', ['commit', '-m', 'Add attestation', '--allow-empty'], {
         cwd: project.baseDir,
-      });
-    });
-  });
+      })
+    })
+  })
 
   describe('User workflow: Out-of-date attestations', () => {
     // NOTE: Testing actual expiration (STALE status) is difficult in automated tests because:
@@ -384,36 +360,32 @@ describe('Interactive CLI Integration Tests', () => {
             maxAge: '30d',
           },
         ],
-      });
-      await setupProject(project);
+      })
+      await setupProject(project)
 
       // Create initial attestation
-      await createRealAttestation(project.baseDir, 'test-suite', CLI_PATH);
+      await createRealAttestation(project.baseDir, 'test-suite', CLI_PATH)
 
       // Commit the attestation (required before re-attesting)
-      await execa('git', ['add', '.'], { cwd: project.baseDir });
+      await execa('git', ['add', '.'], { cwd: project.baseDir })
       await execa('git', ['commit', '-m', 'Add attestation', '--allow-empty'], {
         cwd: project.baseDir,
-      });
+      })
 
       // Re-attest the suite
-      const result = await execa(
-        'node',
-        [CLI_PATH, 'run', '--suite', 'test-suite', '--yes'],
-        {
-          cwd: project.baseDir,
-          reject: false,
-          timeout: 10000,
-        },
-      );
+      const result = await execa('node', [CLI_PATH, 'run', '--suite', 'test-suite', '--yes'], {
+        cwd: project.baseDir,
+        reject: false,
+        timeout: 10000,
+      })
 
       // Should succeed
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(0)
 
       // Should create new attestation
-      expect(result.stdout).toMatch(/attestation.*created/i);
-    });
-  });
+      expect(result.stdout).toMatch(/attestation.*created/i)
+    })
+  })
 
   describe('User workflow: Nothing to do (all valid)', () => {
     it('should show all suites as valid', async () => {
@@ -426,27 +398,27 @@ describe('Interactive CLI Integration Tests', () => {
             maxAge: '30d',
           },
         ],
-      });
-      await setupProject(project);
+      })
+      await setupProject(project)
 
       // Create a real, fresh attestation
-      await createRealAttestation(project.baseDir, 'tests', CLI_PATH);
+      await createRealAttestation(project.baseDir, 'tests', CLI_PATH)
 
       const result = await execa('node', [CLI_PATH, 'status'], {
         cwd: project.baseDir,
         reject: false,
-      });
+      })
 
       // Exit code 0 = all valid, nothing to do
-      expect(result.exitCode).toBe(0);
+      expect(result.exitCode).toBe(0)
 
       // Should show suite as VALID
-      expect(result.stdout).toContain('VALID');
+      expect(result.stdout).toContain('VALID')
 
       // Should not show any pending work
-      expect(result.stdout).not.toContain('NEEDS_ATTESTATION');
-      expect(result.stdout).not.toContain('STALE');
-    });
+      expect(result.stdout).not.toContain('NEEDS_ATTESTATION')
+      expect(result.stdout).not.toContain('STALE')
+    })
 
     it('should show "nothing to do" when running with all valid', async () => {
       project = await createProjectFixture({
@@ -458,46 +430,45 @@ describe('Interactive CLI Integration Tests', () => {
             maxAge: '30d',
           },
         ],
-      });
-      await setupProject(project);
+      })
+      await setupProject(project)
 
       // Create a real, fresh attestation
-      await createRealAttestation(project.baseDir, 'tests', CLI_PATH);
+      await createRealAttestation(project.baseDir, 'tests', CLI_PATH)
 
       const result = await execa('node', [CLI_PATH, 'run', '--all'], {
         cwd: project.baseDir,
         reject: false,
         timeout: 10000,
-      });
+      })
 
       // Should exit with "nothing to do" status (exit code 2)
-      expect(result.exitCode).toBe(2);
+      expect(result.exitCode).toBe(2)
 
       // Should indicate nothing to run
-      expect(result.stdout).toMatch(/valid|nothing/i);
-    },
-    15000); // 15 second Vitest timeout
-  });
+      expect(result.stdout).toMatch(/valid|nothing/i)
+    }, 15000) // 15 second Vitest timeout
+  })
 
   describe('Help and version commands', () => {
     it('should display help', async () => {
       const result = await execa('node', [CLI_PATH, '--help'], {
         reject: false,
-      });
+      })
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('attest-it');
-      expect(result.stdout).toContain('status');
-      expect(result.stdout).toContain('run');
-    });
+      expect(result.exitCode).toBe(0)
+      expect(result.stdout).toContain('attest-it')
+      expect(result.stdout).toContain('status')
+      expect(result.stdout).toContain('run')
+    })
 
     it('should display version', async () => {
       const result = await execa('node', [CLI_PATH, '--version'], {
         reject: false,
-      });
+      })
 
-      expect(result.exitCode).toBe(0);
-      expect(result.stdout).toMatch(/\d+\.\d+\.\d+/); // Version number pattern
-    });
-  });
-});
+      expect(result.exitCode).toBe(0)
+      expect(result.stdout).toMatch(/\d+\.\d+\.\d+/) // Version number pattern
+    })
+  })
+})

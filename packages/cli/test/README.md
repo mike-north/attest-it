@@ -5,12 +5,14 @@ This directory contains comprehensive testing infrastructure for the `attest-it`
 ## Overview
 
 The interactive CLI is a terminal-based UI (using React + Ink) that allows users to:
+
 - View the status of test suite attestations
 - Select which suites to run
 - Execute tests and create attestations
 - Resume interrupted sessions
 
 This testing infrastructure helps validate that:
+
 - Visual rendering is correct (no artifacts)
 - Status badges display properly with correct colors
 - Keyboard interactions work as expected
@@ -24,12 +26,14 @@ This testing infrastructure helps validate that:
 Creates realistic test projects using `fixturify-project`. This allows us to programmatically generate complex project structures in temporary directories.
 
 **Important:** All fixtures are set up with a clean git working tree:
+
 - Project files are created and committed
 - Keypair is generated and committed
 - Working tree is verified clean before tests run
 - Automated test ensures `git status --porcelain` returns empty
 
 **Key Features:**
+
 - Programmatic project creation with custom suite configurations
 - Attestation generation with configurable states (expired, invalid, missing)
 - Git repository initialization
@@ -39,16 +43,16 @@ Creates realistic test projects using `fixturify-project`. This allows us to pro
 **Example Usage:**
 
 ```typescript
-import { createMultiSuiteFixture } from './helpers/fixture-factory.js';
+import { createMultiSuiteFixture } from './helpers/fixture-factory.js'
 
 // Create a project with 5 suites in various states
-const project = await createMultiSuiteFixture();
+const project = await createMultiSuiteFixture()
 
 // Use the project for testing
-await runCli(['status'], project.baseDir);
+await runCli(['status'], project.baseDir)
 
 // Clean up when done
-await project.dispose();
+await project.dispose()
 ```
 
 ### 2. Pre-configured Scenarios
@@ -56,7 +60,9 @@ await project.dispose();
 The fixture factory includes several pre-configured scenarios:
 
 #### `createMultiSuiteFixture()`
+
 Project with 5 suites in various states:
+
 - `unit-tests` - Fresh attestation (1 day old)
 - `integration-tests` - Expired (10 days old, max age 7d)
 - `e2e-tests` - Missing attestation
@@ -66,22 +72,27 @@ Project with 5 suites in various states:
 **Use for:** Testing mixed status displays, selection UI, filtering
 
 #### `createAllValidFixture()`
+
 All suites have valid, fresh attestations.
 
 **Use for:** Testing "nothing to do" state, edge case handling
 
 #### `createAllMissingFixture()`
+
 3 suites with no attestations.
 
 **Use for:** Testing bulk attestation creation, "select all" functionality
 
 #### `createAllExpiredFixture()`
+
 2 suites with expired attestations.
 
 **Use for:** Testing expiration detection and re-attestation flow
 
 #### `createComplexGroupsFixture()`
+
 6 suites organized into groups:
+
 - Frontend (unit + integration)
 - Backend (unit + integration)
 - E2E (slow)
@@ -90,6 +101,7 @@ All suites have valid, fresh attestations.
 **Use for:** Testing group-based filtering and organization
 
 #### `createFailingSuiteFixture()`
+
 One passing suite and one failing suite.
 
 **Use for:** Testing error handling, failure states
@@ -99,11 +111,13 @@ One passing suite and one failing suite.
 Integration tests using Vitest that validate CLI behavior across all scenarios.
 
 **Run tests:**
+
 ```bash
 pnpm test
 ```
 
 **What's tested:**
+
 - ✓ Status command output for various project states
 - ✓ Dry-run mode
 - ✓ Suite filtering with `--filter` flag
@@ -137,6 +151,7 @@ pnpm tsx test/manual-test-runner.ts all
 ```
 
 **Available scenarios:**
+
 - `multi-suite` - Mixed states (default)
 - `all-valid` - All valid attestations
 - `all-missing` - All missing attestations
@@ -161,6 +176,7 @@ Available Commands
 ```
 
 You can:
+
 - Run specific commands to see the visual output
 - Open a shell to explore the project structure
 - Test keyboard interactions (arrow keys, space, numbers, etc.)
@@ -172,6 +188,7 @@ You can:
 When manually testing the interactive CLI, verify:
 
 ### Status Command
+
 - [ ] Status badges display correctly (VALID, MISSING, STALE, CHANGED, INVALID)
 - [ ] Colors are appropriate (green for valid, yellow for warnings, red for errors)
 - [ ] No text wrapping issues
@@ -179,6 +196,7 @@ When manually testing the interactive CLI, verify:
 - [ ] Suite names and reasons are readable
 
 ### Interactive Selection
+
 - [ ] Suite table renders correctly
 - [ ] Checkboxes `[✓]` and `[ ]` display properly
 - [ ] Number indicators (1-9) are visible
@@ -191,6 +209,7 @@ When manually testing the interactive CLI, verify:
 - [ ] No terminal artifacts when redrawing
 
 ### Test Runner Phase
+
 - [ ] Progress shows correctly
 - [ ] Test output displays properly
 - [ ] Attestation prompts are clear
@@ -198,6 +217,7 @@ When manually testing the interactive CLI, verify:
 - [ ] Summary displays completed/failed/skipped counts
 
 ### Session Management
+
 - [ ] `--continue` flag resumes correctly
 - [ ] Pre-selected suites show as checked
 - [ ] Session state persists between runs
@@ -219,7 +239,7 @@ Based on the issue description, specifically check for:
 You can create custom scenarios using the fixture factory:
 
 ```typescript
-import { createProjectFixture } from './helpers/fixture-factory.js';
+import { createProjectFixture } from './helpers/fixture-factory.js'
 
 const project = await createProjectFixture({
   name: 'my-test-project',
@@ -244,27 +264,31 @@ const project = await createProjectFixture({
     'README.md': '# My Test Project',
     'src/index.ts': 'console.log("Hello")',
   },
-});
+})
 
 // Use project for testing...
 
-await project.dispose();
+await project.dispose()
 ```
 
 ## Debugging Tips
 
 ### Enable verbose logging
+
 ```bash
 attest-it status --verbose
 ```
 
 ### Check raw terminal output
+
 ```bash
 script -q /dev/null attest-it run | cat -A
 ```
 
 ### Inspect Ink component state
+
 Use `ink-testing-library` in automated tests:
+
 ```typescript
 import { render } from 'ink-testing-library';
 import { InteractiveRun } from '../src/components/InteractiveRun.js';
@@ -274,9 +298,10 @@ console.log(lastFrame());
 ```
 
 ### Access test project manually
+
 ```typescript
-const project = await createMultiSuiteFixture();
-console.log('Project at:', project.baseDir);
+const project = await createMultiSuiteFixture()
+console.log('Project at:', project.baseDir)
 // Don't call dispose() to keep it around
 ```
 
@@ -292,6 +317,7 @@ When adding new test scenarios:
 ## Test Coverage Goals
 
 Our testing should cover:
+
 - ✅ All status badge types (VALID, MISSING, STALE, CHANGED, INVALID, INVALIDATED)
 - ✅ Empty states (no suites, all valid, all invalid)
 - ✅ Large numbers of suites (10+)
@@ -315,6 +341,7 @@ pnpm test interactive-scenarios
 ```
 
 Manual visual validation should be performed:
+
 - Before major releases
 - When changing Ink components
 - When updating terminal rendering logic

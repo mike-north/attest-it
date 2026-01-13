@@ -21,37 +21,36 @@
  *   all           - Run all scenarios in sequence
  */
 
-import { execa } from 'execa';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { dirname } from 'node:path';
+import { execa } from 'execa'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { dirname } from 'node:path'
 import {
   createMultiSuiteFixture,
   createAllMissingFixture,
   createComplexGroupsFixture,
   createFailingSuiteFixture,
-} from './helpers/fixture-factory.js';
-import type { Project } from 'fixturify-project';
+} from './helpers/fixture-factory.js'
+import type { Project } from 'fixturify-project'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 interface Scenario {
-  name: string;
-  description: string;
-  createFixture: () => Promise<Project>;
+  name: string
+  description: string
+  createFixture: () => Promise<Project>
   commands: Array<{
-    name: string;
-    args: string[];
-    description: string;
-  }>;
+    name: string
+    args: string[]
+    description: string
+  }>
 }
 
 const scenarios: Record<string, Scenario> = {
   'multi-suite': {
     name: 'Multi-Suite Project',
-    description:
-      'Project with 5 suites in various states (valid, missing, expired, changed)',
+    description: 'Project with 5 suites in various states (valid, missing, expired, changed)',
     createFixture: createMultiSuiteFixture,
     commands: [
       {
@@ -62,8 +61,7 @@ const scenarios: Record<string, Scenario> = {
       {
         name: 'run-interactive',
         args: ['run'],
-        description:
-          'Interactive suite selection (use keyboard to select suites)',
+        description: 'Interactive suite selection (use keyboard to select suites)',
       },
       {
         name: 'run-all-dry',
@@ -151,16 +149,12 @@ const scenarios: Record<string, Scenario> = {
       },
     ],
   },
-};
+}
 
 /**
  * Run a command and wait for it to complete
  */
-async function runCommand(
-  command: string,
-  args: string[],
-  cwd: string,
-): Promise<void> {
+async function runCommand(command: string, args: string[], cwd: string): Promise<void> {
   try {
     await execa(command, args, {
       cwd,
@@ -170,12 +164,12 @@ async function runCommand(
       // Exit codes 0 and 1 are both considered success for attest-it
       // 0 = all suites valid, 1 = has pending suites
       if (result.exitCode !== 0 && result.exitCode !== 1) {
-        throw new Error(`Command failed with code ${result.exitCode}`);
+        throw new Error(`Command failed with code ${result.exitCode}`)
       }
-    });
+    })
   } catch (error) {
     // If execa throws (not from our check above), rethrow
-    throw error;
+    throw error
   }
 }
 
@@ -183,174 +177,167 @@ async function runCommand(
  * Wait for user to press Enter
  */
 async function waitForEnter(): Promise<void> {
-  const readline = await import('node:readline');
+  const readline = await import('node:readline')
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-  });
+  })
 
   return new Promise((resolve) => {
     rl.question('', () => {
-      rl.close();
-      resolve();
-    });
-  });
+      rl.close()
+      resolve()
+    })
+  })
 }
 
 /**
  * Display a menu and get user selection
  */
-async function displayMenu(
-  title: string,
-  options: string[],
-): Promise<number> {
-  console.log(`\n${title}`);
-  console.log('='.repeat(title.length));
+async function displayMenu(title: string, options: string[]): Promise<number> {
+  console.log(`\n${title}`)
+  console.log('='.repeat(title.length))
   options.forEach((option, index) => {
-    console.log(`${index + 1}. ${option}`);
-  });
-  console.log('0. Exit');
-  console.log();
+    console.log(`${index + 1}. ${option}`)
+  })
+  console.log('0. Exit')
+  console.log()
 
-  const readline = await import('node:readline');
+  const readline = await import('node:readline')
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
-  });
+  })
 
   return new Promise((resolve) => {
     rl.question('Select option: ', (answer) => {
-      rl.close();
-      const num = parseInt(answer, 10);
-      resolve(isNaN(num) ? -1 : num);
-    });
-  });
+      rl.close()
+      const num = parseInt(answer, 10)
+      resolve(isNaN(num) ? -1 : num)
+    })
+  })
 }
 
 /**
  * Run a scenario
  */
 async function runScenario(scenarioKey: string): Promise<void> {
-  const scenario = scenarios[scenarioKey];
+  const scenario = scenarios[scenarioKey]
   if (!scenario) {
-    console.error(`Unknown scenario: ${scenarioKey}`);
-    console.log(
-      'Available scenarios:',
-      Object.keys(scenarios).join(', '),
-      'all',
-    );
-    process.exit(1);
+    console.error(`Unknown scenario: ${scenarioKey}`)
+    console.log('Available scenarios:', Object.keys(scenarios).join(', '), 'all')
+    process.exit(1)
   }
 
-  console.log(`\n${'='.repeat(80)}`);
-  console.log(`Scenario: ${scenario.name}`);
-  console.log(`Description: ${scenario.description}`);
-  console.log('='.repeat(80));
+  console.log(`\n${'='.repeat(80)}`)
+  console.log(`Scenario: ${scenario.name}`)
+  console.log(`Description: ${scenario.description}`)
+  console.log('='.repeat(80))
 
   // Create the fixture
-  console.log('\nCreating test project...');
-  const project = await scenario.createFixture();
+  console.log('\nCreating test project...')
+  const project = await scenario.createFixture()
 
-  console.log(`✓ Project created at: ${project.baseDir}`);
+  console.log(`✓ Project created at: ${project.baseDir}`)
 
   // Setup the project (generate keypair and commit)
-  console.log('Setting up keypair...');
-  const cliPath = join(__dirname, '../dist/bin/attest-it.js');
+  console.log('Setting up keypair...')
+  const cliPath = join(__dirname, '../dist/bin/attest-it.js')
 
   try {
     // Generate keypair
-    console.log('  - Generating keypair...');
-    await runCommand('node', [cliPath, 'keygen', '--force', '--public', '.attest-it/pubkey.pem'], project.baseDir);
-    console.log('  - Keypair generated');
+    console.log('  - Generating keypair...')
+    await runCommand(
+      'node',
+      [cliPath, 'keygen', '--force', '--public', '.attest-it/pubkey.pem'],
+      project.baseDir,
+    )
+    console.log('  - Keypair generated')
 
     // Commit the keypair
-    console.log('  - Adding files to git...');
-    await runCommand('git', ['add', '.'], project.baseDir);
-    console.log('  - Committing keypair...');
-    await runCommand('git', ['commit', '-m', 'Add keypair', '--allow-empty'], project.baseDir);
-    console.log('  - Committed');
+    console.log('  - Adding files to git...')
+    await runCommand('git', ['add', '.'], project.baseDir)
+    console.log('  - Committing keypair...')
+    await runCommand('git', ['commit', '-m', 'Add keypair', '--allow-empty'], project.baseDir)
+    console.log('  - Committed')
 
     // Verify git status is clean
-    console.log('  - Verifying git status...');
+    console.log('  - Verifying git status...')
     const { stdout: gitStatus } = await execa('git', ['status', '--porcelain'], {
       cwd: project.baseDir,
-    });
+    })
 
     if (gitStatus.trim().length > 0) {
-      console.log('  ⚠️  WARNING: Git status not clean!');
-      console.log('  Uncommitted files:');
-      console.log(gitStatus);
+      console.log('  ⚠️  WARNING: Git status not clean!')
+      console.log('  Uncommitted files:')
+      console.log(gitStatus)
     } else {
-      console.log('  - Git status clean ✓');
+      console.log('  - Git status clean ✓')
     }
   } catch (error) {
-    console.error('  ✗ Setup failed:', error);
-    throw error;
+    console.error('  ✗ Setup failed:', error)
+    throw error
   }
 
-  console.log('✓ Setup complete');
-  console.log('\n' + '='.repeat(80));
-  console.log('⚠️  IMPORTANT: This is a DEMO project for UI testing only!');
-  console.log('='.repeat(80));
-  console.log('The "tests" are dummy commands that just print messages.');
-  console.log('They do NOT test real code - this is for validating the CLI interface:');
-  console.log('  • Visual rendering and colors');
-  console.log('  • Keyboard shortcuts and interactions');
-  console.log('  • Status badge display');
-  console.log('  • Checking for visual artifacts');
-  console.log('\nIn a real project, you would:');
-  console.log('  1. Run actual tests (npm test, pytest, etc.)');
-  console.log('  2. Review the test output manually');
-  console.log('  3. Attest that you verified the tests passed');
-  console.log('='.repeat(80));
-  console.log(
-    '\nNote: This is a temporary project that will be cleaned up when you exit.',
-  );
+  console.log('✓ Setup complete')
+  console.log('\n' + '='.repeat(80))
+  console.log('⚠️  IMPORTANT: This is a DEMO project for UI testing only!')
+  console.log('='.repeat(80))
+  console.log('The "tests" are dummy commands that just print messages.')
+  console.log('They do NOT test real code - this is for validating the CLI interface:')
+  console.log('  • Visual rendering and colors')
+  console.log('  • Keyboard shortcuts and interactions')
+  console.log('  • Status badge display')
+  console.log('  • Checking for visual artifacts')
+  console.log('\nIn a real project, you would:')
+  console.log('  1. Run actual tests (npm test, pytest, etc.)')
+  console.log('  2. Review the test output manually')
+  console.log('  3. Attest that you verified the tests passed')
+  console.log('='.repeat(80))
+  console.log('\nNote: This is a temporary project that will be cleaned up when you exit.')
 
   try {
     // CLI path is already defined above
 
     // Run commands in a loop
-    let running = true;
+    let running = true
     while (running) {
-      const commandOptions = scenario.commands.map(
-        (cmd) => `${cmd.name}: ${cmd.description}`,
-      );
+      const commandOptions = scenario.commands.map((cmd) => `${cmd.name}: ${cmd.description}`)
 
       const selection = await displayMenu('Available Commands', [
         ...commandOptions,
         'Open shell in project directory',
-      ]);
+      ])
 
       if (selection === 0) {
-        running = false;
+        running = false
       } else if (selection === commandOptions.length + 1) {
         // Open shell
-        console.log('\nOpening shell in project directory...');
-        console.log(`Project: ${project.baseDir}`);
-        console.log('Type "exit" to return to the menu.\n');
-        await runCommand(process.env.SHELL || 'bash', [], project.baseDir);
+        console.log('\nOpening shell in project directory...')
+        console.log(`Project: ${project.baseDir}`)
+        console.log('Type "exit" to return to the menu.\n')
+        await runCommand(process.env.SHELL || 'bash', [], project.baseDir)
       } else if (selection > 0 && selection <= scenario.commands.length) {
-        const command = scenario.commands[selection - 1];
-        console.log(`\nRunning: attest-it ${command.args.join(' ')}`);
-        console.log('-'.repeat(80));
+        const command = scenario.commands[selection - 1]
+        console.log(`\nRunning: attest-it ${command.args.join(' ')}`)
+        console.log('-'.repeat(80))
         try {
-          await runCommand('node', [cliPath, ...command.args], project.baseDir);
+          await runCommand('node', [cliPath, ...command.args], project.baseDir)
         } catch (error) {
-          console.error('Command failed:', error);
+          console.error('Command failed:', error)
         }
-        console.log('-'.repeat(80));
-        console.log('\nPress Enter to continue...');
-        await waitForEnter();
+        console.log('-'.repeat(80))
+        console.log('\nPress Enter to continue...')
+        await waitForEnter()
       } else {
-        console.log('Invalid selection');
+        console.log('Invalid selection')
       }
     }
   } finally {
     // Clean up
-    console.log('\nCleaning up test project...');
-    await project.dispose();
-    console.log('✓ Done');
+    console.log('\nCleaning up test project...')
+    await project.dispose()
+    console.log('✓ Done')
   }
 }
 
@@ -358,11 +345,11 @@ async function runScenario(scenarioKey: string): Promise<void> {
  * Run all scenarios in sequence
  */
 async function runAllScenarios(): Promise<void> {
-  const scenarioKeys = Object.keys(scenarios);
+  const scenarioKeys = Object.keys(scenarios)
 
   for (const key of scenarioKeys) {
-    await runScenario(key);
-    console.log('\n');
+    await runScenario(key)
+    console.log('\n')
   }
 }
 
@@ -370,27 +357,25 @@ async function runAllScenarios(): Promise<void> {
  * Main entry point
  */
 async function main(): Promise<void> {
-  const scenarioArg = process.argv[2] || 'multi-suite';
+  const scenarioArg = process.argv[2] || 'multi-suite'
 
-  console.log('='.repeat(80));
-  console.log('Interactive CLI Manual Test Runner');
-  console.log('='.repeat(80));
-  console.log(
-    '\nThis tool helps you visually validate the interactive CLI experience.',
-  );
-  console.log('It creates realistic test projects for manual testing.\n');
+  console.log('='.repeat(80))
+  console.log('Interactive CLI Manual Test Runner')
+  console.log('='.repeat(80))
+  console.log('\nThis tool helps you visually validate the interactive CLI experience.')
+  console.log('It creates realistic test projects for manual testing.\n')
 
   if (scenarioArg === 'all') {
-    await runAllScenarios();
+    await runAllScenarios()
   } else {
-    await runScenario(scenarioArg);
+    await runScenario(scenarioArg)
   }
 }
 
 // Run if executed directly
 if (import.meta.url === `file://${process.argv[1]}`) {
   main().catch((error) => {
-    console.error('Error:', error);
-    process.exit(1);
-  });
+    console.error('Error:', error)
+    process.exit(1)
+  })
 }
