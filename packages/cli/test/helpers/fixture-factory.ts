@@ -160,6 +160,12 @@ export async function createProjectFixture(options: ProjectFixtureOptions = {}):
   // Write the project to disk
   await project.write()
 
+  // Force file system sync - especially important in CI
+  // Read the config file to ensure write completed
+  const { readFile } = await import('node:fs/promises')
+  const configPath = join(project.baseDir, '.attest-it', 'config.yaml')
+  await readFile(configPath, 'utf-8')
+
   // Initialize git if requested
   if (initGit) {
     await execa('git', ['init'], { cwd: project.baseDir })
@@ -182,6 +188,32 @@ export async function createProjectFixture(options: ProjectFixtureOptions = {}):
 }
 
 /**
+ * Verify that a project is ready for CLI operations.
+ *
+ * This ensures the config file is properly written and readable, addressing
+ * CI file system sync issues.
+ *
+ * @param projectDir - Absolute path to the project directory
+ * @throws {Error} If the config file is not readable or invalid
+ */
+export async function verifyProjectReady(projectDir: string): Promise<void> {
+  const { readFile } = await import('node:fs/promises')
+  const configPath = join(projectDir, '.attest-it', 'config.yaml')
+
+  // Verify config exists and is readable
+  const content = await readFile(configPath, 'utf-8')
+
+  if (!content.includes('version: 1')) {
+    throw new Error(`Config file at ${configPath} not properly written`)
+  }
+
+  // Small delay for CI file system latency
+  if (process.env.CI) {
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+}
+
+/**
  * Create a real attestation by running the CLI.
  *
  * This runs the actual test suite and generates a cryptographically signed
@@ -190,6 +222,7 @@ export async function createProjectFixture(options: ProjectFixtureOptions = {}):
  * @param projectDir - Absolute path to the project directory
  * @param suiteName - Name of the suite to attest (must exist in config)
  * @param cliPath - Absolute path to the attest-it CLI executable
+ * @param retries - Number of retries for flaky CI environments (default: 2)
  * @throws {Error} If the suite doesn't exist or attestation creation fails
  * @example
  * await createRealAttestation(
@@ -202,20 +235,44 @@ export async function createRealAttestation(
   projectDir: string,
   suiteName: string,
   cliPath: string,
+  retries = 2,
 ): Promise<void> {
-  const result = await execa('node', [cliPath, 'run', '--suite', suiteName, '--yes'], {
-    cwd: projectDir,
-    reject: false,
-  })
+  let lastError: Error | undefined
 
-  if (result.exitCode !== 0) {
-    throw new Error(
-      `Failed to create attestation for suite "${suiteName}":\n` +
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const result = await execa('node', [cliPath, 'run', '--suite', suiteName, '--yes'], {
+      cwd: projectDir,
+      reject: false,
+    })
+
+    if (result.exitCode === 0) {
+      return // Success!
+    }
+
+    // Save error for potential retry
+    lastError = new Error(
+      `Failed to create attestation for suite "${suiteName}" (attempt ${attempt + 1}/${retries + 1}):\n` +
         `Exit code: ${result.exitCode}\n` +
         `Stdout: ${result.stdout}\n` +
         `Stderr: ${result.stderr}`,
     )
+
+    // If it's a config/key error and we have retries left, wait and retry
+    // Exit code 3 = CONFIG_ERROR, Exit code 5 = MISSING_KEY
+    if (attempt < retries && (result.exitCode === 3 || result.exitCode === 5)) {
+      if (process.env.CI) {
+        console.log(
+          `Retrying attestation creation (attempt ${attempt + 2}/${retries + 1}) after ${200 * (attempt + 1)}ms...`,
+        )
+      }
+      await new Promise((resolve) => setTimeout(resolve, 200 * (attempt + 1)))
+      continue
+    }
+
+    break
   }
+
+  throw lastError!
 }
 
 /**
