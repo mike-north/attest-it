@@ -34,6 +34,7 @@ const suiteSchema = z
     ignore: z.array(z.string().min(1, 'Ignore pattern cannot be empty')).optional(),
     command: z.string().optional(),
     invalidates: z.array(z.string().min(1, 'Invalidated suite name cannot be empty')).optional(),
+    depends_on: z.array(z.string().min(1, 'Dependency suite name cannot be empty')).optional(),
   })
   .strict()
 
@@ -47,6 +48,9 @@ const configSchema = z
     suites: z.record(z.string(), suiteSchema).refine((suites) => Object.keys(suites).length >= 1, {
       message: 'At least one suite must be defined',
     }),
+    groups: z
+      .record(z.string(), z.array(z.string().min(1, 'Suite name in group cannot be empty')))
+      .optional(),
   })
   .strict()
 
@@ -289,8 +293,10 @@ export function toAttestItConfig(config: Config): import('./types.js').AttestItC
           ...(suite.ignore !== undefined && { ignore: suite.ignore }),
           ...(suite.command !== undefined && { command: suite.command }),
           ...(suite.invalidates !== undefined && { invalidates: suite.invalidates }),
+          ...(suite.depends_on !== undefined && { depends_on: suite.depends_on }),
         },
       ]),
     ),
+    ...(config.groups !== undefined && { groups: config.groups }),
   }
 }

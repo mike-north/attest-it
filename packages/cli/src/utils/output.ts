@@ -1,4 +1,4 @@
-import pc from 'picocolors'
+import { detectTheme, type Theme } from 'chromaterm'
 
 export interface OutputOptions {
   verbose?: boolean
@@ -8,6 +8,43 @@ export interface OutputOptions {
 
 // Singleton for global output options
 let globalOptions: OutputOptions = {}
+
+// Theme singleton - will be initialized lazily if not explicitly initialized
+let theme: Theme | undefined
+
+/**
+ * Initialize the color theme by detecting the terminal theme.
+ * Must be called before using any color functions.
+ */
+export async function initTheme(): Promise<void> {
+  theme = await detectTheme()
+}
+
+/**
+ * Get the theme, initializing it synchronously if needed (for tests).
+ * Uses a fallback no-op theme if async initialization hasn't been called.
+ */
+function getTheme(): Theme {
+  if (!theme) {
+    // Fallback for tests or when initTheme() wasn't called
+    // This creates a simple pass-through theme that returns strings unchanged
+    const noopFn = (str: string) => str
+    const chainable = () => noopFn
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Required mock theme for testing/fallback when async init not called
+    theme = {
+      red: Object.assign(noopFn, { bold: chainable, dim: chainable }),
+      green: Object.assign(noopFn, { bold: chainable, dim: chainable }),
+      yellow: Object.assign(noopFn, { bold: chainable, dim: chainable }),
+      blue: Object.assign(noopFn, { bold: chainable, dim: chainable }),
+      success: noopFn,
+      error: noopFn,
+      warning: noopFn,
+      info: noopFn,
+      muted: noopFn,
+    } as unknown as Theme
+  }
+  return theme
+}
 
 export function setOutputOptions(options: OutputOptions): void {
   globalOptions = options
@@ -26,26 +63,26 @@ export function log(message: string): void {
 
 export function verbose(message: string): void {
   if (globalOptions.verbose && !globalOptions.quiet) {
-    console.log(pc.dim(message))
+    console.log(getTheme().muted(message))
   }
 }
 
 export function success(message: string): void {
-  log(pc.green('✓ ' + message))
+  log(getTheme().success('✓ ' + message))
 }
 
 export function error(message: string): void {
-  console.error(pc.red('✗ ' + message))
+  console.error(getTheme().error('✗ ' + message))
 }
 
 export function warn(message: string): void {
   if (!globalOptions.quiet) {
-    console.warn(pc.yellow('⚠ ' + message))
+    console.warn(getTheme().warning('⚠ ' + message))
   }
 }
 
 export function info(message: string): void {
-  log(pc.blue('ℹ ' + message))
+  log(getTheme().info('ℹ ' + message))
 }
 
 // Table formatting for status display
@@ -99,17 +136,18 @@ export function formatTable(rows: TableRow[]): string {
 
 // Status colorization
 export function colorizeStatus(status: string): string {
+  const t = getTheme()
   switch (status) {
     case 'VALID':
-      return pc.green(status)
+      return t.green(status)
     case 'NEEDS_ATTESTATION':
     case 'FINGERPRINT_CHANGED':
-      return pc.yellow(status)
+      return t.yellow(status)
     case 'EXPIRED':
     case 'INVALIDATED_BY_PARENT':
-      return pc.red(status)
+      return t.red(status)
     case 'SIGNATURE_INVALID':
-      return pc.red(pc.bold(status))
+      return t.red.bold()(status)
     default:
       return status
   }

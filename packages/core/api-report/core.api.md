@@ -25,6 +25,7 @@ export interface AttestationsFile {
 
 // @public
 export interface AttestItConfig {
+    groups?: Record<string, string[]>;
     settings: AttestItSettings;
     suites: Record<string, SuiteConfig>;
     version: 1;
@@ -174,6 +175,7 @@ export interface SignOptions {
 // @public
 export interface SuiteConfig {
     command?: string;
+    depends_on?: string[];
     description?: string;
     files?: string[];
     ignore?: string[];

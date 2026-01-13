@@ -1,0 +1,16 @@
+version: 1
+settings:
+  maxAgeDays: 30
+  publicKeyPath: .attest-it/pubkey.pem
+  attestationsPath: .attest-it/attestations.json
+  defaultCommand: pnpm test
+
+suites:
+  unit:
+    packages:
+      - '@attest-it/core'
+
+groups:
+  ui-tests:
+    - unit
+    - ''

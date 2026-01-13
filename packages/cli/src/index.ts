@@ -5,7 +5,7 @@ import { runCommand } from './commands/run.js'
 import { keygenCommand } from './commands/keygen.js'
 import { pruneCommand } from './commands/prune.js'
 import { verifyCommand } from './commands/verify.js'
-import { setOutputOptions } from './utils/output.js'
+import { setOutputOptions, initTheme } from './utils/output.js'
 
 const program = new Command()
 
@@ -25,7 +25,10 @@ program.addCommand(keygenCommand)
 program.addCommand(pruneCommand)
 program.addCommand(verifyCommand)
 
-export function run(): void {
+export async function run(): Promise<void> {
+  // Initialize theme before any output
+  await initTheme()
+
   // Parse options and set global output options
   program.parse()
   const options = program.opts<{ verbose?: boolean; quiet?: boolean }>()

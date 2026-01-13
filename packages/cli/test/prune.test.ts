@@ -199,19 +199,19 @@ describe('runPrune', () => {
     it('should handle invalid --keep-days value', async () => {
       await runPrune({ keepDays: 'invalid', dryRun: false })
 
-      expect(mockProcessExit).toHaveBeenCalledWith(2)
+      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
     })
 
     it('should handle negative --keep-days value', async () => {
       await runPrune({ keepDays: '-5', dryRun: false })
 
-      expect(mockProcessExit).toHaveBeenCalledWith(2)
+      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
     })
 
     it('should handle zero --keep-days value', async () => {
       await runPrune({ keepDays: '0', dryRun: false })
 
-      expect(mockProcessExit).toHaveBeenCalledWith(2)
+      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
     })
 
     it('should handle missing private key', async () => {
@@ -234,7 +234,7 @@ describe('runPrune', () => {
       await runPrune({ keepDays: '30', dryRun: false })
 
       expect(writeSignedAttestations).not.toHaveBeenCalled()
-      expect(mockProcessExit).toHaveBeenCalledWith(4)
+      expect(mockProcessExit).toHaveBeenCalledWith(5) // MISSING_KEY
     })
   })
 
@@ -386,7 +386,7 @@ describe('runPrune', () => {
 
       await runPrune({ keepDays: '30', dryRun: false })
 
-      expect(mockProcessExit).toHaveBeenCalledWith(2)
+      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
     })
   })
 })

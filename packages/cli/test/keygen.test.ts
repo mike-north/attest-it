@@ -153,7 +153,7 @@ describe('keygen command', () => {
           })
         }).rejects.toThrow('process.exit called')
 
-        expect(mockProcessExit).toHaveBeenCalledWith(2)
+        expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
         expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('OpenSSL not found'))
       })
 
@@ -166,7 +166,7 @@ describe('keygen command', () => {
           })
         }).rejects.toThrow('process.exit called')
 
-        expect(mockProcessExit).toHaveBeenCalledWith(2)
+        expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
         expect(mockConsoleError).toHaveBeenCalledWith(
           expect.stringContaining('Failed to generate private key'),
         )
@@ -181,7 +181,7 @@ describe('keygen command', () => {
           })
         }).rejects.toThrow('process.exit called')
 
-        expect(mockProcessExit).toHaveBeenCalledWith(2)
+        expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
         expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Unknown error'))
       })
     })
@@ -263,7 +263,7 @@ describe('keygen command', () => {
           })
         }).rejects.toThrow('process.exit called')
 
-        expect(mockProcessExit).toHaveBeenCalledWith(2)
+        expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
         expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Permission denied'))
       })
     })

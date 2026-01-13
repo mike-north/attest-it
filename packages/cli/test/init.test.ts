@@ -337,7 +337,7 @@ describe('init command', () => {
         })
       }).rejects.toThrow('process.exit called')
 
-      expect(mockProcessExit).toHaveBeenCalledWith(2)
+      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Permission denied'))
     })
 
@@ -350,7 +350,7 @@ describe('init command', () => {
         })
       }).rejects.toThrow('process.exit called')
 
-      expect(mockProcessExit).toHaveBeenCalledWith(2)
+      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
       expect(mockConsoleError).toHaveBeenCalledWith(
         expect.stringContaining('Cannot create directory'),
       )
@@ -365,7 +365,7 @@ describe('init command', () => {
         })
       }).rejects.toThrow('process.exit called')
 
-      expect(mockProcessExit).toHaveBeenCalledWith(2)
+      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Unknown error'))
     })
   })

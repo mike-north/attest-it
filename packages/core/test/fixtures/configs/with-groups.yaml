@@ -1,0 +1,39 @@
+version: 1
+settings:
+  maxAgeDays: 30
+  publicKeyPath: .attest-it/pubkey.pem
+  attestationsPath: .attest-it/attestations.json
+  defaultCommand: pnpm test
+
+suites:
+  visual-effects:
+    description: Flash animations
+    command: pnpm test:visual
+    packages:
+      - packages/visual
+
+  custom-colors:
+    description: Custom color tests
+    command: pnpm test:colors
+    packages:
+      - packages/colors
+
+  focus-detection:
+    description: Focus detection tests
+    command: pnpm test:focus
+    packages:
+      - packages/focus
+
+  multi-session:
+    description: Multi-session tests
+    command: pnpm test:sessions
+    packages:
+      - packages/sessions
+
+groups:
+  ui-tests:
+    - visual-effects
+    - custom-colors
+  behavior-tests:
+    - focus-detection
+    - multi-session

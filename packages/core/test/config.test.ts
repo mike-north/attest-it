@@ -81,6 +81,56 @@ describe('config', () => {
         expect(config.settings.publicKeyPath).toBe('.attest-it/pubkey.pem')
         expect(config.settings.attestationsPath).toBe('.attest-it/attestations.json')
       })
+
+      it('should load config with suite dependencies', async () => {
+        const configPath = path.join(FIXTURES_DIR, 'with-dependencies.yaml')
+        const config = await loadConfig(configPath)
+
+        expect(config.version).toBe(1)
+        expect(config.suites['visual-effects']).toBeDefined()
+        expect(config.suites['focus-detection']).toBeDefined()
+        expect(config.suites['full-acceptance']).toBeDefined()
+
+        const fullAcceptance = config.suites['full-acceptance']
+        expect(fullAcceptance?.depends_on).toBeDefined()
+        expect(fullAcceptance?.depends_on).toEqual(['visual-effects', 'focus-detection'])
+      })
+
+      it('should load config with groups', async () => {
+        const configPath = path.join(FIXTURES_DIR, 'with-groups.yaml')
+        const config = await loadConfig(configPath)
+
+        expect(config.version).toBe(1)
+        expect(config.groups).toBeDefined()
+        expect(config.groups?.['ui-tests']).toEqual(['visual-effects', 'custom-colors'])
+        expect(config.groups?.['behavior-tests']).toEqual(['focus-detection', 'multi-session'])
+      })
+
+      it('should load config with both dependencies and groups', async () => {
+        const configPath = path.join(FIXTURES_DIR, 'with-dependencies-and-groups.yaml')
+        const config = await loadConfig(configPath)
+
+        expect(config.version).toBe(1)
+
+        // Check dependencies
+        const fullAcceptance = config.suites['full-acceptance']
+        expect(fullAcceptance?.depends_on).toEqual(['visual-effects', 'focus-detection'])
+
+        // Check groups
+        expect(config.groups).toBeDefined()
+        expect(config.groups?.['ui-tests']).toEqual(['visual-effects', 'custom-colors'])
+        expect(config.groups?.['behavior-tests']).toEqual(['focus-detection'])
+      })
+
+      it('should handle config without dependencies or groups (backwards compatible)', async () => {
+        const configPath = path.join(FIXTURES_DIR, 'minimal.yaml')
+        const config = await loadConfig(configPath)
+
+        expect(config.version).toBe(1)
+        expect(config.suites.unit).toBeDefined()
+        expect(config.suites.unit?.depends_on).toBeUndefined()
+        expect(config.groups).toBeUndefined()
+      })
     })
 
     describe('negative tests', () => {
@@ -307,6 +357,73 @@ suites:
           fs.rmSync(tempDir, { recursive: true, force: true })
         }
       })
+
+      it('should reject suite with empty dependency name', async () => {
+        const configPath = path.join(FIXTURES_DIR, 'invalid-empty-dependency.yaml')
+
+        await expect(loadConfig(configPath)).rejects.toThrow(ConfigValidationError)
+        await expect(loadConfig(configPath)).rejects.toThrow(
+          'Dependency suite name cannot be empty',
+        )
+      })
+
+      it('should reject group with empty suite name', async () => {
+        const configPath = path.join(FIXTURES_DIR, 'invalid-empty-group-suite.yaml')
+
+        await expect(loadConfig(configPath)).rejects.toThrow(ConfigValidationError)
+        await expect(loadConfig(configPath)).rejects.toThrow('Suite name in group cannot be empty')
+      })
+
+      it('should reject config with extra properties in suite when depends_on is present', async () => {
+        const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-config-'))
+        const configPath = path.join(tempDir, 'config.yaml')
+
+        try {
+          fs.writeFileSync(
+            configPath,
+            `
+version: 1
+suites:
+  unit:
+    packages:
+      - '@attest-it/core'
+    depends_on:
+      - integration
+    extraField: invalid
+`,
+          )
+
+          await expect(loadConfig(configPath)).rejects.toThrow(ConfigValidationError)
+        } finally {
+          fs.rmSync(tempDir, { recursive: true, force: true })
+        }
+      })
+
+      it('should reject config with extra top-level properties when groups is present', async () => {
+        const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-config-'))
+        const configPath = path.join(tempDir, 'config.yaml')
+
+        try {
+          fs.writeFileSync(
+            configPath,
+            `
+version: 1
+suites:
+  unit:
+    packages:
+      - '@attest-it/core'
+groups:
+  test-group:
+    - unit
+extraTopLevel: invalid
+`,
+          )
+
+          await expect(loadConfig(configPath)).rejects.toThrow(ConfigValidationError)
+        } finally {
+          fs.rmSync(tempDir, { recursive: true, force: true })
+        }
+      })
     })
 
     describe('edge cases', () => {
@@ -460,6 +577,196 @@ suites:
 
           const config = await loadConfig(configPath)
           expect(config.settings.maxAgeDays).toBe(9999999)
+        } finally {
+          fs.rmSync(tempDir, { recursive: true, force: true })
+        }
+      })
+
+      it('should handle empty depends_on array', async () => {
+        const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-config-'))
+        const configPath = path.join(tempDir, 'config.yaml')
+
+        try {
+          fs.writeFileSync(
+            configPath,
+            `
+version: 1
+suites:
+  unit:
+    packages:
+      - '@attest-it/core'
+    depends_on: []
+`,
+          )
+
+          const config = await loadConfig(configPath)
+          expect(config.suites.unit?.depends_on).toEqual([])
+        } finally {
+          fs.rmSync(tempDir, { recursive: true, force: true })
+        }
+      })
+
+      it('should handle empty groups object', async () => {
+        const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-config-'))
+        const configPath = path.join(tempDir, 'config.yaml')
+
+        try {
+          fs.writeFileSync(
+            configPath,
+            `
+version: 1
+suites:
+  unit:
+    packages:
+      - '@attest-it/core'
+groups: {}
+`,
+          )
+
+          const config = await loadConfig(configPath)
+          expect(config.groups).toEqual({})
+        } finally {
+          fs.rmSync(tempDir, { recursive: true, force: true })
+        }
+      })
+
+      it('should handle empty group array', async () => {
+        const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-config-'))
+        const configPath = path.join(tempDir, 'config.yaml')
+
+        try {
+          fs.writeFileSync(
+            configPath,
+            `
+version: 1
+suites:
+  unit:
+    packages:
+      - '@attest-it/core'
+groups:
+  empty-group: []
+`,
+          )
+
+          const config = await loadConfig(configPath)
+          expect(config.groups?.['empty-group']).toEqual([])
+        } finally {
+          fs.rmSync(tempDir, { recursive: true, force: true })
+        }
+      })
+
+      it('should handle suite with single dependency', async () => {
+        const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-config-'))
+        const configPath = path.join(tempDir, 'config.yaml')
+
+        try {
+          fs.writeFileSync(
+            configPath,
+            `
+version: 1
+suites:
+  unit:
+    packages:
+      - '@attest-it/core'
+  integration:
+    packages:
+      - '@attest-it/cli'
+    depends_on:
+      - unit
+`,
+          )
+
+          const config = await loadConfig(configPath)
+          expect(config.suites.integration?.depends_on).toEqual(['unit'])
+        } finally {
+          fs.rmSync(tempDir, { recursive: true, force: true })
+        }
+      })
+
+      it('should handle group with single suite', async () => {
+        const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-config-'))
+        const configPath = path.join(tempDir, 'config.yaml')
+
+        try {
+          fs.writeFileSync(
+            configPath,
+            `
+version: 1
+suites:
+  unit:
+    packages:
+      - '@attest-it/core'
+groups:
+  single-group:
+    - unit
+`,
+          )
+
+          const config = await loadConfig(configPath)
+          expect(config.groups?.['single-group']).toEqual(['unit'])
+        } finally {
+          fs.rmSync(tempDir, { recursive: true, force: true })
+        }
+      })
+
+      it('should handle multiple suites depending on same suite', async () => {
+        const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-config-'))
+        const configPath = path.join(tempDir, 'config.yaml')
+
+        try {
+          fs.writeFileSync(
+            configPath,
+            `
+version: 1
+suites:
+  base:
+    packages:
+      - '@attest-it/core'
+  suite-a:
+    packages:
+      - '@attest-it/a'
+    depends_on:
+      - base
+  suite-b:
+    packages:
+      - '@attest-it/b'
+    depends_on:
+      - base
+`,
+          )
+
+          const config = await loadConfig(configPath)
+          expect(config.suites['suite-a']?.depends_on).toEqual(['base'])
+          expect(config.suites['suite-b']?.depends_on).toEqual(['base'])
+        } finally {
+          fs.rmSync(tempDir, { recursive: true, force: true })
+        }
+      })
+
+      it('should handle suite appearing in multiple groups', async () => {
+        const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-config-'))
+        const configPath = path.join(tempDir, 'config.yaml')
+
+        try {
+          fs.writeFileSync(
+            configPath,
+            `
+version: 1
+suites:
+  unit:
+    packages:
+      - '@attest-it/core'
+groups:
+  group-a:
+    - unit
+  group-b:
+    - unit
+`,
+          )
+
+          const config = await loadConfig(configPath)
+          expect(config.groups?.['group-a']).toEqual(['unit'])
+          expect(config.groups?.['group-b']).toEqual(['unit'])
         } finally {
           fs.rmSync(tempDir, { recursive: true, force: true })
         }
