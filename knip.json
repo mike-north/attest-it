@@ -4,13 +4,13 @@
   "ignore": ["**/vitest.config.*", "**/test/fixtures/**", "**/fixtures/**"],
   "workspaces": {
     "packages/core": {
-      "entry": ["test/**/*.test.ts"]
+      "entry": ["test/**/*.test.ts", "test/**/*.ts"]
     },
     "packages/cli": {
-      "entry": ["test/**/*.test.ts"]
+      "entry": ["test/**/*.test.ts", "test/**/*.ts"]
     },
     "packages/github-action": {
-      "entry": ["test/**/*.test.ts"]
+      "entry": ["test/**/*.test.ts", "test/**/*.ts"]
     }
   }
 }
