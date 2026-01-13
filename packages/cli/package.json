@@ -51,7 +51,8 @@
     "check:eslint": "eslint src",
     "check:types": "tsc --noEmit",
     "test": "vitest run",
-    "test:manual": "tsx test/manual-test-runner.ts"
+    "test:manual": "tsx test/manual-test-runner.ts",
+    "test:manual:agent": "tsx test/manual-test-runner.ts --print-command"
   },
   "type": "module",
   "types": "./dist/index.d.ts"

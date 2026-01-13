@@ -312,6 +312,89 @@ pnpm test
 3. **Keep projects around:** Comment out `project.dispose()` to inspect the temp project
 4. **Test in different terminals:** Visual artifacts may only appear in certain terminal emulators
 
+## Agent-Friendly Mode (For AI Assistants)
+
+The manual test runner supports a non-interactive mode that outputs structured data for AI agents to monitor progress.
+
+### Quick Start for Agents
+
+```bash
+# 1. Generate command for user to paste
+pnpm test:manual:agent multi-suite
+
+# 2. User pastes the command in a new terminal
+# (Output will stream to manual-test-output.md)
+
+# 3. Monitor the files:
+# - ./manual-test-output.md (streaming markdown results)
+# - ./manual-test-output.md.status.json (current state)
+```
+
+### Available Flags
+
+- `--print-command`: Print command for user to paste, then exit
+- `--non-interactive`: Run without prompts, write to output file
+- `--output <path>`: Path to markdown output file (default: ./manual-test-output.md)
+- `--status <path>`: Path to JSON status file (default: <output>.status.json)
+
+### Example: Complete Agent Workflow
+
+```typescript
+// 1. Generate command
+const { stdout } = await execa('pnpm', ['test:manual:agent', 'multi-suite'])
+console.log('Please run this command:', stdout)
+
+// 2. Poll status file for completion
+const statusPath = './manual-test-output.md.status.json'
+while (true) {
+  const status = JSON.parse(await fs.readFile(statusPath, 'utf-8'))
+
+  if (status.status === 'completed') {
+    // Read final results
+    const results = await fs.readFile('./manual-test-output.md', 'utf-8')
+    console.log('Test completed:', results)
+    break
+  } else if (status.status === 'failed') {
+    throw new Error(`Test failed: ${status.error}`)
+  }
+
+  await sleep(1000) // Poll every second
+}
+```
+
+### Output File Format
+
+The markdown output includes:
+- **Header**: Scenario info and project path
+- **Agent Instructions**: Complete guide to attest-it and how to work with users
+- **Command Sections**: Each command's output with timestamps and exit codes
+- **Summary**: Final statistics
+
+The JSON status file provides:
+```json
+{
+  "version": 1,
+  "status": "running",
+  "scenario": { "key": "multi-suite", "name": "...", "description": "..." },
+  "projectPath": "/tmp/test-project-...",
+  "currentCommand": { "index": 2, "name": "run-interactive", "status": "running" },
+  "commands": [...],
+  "stats": { "total": 5, "completed": 1, "failed": 0, "skipped": 0 }
+}
+```
+
+### Understanding Agent Instructions
+
+The output file includes comprehensive instructions explaining:
+- What attest-it is (human-gated test attestation)
+- Why manual tests are needed (UI validation, OAuth flows, etc.)
+- The security model (asymmetric crypto prevents AI from faking attestations)
+- How to work with users to provide attestations
+- Exit codes and their meanings
+- How to interpret status badges (VALID, STALE, MISSING, CHANGED)
+
+This ensures even agents unfamiliar with attest-it can effectively guide users through the attestation workflow.
+
 ## Getting Help
 
 If you encounter issues:

@@ -25,6 +25,7 @@ import { execa } from 'execa'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
+import { spawn } from 'node:child_process'
 import {
   createMultiSuiteFixture,
   createAllMissingFixture,
@@ -32,23 +33,37 @@ import {
   createFailingSuiteFixture,
 } from './helpers/fixture-factory.js'
 import type { Project } from 'fixturify-project'
+import { AgentOutputWriter } from './helpers/agent-output-writer.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
+/**
+ * Test scenario definition.
+ */
 interface Scenario {
+  /** Scenario identifier (e.g., "multi-suite") */
+  key: string
+  /** Human-readable scenario name */
   name: string
+  /** Scenario description */
   description: string
+  /** Function that creates the test project fixture */
   createFixture: () => Promise<Project>
+  /** Commands to run in this scenario */
   commands: Array<{
+    /** Command name for display */
     name: string
+    /** CLI arguments to pass to attest-it */
     args: string[]
+    /** Human-readable description of what this command does */
     description: string
   }>
 }
 
 const scenarios: Record<string, Scenario> = {
   'multi-suite': {
+    key: 'multi-suite',
     name: 'Multi-Suite Project',
     description: 'Project with 5 suites in various states (valid, missing, expired, changed)',
     createFixture: createMultiSuiteFixture,
@@ -77,6 +92,7 @@ const scenarios: Record<string, Scenario> = {
   },
 
   'all-missing': {
+    key: 'all-missing',
     name: 'All Missing Attestations',
     description: 'All suites are missing attestations',
     createFixture: createAllMissingFixture,
@@ -100,6 +116,7 @@ const scenarios: Record<string, Scenario> = {
   },
 
   complex: {
+    key: 'complex',
     name: 'Complex Groups Structure',
     description: 'Project with 6 suites organized into multiple groups',
     createFixture: createComplexGroupsFixture,
@@ -128,6 +145,7 @@ const scenarios: Record<string, Scenario> = {
   },
 
   failing: {
+    key: 'failing',
     name: 'Failing Test Suite',
     description: 'Project with one passing and one failing suite',
     createFixture: createFailingSuiteFixture,
@@ -152,7 +170,15 @@ const scenarios: Record<string, Scenario> = {
 }
 
 /**
- * Run a command and wait for it to complete
+ * Run a command and wait for it to complete.
+ *
+ * Treats both exit codes 0 and 1 as success for attest-it commands,
+ * since 1 means "has pending work" which is expected behavior.
+ *
+ * @param command - Command to execute
+ * @param args - Command arguments
+ * @param cwd - Working directory
+ * @throws {Error} if command exits with code other than 0 or 1
  */
 async function runCommand(command: string, args: string[], cwd: string): Promise<void> {
   try {
@@ -174,7 +200,9 @@ async function runCommand(command: string, args: string[], cwd: string): Promise
 }
 
 /**
- * Wait for user to press Enter
+ * Wait for user to press Enter.
+ *
+ * Used to pause between commands in interactive mode.
  */
 async function waitForEnter(): Promise<void> {
   const readline = await import('node:readline')
@@ -192,7 +220,200 @@ async function waitForEnter(): Promise<void> {
 }
 
 /**
- * Display a menu and get user selection
+ * Parse command line arguments.
+ *
+ * Supports:
+ * - Scenario name as positional arg
+ * - --non-interactive flag
+ * - --output <path> for markdown output
+ * - --status <path> for JSON status file
+ * - --print-command to show command for user to paste
+ *
+ * @returns Parsed arguments
+ */
+function parseArgs(): {
+  scenario: string
+  isNonInteractive: boolean
+  outputPath?: string
+  statusPath?: string
+  shouldPrintCommand: boolean
+} {
+  const args = process.argv.slice(2)
+  let scenario = 'multi-suite'
+  let isNonInteractive = false
+  let outputPath: string | undefined
+  let statusPath: string | undefined
+  let shouldPrintCommand = false
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]
+
+    if (arg === '--non-interactive') {
+      isNonInteractive = true
+    } else if (arg === '--output' && i + 1 < args.length) {
+      outputPath = args[++i]
+    } else if (arg === '--status' && i + 1 < args.length) {
+      statusPath = args[++i]
+    } else if (arg === '--print-command') {
+      shouldPrintCommand = true
+    } else if (!arg.startsWith('--')) {
+      scenario = arg
+    }
+  }
+
+  return {
+    scenario,
+    isNonInteractive,
+    outputPath,
+    statusPath,
+    shouldPrintCommand,
+  }
+}
+
+/**
+ * Print command for user to paste in new terminal.
+ *
+ * Used with --print-command flag for agent-friendly workflow.
+ *
+ * @param scenario - Scenario name to include in command
+ */
+function printCommand(scenario: string): void {
+  console.log('\nPaste this command in a new terminal:\n')
+  console.log(`cd ${process.cwd()}`)
+  console.log(`pnpm test:manual ${scenario} --non-interactive --output ./manual-test-output.md\n`)
+}
+
+/**
+ * Execute a command with streaming output to agent writer.
+ *
+ * Spawns the command and pipes stdout/stderr to both the console
+ * and the agent output writer for markdown capture.
+ *
+ * @param command - Command to execute
+ * @param args - Command arguments
+ * @param cwd - Working directory
+ * @param writer - Agent output writer for capturing results
+ * @returns Exit code of the command
+ */
+async function executeCommandWithStreaming(
+  command: string,
+  args: string[],
+  cwd: string,
+  writer: AgentOutputWriter,
+): Promise<number> {
+  const startTime = Date.now()
+
+  return new Promise((resolve) => {
+    const proc = spawn(command, args, {
+      cwd,
+      stdio: ['inherit', 'pipe', 'pipe'],
+    })
+
+    proc.on('error', (err) => {
+      const duration = Date.now() - startTime
+      const errorMsg = `Error spawning command: ${err.message}\n`
+      process.stderr.write(errorMsg)
+      writer.appendOutput(errorMsg, true)
+      writer.completeCommand(1, duration)
+      resolve(1)
+    })
+
+    proc.stdout.on('data', (data: Buffer) => {
+      const text = data.toString()
+      process.stdout.write(text) // Also show to user
+      writer.appendOutput(text, false)
+    })
+
+    proc.stderr.on('data', (data: Buffer) => {
+      const text = data.toString()
+      process.stderr.write(text)
+      writer.appendOutput(text, true)
+    })
+
+    proc.on('close', (code) => {
+      const duration = Date.now() - startTime
+      writer.completeCommand(code ?? 0, duration)
+      resolve(code ?? 0)
+    })
+  })
+}
+
+/**
+ * Run scenario in non-interactive mode for agent consumption.
+ *
+ * Executes all commands sequentially, writing results to markdown
+ * and status to JSON file for AI agents to monitor.
+ *
+ * @param scenario - Scenario to execute
+ * @param project - Test project fixture
+ * @param outputPath - Path to markdown output file
+ * @param statusPath - Path to JSON status file
+ */
+async function runNonInteractive(
+  scenario: Scenario,
+  project: Project,
+  outputPath: string,
+  statusPath: string,
+): Promise<void> {
+  const writer = new AgentOutputWriter()
+
+  try {
+    await writer.init(outputPath, statusPath)
+    await writer.writeHeader(scenario, project.baseDir)
+    await writer.writeAgentInstructions()
+
+    // Initialize commands in status
+    const commandList = scenario.commands.map((cmd, index) => ({
+      index: index + 1,
+      name: cmd.name,
+      description: cmd.description,
+      status: 'pending' as const,
+    }))
+
+    await writer.updateStatus({
+      commands: commandList,
+      stats: {
+        total: scenario.commands.length,
+        completed: 0,
+        failed: 0,
+        skipped: 0,
+      },
+    })
+
+    const cliPath = join(__dirname, '../dist/bin/attest-it.js')
+
+    // Execute all commands sequentially
+    for (let i = 0; i < scenario.commands.length; i++) {
+      const cmd = scenario.commands[i]
+      await writer.startCommand(i + 1, {
+        name: cmd.name,
+        description: cmd.description,
+      })
+
+      await executeCommandWithStreaming('node', [cliPath, ...cmd.args], project.baseDir, writer)
+    }
+
+    const status = writer['statusTracker'].getStatus()
+    await writer.writeCompletion(status.stats)
+  } catch (error) {
+    await writer.updateStatus({
+      status: 'failed',
+      error: error instanceof Error ? error.message : String(error),
+    })
+    throw error
+  } finally {
+    await writer.close()
+  }
+}
+
+/**
+ * Display a menu and get user selection.
+ *
+ * Shows numbered options with "0. Exit" as the last option.
+ *
+ * @param title - Menu title
+ * @param options - Array of menu options
+ * @returns Selected option index (1-based), 0 for exit, -1 for invalid
  */
 async function displayMenu(title: string, options: string[]): Promise<number> {
   console.log(`\n${title}`)
@@ -219,25 +440,17 @@ async function displayMenu(title: string, options: string[]): Promise<number> {
 }
 
 /**
- * Run a scenario
+ * Setup a scenario by creating the fixture and setting up keys.
+ *
+ * Creates the test project, generates keypair, and commits initial state.
+ *
+ * @param scenario - Scenario to set up
+ * @returns Created project fixture
+ * @throws {Error} if setup fails
  */
-async function runScenario(scenarioKey: string): Promise<void> {
-  const scenario = scenarios[scenarioKey]
-  if (!scenario) {
-    console.error(`Unknown scenario: ${scenarioKey}`)
-    console.log('Available scenarios:', Object.keys(scenarios).join(', '), 'all')
-    process.exit(1)
-  }
-
-  console.log(`\n${'='.repeat(80)}`)
-  console.log(`Scenario: ${scenario.name}`)
-  console.log(`Description: ${scenario.description}`)
-  console.log('='.repeat(80))
-
-  // Create the fixture
+async function setupScenario(scenario: Scenario): Promise<Project> {
   console.log('\nCreating test project...')
   const project = await scenario.createFixture()
-
   console.log(`✓ Project created at: ${project.baseDir}`)
 
   // Setup the project (generate keypair and commit)
@@ -280,6 +493,19 @@ async function runScenario(scenarioKey: string): Promise<void> {
   }
 
   console.log('✓ Setup complete')
+  return project
+}
+
+/**
+ * Run a scenario in interactive mode.
+ *
+ * Displays a menu of commands and allows the user to execute them
+ * repeatedly, or open a shell in the project directory.
+ *
+ * @param scenario - Scenario to run
+ * @param project - Test project fixture
+ */
+async function runInteractive(scenario: Scenario, project: Project): Promise<void> {
   console.log('\n' + '='.repeat(80))
   console.log('⚠️  IMPORTANT: This is a DEMO project for UI testing only!')
   console.log('='.repeat(80))
@@ -296,42 +522,82 @@ async function runScenario(scenarioKey: string): Promise<void> {
   console.log('='.repeat(80))
   console.log('\nNote: This is a temporary project that will be cleaned up when you exit.')
 
-  try {
-    // CLI path is already defined above
+  const cliPath = join(__dirname, '../dist/bin/attest-it.js')
 
-    // Run commands in a loop
-    let running = true
-    while (running) {
-      const commandOptions = scenario.commands.map((cmd) => `${cmd.name}: ${cmd.description}`)
+  // Run commands in a loop
+  let running = true
+  while (running) {
+    const commandOptions = scenario.commands.map((cmd) => `${cmd.name}: ${cmd.description}`)
 
-      const selection = await displayMenu('Available Commands', [
-        ...commandOptions,
-        'Open shell in project directory',
-      ])
+    const selection = await displayMenu('Available Commands', [
+      ...commandOptions,
+      'Open shell in project directory',
+    ])
 
-      if (selection === 0) {
-        running = false
-      } else if (selection === commandOptions.length + 1) {
-        // Open shell
-        console.log('\nOpening shell in project directory...')
-        console.log(`Project: ${project.baseDir}`)
-        console.log('Type "exit" to return to the menu.\n')
-        await runCommand(process.env.SHELL || 'bash', [], project.baseDir)
-      } else if (selection > 0 && selection <= scenario.commands.length) {
-        const command = scenario.commands[selection - 1]
-        console.log(`\nRunning: attest-it ${command.args.join(' ')}`)
-        console.log('-'.repeat(80))
-        try {
-          await runCommand('node', [cliPath, ...command.args], project.baseDir)
-        } catch (error) {
-          console.error('Command failed:', error)
-        }
-        console.log('-'.repeat(80))
-        console.log('\nPress Enter to continue...')
-        await waitForEnter()
-      } else {
-        console.log('Invalid selection')
+    if (selection === 0) {
+      running = false
+    } else if (selection === commandOptions.length + 1) {
+      // Open shell
+      console.log('\nOpening shell in project directory...')
+      console.log(`Project: ${project.baseDir}`)
+      console.log('Type "exit" to return to the menu.\n')
+      await runCommand(process.env.SHELL || 'bash', [], project.baseDir)
+    } else if (selection > 0 && selection <= scenario.commands.length) {
+      const command = scenario.commands[selection - 1]
+      console.log(`\nRunning: attest-it ${command.args.join(' ')}`)
+      console.log('-'.repeat(80))
+      try {
+        await runCommand('node', [cliPath, ...command.args], project.baseDir)
+      } catch (error) {
+        console.error('Command failed:', error)
       }
+      console.log('-'.repeat(80))
+      console.log('\nPress Enter to continue...')
+      await waitForEnter()
+    } else {
+      console.log('Invalid selection')
+    }
+  }
+}
+
+/**
+ * Run a scenario (either interactive or non-interactive).
+ *
+ * Sets up the project, runs commands, and cleans up afterwards.
+ *
+ * @param scenarioKey - Scenario identifier
+ * @param isNonInteractive - Whether to run in agent-friendly mode
+ * @param outputPath - Optional markdown output path (non-interactive only)
+ * @param statusPath - Optional JSON status path (non-interactive only)
+ */
+async function runScenario(
+  scenarioKey: string,
+  isNonInteractive: boolean,
+  outputPath?: string,
+  statusPath?: string,
+): Promise<void> {
+  const scenario = scenarios[scenarioKey]
+  if (!scenario) {
+    console.error(`Unknown scenario: ${scenarioKey}`)
+    console.log('Available scenarios:', Object.keys(scenarios).join(', '), 'all')
+    process.exit(1)
+  }
+
+  console.log(`\n${'='.repeat(80)}`)
+  console.log(`Scenario: ${scenario.name}`)
+  console.log(`Description: ${scenario.description}`)
+  console.log('='.repeat(80))
+
+  // Setup the scenario
+  const project = await setupScenario(scenario)
+
+  try {
+    if (isNonInteractive) {
+      const finalOutputPath = outputPath ?? './manual-test-output.md'
+      const finalStatusPath = statusPath ?? `${finalOutputPath}.status.json`
+      await runNonInteractive(scenario, project, finalOutputPath, finalStatusPath)
+    } else {
+      await runInteractive(scenario, project)
     }
   } finally {
     // Clean up
@@ -342,22 +608,33 @@ async function runScenario(scenarioKey: string): Promise<void> {
 }
 
 /**
- * Run all scenarios in sequence
+ * Run all scenarios in sequence.
+ *
+ * Always runs in interactive mode for comprehensive testing.
  */
 async function runAllScenarios(): Promise<void> {
   const scenarioKeys = Object.keys(scenarios)
 
   for (const key of scenarioKeys) {
-    await runScenario(key)
+    await runScenario(key, false) // Always interactive for "all" mode
     console.log('\n')
   }
 }
 
 /**
- * Main entry point
+ * Main entry point.
+ *
+ * Parses args and runs the requested scenario or prints the command
+ * for agent-friendly usage.
  */
 async function main(): Promise<void> {
-  const scenarioArg = process.argv[2] || 'multi-suite'
+  const args = parseArgs()
+
+  // Handle --print-command flag
+  if (args.shouldPrintCommand) {
+    printCommand(args.scenario)
+    return
+  }
 
   console.log('='.repeat(80))
   console.log('Interactive CLI Manual Test Runner')
@@ -365,10 +642,10 @@ async function main(): Promise<void> {
   console.log('\nThis tool helps you visually validate the interactive CLI experience.')
   console.log('It creates realistic test projects for manual testing.\n')
 
-  if (scenarioArg === 'all') {
+  if (args.scenario === 'all') {
     await runAllScenarios()
   } else {
-    await runScenario(scenarioArg)
+    await runScenario(args.scenario, args.isNonInteractive, args.outputPath, args.statusPath)
   }
 }
 
