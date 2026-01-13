@@ -240,9 +240,10 @@ export async function createRealAttestation(
   let lastError: Error | undefined
 
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const result = await execa('node', [cliPath, 'run', '--suite', suiteName, '--yes'], {
+    const result = await execa('node', [cliPath, 'run', '--suite', suiteName], {
       cwd: projectDir,
       reject: false,
+      input: 'y\n',
     })
 
     if (result.exitCode === 0) {
