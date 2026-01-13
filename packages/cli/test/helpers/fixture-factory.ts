@@ -7,6 +7,7 @@ import { Project } from 'fixturify-project'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execa } from 'execa'
+import { wrapWithSignatureErrorDetection } from './ai-friendly-errors.js'
 
 export interface SuiteConfig {
   name: string
@@ -198,19 +199,21 @@ export async function createRealAttestation(
   suiteName: string,
   cliPath: string,
 ): Promise<void> {
-  const result = await execa('node', [cliPath, 'run', '--suite', suiteName, '--yes'], {
-    cwd: projectDir,
-    reject: false,
-  })
+  return wrapWithSignatureErrorDetection(async () => {
+    const result = await execa('node', [cliPath, 'run', '--suite', suiteName, '--yes'], {
+      cwd: projectDir,
+      reject: false,
+    })
 
-  if (result.exitCode !== 0) {
-    throw new Error(
-      `Failed to create attestation for suite "${suiteName}":\n` +
-        `Exit code: ${result.exitCode}\n` +
-        `Stdout: ${result.stdout}\n` +
-        `Stderr: ${result.stderr}`,
-    )
-  }
+    if (result.exitCode !== 0) {
+      throw new Error(
+        `Failed to create attestation for suite "${suiteName}":\n` +
+          `Exit code: ${result.exitCode}\n` +
+          `Stdout: ${result.stdout}\n` +
+          `Stderr: ${result.stderr}`,
+      )
+    }
+  }, `Creating attestation for suite "${suiteName}" in ${projectDir}`)
 }
 
 /**

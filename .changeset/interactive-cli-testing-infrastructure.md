@@ -24,6 +24,12 @@ Add comprehensive interactive CLI testing infrastructure
 
 This infrastructure enables systematic testing of the interactive CLI experience, including React/Ink UI components, keyboard shortcuts, status displays, and visual artifact detection.
 
+**AI-Friendly Error Detection:**
+- Added signature error detection wrapper to prevent AI assistants from looping on unfixable cryptographic issues
+- Wraps keygen and attestation operations with clear error messages when signature-related failures occur
+- Explicitly distinguishes signature issues (require human intervention) from other test failures (AI can help fix)
+- Prevents futile retry loops when private keys are missing, corrupted, or have permission issues
+
 **Fixes:**
 - Updated README exit codes table to match implementation (6 codes instead of 2)
 - Improved error handling in test helpers

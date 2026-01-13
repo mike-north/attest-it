@@ -23,6 +23,7 @@ import {
   createProjectFixture,
   createRealAttestation,
 } from './helpers/fixture-factory.js'
+import { wrapWithSignatureErrorDetection } from './helpers/ai-friendly-errors.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -32,44 +33,46 @@ const CLI_PATH = join(__dirname, '../dist/bin/attest-it.js')
  * Setup helper to initialize a project for CLI use
  */
 async function setupProject(proj: Project): Promise<void> {
-  const { join } = await import('node:path')
+  return wrapWithSignatureErrorDetection(async () => {
+    const { join } = await import('node:path')
 
-  // Generate keypair with project-local private key to avoid conflicts
-  const privateKeyPath = join(proj.baseDir, '.attest-it', 'private.pem')
-  const publicKeyPath = join(proj.baseDir, '.attest-it', 'pubkey.pem')
+    // Generate keypair with project-local private key to avoid conflicts
+    const privateKeyPath = join(proj.baseDir, '.attest-it', 'private.pem')
+    const publicKeyPath = join(proj.baseDir, '.attest-it', 'pubkey.pem')
 
-  const keygenResult = await execa(
-    'node',
-    [CLI_PATH, 'keygen', '--force', '--output', privateKeyPath, '--public', publicKeyPath],
-    {
+    const keygenResult = await execa(
+      'node',
+      [CLI_PATH, 'keygen', '--force', '--output', privateKeyPath, '--public', publicKeyPath],
+      {
+        cwd: proj.baseDir,
+        reject: false,
+      },
+    )
+
+    if (keygenResult.exitCode !== 0) {
+      throw new Error(
+        `Keygen failed:\nExit code: ${keygenResult.exitCode}\n` +
+          `Stderr: ${keygenResult.stderr}\nStdout: ${keygenResult.stdout}`,
+      )
+    }
+
+    // Verify keypair was created
+    const fs = await import('node:fs/promises')
+    try {
+      await fs.access(publicKeyPath)
+      await fs.access(privateKeyPath)
+    } catch {
+      throw new Error(
+        `Keypair not created:\nPublic key: ${publicKeyPath}\nPrivate key: ${privateKeyPath}`,
+      )
+    }
+
+    // Commit the keypair
+    await execa('git', ['add', '.'], { cwd: proj.baseDir })
+    await execa('git', ['commit', '-m', 'Add keypair', '--allow-empty'], {
       cwd: proj.baseDir,
-      reject: false,
-    },
-  )
-
-  if (keygenResult.exitCode !== 0) {
-    throw new Error(
-      `Keygen failed:\nExit code: ${keygenResult.exitCode}\n` +
-        `Stderr: ${keygenResult.stderr}\nStdout: ${keygenResult.stdout}`,
-    )
-  }
-
-  // Verify keypair was created
-  const fs = await import('node:fs/promises')
-  try {
-    await fs.access(publicKeyPath)
-    await fs.access(privateKeyPath)
-  } catch {
-    throw new Error(
-      `Keypair not created:\nPublic key: ${publicKeyPath}\nPrivate key: ${privateKeyPath}`,
-    )
-  }
-
-  // Commit the keypair
-  await execa('git', ['add', '.'], { cwd: proj.baseDir })
-  await execa('git', ['commit', '-m', 'Add keypair', '--allow-empty'], {
-    cwd: proj.baseDir,
-  })
+    })
+  }, `Setting up project with keypair in ${proj.baseDir}`)
 }
 
 /**

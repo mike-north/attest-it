@@ -18,6 +18,7 @@ import {
   createComplexGroupsFixture,
   createProjectFixture,
 } from './helpers/fixture-factory.js'
+import { wrapWithSignatureErrorDetection } from './helpers/ai-friendly-errors.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -63,36 +64,38 @@ async function runCommand(command: string, cwd: string): Promise<{ exitCode: num
  * Setup helper to initialize a project for CLI use
  */
 async function setupProject(proj: Project): Promise<void> {
-  // Generate keypair with project-local private key to avoid conflicts
-  const privateKeyPath = join(proj.baseDir, '.attest-it', 'private.pem')
-  const publicKeyPath = join(proj.baseDir, '.attest-it', 'pubkey.pem')
+  return wrapWithSignatureErrorDetection(async () => {
+    // Generate keypair with project-local private key to avoid conflicts
+    const privateKeyPath = join(proj.baseDir, '.attest-it', 'private.pem')
+    const publicKeyPath = join(proj.baseDir, '.attest-it', 'pubkey.pem')
 
-  const keygenResult = await runCli(
-    ['keygen', '--force', '--output', privateKeyPath, '--public', publicKeyPath],
-    proj.baseDir,
-  )
-
-  if (keygenResult.exitCode !== 0) {
-    throw new Error(
-      `Keygen failed:\nExit code: ${keygenResult.exitCode}\n` +
-        `Stderr: ${keygenResult.stderr}\nStdout: ${keygenResult.stdout}`,
+    const keygenResult = await runCli(
+      ['keygen', '--force', '--output', privateKeyPath, '--public', publicKeyPath],
+      proj.baseDir,
     )
-  }
 
-  // Verify keypair was created
-  const fs = await import('node:fs/promises')
-  try {
-    await fs.access(publicKeyPath)
-    await fs.access(privateKeyPath)
-  } catch {
-    throw new Error(
-      `Keypair not created:\nPublic key: ${publicKeyPath}\nPrivate key: ${privateKeyPath}`,
-    )
-  }
+    if (keygenResult.exitCode !== 0) {
+      throw new Error(
+        `Keygen failed:\nExit code: ${keygenResult.exitCode}\n` +
+          `Stderr: ${keygenResult.stderr}\nStdout: ${keygenResult.stdout}`,
+      )
+    }
 
-  // Git init is already done by fixture factory, but ensure keypair is committed
-  await runCommand('git add .', proj.baseDir)
-  await runCommand('git commit -m "Add keypair" --allow-empty', proj.baseDir)
+    // Verify keypair was created
+    const fs = await import('node:fs/promises')
+    try {
+      await fs.access(publicKeyPath)
+      await fs.access(privateKeyPath)
+    } catch {
+      throw new Error(
+        `Keypair not created:\nPublic key: ${publicKeyPath}\nPrivate key: ${privateKeyPath}`,
+      )
+    }
+
+    // Git init is already done by fixture factory, but ensure keypair is committed
+    await runCommand('git add .', proj.baseDir)
+    await runCommand('git commit -m "Add keypair" --allow-empty', proj.baseDir)
+  }, `Setting up project with keypair in ${proj.baseDir}`)
 }
 
 /**
