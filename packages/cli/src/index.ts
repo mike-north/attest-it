@@ -6,14 +6,59 @@ import { keygenCommand } from './commands/keygen.js'
 import { pruneCommand } from './commands/prune.js'
 import { verifyCommand } from './commands/verify.js'
 import { setOutputOptions, initTheme } from './utils/output.js'
-import packageJson from '../package.json' with { type: 'json' }
+import { readFileSync } from 'fs'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
+
+// Read version from package.json at runtime
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+// Try to find package.json - it could be at different relative paths
+// depending on whether we're running from dist/index.js or dist/bin/attest-it.js
+function findPackageJson(): string {
+  const possiblePaths = [
+    join(__dirname, '../package.json'),      // from dist/index.js
+    join(__dirname, '../../package.json'),   // from dist/bin/attest-it.js
+  ]
+  
+  for (const path of possiblePaths) {
+    try {
+      const content = readFileSync(path, 'utf-8')
+      return content
+    } catch {
+      // Try next path
+    }
+  }
+  
+  throw new Error('Could not find package.json')
+}
+
+const packageJsonData: unknown = JSON.parse(findPackageJson())
+
+// Type guard for package.json structure
+function hasVersion(data: unknown): data is { version: string } {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'version' in data &&
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    typeof (data as { version: unknown }).version === 'string'
+  )
+}
+
+if (!hasVersion(packageJsonData)) {
+  throw new Error('Invalid package.json: missing version field')
+}
+
+const packageVersion = packageJsonData.version
 
 const program = new Command()
 
 program
   .name('attest-it')
   .description('Human-gated test attestation system')
-  .version(packageJson.version)
+  .version(packageVersion)
   .option('-c, --config <path>', 'Path to config file')
   .option('-v, --verbose', 'Verbose output')
   .option('-q, --quiet', 'Minimal output')
