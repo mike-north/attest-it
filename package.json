@@ -35,7 +35,11 @@
   "pnpm": {
     "overrides": {
       "@types/node": "~22.19.3"
-    }
+    },
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "nx"
+    ]
   },
   "private": true,
   "scripts": {
