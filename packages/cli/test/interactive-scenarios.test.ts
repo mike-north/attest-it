@@ -9,7 +9,7 @@
 
 import { describe, it, expect, afterEach } from 'vitest';
 import type { Project } from 'fixturify-project';
-import { spawn } from 'node:child_process';
+import { execa } from 'execa';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
@@ -31,42 +31,19 @@ interface RunResult {
 
 /**
  * Helper to run CLI commands in a project directory
- * Uses spawn (like the existing integration tests) instead of exec
  */
 async function runCli(args: string[], cwd: string): Promise<RunResult> {
-  return new Promise((resolve) => {
-    const child = spawn('node', [CLI_PATH, ...args], {
-      cwd,
-      env: { ...process.env, NO_COLOR: '1' }, // Disable colors for testing
-    });
-
-    let stdout = '';
-    let stderr = '';
-
-    child.stdout.on('data', (data: Buffer) => {
-      stdout += data.toString();
-    });
-
-    child.stderr.on('data', (data: Buffer) => {
-      stderr += data.toString();
-    });
-
-    child.on('close', (code) => {
-      resolve({
-        exitCode: code ?? 1,
-        stdout,
-        stderr,
-      });
-    });
-
-    child.on('error', (err) => {
-      resolve({
-        exitCode: 1,
-        stdout,
-        stderr: stderr + err.message,
-      });
-    });
+  const result = await execa('node', [CLI_PATH, ...args], {
+    cwd,
+    env: { ...process.env, NO_COLOR: '1' }, // Disable colors for testing
+    reject: false, // Don't throw on non-zero exit codes
   });
+
+  return {
+    exitCode: result.exitCode,
+    stdout: result.stdout,
+    stderr: result.stderr,
+  };
 }
 
 /**
@@ -76,21 +53,13 @@ async function runCommand(
   command: string,
   cwd: string,
 ): Promise<{ exitCode: number }> {
-  return new Promise((resolve) => {
-    const child = spawn(command, {
-      shell: true,
-      cwd,
-      stdio: 'pipe',
-    });
-
-    child.on('close', (code) => {
-      resolve({ exitCode: code ?? 1 });
-    });
-
-    child.on('error', () => {
-      resolve({ exitCode: 1 });
-    });
+  const result = await execa(command, {
+    cwd,
+    shell: true,
+    reject: false,
   });
+
+  return { exitCode: result.exitCode };
 }
 
 /**
@@ -111,6 +80,20 @@ async function setupProject(proj: Project): Promise<void> {
   );
 }
 
+/**
+ * Check if git working tree is clean
+ */
+async function checkGitStatus(cwd: string): Promise<string> {
+  try {
+    const result = await execa('git', ['status', '--porcelain'], {
+      cwd,
+    });
+    return result.stdout.trim();
+  } catch {
+    return 'error';
+  }
+}
+
 describe('Interactive CLI Scenarios with fixturify-project', () => {
   let project: Project | null = null;
 
@@ -122,6 +105,19 @@ describe('Interactive CLI Scenarios with fixturify-project', () => {
   });
 
   describe('Fixture creation and basic validation', () => {
+    it('should have a clean git working tree after setup', async () => {
+      project = await createMultiSuiteFixture();
+      await setupProject(project);
+
+      // Check git status - should be clean (no uncommitted changes)
+      const gitStatus = await checkGitStatus(project.baseDir);
+
+      if (gitStatus.length > 0) {
+        console.log('Git status output:', gitStatus);
+      }
+
+      expect(gitStatus).toBe('');
+    });
     it('should create a multi-suite project fixture', async () => {
       project = await createMultiSuiteFixture();
       await setupProject(project);

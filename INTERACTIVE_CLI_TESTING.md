@@ -163,12 +163,22 @@ await project.dispose(); // Clean up
 
 ## Test Results
 
-✅ All 5 automated tests passing:
-1. Multi-suite project fixture creation
-2. All-valid project fixture creation
-3. All-missing project fixture creation
-4. Complex groups project fixture creation
-5. Help command on fixture projects
+✅ All 6 automated tests passing:
+1. **Clean git working tree verification** - Ensures no uncommitted changes after setup
+2. Multi-suite project fixture creation
+3. All-valid project fixture creation
+4. All-missing project fixture creation
+5. Complex groups project fixture creation
+6. Help command on fixture projects
+
+## Important Notes
+
+**Exit Codes:** The `attest-it` CLI uses exit codes to indicate status:
+- **Exit code 0** = All suites are valid, nothing to do
+- **Exit code 1** = Has pending suites (NEEDS_ATTESTATION, STALE, etc.) - **this is NOT an error!**
+- **Exit code 3+** = Actual errors (config validation failed, missing files, etc.)
+
+The manual test runner has been updated to treat exit codes 0 and 1 as success.
 
 ## Next Steps
 

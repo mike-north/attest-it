@@ -23,6 +23,12 @@ This testing infrastructure helps validate that:
 
 Creates realistic test projects using `fixturify-project`. This allows us to programmatically generate complex project structures in temporary directories.
 
+**Important:** All fixtures are set up with a clean git working tree:
+- Project files are created and committed
+- Keypair is generated and committed
+- Working tree is verified clean before tests run
+- Automated test ensures `git status --porcelain` returns empty
+
 **Key Features:**
 - Programmatic project creation with custom suite configurations
 - Attestation generation with configurable states (expired, invalid, missing)

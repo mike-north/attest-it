@@ -23,7 +23,7 @@
  *   all           - Run all scenarios in sequence
  */
 
-import { spawn } from 'node:child_process';
+import { execa } from 'execa';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
@@ -201,22 +201,39 @@ async function runCommand(
   args: string[],
   cwd: string,
 ): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, {
+  try {
+    await execa(command, args, {
       cwd,
       stdio: 'inherit',
-      shell: true,
-    });
-
-    child.on('close', (code) => {
-      if (code === 0) {
-        resolve();
-      } else {
-        reject(new Error(`Command failed with code ${code}`));
+      reject: false, // Don't throw on non-zero exit codes, we'll check manually
+    }).then((result) => {
+      // Exit codes 0 and 1 are both considered success for attest-it
+      // 0 = all suites valid, 1 = has pending suites
+      if (result.exitCode !== 0 && result.exitCode !== 1) {
+        throw new Error(`Command failed with code ${result.exitCode}`);
       }
     });
+  } catch (error) {
+    // If execa throws (not from our check above), rethrow
+    throw error;
+  }
+}
 
-    child.on('error', reject);
+/**
+ * Wait for user to press Enter
+ */
+async function waitForEnter(): Promise<void> {
+  const readline = await import('node:readline');
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  return new Promise((resolve) => {
+    rl.question('', () => {
+      rl.close();
+      resolve();
+    });
   });
 }
 
@@ -275,13 +292,49 @@ async function runScenario(scenarioKey: string): Promise<void> {
   const project = await scenario.createFixture();
 
   console.log(`✓ Project created at: ${project.baseDir}`);
+
+  // Setup the project (generate keypair and commit)
+  console.log('Setting up keypair...');
+  const cliPath = join(__dirname, '../dist/bin/attest-it.js');
+
+  try {
+    // Generate keypair
+    console.log('  - Generating keypair...');
+    await runCommand('node', [cliPath, 'keygen', '--force', '--public', '.attest-it/pubkey.pem'], project.baseDir);
+    console.log('  - Keypair generated');
+
+    // Commit the keypair
+    console.log('  - Adding files to git...');
+    await runCommand('git', ['add', '.'], project.baseDir);
+    console.log('  - Committing keypair...');
+    await runCommand('git', ['commit', '-m', 'Add keypair', '--allow-empty'], project.baseDir);
+    console.log('  - Committed');
+
+    // Verify git status is clean
+    console.log('  - Verifying git status...');
+    const { stdout: gitStatus } = await execa('git', ['status', '--porcelain'], {
+      cwd: project.baseDir,
+    });
+
+    if (gitStatus.trim().length > 0) {
+      console.log('  ⚠️  WARNING: Git status not clean!');
+      console.log('  Uncommitted files:');
+      console.log(gitStatus);
+    } else {
+      console.log('  - Git status clean ✓');
+    }
+  } catch (error) {
+    console.error('  ✗ Setup failed:', error);
+    throw error;
+  }
+
+  console.log('✓ Setup complete');
   console.log(
     '\nNote: This is a temporary project that will be cleaned up when you exit.',
   );
 
   try {
-    // Get CLI path
-    const cliPath = join(__dirname, '../dist/bin/attest-it.js');
+    // CLI path is already defined above
 
     // Run commands in a loop
     let running = true;
@@ -314,9 +367,7 @@ async function runScenario(scenarioKey: string): Promise<void> {
         }
         console.log('-'.repeat(80));
         console.log('\nPress Enter to continue...');
-        await new Promise<void>((resolve) => {
-          process.stdin.once('data', () => resolve());
-        });
+        await waitForEnter();
       } else {
         console.log('Invalid selection');
       }

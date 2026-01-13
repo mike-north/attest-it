@@ -6,10 +6,7 @@
 import { Project } from 'fixturify-project';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { exec } from 'node:child_process';
-import { promisify } from 'node:util';
-
-const execAsync = promisify(exec);
+import { execa } from 'execa';
 
 export interface SuiteConfig {
   name: string;
@@ -184,15 +181,15 @@ export async function createProjectFixture(
 
   // Initialize git if requested
   if (initGit) {
-    await execAsync('git init', { cwd: project.baseDir });
-    await execAsync('git config user.name "Test User"', {
+    await execa('git', ['init'], { cwd: project.baseDir });
+    await execa('git', ['config', 'user.name', 'Test User'], {
       cwd: project.baseDir,
     });
-    await execAsync('git config user.email "test@example.com"', {
+    await execa('git', ['config', 'user.email', 'test@example.com'], {
       cwd: project.baseDir,
     });
-    await execAsync('git add .', { cwd: project.baseDir });
-    await execAsync('git commit -m "Initial commit"', {
+    await execa('git', ['add', '.'], { cwd: project.baseDir });
+    await execa('git', ['commit', '-m', 'Initial commit'], {
       cwd: project.baseDir,
     });
   }
@@ -204,7 +201,7 @@ export async function createProjectFixture(
       '../../packages/cli/dist/bin/attest-it.js',
     );
     try {
-      await execAsync(`node ${cliPath} keygen --force`, {
+      await execa('node', [cliPath, 'keygen', '--force'], {
         cwd: project.baseDir,
       });
     } catch (error) {

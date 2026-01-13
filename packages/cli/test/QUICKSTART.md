@@ -216,6 +216,8 @@ Status           Suite                 Reason
 ✓ VALID          unit-tests            1 day old (max: 30)
 ```
 
+**Note:** `attest-it status` returns exit code 1 when there are pending suites (NEEDS_ATTESTATION, STALE, etc.). This is **not an error** - it's intentional behavior. Exit code 0 means all suites are valid.
+
 ### Interactive Selection
 ```
 Select suites to run (pending: 3)
