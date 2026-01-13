@@ -114,9 +114,6 @@ importers:
       ink:
         specifier: ^5.2.1
         version: 5.2.1(@types/react@18.3.27)(react@18.3.1)
-      ink-ui:
-        specifier: ^0.4.0
-        version: 0.4.0
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -131,7 +128,7 @@ importers:
         specifier: ~22.19.3
         version: 22.19.3
       '@types/react':
-        specifier: ^18.3.0
+        specifier: ~18.3.0
         version: 18.3.27
       '@types/shell-quote':
         specifier: ~1.7.5
@@ -2539,9 +2536,6 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
-
-  ink-ui@0.4.0:
-    resolution: {integrity: sha512-n9Zif1V/c3foSVCmbbU2/HUXwJFZpZUQlX1fowx1FQ8gCsHKXtokeHr+W4+oLnRoPK2ykT7m1D2UVPBKu8IgYg==}
 
   ink@5.2.1:
     resolution: {integrity: sha512-BqcUyWrG9zq5HIwW6JcfFHsIYebJkWWb4fczNah1goUO0vv5vneIlfwuS85twyJ5hYR/y18FlAYUxrO9ChIWVg==}
@@ -6289,8 +6283,6 @@ snapshots:
   ink-testing-library@4.0.0(@types/react@18.3.27):
     optionalDependencies:
       '@types/react': 18.3.27
-
-  ink-ui@0.4.0: {}
 
   ink@5.2.1(@types/react@18.3.27)(react@18.3.1):
     dependencies:
