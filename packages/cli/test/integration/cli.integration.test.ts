@@ -71,7 +71,11 @@ function isAttestationsStructure(value: unknown): value is AttestationsStructure
 /**
  * Execute the CLI with given arguments and return the result.
  */
-async function runCli(args: string[], cwd: string = FIXTURE_PATH): Promise<RunResult> {
+async function runCli(
+  args: string[],
+  cwd: string = FIXTURE_PATH,
+  stdin?: string,
+): Promise<RunResult> {
   return new Promise((resolve) => {
     // Run the built CLI
     const child = spawn('node', [CLI_PATH, ...args], {
@@ -105,6 +109,12 @@ async function runCli(args: string[], cwd: string = FIXTURE_PATH): Promise<RunRe
         stderr: stderr + err.message,
       })
     })
+
+    // Provide stdin input if specified
+    if (stdin !== undefined) {
+      child.stdin.write(stdin)
+      child.stdin.end()
+    }
   })
 }
 
@@ -309,7 +319,7 @@ describe('CLI Integration Tests', () => {
   describe('attest-it run', () => {
     it('without args enters interactive mode (exits with NO_WORK if all valid)', async () => {
       // Run once to create attestation
-      await runCli(['run', '--suite', 'example', '--yes'], tempDir)
+      await runCli(['run', '--suite', 'example'], tempDir, 'y\n')
       await runCommand('git add .', tempDir)
       await runCommand('git commit -m "add attestation"', tempDir)
 
@@ -319,8 +329,8 @@ describe('CLI Integration Tests', () => {
       expect(result.exitCode).toBe(0) // SUCCESS - dry run completed, showing what would run
     })
 
-    it('runs tests and creates attestation with --yes', async () => {
-      const result = await runCli(['run', '--suite', 'example', '--yes'], tempDir)
+    it('runs tests and creates attestation', async () => {
+      const result = await runCli(['run', '--suite', 'example'], tempDir, 'y\n')
       expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('Tests passed')
       expect(result.stdout).toContain('Attestation created')
@@ -348,7 +358,7 @@ describe('CLI Integration Tests', () => {
     })
 
     it('exits with code 1 on test failure', async () => {
-      const result = await runCli(['run', '--suite', 'failing', '--yes'], tempDir)
+      const result = await runCli(['run', '--suite', 'failing'], tempDir, 'y\n')
       expect(result.exitCode).toBe(1)
       expect(result.stderr).toContain('failed')
     })
@@ -367,7 +377,7 @@ describe('CLI Integration Tests', () => {
       // Make uncommitted changes
       await fs.promises.writeFile(path.join(tempDir, 'new-file.txt'), 'uncommitted content')
 
-      const result = await runCli(['run', '--suite', 'example', '--yes'], tempDir)
+      const result = await runCli(['run', '--suite', 'example'], tempDir, 'y\n')
       expect(result.exitCode).toBe(3) // CONFIG_ERROR
       expect(result.stderr).toContain('uncommitted')
     })
@@ -399,13 +409,13 @@ suites:
       await runCommand('git add .attest-it/config.yaml', tempDir)
       await runCommand('git commit -m "update config"', tempDir)
 
-      const result = await runCli(['run', '--all', '--yes'], tempDir)
+      const result = await runCli(['run', '--all'], tempDir, 'y\n')
       expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('example')
     })
 
     it('includes command and user info in attestation', async () => {
-      await runCli(['run', '--suite', 'example', '--yes'], tempDir)
+      await runCli(['run', '--suite', 'example'], tempDir, 'y\n')
 
       const attestPath = path.join(tempDir, '.attest-it', 'attestations.json')
       const attestContent = await fs.promises.readFile(attestPath, 'utf-8')
@@ -446,7 +456,7 @@ suites:
       expect(firstStatus.status).toBe('NEEDS_ATTESTATION')
 
       // Run and attest
-      result = await runCli(['run', '--suite', 'example', '--yes'], tempDir)
+      result = await runCli(['run', '--suite', 'example'], tempDir, 'y\n')
       expect(result.exitCode).toBe(0)
 
       // Commit the attestation
@@ -493,7 +503,7 @@ suites:
 
     it('detects expired attestations', async () => {
       // Create attestation
-      await runCli(['run', '--suite', 'example', '--yes'], tempDir)
+      await runCli(['run', '--suite', 'example'], tempDir, 'y\n')
 
       // Manually modify attestation to be old
       const attestPath = path.join(tempDir, '.attest-it', 'attestations.json')
@@ -569,7 +579,7 @@ suites:
         await fs.promises.chmod(attestDir, 0o444)
 
         try {
-          const result = await runCli(['run', '--suite', 'example', '--yes'], tempDir)
+          const result = await runCli(['run', '--suite', 'example'], tempDir, 'y\n')
           expect(result.exitCode).not.toBe(0)
           // Should fail but not crash
         } finally {
@@ -697,7 +707,7 @@ suites:
       await runCommand('git add . && git commit -m "single suite config"', tempDir)
 
       // Create attestation
-      await runCli(['run', '--suite', 'example', '--yes'], tempDir)
+      await runCli(['run', '--suite', 'example'], tempDir, 'y\n')
       await runCommand('git add . && git commit -m "add attestation"', tempDir)
 
       const result = await runCli(['verify'], tempDir)
@@ -730,7 +740,7 @@ suites:
 
     it('verifies specific suite with --suite', async () => {
       // Create attestation for example suite
-      await runCli(['run', '--suite', 'example', '--yes'], tempDir)
+      await runCli(['run', '--suite', 'example'], tempDir, 'y\n')
       await runCommand('git add . && git commit -m "add attestation"', tempDir)
 
       const result = await runCli(['verify', '--suite', 'example'], tempDir)
@@ -741,7 +751,7 @@ suites:
 
     it('fails in strict mode with approaching expiry warning', async () => {
       // Create attestation
-      await runCli(['run', '--suite', 'example', '--yes'], tempDir)
+      await runCli(['run', '--suite', 'example'], tempDir, 'y\n')
 
       // Manually modify attestation to be old but not expired
       const attestPath = path.join(tempDir, '.attest-it', 'attestations.json')
@@ -777,7 +787,7 @@ suites:
 
     it('succeeds in non-strict mode with approaching expiry warning', async () => {
       // Create attestation
-      await runCli(['run', '--suite', 'example', '--yes'], tempDir)
+      await runCli(['run', '--suite', 'example'], tempDir, 'y\n')
 
       // Manually modify attestation to be old but not expired
       const attestPath = path.join(tempDir, '.attest-it', 'attestations.json')
@@ -818,7 +828,7 @@ suites:
 
     it('detects fingerprint changes', async () => {
       // Create initial attestation
-      await runCli(['run', '--suite', 'example', '--yes'], tempDir)
+      await runCli(['run', '--suite', 'example'], tempDir, 'y\n')
       await runCommand('git add . && git commit -m "add attestation"', tempDir)
 
       // Modify code
@@ -841,7 +851,7 @@ suites:
 
     it('detects expired attestations', async () => {
       // Create attestation
-      await runCli(['run', '--suite', 'example', '--yes'], tempDir)
+      await runCli(['run', '--suite', 'example'], tempDir, 'y\n')
 
       // Manually modify attestation to be expired
       const attestPath = path.join(tempDir, '.attest-it', 'attestations.json')
@@ -873,7 +883,7 @@ suites:
 
     it('shows signature verification failure', async () => {
       // Create attestation
-      await runCli(['run', '--suite', 'example', '--yes'], tempDir)
+      await runCli(['run', '--suite', 'example'], tempDir, 'y\n')
       await runCommand('git add . && git commit -m "add attestation"', tempDir)
 
       // Tamper with attestation file
@@ -950,7 +960,7 @@ suites:
 
     it('handles concurrent attestation updates', async () => {
       // Create first attestation
-      await runCli(['run', '--suite', 'example', '--yes'], tempDir)
+      await runCli(['run', '--suite', 'example'], tempDir, 'y\n')
 
       // Read attestation file
       const attestPath = path.join(tempDir, '.attest-it', 'attestations.json')
@@ -960,7 +970,7 @@ suites:
       await runCommand('git add . && git commit -m "first attest"', tempDir)
 
       // Run again - should update, not duplicate
-      await runCli(['run', '--suite', 'example', '--yes'], tempDir)
+      await runCli(['run', '--suite', 'example'], tempDir, 'y\n')
 
       const newContent = await fs.promises.readFile(attestPath, 'utf-8')
       const attestations: unknown = JSON.parse(newContent)

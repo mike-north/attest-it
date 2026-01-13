@@ -28,7 +28,6 @@ export const runCommand = new Command('run')
   .option('-s, --suite <name>', 'Run specific suite (required unless --all or interactive mode)')
   .option('-a, --all', 'Run all suites needing attestation')
   .option('--no-attest', 'Run tests without creating attestation')
-  .option('-y, --yes', 'Skip confirmation prompt')
   .option('--dry-run', 'Show what would run without executing')
   .option('-c, --continue', 'Resume interrupted session')
   .option('--filter <pattern>', 'Filter suites by pattern (glob-style)')
@@ -40,7 +39,6 @@ interface RunOptions {
   suite?: string
   all?: boolean
   attest?: boolean // Note: --no-attest sets this to false
-  yes?: boolean
   dryRun?: boolean
   continue?: boolean
   filter?: string
@@ -58,7 +56,6 @@ interface RunOptions {
  * @param options.suite - Run specific suite
  * @param options.all - Run all suites needing attestation
  * @param options.attest - Create attestation after tests (default: true)
- * @param options.yes - Skip confirmation prompt
  * @param options.dryRun - Show what would run without executing
  * @param options.continue - Resume interrupted session
  * @param options.filter - Filter suites by pattern
@@ -382,12 +379,10 @@ async function runSingleSuite(
   }
 
   // Confirm attestation
-  const shouldAttest =
-    options.yes ??
-    (await confirmAction({
-      message: 'Create attestation?',
-      default: true,
-    }))
+  const shouldAttest = await confirmAction({
+    message: 'Create attestation',
+    default: false,
+  })
 
   if (!shouldAttest) {
     warn('Attestation cancelled')
