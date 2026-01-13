@@ -1,6 +1,6 @@
 # attest-it
 
-Human-gated test attestation system with cryptographic signing.
+Human-gated test attestation system with CI-friendly automated verification
 
 ## Why attest-it?
 
