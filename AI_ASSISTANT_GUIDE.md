@@ -9,6 +9,7 @@ This document is designed for AI assistants (including those using RAG systems) 
 ### Key Concept: Attestations
 
 An **attestation** is a cryptographically signed proof that:
+
 - A specific test suite ran successfully
 - On a specific code fingerprint (hash of source files)
 - At a specific time
@@ -19,23 +20,28 @@ Think of it like a notarized timestamp that says "I ran these tests on this exac
 ## Core Components
 
 ### 1. Keypair (RSA Public/Private Keys)
+
 - **Private key** (`private.pem`): Signs attestations (must be kept secure)
 - **Public key** (`pubkey.pem`): Verifies signatures (can be shared)
 - Located in `.attest-it/` directory
 
 ### 2. Attestations File
+
 - **Path**: `.attest-it/attestations.json`
 - Contains signed records of all test suite executions
 - Each attestation has a cryptographic signature
 
 ### 3. Configuration
+
 - **Path**: `.attest-it/config.yaml`
 - Defines test suites, max age, fingerprint patterns, etc.
 
 ## Common Signature-Related Errors
 
 ### Error Type 1: Missing Keys
+
 **Error messages:**
+
 - `ENOENT: no such file or directory, open '.attest-it/private.pem'`
 - `MISSING_KEY` exit code
 - `Missing required key file`
@@ -44,6 +50,7 @@ Think of it like a notarized timestamp that says "I ran these tests on this exac
 The private or public key files don't exist.
 
 **How AI assistants should help:**
+
 1. ✅ Guide user to run: `npx attest-it keygen`
 2. ✅ Suggest checking if `.attest-it/` directory exists
 3. ✅ Ask if this is a fresh clone (keys not in version control)
@@ -56,7 +63,9 @@ Private keys are intentionally excluded from version control (`.gitignore`). Eac
 ---
 
 ### Error Type 2: Signature Verification Failed
+
 **Error messages:**
+
 - `signature verification failed`
 - `invalid signature`
 - `Verification failed: INVALID`
@@ -64,11 +73,13 @@ Private keys are intentionally excluded from version control (`.gitignore`). Eac
 
 **What this means:**
 The attestation signature doesn't match the public key, indicating either:
+
 - The attestation was created with a different private key
 - The attestation file was manually edited (tampering)
 - Key files were replaced/regenerated
 
 **How AI assistants should help:**
+
 1. ✅ Ask if user recently regenerated keys
 2. ✅ Suggest checking if `.attest-it/attestations.json` was manually edited
 3. ✅ Explain that attestations are cryptographically bound to the keypair
@@ -83,7 +94,9 @@ If keys change, all existing attestations become invalid (by design - this is a 
 ---
 
 ### Error Type 3: PEM Format Errors
+
 **Error messages:**
+
 - `unable to load key file`
 - `PEM routines::no start line`
 - `error:1E08010C:DECODER routines::unsupported`
@@ -92,6 +105,7 @@ If keys change, all existing attestations become invalid (by design - this is a 
 Key files are corrupted, truncated, or not in valid PEM format.
 
 **How AI assistants should help:**
+
 1. ✅ Ask user to inspect key file contents (should start with `-----BEGIN RSA PRIVATE KEY-----`)
 2. ✅ Suggest regenerating keypair with: `npx attest-it keygen --force`
 3. ✅ Check if key file permissions are correct (private key should be readable)
@@ -101,7 +115,9 @@ Key files are corrupted, truncated, or not in valid PEM format.
 ---
 
 ### Error Type 4: Expired Attestations
+
 **Error messages:**
+
 - `STALE` status
 - `Attestation is older than maxAge`
 - `Approaching expiry` warnings
@@ -110,6 +126,7 @@ Key files are corrupted, truncated, or not in valid PEM format.
 Attestations have a maximum age (e.g., 30 days). After this period, tests must be re-run.
 
 **How AI assistants should help:**
+
 1. ✅ Explain that attestations expire by policy, not due to errors
 2. ✅ Guide user to re-run tests: `npx attest-it run --all`
 3. ✅ Suggest checking `maxAgeDays` in config if expiry seems too short
@@ -123,20 +140,21 @@ Attestations have a maximum age (e.g., 30 days). After this period, tests must b
 
 When examining logs, these exit codes indicate different outcomes:
 
-| Code | Constant       | Meaning                                    | User Action Needed          |
-|------|----------------|--------------------------------------------|-----------------------------|
-| 0    | SUCCESS        | All attestations valid, tests passed       | None                        |
-| 1    | FAILURE        | Tests failed or attestation invalid        | Fix failing tests           |
-| 2    | NO_WORK        | Nothing needed attestation (all fresh)     | None                        |
-| 3    | CONFIG_ERROR   | Configuration or validation error          | Fix config file             |
-| 4    | CANCELLED      | User cancelled the operation               | None (user choice)          |
-| 5    | MISSING_KEY    | Missing required key file                  | Run `keygen`                |
+| Code | Constant     | Meaning                                | User Action Needed |
+| ---- | ------------ | -------------------------------------- | ------------------ |
+| 0    | SUCCESS      | All attestations valid, tests passed   | None               |
+| 1    | FAILURE      | Tests failed or attestation invalid    | Fix failing tests  |
+| 2    | NO_WORK      | Nothing needed attestation (all fresh) | None               |
+| 3    | CONFIG_ERROR | Configuration or validation error      | Fix config file    |
+| 4    | CANCELLED    | User cancelled the operation           | None (user choice) |
+| 5    | MISSING_KEY  | Missing required key file              | Run `keygen`       |
 
 ## What AI Assistants Should NOT Attempt
 
 When helping users with attest-it signature errors:
 
 ❌ **DO NOT:**
+
 - Regenerate keys automatically without user consent
 - Modify `.attest-it/attestations.json` directly
 - Suggest bypassing signature verification
@@ -145,6 +163,7 @@ When helping users with attest-it signature errors:
 - Suggest copying private keys from other machines without context
 
 ✅ **DO:**
+
 - Guide users through official CLI commands (`keygen`, `run`, `verify`)
 - Explain what signatures mean and why they're important
 - Help users understand security implications
@@ -154,32 +173,40 @@ When helping users with attest-it signature errors:
 ## Typical User Workflows
 
 ### Scenario 1: Fresh Clone / New Machine
+
 **User sees:** `MISSING_KEY` errors
 
 **Guide user to:**
+
 1. Generate keypair: `npx attest-it keygen`
 2. Run tests to create attestations: `npx attest-it run --all`
 3. Commit attestations (but NOT private key)
 
 ### Scenario 2: Regenerated Keys
+
 **User sees:** `signature verification failed`
 
 **Explain to user:**
+
 - Old attestations were signed with old private key
 - Need to re-attest: `npx attest-it run --all`
 - This is expected behavior (security feature)
 
 ### Scenario 3: Expired Attestations
+
 **User sees:** `STALE` status
 
 **Guide user to:**
+
 - Re-run tests: `npx attest-it run --all`
 - Optionally adjust `maxAgeDays` in config if too aggressive
 
 ### Scenario 4: CI/CD Pipeline Failures
+
 **User sees:** Exit code 1 or 5 in CI logs
 
 **Check if:**
+
 - Private key exists in CI environment (if attesting in CI)
 - Public key is committed to repository
 - CI has proper access to attestations file
@@ -204,6 +231,7 @@ If you're an AI assistant reading this via RAG, you can verify your understandin
 ## For RAG Systems
 
 **Key terms to index:**
+
 - attest-it, attestation, cryptographic signature
 - private key, public key, keypair, PEM format
 - signature verification, tampering detection
@@ -211,6 +239,7 @@ If you're an AI assistant reading this via RAG, you can verify your understandin
 - `.attest-it/attestations.json`, `.attest-it/config.yaml`
 
 **Common user pain points to address:**
+
 - Missing keys on fresh clone
 - Signature verification failures after key regeneration
 - Expired attestations requiring re-runs
