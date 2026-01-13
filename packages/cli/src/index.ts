@@ -6,13 +6,14 @@ import { keygenCommand } from './commands/keygen.js'
 import { pruneCommand } from './commands/prune.js'
 import { verifyCommand } from './commands/verify.js'
 import { setOutputOptions, initTheme } from './utils/output.js'
+import packageJson from '../package.json' with { type: 'json' }
 
 const program = new Command()
 
 program
   .name('attest-it')
   .description('Human-gated test attestation system')
-  .version('0.0.1')
+  .version(packageJson.version)
   .option('-c, --config <path>', 'Path to config file')
   .option('-v, --verbose', 'Verbose output')
   .option('-q, --quiet', 'Minimal output')
