@@ -1,0 +1,38 @@
+# Complete, valid operational config file
+# Contains operational settings that come from the PR branch
+version: 1
+
+settings:
+  # Default command to run if no suite specified
+  defaultCommand: pnpm test
+  # Key provider configuration
+  keyProvider:
+    type: filesystem
+    options:
+      privateKeyPath: .attest-it/private.pem
+
+suites:
+  # Security test suite
+  security:
+    gate: security-tests
+    command: pnpm test:security
+    timeout: 10m
+
+  # Unit test suite
+  unit:
+    gate: unit-tests
+    command: pnpm test:unit
+    timeout: 5m
+    # This suite depends on security suite completing first
+    depends_on:
+      - security
+
+groups:
+  # Group containing all test suites
+  all:
+    - security
+    - unit
+
+  # Quick test group (just unit tests)
+  quick:
+    - unit

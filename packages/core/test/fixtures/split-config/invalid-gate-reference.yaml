@@ -1,0 +1,10 @@
+# Invalid operational config file
+# Suite references a gate that doesn't exist in the policy
+# This should fail validation when merged with a policy
+version: 1
+
+suites:
+  # This suite references a gate that doesn't exist
+  test:
+    gate: nonexistent-gate # ERROR: This gate is not defined in the policy
+    command: pnpm test
