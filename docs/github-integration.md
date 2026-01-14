@@ -4,7 +4,7 @@ Complete guide to integrating attest-it with GitHub Actions and workflows.
 
 ## Quick Start
 
-Add attestation verification to your CI pipeline:
+Add seal verification to your CI pipeline:
 
 ```yaml
 # .github/workflows/ci.yml
@@ -13,7 +13,7 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  verify-attestations:
+  verify-seals:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,7 +25,7 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Verify attestations
+      - name: Verify seals
         run: npx attest-it verify
 ```
 
@@ -44,21 +44,21 @@ Use the official GitHub Action for streamlined integration:
 | Input             | Description                           | Required | Default                  |
 | ----------------- | ------------------------------------- | -------- | ------------------------ |
 | `config-path`     | Path to attest-it config file         | No       | `.attest-it/config.yaml` |
-| `suite`           | Verify specific suite only            | No       | (all suites)             |
-| `fail-on-missing` | Fail if any suite lacks attestation   | No       | `true`                   |
+| `gate`            | Verify specific gate only             | No       | (all gates)              |
+| `fail-on-missing` | Fail if any gate lacks a seal         | No       | `true`                   |
 | `strict`          | Fail on warnings (approaching expiry) | No       | `false`                  |
 
 ### Action Outputs
 
-| Output   | Description                        | Type              |
-| -------- | ---------------------------------- | ----------------- |
-| `valid`  | Whether all attestations are valid | `true` or `false` |
-| `suites` | JSON object with per-suite status  | JSON string       |
+| Output  | Description                      | Type              |
+| ------- | -------------------------------- | ----------------- |
+| `valid` | Whether all seals are valid      | `true` or `false` |
+| `gates` | JSON object with per-gate status | JSON string       |
 
 ### Full Example
 
 ```yaml
-name: Verify Attestations
+name: Verify Seals
 
 on:
   push:
@@ -82,7 +82,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify attestations
+      - name: Verify seals
         id: verify
         uses: attest-it/github-action@v1
         with:
@@ -92,41 +92,41 @@ jobs:
       - name: Check verification result
         if: steps.verify.outputs.valid == 'false'
         run: |
-          echo "Attestation verification failed!"
-          echo "${{ steps.verify.outputs.suites }}"
+          echo "Seal verification failed!"
+          echo "${{ steps.verify.outputs.gates }}"
           exit 1
 ```
 
 ## Workflow Strategies
 
-### Strategy 1: Block on Missing Attestations
+### Strategy 1: Block on Missing Seals
 
-Fail CI if attestations are missing or invalid:
+Fail CI if seals are missing or invalid:
 
 ```yaml
-- name: Verify attestations
+- name: Verify seals
   run: npx attest-it verify
   # CI fails if exit code is non-zero
 ```
 
 **Use when**:
 
-- Attestations are critical to your release process
-- All PRs must have valid attestations
+- Seals are critical to your release process
+- All PRs must have valid seals
 - No exceptions allowed
 
-### Strategy 2: Warn on Missing Attestations
+### Strategy 2: Warn on Missing Seals
 
 Allow CI to pass but report status:
 
 ```yaml
-- name: Verify attestations
+- name: Verify seals
   id: verify
-  run: npx attest-it verify || echo "ATTESTATION_FAILED=true" >> $GITHUB_OUTPUT
+  run: npx attest-it verify || echo "SEAL_FAILED=true" >> $GITHUB_OUTPUT
   continue-on-error: true
 
 - name: Comment on PR
-  if: steps.verify.outputs.ATTESTATION_FAILED == 'true'
+  if: steps.verify.outputs.SEAL_FAILED == 'true'
   uses: actions/github-script@v7
   with:
     script: |
@@ -134,34 +134,34 @@ Allow CI to pass but report status:
         issue_number: context.issue.number,
         owner: context.repo.owner,
         repo: context.repo.repo,
-        body: '⚠️ Attestations are missing or invalid. Please run `npx attest-it run --all`'
+        body: '⚠️ Seals are missing or invalid. Please run `npx attest-it seal <gate>` or `npx attest-it run --suite <suite>`'
       })
 ```
 
 **Use when**:
 
-- You're gradually adopting attestations
-- Some PRs legitimately don't need attestations
+- You're gradually adopting seals
+- Some PRs legitimately don't need seals
 - You want visibility without blocking
 
-### Strategy 3: Verify Specific Suites
+### Strategy 3: Verify Specific Gates
 
-Only verify critical suites in PR checks:
+Only verify critical gates in PR checks:
 
 ```yaml
 # Verify desktop tests in PRs
 - name: Verify desktop tests
-  run: npx attest-it verify --suite desktop-tests
+  run: npx attest-it verify desktop-tests
 
-# Verify all tests before deploy
-- name: Verify all attestations
+# Verify all gates before deploy
+- name: Verify all seals
   run: npx attest-it verify
   if: github.ref == 'refs/heads/main'
 ```
 
 **Use when**:
 
-- Some suites are more critical than others
+- Some gates are more critical than others
 - Deploy has stricter requirements than PR
 - Want fast PR feedback
 
@@ -169,7 +169,7 @@ Only verify critical suites in PR checks:
 
 ### PR-Level Gating
 
-Check attestations on every PR:
+Check seals on every PR:
 
 ```yaml
 name: PR Checks
@@ -179,7 +179,7 @@ on:
     branches: [main]
 
 jobs:
-  verify-attestations:
+  verify-seals:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -192,14 +192,14 @@ jobs:
 
 **Advantages**:
 
-- Catch missing attestations early
+- Catch missing seals early
 - Enforce policy before merge
 - Clear feedback to developers
 
 **Disadvantages**:
 
 - May block PRs unnecessarily
-- Requires attestation before review
+- Requires sealing before review
 - Can slow down development
 
 ### Deploy-Level Gating
@@ -221,8 +221,8 @@ jobs:
       - uses: actions/setup-node@v4
       - run: npm ci
 
-      # Block deploy if attestations invalid
-      - name: Verify attestations
+      # Block deploy if seals invalid
+      - name: Verify seals
         run: npx attest-it verify
 
       - name: Deploy
@@ -260,7 +260,7 @@ jobs:
       - run: npm ci
 
       # Warn but don't fail
-      - name: Verify attestations
+      - name: Verify seals
         run: npx attest-it verify
         continue-on-error: true
 ```
@@ -281,7 +281,7 @@ jobs:
       - run: npm ci
 
       # Must pass to deploy
-      - name: Verify attestations
+      - name: Verify seals
         run: npx attest-it verify
 
       - name: Deploy
@@ -290,12 +290,12 @@ jobs:
 
 ## Handling Verification Failures
 
-### Example: Re-run Attestations in CI
+### Example: Re-run Seals in CI
 
-If attestations are missing, provide clear instructions:
+If seals are missing, provide clear instructions:
 
 ```yaml
-- name: Verify attestations
+- name: Verify seals
   id: verify
   run: npx attest-it verify
   continue-on-error: true
@@ -303,20 +303,20 @@ If attestations are missing, provide clear instructions:
 - name: Report failure
   if: steps.verify.outcome == 'failure'
   run: |
-    echo "::error::Attestations are invalid or missing"
+    echo "::error::Seals are invalid or missing"
     echo "To fix:"
     echo "  1. Run: npx attest-it status"
-    echo "  2. Run: npx attest-it run --suite <suite-name>"
-    echo "  3. Commit: git add .attest-it/attestations.json"
+    echo "  2. Run: npx attest-it seal <gate-name>"
+    echo "  3. Commit: git add .attest-it/seals.json"
     exit 1
 ```
 
 ### Example: Automatic Issue Creation
 
-Create an issue when attestations fail on main:
+Create an issue when seals fail on main:
 
 ```yaml
-- name: Verify attestations
+- name: Verify seals
   id: verify
   run: npx attest-it verify || echo "failed=true" >> $GITHUB_OUTPUT
 
@@ -328,18 +328,18 @@ Create an issue when attestations fail on main:
       await github.rest.issues.create({
         owner: context.repo.owner,
         repo: context.repo.repo,
-        title: 'Attestations invalid on main branch',
-        body: 'Attestations are missing or invalid. Please run `npx attest-it status` and update.',
-        labels: ['ci', 'attestation']
+        title: 'Seals invalid on main branch',
+        body: 'Seals are missing or invalid. Please run `npx attest-it status` to see details.',
+        labels: ['ci', 'seal']
       })
 ```
 
 ## Automated Pruning
 
-Automatically remove stale attestations:
+Automatically remove stale seals:
 
 ```yaml
-name: Prune Stale Attestations
+name: Prune Stale Seals
 
 on:
   schedule:
@@ -361,67 +361,24 @@ jobs:
 
       - run: npm ci
 
-      - name: Prune stale attestations
+      - name: Prune stale seals
         run: npx attest-it prune
 
       - name: Commit changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .attest-it/attestations.json
-          git diff --staged --quiet || git commit -m "chore: prune stale attestations"
+          git add .attest-it/seals.json
+          git diff --staged --quiet || git commit -m "chore: prune stale seals"
           git push
-```
-
-## Status Badges
-
-Display attestation status in your README:
-
-### Using Shields.io
-
-Create a workflow that outputs status:
-
-```yaml
-name: Attestation Status
-
-on: [push]
-
-jobs:
-  status:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-      - run: npm ci
-
-      - name: Check status
-        id: status
-        run: |
-          if npx attest-it verify; then
-            echo "status=passing" >> $GITHUB_OUTPUT
-            echo "color=green" >> $GITHUB_OUTPUT
-          else
-            echo "status=failing" >> $GITHUB_OUTPUT
-            echo "color=red" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Create badge
-        run: |
-          echo "${{ steps.status.outputs.status }}" > attestation-status.txt
-```
-
-Add to README:
-
-```markdown
-![Attestation Status](https://img.shields.io/badge/attestations-passing-green)
 ```
 
 ## Monorepo Workflows
 
-### Verify All Packages
+### Verify All Gates
 
 ```yaml
-name: Verify All Attestations
+name: Verify All Seals
 
 on: [push, pull_request]
 
@@ -433,7 +390,7 @@ jobs:
       - uses: actions/setup-node@v4
       - run: npm ci
 
-      - name: Verify all suites
+      - name: Verify all gates
         run: npx attest-it verify
 ```
 
@@ -475,63 +432,48 @@ jobs:
       - run: npm ci
 
       - name: Verify ${{ matrix.package }}
-        run: npx attest-it verify --suite ${{ matrix.package }}
+        run: npx attest-it verify ${{ matrix.package }}
 ```
 
 ## Security Considerations
 
-### Protect Attestation Files
+### Protect Seal Files
 
-Require reviews for attestation changes:
+Require reviews for seal changes:
 
 ```yaml
 # .github/CODEOWNERS
-.attest-it/attestations.json @your-team/security-reviewers
+.attest-it/seals.json @your-team/security-reviewers
 ```
 
 ### Branch Protection
 
-Ensure attestations are verified before merge:
+Ensure seals are verified before merge:
 
 1. Go to repository Settings > Branches
 2. Add branch protection rule for `main`
-3. Require "Verify attestations" status check
+3. Require "Verify seals" status check
 
-### Prevent Attestation Bypass
+### Prevent Seal Bypass
 
-Block changes to public key without review:
+Block changes to config without review:
 
 ```yaml
 # .github/CODEOWNERS
-.attest-it/pubkey.pem @your-team/admins
 .attest-it/config.yaml @your-team/admins
 ```
 
 ## Troubleshooting
 
-### "Private key not found" in CI
-
-This is expected. CI only verifies with the public key:
-
-```bash
-# CI only needs:
-.attest-it/pubkey.pem          # Public key (commit this)
-.attest-it/attestations.json   # Attestations (commit this)
-.attest-it/config.yaml          # Config (commit this)
-
-# Developer machines need:
-~/.config/attest-it/privkey.pem # Private key (DON'T commit)
-```
-
 ### Verification Fails After Rebase
 
-After rebasing, re-run attestations if test files changed:
+After rebasing, re-seal if files in fingerprint paths changed:
 
 ```bash
 git rebase main
 npx attest-it status  # Check what changed
-npx attest-it run --suite affected-suite
-git add .attest-it/attestations.json
+npx attest-it seal <gate-name>
+git add .attest-it/seals.json
 git rebase --continue
 ```
 
@@ -540,27 +482,25 @@ git rebase --continue
 Forks can't access secrets. For public repos:
 
 ```yaml
-- name: Verify attestations
+- name: Verify seals
   # Skip on forks
   if: github.event.pull_request.head.repo.full_name == github.repository
   run: npx attest-it verify
 ```
 
-### Expired Attestations
+### Stale Seals
 
-Update `maxAgeDays` or re-run tests:
+Update `maxAge` in config or re-seal:
 
 ```bash
-# Option 1: Update config
-vim .attest-it/config.yaml  # Increase maxAgeDays
+# Option 1: Update config to extend maxAge
+vim .attest-it/config.yaml
 
-# Option 2: Re-run tests
-npx attest-it run --suite expired-suite
+# Option 2: Re-seal
+npx attest-it seal <gate-name>
 ```
 
-## Example Workflows
-
-### Complete CI Pipeline
+## Complete CI Pipeline Example
 
 ```yaml
 name: CI
@@ -591,7 +531,7 @@ jobs:
       - name: Run integration tests
         run: npm run test:integration
 
-  verify-attestations:
+  verify-seals:
     runs-on: ubuntu-latest
     needs: test
     steps:
@@ -605,14 +545,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Verify attestations
+      - name: Verify seals
         uses: attest-it/github-action@v1
         with:
           fail-on-missing: 'true'
 
   deploy:
     if: github.ref == 'refs/heads/main'
-    needs: [test, verify-attestations]
+    needs: [test, verify-seals]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -621,53 +561,14 @@ jobs:
       - run: npm run deploy
 ```
 
-### Notification on Expiry
-
-```yaml
-name: Check Attestation Expiry
-
-on:
-  schedule:
-    - cron: '0 9 * * MON' # Every Monday at 9am
-
-jobs:
-  check-expiry:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-      - run: npm ci
-
-      - name: Check for expiring attestations
-        id: check
-        run: |
-          # Check if any attestations expire in 7 days
-          if npx attest-it verify --strict; then
-            echo "status=ok" >> $GITHUB_OUTPUT
-          else
-            echo "status=expiring" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Notify team
-        if: steps.check.outputs.status == 'expiring'
-        uses: slackapi/slack-github-action@v1
-        with:
-          payload: |
-            {
-              "text": "⚠️ Attestations expiring soon! Run `npx attest-it status` to see details."
-            }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
-```
-
 ## Best Practices
 
-1. **Verify on all branches**: Ensure attestations are valid everywhere
+1. **Verify on all branches**: Ensure seals are valid everywhere
 2. **Block deploys**: Always verify before production
-3. **Automate pruning**: Remove stale attestations regularly
-4. **Protect files**: Use CODEOWNERS for attestation files
+3. **Automate pruning**: Remove stale seals regularly
+4. **Protect files**: Use CODEOWNERS for seal files
 5. **Clear failure messages**: Help developers fix issues quickly
-6. **Monitor expiry**: Set up notifications for expiring attestations
+6. **Monitor expiry**: Set up notifications for expiring seals
 7. **Use branch protection**: Require verification before merge
 
 ## See Also
