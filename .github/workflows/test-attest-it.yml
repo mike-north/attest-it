@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 jobs:
-  # Test 1: Valid attestation should pass
+  # Test 1: Valid attestation should pass (split config model)
   test-valid-attestation:
     name: Valid attestation passes
     runs-on: ubuntu-latest
@@ -16,6 +16,8 @@ jobs:
         uses: ./packages/github-action
         with:
           working-directory: packages/github-action/test/fixtures/valid-attestation
+          policy-path: .attest-it/policy.yaml
+          config-path: .attest-it/config.yaml
           fail-on-missing: 'true'
 
       - name: Confirm success
@@ -34,6 +36,8 @@ jobs:
         continue-on-error: true
         with:
           working-directory: packages/github-action/test/fixtures/missing-attestation
+          policy-path: .attest-it/policy.yaml
+          config-path: .attest-it/config.yaml
           fail-on-missing: 'true'
 
       - name: Check that action failed as expected
