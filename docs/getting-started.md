@@ -1,15 +1,16 @@
 # Getting Started with attest-it
 
-This guide will walk you through setting up attest-it for your project.
+This guide walks you through setting up attest-it for your project.
 
 ## Prerequisites
 
-Before you begin, ensure you have:
-
 - **Node.js 20+**: Check with `node --version`
-- **OpenSSL**: Required for key generation. Check with `openssl version`
-- **Git**: For fingerprinting and change detection. Check with `git --version`
+- **Git**: For fingerprinting. Check with `git --version`
 - **Package manager**: npm, pnpm, or yarn
+
+**Optional** (for secure key storage):
+- 1Password CLI (`op`) for 1Password storage
+- macOS for Keychain storage
 
 ## Installation
 
@@ -23,218 +24,217 @@ pnpm add attest-it
 yarn add attest-it
 ```
 
-For monorepos, install at the workspace root.
+## Step 1: Create Your Identity
 
-## Step 1: Initialize Configuration
+Your identity is your signing credentials. Run the interactive setup:
 
-Run the interactive setup wizard:
+```bash
+npx attest-it identity create
+```
+
+You'll configure:
+
+1. **Identity slug** (e.g., "work", "personal")
+2. **Display name and email**
+3. **Key storage** - Choose where to store your private key:
+   - **macOS Keychain** (recommended on macOS)
+   - **1Password** (recommended for cross-device)
+   - **File** (simple, less secure)
+
+Example output:
+
+```
+Creating new identity...
+
+? Identity slug: work
+? Display name: Alice Smith
+? Email: alice@example.com
+? Key storage backend: macOS Keychain
+
+Generating Ed25519 keypair...
+
+✓ Identity 'work' created successfully!
+
+Public key (share with team):
+  MCowBQYDK2VwAyEAabc123...
+
+Private key stored in: macOS Keychain (attest-it/work)
+
+Next steps:
+  1. Share your public key with your team lead
+  2. Run: npx attest-it init (in your project)
+```
+
+Your identity is stored locally at `~/.config/attest-it/config.yaml`.
+
+### Multiple Identities
+
+You can have multiple identities (e.g., work and personal):
+
+```bash
+npx attest-it identity create    # Create another identity
+npx attest-it identity list      # List all identities
+npx attest-it identity use work  # Switch active identity
+npx attest-it whoami             # Show current identity
+```
+
+## Step 2: Initialize Project
+
+In your repository, run:
 
 ```bash
 npx attest-it init
 ```
 
-You'll be prompted to configure:
-
-1. **Maximum attestation age** (default: 30 days)
-   - How long before attestations expire
-   - Set based on your release cadence
-
-2. **Signing algorithm** (recommended: Ed25519)
-   - Ed25519: Fast, modern, secure
-   - RSA: Broader compatibility with older systems
-
-3. **Test suites** (can add multiple)
-   - Suite name (e.g., "desktop-tests")
-   - Description (optional)
-   - Package paths (comma-separated)
-   - Test command
+This creates `.attest-it/config.yaml` with your first gate.
 
 ### Example Configuration Session
 
 ```
 Welcome to attest-it!
-This will create a configuration file for human-gated test attestations.
 
-? Maximum attestation age (days): 30
-? Signing algorithm: Ed25519 (Recommended)
-
-Now configure your test suites.
-Suites are groups of tests that require human verification.
-
-? Suite name: desktop-integration
-? Description (optional): Tests requiring VS Code desktop app
-? Package paths (comma-separated): packages/vscode-extension
-? Test command: pnpm vitest packages/vscode-extension --project desktop
-? Add another suite? No
+? Gate name: desktop-tests
+? Description: Tests requiring VS Code desktop app
+? Fingerprint paths (comma-separated): packages/vscode-extension/**/*.ts
+? Exclude patterns (comma-separated): **/*.test.ts
+? Maximum seal age: 30d
 
 ✓ Configuration created at .attest-it/config.yaml
 
 Next steps:
-  1. Review and edit the configuration as needed
-  2. Run: attest-it keygen
-  3. Run: attest-it run --suite desktop-integration
-  4. Commit the attestation file
+  1. Add yourself to the team: npx attest-it team add
+  2. Run tests and seal: npx attest-it run --suite desktop-tests
 ```
 
-This creates `.attest-it/config.yaml`:
+### Understanding the Config
 
 ```yaml
 version: 1
+
 settings:
-  maxAgeDays: 30
-  publicKeyPath: .attest-it/pubkey.pem
-  attestationsPath: .attest-it/attestations.json
-  algorithm: ed25519
-suites:
-  desktop-integration:
+  sealsPath: .attest-it/seals.json
+
+team:
+  alice:
+    name: Alice Smith
+    email: alice@example.com
+    publicKey: MCowBQYDK2VwAyEAabc123...
+
+gates:
+  desktop-tests:
+    name: Desktop Tests
     description: Tests requiring VS Code desktop app
-    packages:
-      - packages/vscode-extension
-    command: pnpm vitest packages/vscode-extension --project desktop
+    authorizedSigners: [alice]
+    fingerprint:
+      paths:
+        - packages/vscode-extension/**/*.ts
+      exclude:
+        - '**/*.test.ts'
+    maxAge: 30d
+
+suites:
+  desktop-tests:
+    gate: desktop-tests
+    command: pnpm vitest --project desktop
 ```
 
-## Step 2: Generate Signing Keys
+Key concepts:
+- **Team**: People who can create seals, with their public keys
+- **Gates**: What code needs attestation and who can sign
+- **Suites**: Gates with associated test commands
 
-Generate a keypair for signing attestations:
+## Step 3: Add Yourself to the Team
+
+Add your identity to the project's team:
 
 ```bash
-npx attest-it keygen
+npx attest-it team add
 ```
 
-Output:
+Or add manually by editing `.attest-it/config.yaml`:
 
-```
-Checking OpenSSL...
-ℹ OpenSSL: OpenSSL 3.1.0 14 Mar 2023
-
-Private key: /Users/yourname/.config/attest-it/privkey.pem
-Public key: .attest-it/pubkey.pem
-
-Generating ED25519 keypair...
-
-✓ Keypair generated successfully!
-
-Private key (KEEP SECRET):
-  /Users/yourname/.config/attest-it/privkey.pem
-
-Public key (commit to repo):
-  .attest-it/pubkey.pem
-
-ℹ Important: Back up your private key securely!
-
-Next steps:
-  1. git add .attest-it/pubkey.pem
-  2. Update .attest-it/config.yaml publicKeyPath if needed
-  3. attest-it run --suite desktop-integration
+```yaml
+team:
+  alice:
+    name: Alice Smith
+    email: alice@example.com
+    publicKey: MCowBQYDK2VwAyEAabc123...  # From identity export
 ```
 
-### Key Storage
-
-- **Private key**: Stored in `~/.config/attest-it/privkey.pem` (outside repo)
-  - Automatically set to 0600 permissions
-  - Back this up securely
-  - Never commit to version control
-
-- **Public key**: Stored in `.attest-it/pubkey.pem` (in repo)
-  - Commit this to your repository
-  - Used by CI to verify signatures
-
-### Custom Key Paths
-
-You can specify custom paths:
+Get your public key with:
 
 ```bash
-npx attest-it keygen --output ~/my-keys/privkey.pem --public .attest-it/pubkey.pem
+npx attest-it identity export
 ```
 
-## Step 3: Commit the Public Key
+## Step 4: Run Tests and Create Seal
 
-Add the public key to version control:
+Run your test suite and create a seal:
 
 ```bash
-git add .attest-it/pubkey.pem .attest-it/config.yaml
-git commit -m "Add attest-it configuration and public key"
-```
-
-The `.attest-it/` directory structure should be:
-
-```
-.attest-it/
-├── config.yaml       # Configuration (commit)
-├── pubkey.pem        # Public key (commit)
-└── attestations.json # Attestations (commit after creating)
-```
-
-## Step 4: Run Tests and Create Attestation
-
-Run your test suite with attestation:
-
-```bash
-npx attest-it run --suite desktop-integration
+npx attest-it run --suite desktop-tests
 ```
 
 The workflow:
 
-1. **Fingerprint computation**: Calculates SHA-256 hash of all test files
-2. **Test execution**: Runs your test command
-3. **Confirmation prompt**: Asks if you want to create attestation
-4. **Signature**: Signs the attestation with your private key
-5. **File update**: Updates `.attest-it/attestations.json`
+1. **Fingerprint**: Computes SHA-256 hash of files in the gate's paths
+2. **Execute**: Runs the test command
+3. **Confirm**: Asks if tests passed and you want to seal
+4. **Sign**: Creates Ed25519 signature with your private key
+5. **Save**: Updates `.attest-it/seals.json`
 
 Example output:
 
 ```
-=== Running suite: desktop-integration ===
+=== Running suite: desktop-tests ===
 
-Running: pnpm vitest packages/vscode-extension --project desktop
+Running: pnpm vitest --project desktop
 
- ✓ packages/vscode-extension/test/integration.test.ts (3 tests)
+ ✓ extension/test/integration.test.ts (3 tests)
 
 Test Files  1 passed (1)
      Tests  3 passed (3)
 
 ✓ Tests passed!
-? Create attestation? Yes
+? Create seal for gate 'desktop-tests'? Yes
 
-✓ Attestation created for desktop-integration
-  Fingerprint: sha256:a3b8c9...
-  Attested by: yourname
-  Attested at: 2026-01-08T12:34:56.789Z
+✓ Seal created for desktop-tests
+  Fingerprint: a3b8c9d2...
+  Sealed by: alice
+  Sealed at: 2026-01-14T12:34:56.789Z
 
-✓ All suites completed!
-
-To commit: git add .attest-it/attestations.json && git commit -m "Update attestations"
+Commit: git add .attest-it/seals.json && git commit -m "Seal desktop-tests"
 ```
 
-### Skip Confirmation
+### Direct Sealing
 
-To skip the confirmation prompt:
+If you run tests separately, seal directly:
 
 ```bash
-npx attest-it run --suite desktop-integration --yes
+npx attest-it seal desktop-tests
 ```
 
-### Run All Suites
+## Step 5: Commit the Seal
 
-To run and attest all configured suites:
-
-```bash
-npx attest-it run --all
-```
-
-## Step 5: Commit the Attestation
-
-Add the attestation file to your repository:
+Add the seal file to version control:
 
 ```bash
-git add .attest-it/attestations.json
-git commit -m "Add attestation for desktop-integration suite"
+git add .attest-it/seals.json .attest-it/config.yaml
+git commit -m "Add seal for desktop-tests"
 git push
+```
+
+The `.attest-it/` directory structure:
+
+```
+.attest-it/
+├── config.yaml  # Configuration (commit)
+└── seals.json   # Seals (commit after creating)
 ```
 
 ## Step 6: Set Up CI Verification
 
-Add verification to your CI pipeline. For GitHub Actions:
+Add verification to your CI pipeline:
 
 ```yaml
 # .github/workflows/ci.yml
@@ -243,20 +243,15 @@ name: CI
 on: [push, pull_request]
 
 jobs:
-  verify-attestations:
+  verify-seals:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Verify attestations
-        run: npx attest-it verify
+      - run: npm ci
+      - run: npx attest-it verify
 ```
 
 Or use the GitHub Action:
@@ -267,11 +262,11 @@ Or use the GitHub Action:
     fail-on-missing: 'true'
 ```
 
-See [GitHub Integration Guide](github-integration.md) for more details.
+See [GitHub Integration Guide](github-integration.md) for more options.
 
 ## Checking Status
 
-View the status of all attestations:
+View seal status for all gates:
 
 ```bash
 npx attest-it status
@@ -280,161 +275,126 @@ npx attest-it status
 Example output:
 
 ```
-Attestation Status
-==================
+Gate Status
+===========
 
-Suite: desktop-integration
+Gate: desktop-tests
 Status: ✓ VALID
-Fingerprint: sha256:a3b8c9...
-Attested by: yourname
-Attested at: 2026-01-08T12:34:56.789Z
+Fingerprint: a3b8c9d2...
+Sealed by: alice
+Sealed at: 2026-01-14T12:34:56.789Z
 Age: 2 days
 
-Overall: All attestations valid
+Overall: All gates valid
 ```
 
 ## Common Workflows
 
-### Adding a New Suite
+### Adding a New Gate
 
-1. Edit `.attest-it/config.yaml` to add the suite
-2. Run `npx attest-it run --suite new-suite-name`
-3. Commit the updated attestations
+1. Edit `.attest-it/config.yaml` to add the gate
+2. Run `npx attest-it seal <gate-name>` or `npx attest-it run --suite <suite-name>`
+3. Commit the updated seals
 
 ### Updating Tests
 
-When you modify test files:
+When you modify code in a gate's fingerprint paths:
 
 1. Make your changes
 2. Run `npx attest-it run --suite affected-suite`
-3. Commit both code changes and new attestation
+3. Commit both code changes and new seal
 
-### Multiple Developers
+### Adding Team Members
 
-There are two approaches for team use:
+1. Team member creates identity: `npx attest-it identity create`
+2. They export public key: `npx attest-it identity export`
+3. Add them to project config:
 
-**Option A: Shared keypair (simpler)**
+```yaml
+team:
+  bob:
+    name: Bob Jones
+    email: bob@example.com
+    publicKey: MCowBQYDK2VwAyEAxyz789...
+```
 
-Share one private key among team members:
+4. Add to gate's `authorizedSigners`:
 
-1. One developer runs `npx attest-it keygen`
-2. Share the private key securely with team members (password manager, encrypted share)
-3. Each developer copies the key to their `~/.config/attest-it/key.pem`
-4. All attestations use the same signature
-
-**Option B: Individual keypairs (more secure)**
-
-Each developer has their own keypair:
-
-1. Each developer runs `npx attest-it keygen --public .attest-it/pubkey-<username>.pem`
-2. Commit all public keys to the repository
-3. Configure verification to accept any valid signature (requires custom verification setup)
-
-For most teams, Option A is recommended for simplicity. The private key should never be committed to the repository.
+```yaml
+gates:
+  desktop-tests:
+    authorizedSigners: [alice, bob]
+```
 
 ## Troubleshooting
 
-### "Private key not found"
+### "No active identity found"
+
+Create an identity:
 
 ```bash
-npx attest-it keygen
+npx attest-it identity create
 ```
 
-### "Working tree has uncommitted changes"
+### "Not authorized to seal gate"
 
-Commit or stash your changes before attesting:
-
-```bash
-git stash
-npx attest-it run --suite my-suite
-git stash pop
-```
+Your public key isn't in the gate's `authorizedSigners`. Either:
+- Add yourself to the team and gate configuration
+- Have an authorized team member seal
 
 ### "Configuration file not found"
 
 Run `npx attest-it init` to create the configuration.
 
-### "OpenSSL not found"
+### "Key provider not available"
 
-Install OpenSSL:
+The configured key storage isn't available on this platform. Use a different provider:
 
-- macOS: `brew install openssl`
-- Ubuntu: `apt-get install openssl`
-- Windows: Download from [OpenSSL website](https://www.openssl.org/)
+```bash
+npx attest-it identity edit <slug>
+```
 
 ### Verification Fails in CI
 
 Common causes:
 
-1. Attestation file not committed
-2. Public key not committed
-3. Tests changed since last attestation
-4. Attestation expired (exceeds maxAgeDays)
+1. Seals file not committed
+2. Code changed since seal was created (fingerprint mismatch)
+3. Seal expired (exceeds maxAge)
+4. Signer removed from team
 
 Run `npx attest-it status` locally to diagnose.
 
-### "Signature verification failed"
+### Verification States
 
-The attestation file has been tampered with or signed with a different key:
-
-1. Check that the correct public key is in the repository
-2. Re-run `npx attest-it run --suite <suite>` to create a fresh attestation
-3. Ensure no manual edits were made to the attestations file
-
-### "Package path does not exist"
-
-A configured package directory was not found:
-
-1. Check that the paths in your config match actual directories
-2. Paths are relative to the repository root
-3. Run `ls` to verify the directory exists
-
-### "Suite not found in config"
-
-The specified suite name doesn't exist:
-
-1. Check suite names in `.attest-it/config.yaml`
-2. Suite names are case-sensitive
-3. Run `npx attest-it status` to see available suites
-
-### Error Codes Reference
-
-| Status                | Meaning                              | Solution                           |
-| --------------------- | ------------------------------------ | ---------------------------------- |
-| `VALID`               | Attestation is current and verified  | No action needed                   |
-| `NEEDS_ATTESTATION`   | No attestation exists for this suite | Run `attest-it run --suite <name>` |
-| `FINGERPRINT_CHANGED` | Code changed since attestation       | Re-run tests and attest            |
-| `EXPIRED`             | Attestation exceeds maxAgeDays       | Re-run tests and attest            |
-| `SIGNATURE_INVALID`   | Signature verification failed        | Check keys, re-attest              |
-| `INVALIDATED`         | Parent suite changed                 | Re-run tests and attest            |
-
-## Next Steps
-
-- Learn about all [configuration options](configuration.md)
-- Set up [GitHub integration](github-integration.md)
-- Explore [desktop test patterns](writing-desktop-tests.md)
-- Configure [suite invalidation](configuration.md#suite-invalidation)
+| State                  | Meaning                            | Solution                     |
+| ---------------------- | ---------------------------------- | ---------------------------- |
+| `VALID`                | Seal is valid                      | None needed                  |
+| `MISSING`              | No seal for gate                   | Run `seal` or `run --suite`  |
+| `STALE`                | Seal exceeds maxAge                | Re-seal (warning only)       |
+| `FINGERPRINT_MISMATCH` | Code changed since seal            | Re-run tests and seal        |
+| `INVALID_SIGNATURE`    | Signature verification failed      | Check keys, re-seal          |
+| `UNKNOWN_SIGNER`       | Signer not in team config          | Add signer or re-seal        |
 
 ## Best Practices
 
-1. **Attest frequently**: Run attestations after every test change
-2. **Commit together**: Always commit code and attestations in the same commit
-3. **Set reasonable expiry**: Match maxAgeDays to your release cadence
-4. **Back up private key**: Store securely outside the repository
+1. **Seal frequently**: After every test change
+2. **Commit together**: Code and seals in the same commit
+3. **Set reasonable expiry**: Match maxAge to your release cadence
+4. **Back up keys**: Especially if using file storage
 5. **Monitor status**: Run `npx attest-it status` regularly
-6. **CI enforcement**: Always verify in CI to catch missing attestations
+6. **CI enforcement**: Always verify in CI
 
 ## Security Considerations
 
-- Never commit the private key to version control
-- Set private key permissions to 0600 (done automatically)
-- Rotate keys periodically by generating new keypair
-- Use Ed25519 for best security and performance
-- Ensure OpenSSL is up to date
+- Private keys never enter the repository
+- Use secure key storage (1Password or Keychain) when possible
+- Each team member has their own keypair
+- Rotate keys by creating a new identity and updating team config
+- Ed25519 provides modern, efficient cryptography
 
-## Additional Resources
+## Next Steps
 
-- [Configuration Reference](configuration.md)
-- [CLI Command Reference](../README.md#cli-commands)
-- [GitHub Integration](github-integration.md)
-- [Example Tests](examples/README.md)
+- [Configuration Reference](configuration.md) - All options
+- [GitHub Integration](github-integration.md) - CI setup
+- [Writing Desktop Tests](writing-desktop-tests.md) - Test patterns
