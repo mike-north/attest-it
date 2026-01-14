@@ -313,12 +313,10 @@ async function runCreate(): Promise<void> {
         const tempDir = join(tmpdir(), `attest-it-${String(Date.now())}`)
         await mkdir(tempDir, { recursive: true })
         const tempPrivatePath = join(tempDir, 'private.pem')
-        const tempPublicPath = join(tempDir, 'public.pem')
 
         try {
-          // Write keys to temp files
+          // Write private key to temp file for upload
           await writeFile(tempPrivatePath, keyPair.privateKey, { mode: 0o600 })
-          await writeFile(tempPublicPath, keyPair.publicKey, { mode: 0o644 })
 
           // Upload to 1Password using op document create
           const { execFile } = await import('node:child_process')
@@ -351,7 +349,6 @@ async function runCreate(): Promise<void> {
           type: '1password',
           vault: selectedVault,
           item,
-          field: 'privateKey',
           ...(selectedAccount && { account: selectedAccount }),
         }
         keyStorageDescription = `1Password (${selectedVault}/${item})`

@@ -1,40 +1,10 @@
 import { Command } from 'commander'
 import { confirm } from '@inquirer/prompts'
 import { loadLocalConfig, saveLocalConfig } from '@attest-it/core'
-import type { PrivateKeyRef } from '@attest-it/core'
 import { log, success, error, getTheme } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
+import { formatKeyLocation } from '../../utils/format-key-location.js'
 import { unlink } from 'node:fs/promises'
-
-/**
- * Format the private key storage location for display.
- */
-function formatKeyLocation(privateKey: PrivateKeyRef): string {
-  const theme = getTheme()
-
-  switch (privateKey.type) {
-    case 'file':
-      return `${theme.blue.bold()('File')}: ${theme.muted(privateKey.path)}`
-    case 'keychain': {
-      // Extract keychain name from path if available
-      let keychainName = 'default'
-      if (privateKey.keychain) {
-        const filename = privateKey.keychain.split('/').pop() ?? privateKey.keychain
-        keychainName = filename.replace(/\.keychain(-db)?$/, '')
-      }
-      return `${theme.blue.bold()('macOS Keychain')}: ${theme.muted(`${keychainName}/${privateKey.service}`)}`
-    }
-    case '1password': {
-      const parts = [privateKey.vault, privateKey.item]
-      if (privateKey.account) {
-        parts.unshift(privateKey.account)
-      }
-      return `${theme.blue.bold()('1Password')}: ${theme.muted(parts.join('/'))}`
-    }
-    default:
-      return 'Unknown storage'
-  }
-}
 
 export const removeCommand = new Command('remove')
   .description('Delete identity and optionally delete private key')
