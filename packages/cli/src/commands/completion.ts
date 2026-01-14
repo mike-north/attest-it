@@ -295,10 +295,13 @@ completionCommand
  * option when registering with the parent command.
  */
 export function createCompletionServerCommand(): Command {
-  return new Command('completion-server').action(async () => {
-    const env = tabtab.parseEnv(process.env)
-    if (env.complete) {
-      await getCompletions(env)
-    }
-  })
+  return new Command('completion-server')
+    .allowUnknownOption()
+    .allowExcessArguments(true)
+    .action(async () => {
+      const env = tabtab.parseEnv(process.env)
+      if (env.complete) {
+        await getCompletions(env)
+      }
+    })
 }
