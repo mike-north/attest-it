@@ -162,7 +162,24 @@ async function getCompletions(env: tabtab.ParseEnvResult): Promise<void> {
   }
 
   // Default: show top-level commands
-  if (!currentCommand) {
+  // This handles both:
+  // 1. No command typed yet (e.g., "attest-it ")
+  // 2. Partial/unknown command being typed (e.g., "attest-it ini")
+  // The shell will filter by prefix for partial matches
+  const knownCommands = [
+    'init',
+    'status',
+    'run',
+    'verify',
+    'seal',
+    'keygen',
+    'prune',
+    'identity',
+    'team',
+    'whoami',
+    'completion',
+  ]
+  if (!currentCommand || !knownCommands.includes(currentCommand)) {
     tabtab.log([...commands, ...globalOptions], shell, console.log)
   }
 }
