@@ -712,9 +712,10 @@ describe('OnePasswordKeyProvider', () => {
           if (outFileIndex !== -1) {
             const targetPath = (args as string[])[outFileIndex + 1]
             // Synchronously schedule the file write (simulates op writing the file)
-            setImmediate(async () => {
-              await fs.mkdir(path.dirname(targetPath), { recursive: true })
-              await fs.writeFile(targetPath, mockPrivateKeyContent)
+            setImmediate(() => {
+              void fs.mkdir(path.dirname(targetPath), { recursive: true }).then(() =>
+                fs.writeFile(targetPath, mockPrivateKeyContent),
+              )
             })
           }
           return mockSpawnSuccess('')
@@ -800,9 +801,10 @@ describe('OnePasswordKeyProvider', () => {
           const outFileIndex = (args as string[]).indexOf('--out-file')
           if (outFileIndex !== -1) {
             const targetPath = (args as string[])[outFileIndex + 1]
-            setImmediate(async () => {
-              await fs.mkdir(path.dirname(targetPath), { recursive: true })
-              await fs.writeFile(targetPath, mockPrivateKeyContent)
+            setImmediate(() => {
+              void fs.mkdir(path.dirname(targetPath), { recursive: true }).then(() =>
+                fs.writeFile(targetPath, mockPrivateKeyContent),
+              )
             })
           }
           return mockSpawnSuccess('')

@@ -37,7 +37,8 @@ jobs:
           node packages/cli/dist/bin/attest-it.js keygen \
             --private test-keys/private.pem \
             --output test-keys/public.pem \
-            --force
+            --force \
+            --no-interactive
 
       - name: Verify keys exist
         run: |

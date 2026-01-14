@@ -233,7 +233,7 @@ function createAttestationCreator(config: Config): (suite: string) => Promise<vo
         keyRef = config.settings.keyProvider.options?.itemName ?? 'attest-it-private-key'
       } else {
         throw new Error(
-          `Unsupported key provider type: ${String(config.settings.keyProvider.type)}`,
+          `Unsupported key provider type: ${config.settings.keyProvider.type}`,
         )
       }
     } else {
