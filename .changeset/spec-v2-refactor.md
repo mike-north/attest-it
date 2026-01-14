@@ -1,6 +1,6 @@
 ---
-'@attest-it/core': major
-'@attest-it/cli': major
+'@attest-it/core': minor
+'@attest-it/cli': minor
 ---
 
 Implement attest-it v2.0 specification with identity system, Ed25519 cryptography, and gate-based seals
