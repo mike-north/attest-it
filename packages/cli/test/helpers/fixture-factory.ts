@@ -99,9 +99,12 @@ export async function createProjectFixture(options: ProjectFixtureOptions = {}):
   const attestationsPath = join(project.baseDir, '.attest-it', 'attestations.json')
 
   yamlLines.push('settings:')
-  yamlLines.push(`  privateKeyPath: ${privateKeyPath}`)
   yamlLines.push(`  publicKeyPath: ${publicKeyPath}`)
   yamlLines.push(`  attestationsPath: ${attestationsPath}`)
+  yamlLines.push('  keyProvider:')
+  yamlLines.push('    type: filesystem')
+  yamlLines.push('    options:')
+  yamlLines.push(`      privateKeyPath: ${privateKeyPath}`)
 
   // Add default max age if any suite has one
   const maxAges = suites.map((s) => s.maxAge).filter((age): age is string => age !== undefined)
