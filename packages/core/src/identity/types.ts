@@ -9,7 +9,7 @@
  */
 export type PrivateKeyRef =
   | { type: 'file'; path: string }
-  | { type: 'keychain'; service: string; account: string }
+  | { type: 'keychain'; service: string; account: string; keychain?: string }
   | { type: '1password'; account?: string; vault: string; item: string; field?: string }
 
 /**

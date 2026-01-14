@@ -1,8 +1,8 @@
 import { Command } from 'commander'
 import { loadLocalConfig, getActiveIdentity } from '@attest-it/core'
-import { log, error } from '../utils/output.js'
+import { log, error, getTheme } from '../utils/output.js'
 import { ExitCode } from '../utils/exit-codes.js'
-import { getTheme } from '../components/theme.js'
+import { formatKeyLocation } from '../utils/format-key-location.js'
 
 export const whoamiCommand = new Command('whoami')
   .description('Show the current active identity')
@@ -34,15 +34,18 @@ async function runWhoami(): Promise<void> {
     const theme = getTheme()
 
     log('')
-    log(theme.green.bold()(identity.name))
+    log(theme.blue.bold()('Active Identity'))
+    log('')
+    log(`  Slug:       ${theme.green.bold()(config.activeIdentity)}`)
+    log(`  Name:       ${identity.name}`)
     if (identity.email) {
-      log(theme.muted(identity.email))
+      log(`  Email:      ${theme.muted(identity.email)}`)
     }
     if (identity.github) {
-      log(theme.muted('@' + identity.github))
+      log(`  GitHub:     ${theme.muted('@' + identity.github)}`)
     }
-    log('')
-    log(`Identity: ${theme.blue(config.activeIdentity)}`)
+    log(`  Public Key: ${theme.muted(identity.publicKey.slice(0, 24) + '...')}`)
+    log(`  Key Store:  ${formatKeyLocation(identity.privateKey)}`)
     log('')
   } catch (err) {
     if (err instanceof Error) {

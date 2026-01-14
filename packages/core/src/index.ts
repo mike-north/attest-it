@@ -108,12 +108,16 @@ export {
   type OnePasswordAccount,
   type OnePasswordVault,
   type MacOSKeychainKeyProviderOptions,
+  type MacOSKeychain,
   type KeyProviderFactory,
 } from './key-provider/index.js'
 
 // Identity System
 export {
   getLocalConfigPath,
+  getAttestItConfigDir,
+  setAttestItHomeDir,
+  getAttestItHomeDir,
   loadLocalConfig,
   loadLocalConfigSync,
   saveLocalConfig,

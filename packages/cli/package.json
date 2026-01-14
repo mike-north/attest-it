@@ -9,6 +9,7 @@
     "@attest-it/core": "workspace:*",
     "@inkjs/ui": "^2.0.0",
     "@inquirer/prompts": "^7.0.0",
+    "@pnpm/tabtab": "^0.5.4",
     "chromaterm": "^0.1.0",
     "commander": "^13.0.0",
     "ink": "^5.2.1",
@@ -53,7 +54,10 @@
     "check:types": "tsc --noEmit",
     "test": "vitest run",
     "test:manual": "tsx test/manual-test-runner.ts",
-    "test:manual:agent": "tsx test/manual-test-runner.ts --print-command"
+    "test:manual:1password": "tsx test/manual/scripts/1password-integration.ts",
+    "test:manual:agent": "tsx test/manual-test-runner.ts --print-command",
+    "test:manual:keychain": "tsx test/manual/scripts/keychain-integration.ts",
+    "test:manual:visual": "tsx test/manual/scripts/visual-verification.ts"
   },
   "type": "module",
   "types": "./dist/index.d.ts"

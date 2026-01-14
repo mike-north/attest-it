@@ -9,6 +9,9 @@ export type { PrivateKeyRef, Identity, LocalConfig } from './types.js'
 // Config functions
 export {
   getLocalConfigPath,
+  getAttestItConfigDir,
+  setAttestItHomeDir,
+  getAttestItHomeDir,
   loadLocalConfig,
   loadLocalConfigSync,
   saveLocalConfig,

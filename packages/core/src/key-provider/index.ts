@@ -32,7 +32,7 @@ export type {
 
 // macOS Keychain provider
 export { MacOSKeychainKeyProvider } from './macos-keychain-provider.js'
-export type { MacOSKeychainKeyProviderOptions } from './macos-keychain-provider.js'
+export type { MacOSKeychainKeyProviderOptions, MacOSKeychain } from './macos-keychain-provider.js'
 
 // Registry
 export { KeyProviderRegistry } from './registry.js'

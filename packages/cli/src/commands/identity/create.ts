@@ -1,11 +1,17 @@
 import { Command } from 'commander'
 import { input, select } from '@inquirer/prompts'
-import { generateEd25519KeyPair, loadLocalConfig, saveLocalConfig } from '@attest-it/core'
+import {
+  generateEd25519KeyPair,
+  loadLocalConfig,
+  saveLocalConfig,
+  getAttestItConfigDir,
+  OnePasswordKeyProvider,
+  MacOSKeychainKeyProvider,
+} from '@attest-it/core'
 import type { Identity, LocalConfig, PrivateKeyRef } from '@attest-it/core'
-import { log, success, error } from '../../utils/output.js'
+import { log, success, error, info, getTheme } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
-import { getTheme } from '../../components/theme.js'
-import { homedir } from 'node:os'
+import { validateSlug, validateEmail } from './validation.js'
 import { join } from 'node:path'
 import { writeFile, mkdir } from 'node:fs/promises'
 
@@ -30,21 +36,12 @@ async function runCreate(): Promise<void> {
     const existingConfig = await loadLocalConfig()
 
     // Prompt for identity details
-    const slug = await input({
-      message: 'Identity slug (unique identifier):',
-      validate: (value) => {
-        if (!value || value.trim().length === 0) {
-          return 'Slug cannot be empty'
-        }
-        if (!/^[a-z0-9-]+$/.test(value)) {
-          return 'Slug must contain only lowercase letters, numbers, and hyphens'
-        }
-        if (existingConfig?.identities[value]) {
-          return `Identity "${value}" already exists`
-        }
-        return true
-      },
-    })
+    const slug = (
+      await input({
+        message: 'Identity slug (unique identifier):',
+        validate: (value) => validateSlug(value, existingConfig?.identities),
+      })
+    ).trim()
 
     const name = await input({
       message: 'Display name:',
@@ -56,24 +53,42 @@ async function runCreate(): Promise<void> {
       },
     })
 
-    const email = await input({
-      message: 'Email (optional):',
-      default: '',
-    })
+    const email = (
+      await input({
+        message: 'Email (optional):',
+        default: '',
+        validate: validateEmail,
+      })
+    ).trim()
 
     const github = await input({
       message: 'GitHub username (optional):',
       default: '',
     })
 
+    // Check provider availability
+    info('Checking available key storage providers...')
+    const opAvailable = await OnePasswordKeyProvider.isInstalled()
+    const keychainAvailable = MacOSKeychainKeyProvider.isAvailable()
+
+    // Build choices based on availability
+    const configDir = getAttestItConfigDir()
+    const storageChoices: { name: string; value: string }[] = [
+      { name: `File system (${join(configDir, 'keys')})`, value: 'file' },
+    ]
+
+    if (keychainAvailable) {
+      storageChoices.push({ name: 'macOS Keychain', value: 'keychain' })
+    }
+
+    if (opAvailable) {
+      storageChoices.push({ name: '1Password', value: '1password' })
+    }
+
     // Prompt for key storage type
     const keyStorageType = await select({
       message: 'Where should the private key be stored?',
-      choices: [
-        { name: 'File system (~/.config/attest-it/keys/)', value: 'file' },
-        { name: 'macOS Keychain', value: 'keychain' },
-        { name: '1Password', value: '1password' },
-      ],
+      choices: storageChoices,
     })
 
     log('')
@@ -88,8 +103,8 @@ async function runCreate(): Promise<void> {
 
     switch (keyStorageType) {
       case 'file': {
-        // Save to filesystem
-        const keysDir = join(homedir(), '.config', 'attest-it', 'keys')
+        // Save to filesystem (respects --home-dir override)
+        const keysDir = join(getAttestItConfigDir(), 'keys')
         await mkdir(keysDir, { recursive: true })
         const keyPath = join(keysDir, `${slug}.pem`)
         await writeFile(keyPath, keyPair.privateKey, { mode: 0o600 })
@@ -99,15 +114,55 @@ async function runCreate(): Promise<void> {
         break
       }
       case 'keychain': {
-        // For macOS Keychain, we need to use the security command
-        // Import the key provider to check if available
-        const { MacOSKeychainKeyProvider } = await import('@attest-it/core')
-
         // Check if available (using static method)
         if (!MacOSKeychainKeyProvider.isAvailable()) {
           error('macOS Keychain is not available on this system')
           process.exit(ExitCode.CONFIG_ERROR)
         }
+
+        // List available keychains
+        const keychains = await MacOSKeychainKeyProvider.listKeychains()
+
+        if (keychains.length === 0) {
+          throw new Error('No keychains found on this system')
+        }
+
+        // Format keychain display with bold name and dim path
+        const formatKeychainChoice = (kc: { name: string; path: string }): string => {
+          return `${theme.blue.bold()(kc.name)} ${theme.muted(`(${kc.path})`)}`
+        }
+
+        // Select keychain (auto-select if only one, typically "login")
+        let selectedKeychain: { name: string; path: string }
+        if (keychains.length === 1 && keychains[0]) {
+          selectedKeychain = keychains[0]
+          info(`Using keychain: ${formatKeychainChoice(selectedKeychain)}`)
+        } else {
+          const selectedPath = await select({
+            message: 'Select keychain:',
+            choices: keychains.map((kc) => ({
+              name: formatKeychainChoice(kc),
+              value: kc.path,
+            })),
+          })
+          const foundKeychain = keychains.find((kc) => kc.path === selectedPath)
+          if (!foundKeychain) {
+            throw new Error('Selected keychain not found')
+          }
+          selectedKeychain = foundKeychain
+        }
+
+        // Prompt for item name
+        const keychainItemName = await input({
+          message: 'Keychain item name:',
+          default: `attest-it-${slug}`,
+          validate: (value) => {
+            if (!value || value.trim().length === 0) {
+              return 'Item name cannot be empty'
+            }
+            return true
+          },
+        })
 
         // Store the private key in keychain using security command
         // Keys are stored as base64-encoded PEM strings
@@ -119,39 +174,129 @@ async function runCreate(): Promise<void> {
         const encodedKey = Buffer.from(keyPair.privateKey).toString('base64')
 
         try {
-          await execFileAsync('security', [
+          const addArgs = [
             'add-generic-password',
             '-a',
             'attest-it',
             '-s',
-            slug,
+            keychainItemName,
             '-w',
             encodedKey,
             '-U',
-          ])
+            selectedKeychain.path,
+          ]
+          await execFileAsync('security', addArgs)
         } catch (err) {
           throw new Error(
             `Failed to store key in macOS Keychain: ${err instanceof Error ? err.message : String(err)}`,
           )
         }
 
-        // In the keychain, -s is the service name (slug) and -a is the account ("attest-it")
-        privateKeyRef = { type: 'keychain', service: slug, account: 'attest-it' }
-        keyStorageDescription = 'macOS Keychain (' + slug + '/attest-it)'
+        // In the keychain, -s is the service name (item) and -a is the account ("attest-it")
+        privateKeyRef = {
+          type: 'keychain',
+          service: keychainItemName,
+          account: 'attest-it',
+          keychain: selectedKeychain.path,
+        }
+        keyStorageDescription = `macOS Keychain: ${selectedKeychain.name}/${keychainItemName}`
         break
       }
       case '1password': {
-        // For 1Password, prompt for additional details
-        const vault = await input({
-          message: '1Password vault name:',
-          validate: (value) => {
-            if (!value || value.trim().length === 0) {
-              return 'Vault name cannot be empty'
+        // List available 1Password accounts
+        const accounts = await OnePasswordKeyProvider.listAccounts()
+
+        if (accounts.length === 0) {
+          throw new Error(
+            '1Password CLI is installed but no accounts are signed in. Run "op signin" first.',
+          )
+        }
+
+        // Fetch detailed account info (including friendly name) for each account
+        const { execFile } = await import('node:child_process')
+        const { promisify } = await import('node:util')
+        const execFileAsync = promisify(execFile)
+
+        interface AccountDetails {
+          url: string
+          email: string
+          name: string // Friendly name from `op account get`
+        }
+
+        const accountDetails: AccountDetails[] = await Promise.all(
+          accounts.map(async (acc) => {
+            try {
+              // Use user_uuid for unique lookup (URL can be shared by multiple accounts)
+              const { stdout } = await execFileAsync('op', [
+                'account',
+                'get',
+                '--account',
+                acc.user_uuid,
+                '--format=json',
+              ])
+              const details: unknown = JSON.parse(stdout)
+              // Extract name if it exists and is a string
+              const name =
+                details !== null &&
+                typeof details === 'object' &&
+                'name' in details &&
+                typeof details.name === 'string'
+                  ? details.name
+                  : acc.url
+              return {
+                url: acc.url,
+                email: acc.email,
+                name,
+              }
+            } catch {
+              // Fallback to URL if we can't get account details
+              return {
+                url: acc.url,
+                email: acc.email,
+                name: acc.url,
+              }
             }
-            return true
-          },
+          }),
+        )
+
+        // Format account display with bold name and dim domain (matching `op signin` style)
+        const formatAccountChoice = (acc: AccountDetails): string => {
+          return `${theme.blue.bold()(acc.name)} ${theme.muted(`(${acc.url})`)}`
+        }
+
+        // Select account (auto-select if only one)
+        // Use URL as the account identifier (required by `op` CLI)
+        let selectedAccount: string | undefined
+        if (accountDetails.length === 1 && accountDetails[0]) {
+          selectedAccount = accountDetails[0].url
+          info(`Using 1Password account: ${formatAccountChoice(accountDetails[0])}`)
+        } else {
+          selectedAccount = await select({
+            message: 'Select 1Password account:',
+            choices: accountDetails.map((acc) => ({
+              name: formatAccountChoice(acc),
+              value: acc.url,
+            })),
+          })
+        }
+
+        // List vaults for selected account
+        const vaults = await OnePasswordKeyProvider.listVaults(selectedAccount)
+
+        if (vaults.length === 0) {
+          throw new Error(`No vaults found in 1Password account: ${selectedAccount}`)
+        }
+
+        // Select vault
+        const selectedVault = await select({
+          message: 'Select vault for private key storage:',
+          choices: vaults.map((v) => ({
+            name: v.name,
+            value: v.name,
+          })),
         })
 
+        // Prompt for item name
         const item = await input({
           message: '1Password item name:',
           default: `attest-it-${slug}`,
@@ -163,31 +308,50 @@ async function runCreate(): Promise<void> {
           },
         })
 
-        // Store the private key in 1Password
-        // We'll use the op CLI tool
-        const { execFile } = await import('node:child_process')
-        const { promisify } = await import('node:util')
-        const execFileAsync = promisify(execFile)
+        // Write the private key to a temp file, then upload to 1Password
+        const { tmpdir } = await import('node:os')
+        const tempDir = join(tmpdir(), `attest-it-${String(Date.now())}`)
+        await mkdir(tempDir, { recursive: true })
+        const tempPrivatePath = join(tempDir, 'private.pem')
 
         try {
-          // Create the item with the private key
-          await execFileAsync('op', [
-            'item',
+          // Write private key to temp file for upload
+          await writeFile(tempPrivatePath, keyPair.privateKey, { mode: 0o600 })
+
+          // Upload to 1Password using op document create
+          const { execFile } = await import('node:child_process')
+          const { promisify } = await import('node:util')
+          const execFileAsync = promisify(execFile)
+
+          const opArgs = [
+            'document',
             'create',
-            '--category=SecureNote',
+            tempPrivatePath,
+            '--title',
+            item,
             '--vault',
-            vault,
-            `--title=${item}`,
-            `privateKey[password]=${keyPair.privateKey}`,
-          ])
-        } catch (err) {
-          throw new Error(
-            `Failed to store key in 1Password: ${err instanceof Error ? err.message : String(err)}`,
-          )
+            selectedVault,
+          ]
+          if (selectedAccount) {
+            opArgs.push('--account', selectedAccount)
+          }
+
+          await execFileAsync('op', opArgs)
+        } finally {
+          // Clean up temp files
+          const { rm } = await import('node:fs/promises')
+          await rm(tempDir, { recursive: true, force: true }).catch(() => {
+            // Ignore cleanup errors
+          })
         }
 
-        privateKeyRef = { type: '1password', vault, item, field: 'privateKey' }
-        keyStorageDescription = `1Password (${vault}/${item})`
+        privateKeyRef = {
+          type: '1password',
+          vault: selectedVault,
+          item,
+          ...(selectedAccount && { account: selectedAccount }),
+        }
+        keyStorageDescription = `1Password (${selectedVault}/${item})`
         break
       }
       default:
