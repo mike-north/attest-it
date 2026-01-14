@@ -18272,7 +18272,7 @@ var require_summary = __commonJS({
     exports.summary = exports.markdownSummary = exports.SUMMARY_DOCS_URL = exports.SUMMARY_ENV_VAR = void 0;
     var os_1 = __require("os");
     var fs_1 = __require("fs");
-    var { access: access3, appendFile, writeFile: writeFile2 } = fs_1.promises;
+    var { access: access3, appendFile, writeFile: writeFile3 } = fs_1.promises;
     exports.SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY";
     exports.SUMMARY_DOCS_URL = "https://docs.github.com/actions/using-workflows/workflow-commands-for-github-actions#adding-a-job-summary";
     var Summary = class {
@@ -18330,7 +18330,7 @@ var require_summary = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           const overwrite = !!(options === null || options === void 0 ? void 0 : options.overwrite);
           const filePath = yield this.filePath();
-          const writeFunc = overwrite ? writeFile2 : appendFile;
+          const writeFunc = overwrite ? writeFile3 : appendFile;
           yield writeFunc(filePath, this._buffer, { encoding: "utf8" });
           return this.emptyBuffer();
         });
@@ -19947,7 +19947,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
-// ../core/dist/chunk-MWVVZIGH.js
+// ../core/dist/chunk-VC3BBBBO.js
 import { spawn } from "child_process";
 import * as fs from "fs/promises";
 import * as path2 from "path";
@@ -20108,15 +20108,7 @@ async function sign(options) {
     const sigFile = path2.join(tmpDir, "sig.bin");
     try {
       await fs.writeFile(dataFile, processBuffer);
-      const signArgs = [
-        "dgst",
-        "-sha256",
-        "-sign",
-        effectiveKeyPath,
-        "-out",
-        sigFile,
-        dataFile
-      ];
+      const signArgs = ["dgst", "-sha256", "-sign", effectiveKeyPath, "-out", sigFile, dataFile];
       const result = await runOpenSSL(signArgs);
       if (result.exitCode !== 0) {
         throw new Error(`Failed to sign data: ${result.stderr}`);
@@ -20176,8 +20168,8 @@ async function setKeyPermissions(keyPath) {
   }
 }
 var openSSLChecked;
-var init_chunk_MWVVZIGH = __esm({
-  "../core/dist/chunk-MWVVZIGH.js"() {
+var init_chunk_VC3BBBBO = __esm({
+  "../core/dist/chunk-VC3BBBBO.js"() {
     "use strict";
     init_esm_shims();
     openSSLChecked = false;
@@ -29107,9 +29099,9 @@ var require_canonicalize = __commonJS({
   }
 });
 
-// ../core/dist/crypto-I4ZGDVZL.js
-var crypto_I4ZGDVZL_exports = {};
-__export(crypto_I4ZGDVZL_exports, {
+// ../core/dist/crypto-CE2YISRD.js
+var crypto_CE2YISRD_exports = {};
+__export(crypto_CE2YISRD_exports, {
   checkOpenSSL: () => checkOpenSSL,
   generateKeyPair: () => generateKeyPair,
   getDefaultPrivateKeyPath: () => getDefaultPrivateKeyPath,
@@ -29118,11 +29110,11 @@ __export(crypto_I4ZGDVZL_exports, {
   sign: () => sign,
   verify: () => verify
 });
-var init_crypto_I4ZGDVZL = __esm({
-  "../core/dist/crypto-I4ZGDVZL.js"() {
+var init_crypto_CE2YISRD = __esm({
+  "../core/dist/crypto-CE2YISRD.js"() {
     "use strict";
     init_esm_shims();
-    init_chunk_MWVVZIGH();
+    init_chunk_VC3BBBBO();
   }
 });
 
@@ -29132,13 +29124,13 @@ var core = __toESM(require_core(), 1);
 
 // ../core/dist/index.js
 init_esm_shims();
-init_chunk_MWVVZIGH();
-init_chunk_MWVVZIGH();
+init_chunk_VC3BBBBO();
+init_chunk_VC3BBBBO();
 var import_yaml = __toESM(require_dist(), 1);
 import * as fs2 from "fs";
 import { readFileSync as readFileSync2 } from "fs";
-import * as fs5 from "fs/promises";
-import { readFile as readFile2 } from "fs/promises";
+import * as fs6 from "fs/promises";
+import { readFile as readFile3 } from "fs/promises";
 import * as path4 from "path";
 import { join as join3, resolve as resolve3 } from "path";
 
@@ -34095,7 +34087,7 @@ async function loadConfig(configPath) {
     );
   }
   try {
-    const content = await readFile2(resolvedPath, "utf8");
+    const content = await readFile3(resolvedPath, "utf8");
     const format = getConfigFormat(resolvedPath);
     return parseConfigContent(content, format);
   } catch (error2) {
@@ -34299,7 +34291,7 @@ function canonicalizeAttestations(attestations) {
   return canonical;
 }
 async function readAndVerifyAttestations(options) {
-  const { verify: verify2 } = await Promise.resolve().then(() => (init_crypto_I4ZGDVZL(), crypto_I4ZGDVZL_exports));
+  const { verify: verify2 } = await Promise.resolve().then(() => (init_crypto_CE2YISRD(), crypto_CE2YISRD_exports));
   const file = await readAttestations(options.filePath);
   if (!file) {
     throw new Error(`Attestations file not found: ${options.filePath}`);
@@ -34467,7 +34459,7 @@ var FilesystemKeyProvider = class {
    */
   async keyExists(keyRef) {
     try {
-      await fs5.access(keyRef);
+      await fs6.access(keyRef);
       return true;
     } catch {
       return false;
@@ -34625,18 +34617,10 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
         `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` + (this.account ? ` (account: ${this.account})` : "")
       );
     }
-    const tempDir = await fs5.mkdtemp(path4.join(os2.tmpdir(), "attest-it-"));
+    const tempDir = await fs6.mkdtemp(path4.join(os2.tmpdir(), "attest-it-"));
     const tempKeyPath = path4.join(tempDir, "private.pem");
     try {
-      const args = [
-        "document",
-        "get",
-        keyRef,
-        "--vault",
-        this.vault,
-        "--out-file",
-        tempKeyPath
-      ];
+      const args = ["document", "get", keyRef, "--vault", this.vault, "--out-file", tempKeyPath];
       if (this.account) {
         args.push("--account", this.account);
       }
@@ -34646,15 +34630,15 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
         keyPath: tempKeyPath,
         cleanup: async () => {
           try {
-            await fs5.unlink(tempKeyPath);
-            await fs5.rmdir(tempDir);
+            await fs6.unlink(tempKeyPath);
+            await fs6.rmdir(tempDir);
           } catch {
           }
         }
       };
     } catch (error2) {
       try {
-        await fs5.rm(tempDir, { recursive: true, force: true });
+        await fs6.rm(tempDir, { recursive: true, force: true });
       } catch {
       }
       throw error2;
@@ -34667,7 +34651,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
    */
   async generateKeyPair(options) {
     const { publicKeyPath, force = false } = options;
-    const tempDir = await fs5.mkdtemp(path4.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempDir = await fs6.mkdtemp(path4.join(os2.tmpdir(), "attest-it-keygen-"));
     const tempPrivateKeyPath = path4.join(tempDir, "private.pem");
     try {
       await generateKeyPair({
@@ -34688,8 +34672,8 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
         args.push("--account", this.account);
       }
       await execCommand("op", args);
-      await fs5.unlink(tempPrivateKeyPath);
-      await fs5.rmdir(tempDir);
+      await fs6.unlink(tempPrivateKeyPath);
+      await fs6.rmdir(tempDir);
       return {
         privateKeyRef: this.itemName,
         publicKeyPath,
@@ -34697,7 +34681,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
       };
     } catch (error2) {
       try {
-        await fs5.rm(tempDir, { recursive: true, force: true });
+        await fs6.rm(tempDir, { recursive: true, force: true });
       } catch {
       }
       throw error2;
@@ -34718,6 +34702,172 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
   }
 };
 async function execCommand(command, args) {
+  return new Promise((resolve32, reject) => {
+    const proc = spawn2(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolve32(stdout.trim());
+      } else {
+        reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
+      }
+    });
+    proc.on("error", (error2) => {
+      reject(error2);
+    });
+  });
+}
+var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
+  type = "macos-keychain";
+  displayName = "macOS Keychain";
+  itemName;
+  static ACCOUNT = "attest-it";
+  /**
+   * Create a new MacOSKeychainKeyProvider.
+   * @param options - Provider options
+   */
+  constructor(options) {
+    this.itemName = options.itemName;
+  }
+  /**
+   * Check if this provider is available.
+   * Only available on macOS platforms.
+   */
+  static isAvailable() {
+    return process.platform === "darwin";
+  }
+  /**
+   * Check if this provider is available on the current system.
+   */
+  isAvailable() {
+    return Promise.resolve(_MacOSKeychainKeyProvider.isAvailable());
+  }
+  /**
+   * Check if a key exists in the keychain.
+   * @param keyRef - Item name in keychain
+   */
+  async keyExists(keyRef) {
+    try {
+      await execCommand2("security", [
+        "find-generic-password",
+        "-a",
+        _MacOSKeychainKeyProvider.ACCOUNT,
+        "-s",
+        keyRef
+      ]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Get the private key from keychain for signing.
+   * Downloads to a temporary file and returns a cleanup function.
+   * @param keyRef - Item name in keychain
+   * @throws Error if the key does not exist in keychain
+   */
+  async getPrivateKey(keyRef) {
+    if (!await this.keyExists(keyRef)) {
+      throw new Error(
+        `Key not found in macOS Keychain: "${keyRef}" (account: ${_MacOSKeychainKeyProvider.ACCOUNT})`
+      );
+    }
+    const tempDir = await fs6.mkdtemp(path4.join(os2.tmpdir(), "attest-it-"));
+    const tempKeyPath = path4.join(tempDir, "private.pem");
+    try {
+      const base64Key = await execCommand2("security", [
+        "find-generic-password",
+        "-a",
+        _MacOSKeychainKeyProvider.ACCOUNT,
+        "-s",
+        keyRef,
+        "-w"
+      ]);
+      const keyContent = Buffer.from(base64Key, "base64").toString("utf8");
+      await fs6.writeFile(tempKeyPath, keyContent, { mode: 384 });
+      await setKeyPermissions(tempKeyPath);
+      return {
+        keyPath: tempKeyPath,
+        cleanup: async () => {
+          try {
+            await fs6.unlink(tempKeyPath);
+            await fs6.rmdir(tempDir);
+          } catch {
+          }
+        }
+      };
+    } catch (error2) {
+      try {
+        await fs6.rm(tempDir, { recursive: true, force: true });
+      } catch {
+      }
+      throw error2;
+    }
+  }
+  /**
+   * Generate a new keypair and store private key in keychain.
+   * Public key is written to filesystem for repository commit.
+   * @param options - Key generation options
+   */
+  async generateKeyPair(options) {
+    const { publicKeyPath, force = false } = options;
+    const tempDir = await fs6.mkdtemp(path4.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempPrivateKeyPath = path4.join(tempDir, "private.pem");
+    try {
+      await generateKeyPair({
+        privatePath: tempPrivateKeyPath,
+        publicPath: publicKeyPath,
+        force
+      });
+      const privateKeyContent = await fs6.readFile(tempPrivateKeyPath, "utf8");
+      const base64Key = Buffer.from(privateKeyContent, "utf8").toString("base64");
+      await execCommand2("security", [
+        "add-generic-password",
+        "-a",
+        _MacOSKeychainKeyProvider.ACCOUNT,
+        "-s",
+        this.itemName,
+        "-w",
+        base64Key,
+        "-T",
+        "",
+        "-U"
+      ]);
+      await fs6.unlink(tempPrivateKeyPath);
+      await fs6.rmdir(tempDir);
+      return {
+        privateKeyRef: this.itemName,
+        publicKeyPath,
+        storageDescription: `macOS Keychain: ${this.itemName}`
+      };
+    } catch (error2) {
+      try {
+        await fs6.rm(tempDir, { recursive: true, force: true });
+      } catch {
+      }
+      throw error2;
+    }
+  }
+  /**
+   * Get the configuration for this provider.
+   */
+  getConfig() {
+    return {
+      type: this.type,
+      options: {
+        itemName: this.itemName
+      }
+    };
+  }
+};
+async function execCommand2(command, args) {
   return new Promise((resolve32, reject) => {
     const proc = spawn2(command, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
@@ -34792,6 +34942,14 @@ KeyProviderRegistry.register("1password", (config) => {
     return new OnePasswordKeyProvider({ account, vault, itemName });
   }
   return new OnePasswordKeyProvider({ vault, itemName });
+});
+KeyProviderRegistry.register("macos-keychain", (config) => {
+  const { options } = config;
+  const itemName = typeof options.itemName === "string" ? options.itemName : "";
+  if (!itemName) {
+    throw new Error("macOS Keychain provider requires itemName option");
+  }
+  return new MacOSKeychainKeyProvider({ itemName });
 });
 
 // src/index.ts

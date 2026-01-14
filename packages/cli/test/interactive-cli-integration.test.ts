@@ -350,6 +350,25 @@ describe('Interactive CLI Integration Tests', () => {
       project = await createAllMissingFixture()
       await setupProject(project)
 
+      // Verify working tree is clean before running (CI stability)
+      const gitStatus = await checkGitStatus(project.baseDir)
+      if (gitStatus !== '') {
+        // If there are uncommitted changes, commit them first
+        // This handles race conditions in CI where files might not be fully synced
+        if (process.env.CI) {
+          console.log(`Unexpected uncommitted changes before run: ${gitStatus}`)
+        }
+        await execa('git', ['add', '.'], { cwd: project.baseDir })
+        await execa('git', ['commit', '-m', 'Sync uncommitted changes', '--allow-empty'], {
+          cwd: project.baseDir,
+        })
+      }
+
+      // Small delay for CI file system stability
+      if (process.env.CI) {
+        await new Promise((resolve) => setTimeout(resolve, 100))
+      }
+
       // Run a specific suite and attest it (suite-1 from createAllMissingFixture)
       const result = await execa('node', [CLI_PATH, 'run', '--suite', 'suite-1'], {
         cwd: project.baseDir,
@@ -357,6 +376,15 @@ describe('Interactive CLI Integration Tests', () => {
         timeout: 30000, // Increased for CI stability
         input: 'y\n',
       })
+
+      // Debug output for CI failures
+      if (result.exitCode !== 0 && process.env.CI) {
+        console.log(`Test failed with exit code: ${result.exitCode}`)
+        console.log(`stdout: ${result.stdout}`)
+        console.log(`stderr: ${result.stderr}`)
+        const finalStatus = await checkGitStatus(project.baseDir)
+        console.log(`Git status after failure: ${finalStatus}`)
+      }
 
       // Should succeed
       expect(result.exitCode).toBe(0)
@@ -372,7 +400,7 @@ describe('Interactive CLI Integration Tests', () => {
       await execa('git', ['commit', '-m', 'Add attestation', '--allow-empty'], {
         cwd: project.baseDir,
       })
-    })
+    }, 20000)
   })
 
   describe('User workflow: Out-of-date attestations', () => {

@@ -84,6 +84,7 @@ export type { VerifyOptions, VerifyResult } from './verify.js'
 export {
   FilesystemKeyProvider,
   OnePasswordKeyProvider,
+  MacOSKeychainKeyProvider,
   KeyProviderRegistry,
   type KeyProvider,
   type KeyProviderConfig,
@@ -94,5 +95,6 @@ export {
   type OnePasswordKeyProviderOptions,
   type OnePasswordAccount,
   type OnePasswordVault,
+  type MacOSKeychainKeyProviderOptions,
   type KeyProviderFactory,
 } from './key-provider/index.js'

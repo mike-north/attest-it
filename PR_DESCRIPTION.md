@@ -1,11 +1,8 @@
----
-'@attest-it/core': minor
-'@attest-it/cli': minor
----
+# PR: feat: add 1Password and macOS Keychain key providers
 
-Add 1Password and macOS Keychain key providers for secure private key storage
+## Summary
 
-This release introduces support for storing private signing keys in 1Password or macOS Keychain, providing more secure alternatives to filesystem storage. Keys are retrieved on-demand with biometric authentication (Touch ID) when available.
+This PR adds support for storing private signing keys in 1Password and macOS Keychain, providing more secure alternatives to filesystem storage.
 
 **New Features:**
 
@@ -15,7 +12,7 @@ This release introduces support for storing private signing keys in 1Password or
 - **Interactive keygen**: New interactive mode in `keygen` command for selecting storage provider and configuration
 - **Backward compatible**: Existing filesystem-based key storage continues to work unchanged
 
-**Usage:**
+## Usage
 
 ```bash
 # Interactive key generation (auto-detects available providers)
@@ -28,7 +25,7 @@ attest-it keygen --provider 1password --vault Private --item-name my-signing-key
 attest-it keygen --provider macos-keychain --item-name my-signing-key
 ```
 
-**Configuration:**
+## Configuration
 
 ```yaml
 # 1Password
@@ -39,7 +36,7 @@ settings:
     options:
       vault: Private
       itemName: attest-it-private-key
-      account: user@example.com  # optional, for multi-account setups
+      account: user@example.com  # optional
 
 # macOS Keychain
 settings:
@@ -50,8 +47,10 @@ settings:
       itemName: attest-it-private-key
 ```
 
-**Requirements:**
+## Test plan
 
-- 1Password: `op` CLI must be installed and authenticated
-- macOS Keychain: Only available on macOS (`process.platform === 'darwin'`)
-- Touch ID or password authentication when signing
+- [x] Unit tests for 1Password provider (31 tests)
+- [x] Unit tests for macOS Keychain provider (26 tests)
+- [x] Interactive keygen tests updated
+- [x] Config schema updated
+- [ ] Manual testing per MANUAL_TESTS.md

@@ -212,6 +212,26 @@ export function loadConfig(configPath?: string): Promise<Config>;
 export function loadConfigSync(configPath?: string): Config;
 
 // @public
+export class MacOSKeychainKeyProvider implements KeyProvider {
+    constructor(options: MacOSKeychainKeyProviderOptions);
+    // (undocumented)
+    readonly displayName = "macOS Keychain";
+    generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult>;
+    getConfig(): KeyProviderConfig;
+    getPrivateKey(keyRef: string): Promise<KeyRetrievalResult>;
+    static isAvailable(): boolean;
+    isAvailable(): Promise<boolean>;
+    keyExists(keyRef: string): Promise<boolean>;
+    // (undocumented)
+    readonly type = "macos-keychain";
+}
+
+// @public
+export interface MacOSKeychainKeyProviderOptions {
+    itemName: string;
+}
+
+// @public
 export interface OnePasswordAccount {
     account_uuid: string;
     email: string;

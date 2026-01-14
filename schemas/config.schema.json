@@ -47,7 +47,7 @@
           "properties": {
             "type": {
               "type": "string",
-              "enum": ["filesystem", "1password"],
+              "enum": ["filesystem", "1password", "macos-keychain"],
               "description": "Key provider type"
             },
             "options": {

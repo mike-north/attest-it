@@ -22,6 +22,9 @@ vi.mock('@attest-it/core', async () => {
       listAccounts: vi.fn(),
       listVaults: vi.fn(),
     },
+    MacOSKeychainKeyProvider: {
+      isAvailable: vi.fn().mockResolvedValue(false),
+    },
     FilesystemKeyProvider: vi.fn(),
   }
 })
@@ -49,7 +52,7 @@ describe('KeygenInteractive', () => {
         <KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />,
       )
 
-      expect(lastFrame()).toContain('Checking for 1Password CLI')
+      expect(lastFrame()).toContain('Checking available key storage providers')
     })
 
     it('should show filesystem option when 1Password not installed', async () => {

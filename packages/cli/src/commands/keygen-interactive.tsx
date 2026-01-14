@@ -14,6 +14,7 @@ import { Select, TextInput, Spinner } from '@inkjs/ui'
 import {
   OnePasswordKeyProvider,
   FilesystemKeyProvider,
+  MacOSKeychainKeyProvider,
   getDefaultPrivateKeyPath,
   getDefaultPublicKeyPath,
   type OnePasswordAccount,
@@ -26,7 +27,7 @@ import {
  */
 export interface KeygenResult {
   /** Provider type used */
-  provider: 'filesystem' | '1password'
+  provider: 'filesystem' | '1password' | 'macos-keychain'
   /** Path to the public key file */
   publicKeyPath: string
   /** Reference to the private key (path or 1Password item name) */
@@ -37,7 +38,7 @@ export interface KeygenResult {
   account?: string
   /** For 1Password: vault name */
   vault?: string
-  /** For 1Password: item name */
+  /** For 1Password/macOS Keychain: item name */
   itemName?: string
 }
 
@@ -63,11 +64,12 @@ export interface KeygenInteractiveProps {
  * @internal
  */
 type Step =
-  | 'checking-1password'
+  | 'checking-providers'
   | 'select-provider'
   | 'select-account'
   | 'select-vault'
   | 'enter-item-name'
+  | 'enter-keychain-item-name'
   | 'generating'
   | 'done'
 
@@ -86,20 +88,23 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
   const { onComplete, onError } = props
 
   // State management
-  const [step, setStep] = useState<Step>('checking-1password')
+  const [step, setStep] = useState<Step>('checking-providers')
   const [opAvailable, setOpAvailable] = useState(false)
+  const [keychainAvailable, setKeychainAvailable] = useState(false)
   const [accounts, setAccounts] = useState<OnePasswordAccount[]>([])
   const [vaults, setVaults] = useState<OnePasswordVault[]>([])
   const [_selectedProvider, setSelectedProvider] = useState<
-    'filesystem' | '1password' | undefined
+    'filesystem' | '1password' | 'macos-keychain' | undefined
   >()
   const [selectedAccount, setSelectedAccount] = useState<string | undefined>()
   const [selectedVault, setSelectedVault] = useState<string | undefined>()
   const [itemName, setItemName] = useState('attest-it-private-key')
+  const [keychainItemName, setKeychainItemName] = useState('attest-it-private-key')
 
-  // Check 1Password availability on mount
+  // Check provider availability on mount
   useEffect(() => {
-    const checkOnePassword = async (): Promise<void> => {
+    const checkProviders = async (): Promise<void> => {
+      // Check 1Password
       try {
         const isInstalled = await OnePasswordKeyProvider.isInstalled()
         setOpAvailable(isInstalled)
@@ -109,14 +114,18 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
           setAccounts(accountList)
         }
       } catch {
-        // 1Password not available, continue with filesystem only
+        // 1Password not available
         setOpAvailable(false)
       }
+
+      // Check macOS Keychain (synchronous check)
+      const isKeychainAvailable = MacOSKeychainKeyProvider.isAvailable()
+      setKeychainAvailable(isKeychainAvailable)
 
       setStep('select-provider')
     }
 
-    void checkOnePassword()
+    void checkProviders()
   }, [])
 
   // Fetch vaults when account is selected
@@ -150,6 +159,10 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
       } else {
         setStep('select-account')
       }
+    } else if (value === 'macos-keychain') {
+      setSelectedProvider('macos-keychain')
+      // Move to item name entry for keychain
+      setStep('enter-keychain-item-name')
     }
   }
 
@@ -165,14 +178,22 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
     setStep('enter-item-name')
   }
 
-  // Handle item name submission
+  // Handle item name submission (1Password)
   const handleItemNameSubmit = (value: string): void => {
     setItemName(value)
     void generateKeys('1password')
   }
 
+  // Handle keychain item name submission
+  const handleKeychainItemNameSubmit = (value: string): void => {
+    setKeychainItemName(value)
+    void generateKeys('macos-keychain')
+  }
+
   // Generate the keypair
-  const generateKeys = async (provider: 'filesystem' | '1password'): Promise<void> => {
+  const generateKeys = async (
+    provider: 'filesystem' | '1password' | 'macos-keychain',
+  ): Promise<void> => {
     setStep('generating')
 
     try {
@@ -195,8 +216,8 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
           privateKeyRef: result.privateKeyRef,
           storageDescription: result.storageDescription,
         })
-      } else {
-        // Must be 1password at this point
+      } else if (provider === '1password') {
+        // 1Password provider
         if (!selectedVault || !itemName) {
           throw new Error('Vault and item name are required for 1Password')
         }
@@ -234,6 +255,31 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
         }
 
         onComplete(completionResult)
+      } else {
+        // macOS Keychain provider (provider === 'macos-keychain')
+        if (!keychainItemName) {
+          throw new Error('Item name is required for macOS Keychain')
+        }
+
+        const keychainProvider = new MacOSKeychainKeyProvider({
+          itemName: keychainItemName,
+        })
+
+        // Build generation options, only including force if defined
+        const genOptions: { publicKeyPath: string; force?: boolean } = { publicKeyPath }
+        if (props.force !== undefined) {
+          genOptions.force = props.force
+        }
+
+        const result = await keychainProvider.generateKeyPair(genOptions)
+
+        onComplete({
+          provider: 'macos-keychain',
+          publicKeyPath: result.publicKeyPath,
+          privateKeyRef: result.privateKeyRef,
+          storageDescription: result.storageDescription,
+          itemName: keychainItemName,
+        })
       }
 
       setStep('done')
@@ -243,12 +289,12 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
   }
 
   // Render different steps
-  if (step === 'checking-1password') {
+  if (step === 'checking-providers') {
     return (
       <Box flexDirection="column">
         <Box flexDirection="row" gap={1}>
           <Spinner />
-          <Text>Checking for 1Password CLI...</Text>
+          <Text>Checking available key storage providers...</Text>
         </Box>
       </Box>
     )
@@ -261,6 +307,13 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
         value: 'filesystem',
       },
     ]
+
+    if (keychainAvailable) {
+      options.push({
+        label: 'macOS Keychain',
+        value: 'macos-keychain',
+      })
+    }
 
     if (opAvailable) {
       options.push({
@@ -326,6 +379,17 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
         <Text dimColor>(This will be visible in your 1Password vault)</Text>
         <Text dimColor>{''}</Text>
         <TextInput defaultValue={itemName} onSubmit={handleItemNameSubmit} />
+      </Box>
+    )
+  }
+
+  if (step === 'enter-keychain-item-name') {
+    return (
+      <Box flexDirection="column">
+        <Text bold>Enter name for the keychain item:</Text>
+        <Text dimColor>(This will be the service name in your macOS Keychain)</Text>
+        <Text dimColor>{''}</Text>
+        <TextInput defaultValue={keychainItemName} onSubmit={handleKeychainItemNameSubmit} />
       </Box>
     )
   }
