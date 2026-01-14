@@ -120,8 +120,12 @@ export async function run(): Promise<void> {
     process.exit(0)
   }
 
-  // Initialize theme before any output
-  await initTheme()
+  // Skip theme initialization for completion-server (outputs escape sequences that corrupt completions)
+  const isCompletionServer = process.argv.includes('completion-server')
+  if (!isCompletionServer) {
+    // Initialize theme before any output
+    await initTheme()
+  }
 
   // Parse options and set global output options
   program.parse()
