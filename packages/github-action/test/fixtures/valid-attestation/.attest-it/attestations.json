@@ -4,11 +4,11 @@
     {
       "suite": "unit-tests",
       "fingerprint": "sha256:744f086a6836bec6695a6d8e8038a88237c9813205e164060fbbfdf8cce699fb",
-      "attestedAt": "2026-01-14T06:35:03.755Z",
-      "attestedBy": "mnorth",
+      "attestedAt": "2026-01-14T06:43:49.129Z",
+      "attestedBy": "test-fixture-generator",
       "command": "echo \"tests passed\"",
       "exitCode": 0
     }
   ],
-  "signature": "KiGSpKZ1pyIVyt1pkWFpYEoXrSlYiS9pqAcH//0vvIf4s9eBs0V4MouVJSiDokT6AJNxHhd6u8q3HV0LigDxQF3kaR31w6W7Hzy1RSvlrVm+d+oNVxmjpGMo0ew1FaMF2eZmVCB1R5bZoyOOqs6CS82KcWpvlTfB/sMFOAR0u+HOj62QN1tCkMtR6r4hUTdlOASdXkZGxVTpT+TjDvt5XXoR09OnyRSiOoB6lTHtSyixZNTLDcdU1v6kfDMBp45/ceDxTp3xaJlrDHAi3gaqjNBccPNBJy1IOp5+8Gygtba4wPsRkjiTrZN7uNKuZB8scyzP02jIk286ZPTNR9qrfw=="
+  "signature": "SByztm3/TKjjLchPu+2KFltdtS4rQoKSTBTbad2FohIqti0jrb7QvrHXlaec1dWo2XH+9AWujPmYxodPabrQgyt1qWo0D547AMsh+lgfg7DJF0QHKzmSYycqIWdT/LLYzs1bci83NZGkeTD0sSdphmF3amtNRyPxOqpPqD7h0TJ1o8p8FlD2pP/mhmN1glf4FiSyq/61S52WVchO2UpiTzJc67yM4qGdoqzBfxIA9vPoykNfG0oA3csQsaOExG7QaeeN0Af057SzKiaMMsqptj98069Ib1O+CSIzyZT2oAIlljuWGc1PNQLiy37V/cs8suWSY/ffZByU+FNhQKYeqA=="
 }
