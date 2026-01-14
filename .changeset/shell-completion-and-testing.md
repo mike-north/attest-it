@@ -1,6 +1,6 @@
 ---
-"@attest-it/cli": minor
-"@attest-it/core": minor
+'@attest-it/cli': minor
+'@attest-it/core': minor
 ---
 
 Add shell completion support and testing improvements

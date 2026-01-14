@@ -125,13 +125,7 @@ export class MacOSKeychainKeyProvider implements KeyProvider {
    */
   async keyExists(keyRef: string): Promise<boolean> {
     try {
-      const args = [
-        'find-generic-password',
-        '-a',
-        MacOSKeychainKeyProvider.ACCOUNT,
-        '-s',
-        keyRef,
-      ]
+      const args = ['find-generic-password', '-a', MacOSKeychainKeyProvider.ACCOUNT, '-s', keyRef]
       if (this.keychain) {
         args.push(this.keychain)
       }

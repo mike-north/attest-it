@@ -89,16 +89,14 @@ async function getCompletions(env: tabtab.ParseEnvResult): Promise<void> {
   const commandIndex = words.findIndex(
     (w: string) => !w.startsWith('-') && w !== PROGRAM_NAME && w !== 'npx',
   )
-  const currentCommand: string | null =
-    commandIndex >= 0 ? (words[commandIndex] ?? null) : null
+  const currentCommand: string | null = commandIndex >= 0 ? (words[commandIndex] ?? null) : null
 
   // Handle subcommand completions
   if (currentCommand === 'identity') {
     const subcommandIndex = words.findIndex(
       (w: string, i: number) => i > commandIndex && !w.startsWith('-'),
     )
-    const subcommand: string | null =
-      subcommandIndex >= 0 ? (words[subcommandIndex] ?? null) : null
+    const subcommand: string | null = subcommandIndex >= 0 ? (words[subcommandIndex] ?? null) : null
 
     if (subcommand === 'use' || subcommand === 'remove') {
       // Complete with identity slugs
@@ -119,8 +117,7 @@ async function getCompletions(env: tabtab.ParseEnvResult): Promise<void> {
     const subcommandIndex = words.findIndex(
       (w: string, i: number) => i > commandIndex && !w.startsWith('-'),
     )
-    const subcommand: string | null =
-      subcommandIndex >= 0 ? (words[subcommandIndex] ?? null) : null
+    const subcommand: string | null = subcommandIndex >= 0 ? (words[subcommandIndex] ?? null) : null
 
     if (!subcommand || subcommandIndex < 0) {
       tabtab.log(teamSubcommands, shell, console.log)
@@ -132,8 +129,7 @@ async function getCompletions(env: tabtab.ParseEnvResult): Promise<void> {
     const subcommandIndex = words.findIndex(
       (w: string, i: number) => i > commandIndex && !w.startsWith('-'),
     )
-    const subcommand: string | null =
-      subcommandIndex >= 0 ? (words[subcommandIndex] ?? null) : null
+    const subcommand: string | null = subcommandIndex >= 0 ? (words[subcommandIndex] ?? null) : null
 
     if (subcommand === 'install') {
       // Complete with shell names
@@ -148,11 +144,7 @@ async function getCompletions(env: tabtab.ParseEnvResult): Promise<void> {
   }
 
   // Commands that take a gate name as argument
-  if (
-    currentCommand === 'status' ||
-    currentCommand === 'verify' ||
-    currentCommand === 'seal'
-  ) {
+  if (currentCommand === 'status' || currentCommand === 'verify' || currentCommand === 'seal') {
     const gates = await getGateNames()
     if (gates.length > 0) {
       tabtab.log(gates, shell, console.log)
@@ -218,9 +210,7 @@ async function getSuiteNames(): Promise<string[]> {
   return []
 }
 
-export const completionCommand = new Command('completion').description(
-  'Shell completion commands',
-)
+export const completionCommand = new Command('completion').description('Shell completion commands')
 
 // Install subcommand
 completionCommand
@@ -260,9 +250,7 @@ completionCommand
       }
       log('')
     } catch (err) {
-      error(
-        `Failed to install completion: ${err instanceof Error ? err.message : String(err)}`,
-      )
+      error(`Failed to install completion: ${err instanceof Error ? err.message : String(err)}`)
       process.exit(ExitCode.CONFIG_ERROR)
     }
   })
@@ -281,9 +269,7 @@ completionCommand
       success('Shell completion uninstalled!')
       log('')
     } catch (err) {
-      error(
-        `Failed to uninstall completion: ${err instanceof Error ? err.message : String(err)}`,
-      )
+      error(`Failed to uninstall completion: ${err instanceof Error ? err.message : String(err)}`)
       process.exit(ExitCode.CONFIG_ERROR)
     }
   })
