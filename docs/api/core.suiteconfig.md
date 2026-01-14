@@ -4,7 +4,7 @@
 
 ## SuiteConfig interface
 
-Suite definition from the configuration file.
+Suite definition from the configuration file. Suites are CLI-layer extensions of gates with command execution capabilities.
 
 **Signature:**
 
@@ -56,6 +56,25 @@ _(Optional)_ Command to execute for this suite (overrides defaultCommand)
 </td></tr>
 <tr><td>
 
+[depends\_on?](./core.suiteconfig.depends_on.md)
+
+
+</td><td>
+
+
+</td><td>
+
+string\[\]
+
+
+</td><td>
+
+_(Optional)_ Array of suite names this suite depends on
+
+
+</td></tr>
+<tr><td>
+
 [description?](./core.suiteconfig.description.md)
 
 
@@ -94,6 +113,25 @@ _(Optional)_ Additional file patterns to include in fingerprint
 </td></tr>
 <tr><td>
 
+[gate?](./core.suiteconfig.gate.md)
+
+
+</td><td>
+
+
+</td><td>
+
+string
+
+
+</td><td>
+
+_(Optional)_ Reference to a gate (if present, inherits gate configuration)
+
+
+</td></tr>
+<tr><td>
+
 [ignore?](./core.suiteconfig.ignore.md)
 
 
@@ -108,6 +146,25 @@ string\[\]
 </td><td>
 
 _(Optional)_ Patterns to ignore when computing fingerprint
+
+
+</td></tr>
+<tr><td>
+
+[interactive?](./core.suiteconfig.interactive.md)
+
+
+</td><td>
+
+
+</td><td>
+
+boolean
+
+
+</td><td>
+
+_(Optional)_ Whether the command is interactive
 
 
 </td></tr>
@@ -132,7 +189,7 @@ _(Optional)_ Other suite names that, when changed, invalidate this suite's attes
 </td></tr>
 <tr><td>
 
-[packages](./core.suiteconfig.packages.md)
+[packages?](./core.suiteconfig.packages.md)
 
 
 </td><td>
@@ -145,7 +202,26 @@ string\[\]
 
 </td><td>
 
-Glob patterns for npm packages to include in fingerprint
+_(Optional)_ Glob patterns for npm packages to include in fingerprint (legacy/backward compatibility)
+
+
+</td></tr>
+<tr><td>
+
+[timeout?](./core.suiteconfig.timeout.md)
+
+
+</td><td>
+
+
+</td><td>
+
+string
+
+
+</td><td>
+
+_(Optional)_ Timeout for command execution (duration string)
 
 
 </td></tr>

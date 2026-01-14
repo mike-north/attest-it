@@ -11,7 +11,7 @@ RSA-2048 with SHA-256 is used because it's universally supported across all Open
 **Signature:**
 
 ```typescript
-declare function generateKeyPair(options?: KeygenOptions): Promise<KeyPaths>;
+declare function generateKeyPair$1(options?: KeygenOptions): Promise<KeyPaths>;
 ```
 
 ## Parameters

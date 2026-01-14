@@ -75,6 +75,25 @@ _(Optional)_ Default command to execute for attestation (can be overridden per s
 </td></tr>
 <tr><td>
 
+[keyProvider?](./core.attestitsettings.keyprovider.md)
+
+
+</td><td>
+
+
+</td><td>
+
+[KeyProviderSettings](./core.keyprovidersettings.md)
+
+
+</td><td>
+
+_(Optional)_ Key provider configuration for signing attestations
+
+
+</td></tr>
+<tr><td>
+
 [maxAgeDays](./core.attestitsettings.maxagedays.md)
 
 

@@ -4,10 +4,10 @@
 
 ## WriteSignedAttestationsOptions.privateKeyPath property
 
-Path to the private key for signing
+Path to the private key for signing (legacy)
 
 **Signature:**
 
 ```typescript
-privateKeyPath: string;
+privateKeyPath?: string;
 ```

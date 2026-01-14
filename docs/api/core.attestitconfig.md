@@ -37,6 +37,44 @@ Description
 </th></tr></thead>
 <tbody><tr><td>
 
+[gates?](./core.attestitconfig.gates.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Record&lt;string, [GateConfig](./core.gateconfig.md)<!-- -->&gt;
+
+
+</td><td>
+
+_(Optional)_ Gates defining authorization and fingerprinting
+
+
+</td></tr>
+<tr><td>
+
+[groups?](./core.attestitconfig.groups.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Record&lt;string, string\[\]&gt;
+
+
+</td><td>
+
+_(Optional)_ Named groups of suites
+
+
+</td></tr>
+<tr><td>
+
 [settings](./core.attestitconfig.settings.md)
 
 
@@ -70,6 +108,25 @@ Record&lt;string, [SuiteConfig](./core.suiteconfig.md)<!-- -->&gt;
 </td><td>
 
 Named test suites with their configurations
+
+
+</td></tr>
+<tr><td>
+
+[team?](./core.attestitconfig.team.md)
+
+
+</td><td>
+
+
+</td><td>
+
+Record&lt;string, [TeamMember](./core.teammember.md)<!-- -->&gt;
+
+
+</td><td>
+
+_(Optional)_ Team members mapped by slug
 
 
 </td></tr>
