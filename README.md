@@ -117,21 +117,21 @@ See [Configuration Guide](docs/configuration.md) for full options.
 
 ### Team Management
 
-| Command              | Description                  |
-| -------------------- | ---------------------------- |
-| `team list`          | List team members and gates  |
-| `team add`           | Add a team member            |
-| `team edit <slug>`   | Edit team member             |
-| `team remove <slug>` | Remove team member           |
+| Command              | Description                 |
+| -------------------- | --------------------------- |
+| `team list`          | List team members and gates |
+| `team add`           | Add a team member           |
+| `team edit <slug>`   | Edit team member            |
+| `team remove <slug>` | Remove team member          |
 
 ### Sealing and Verification
 
-| Command            | Description                        |
-| ------------------ | ---------------------------------- |
-| `seal [gates...]`  | Create seals for specified gates   |
-| `verify [gates...]`| Verify seals (for CI)              |
-| `status`           | Show seal status for all gates     |
-| `run --suite`      | Run tests and optionally seal      |
+| Command             | Description                      |
+| ------------------- | -------------------------------- |
+| `seal [gates...]`   | Create seals for specified gates |
+| `verify [gates...]` | Verify seals (for CI)            |
+| `status`            | Show seal status for all gates   |
+| `run --suite`       | Run tests and optionally seal    |
 
 ### Project Setup
 
@@ -215,14 +215,14 @@ it('renders complex chart correctly', async () => {
 
 ### Verification States
 
-| State                  | Description                                      |
-| ---------------------- | ------------------------------------------------ |
-| `VALID`                | Seal is valid and current                        |
-| `MISSING`              | No seal found for gate                           |
-| `STALE`                | Seal exceeds maxAge (warning, not failure)       |
-| `FINGERPRINT_MISMATCH` | Code changed since seal was created              |
-| `INVALID_SIGNATURE`    | Signature verification failed                    |
-| `UNKNOWN_SIGNER`       | Signer not found in team configuration           |
+| State                  | Description                                |
+| ---------------------- | ------------------------------------------ |
+| `VALID`                | Seal is valid and current                  |
+| `MISSING`              | No seal found for gate                     |
+| `STALE`                | Seal exceeds maxAge (warning, not failure) |
+| `FINGERPRINT_MISMATCH` | Code changed since seal was created        |
+| `INVALID_SIGNATURE`    | Signature verification failed              |
+| `UNKNOWN_SIGNER`       | Signer not found in team configuration     |
 
 ### Seal Invalidation
 
@@ -239,6 +239,7 @@ Seals become invalid when:
 - Git (for fingerprinting and detecting changes)
 
 **Optional** (for key storage):
+
 - 1Password CLI (`op`) for 1Password key storage
 - macOS for Keychain key storage
 

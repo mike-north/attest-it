@@ -28,7 +28,7 @@ identities:
     email: alice@example.com
     publicKey: MCowBQYDK2VwAyEA...
     privateKey:
-      type: keychain  # or 'file' or '1password'
+      type: keychain # or 'file' or '1password'
       service: attest-it
       account: alice
 ```
@@ -73,10 +73,12 @@ Contains cryptographically signed records:
 ### Error Type 1: No Identity
 
 **Error messages:**
+
 - `No active identity found`
 - `Identity not configured`
 
 **Solution:**
+
 ```bash
 npx attest-it identity create
 ```
@@ -86,6 +88,7 @@ Guide user through the interactive setup to create their signing identity.
 ### Error Type 2: Not Authorized
 
 **Error messages:**
+
 - `Not authorized to seal gate 'gate-name'`
 - `Unknown signer`
 
@@ -93,6 +96,7 @@ Guide user through the interactive setup to create their signing identity.
 The user's public key isn't in the gate's `authorizedSigners` list.
 
 **Solution:**
+
 1. User exports their public key: `npx attest-it identity export`
 2. Team lead adds them to project config under `team` section
 3. Team lead adds their slug to the gate's `authorizedSigners`
@@ -100,6 +104,7 @@ The user's public key isn't in the gate's `authorizedSigners` list.
 ### Error Type 3: Fingerprint Mismatch
 
 **Error messages:**
+
 - `FINGERPRINT_MISMATCH`
 - `Code changed since seal was created`
 
@@ -107,6 +112,7 @@ The user's public key isn't in the gate's `authorizedSigners` list.
 Files in the gate's fingerprint paths have changed since the last seal.
 
 **Solution:**
+
 ```bash
 npx attest-it run --suite <suite-name>
 # or
@@ -116,22 +122,26 @@ npx attest-it seal <gate-name>
 ### Error Type 4: Invalid Signature
 
 **Error messages:**
+
 - `INVALID_SIGNATURE`
 - `Signature verification failed`
 
 **What this means:**
 The seal's signature doesn't match the signer's public key. Possible causes:
+
 - Team member's public key was updated
 - Seals file was tampered with
 - Key mismatch
 
 **Solution:**
+
 1. Verify the team member's public key is correct in config
 2. Re-seal the gate: `npx attest-it seal <gate-name>`
 
 ### Error Type 5: Stale Seal
 
 **Error messages:**
+
 - `STALE`
 - `Seal exceeds maxAge`
 
@@ -139,6 +149,7 @@ The seal's signature doesn't match the signer's public key. Possible causes:
 The seal is older than the gate's configured `maxAge` (e.g., 30 days).
 
 **Solution:**
+
 ```bash
 npx attest-it run --suite <suite-name>
 ```
@@ -148,6 +159,7 @@ Note: STALE is a warning, not a failure. Verification still passes.
 ### Error Type 6: Key Provider Errors
 
 **Error messages:**
+
 - `Key provider 'keychain' is not available`
 - `Failed to retrieve private key`
 - `1Password CLI not found`
@@ -156,6 +168,7 @@ Note: STALE is a warning, not a failure. Verification still passes.
 The configured key storage backend isn't available.
 
 **Solutions by provider:**
+
 - **keychain**: Only available on macOS
 - **1password**: Install 1Password CLI (`op`)
 - **file**: Check file path and permissions
@@ -164,18 +177,19 @@ User can change provider: `npx attest-it identity edit <slug>`
 
 ## Exit Codes
 
-| Code | Constant     | Meaning                              |
-| ---- | ------------ | ------------------------------------ |
-| 0    | SUCCESS      | All seals valid                      |
-| 1    | INVALID      | One or more seals invalid            |
-| 2    | NO_GATES     | No gates configured                  |
-| 3    | CONFIG_ERROR | Configuration error                  |
-| 4    | CANCELLED    | User cancelled                       |
-| 5    | KEY_ERROR    | Key provider error                   |
+| Code | Constant     | Meaning                   |
+| ---- | ------------ | ------------------------- |
+| 0    | SUCCESS      | All seals valid           |
+| 1    | INVALID      | One or more seals invalid |
+| 2    | NO_GATES     | No gates configured       |
+| 3    | CONFIG_ERROR | Configuration error       |
+| 4    | CANCELLED    | User cancelled            |
+| 5    | KEY_ERROR    | Key provider error        |
 
 ## What AI Assistants Should NOT Do
 
 **DO NOT:**
+
 - Generate or guess Ed25519 keys
 - Modify `.attest-it/seals.json` directly
 - Bypass signature verification
@@ -183,6 +197,7 @@ User can change provider: `npx attest-it identity edit <slug>`
 - Suggest workarounds that bypass security
 
 **DO:**
+
 - Guide users through CLI commands (`identity create`, `seal`, `verify`)
 - Explain the security model
 - Help diagnose issues with `npx attest-it status`
@@ -232,22 +247,22 @@ npx attest-it status
 
 ## Key Files Reference
 
-| File | Location | Purpose |
-| ---- | -------- | ------- |
+| File           | Location                          | Purpose                      |
+| -------------- | --------------------------------- | ---------------------------- |
 | Local identity | `~/.config/attest-it/config.yaml` | User's keypairs and settings |
-| Project config | `.attest-it/config.yaml` | Team, gates, suites |
-| Seals | `.attest-it/seals.json` | Cryptographic seals |
+| Project config | `.attest-it/config.yaml`          | Team, gates, suites          |
+| Seals          | `.attest-it/seals.json`           | Cryptographic seals          |
 
 ## Verification States
 
-| State | Meaning | CI Result |
-| ----- | ------- | --------- |
-| `VALID` | Seal is valid and current | Pass |
-| `MISSING` | No seal for gate | Fail |
-| `STALE` | Seal exceeds maxAge | Pass (warning) |
-| `FINGERPRINT_MISMATCH` | Code changed | Fail |
-| `INVALID_SIGNATURE` | Bad signature | Fail |
-| `UNKNOWN_SIGNER` | Signer not in team | Fail |
+| State                  | Meaning                   | CI Result      |
+| ---------------------- | ------------------------- | -------------- |
+| `VALID`                | Seal is valid and current | Pass           |
+| `MISSING`              | No seal for gate          | Fail           |
+| `STALE`                | Seal exceeds maxAge       | Pass (warning) |
+| `FINGERPRINT_MISMATCH` | Code changed              | Fail           |
+| `INVALID_SIGNATURE`    | Bad signature             | Fail           |
+| `UNKNOWN_SIGNER`       | Signer not in team        | Fail           |
 
 ## Additional Resources
 

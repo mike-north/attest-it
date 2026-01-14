@@ -106,12 +106,12 @@ team:
     publicKey: MCowBQYDK2VwAyEA...
 ```
 
-| Field       | Type   | Required | Description                           |
-| ----------- | ------ | -------- | ------------------------------------- |
-| `name`      | string | Yes      | Display name                          |
-| `email`     | string | No       | Email address                         |
-| `github`    | string | No       | GitHub username                       |
-| `publicKey` | string | Yes      | Base64-encoded Ed25519 public key     |
+| Field       | Type   | Required | Description                       |
+| ----------- | ------ | -------- | --------------------------------- |
+| `name`      | string | Yes      | Display name                      |
+| `email`     | string | No       | Email address                     |
+| `github`    | string | No       | GitHub username                   |
+| `publicKey` | string | Yes      | Base64-encoded Ed25519 public key |
 
 ### Adding Team Members
 
@@ -150,13 +150,13 @@ gates:
     maxAge: 30d
 ```
 
-| Field               | Type     | Required | Description                                |
-| ------------------- | -------- | -------- | ------------------------------------------ |
-| `name`              | string   | Yes      | Display name for the gate                  |
-| `description`       | string   | No       | Human-readable description                 |
-| `authorizedSigners` | string[] | Yes      | Team member slugs who can seal this gate   |
-| `fingerprint`       | object   | Yes      | Fingerprint configuration                  |
-| `maxAge`            | string   | No       | Maximum seal age (e.g., `30d`, `7d`, `24h`)|
+| Field               | Type     | Required | Description                                 |
+| ------------------- | -------- | -------- | ------------------------------------------- |
+| `name`              | string   | Yes      | Display name for the gate                   |
+| `description`       | string   | No       | Human-readable description                  |
+| `authorizedSigners` | string[] | Yes      | Team member slugs who can seal this gate    |
+| `fingerprint`       | object   | Yes      | Fingerprint configuration                   |
+| `maxAge`            | string   | No       | Maximum seal age (e.g., `30d`, `7d`, `24h`) |
 
 ### Fingerprint Configuration
 
@@ -202,12 +202,12 @@ suites:
     interactive: true
 ```
 
-| Field         | Type    | Required | Description                              |
-| ------------- | ------- | -------- | ---------------------------------------- |
-| `gate`        | string  | Yes      | Gate slug this suite is associated with  |
-| `command`     | string  | Yes      | Command to execute                       |
-| `timeout`     | number  | No       | Command timeout in milliseconds          |
-| `interactive` | boolean | No       | Whether tests require user interaction   |
+| Field         | Type    | Required | Description                             |
+| ------------- | ------- | -------- | --------------------------------------- |
+| `gate`        | string  | Yes      | Gate slug this suite is associated with |
+| `command`     | string  | Yes      | Command to execute                      |
+| `timeout`     | number  | No       | Command timeout in milliseconds         |
+| `interactive` | boolean | No       | Whether tests require user interaction  |
 
 ## Local Identity Configuration
 
@@ -240,13 +240,13 @@ identities:
 
 ### Identity Fields
 
-| Field        | Type   | Required | Description                              |
-| ------------ | ------ | -------- | ---------------------------------------- |
-| `name`       | string | Yes      | Display name                             |
-| `email`      | string | No       | Email address                            |
-| `github`     | string | No       | GitHub username                          |
-| `publicKey`  | string | Yes      | Base64-encoded Ed25519 public key        |
-| `privateKey` | object | Yes      | Private key reference (see below)        |
+| Field        | Type   | Required | Description                       |
+| ------------ | ------ | -------- | --------------------------------- |
+| `name`       | string | Yes      | Display name                      |
+| `email`      | string | No       | Email address                     |
+| `github`     | string | No       | GitHub username                   |
+| `publicKey`  | string | Yes      | Base64-encoded Ed25519 public key |
+| `privateKey` | object | Yes      | Private key reference (see below) |
 
 ## Key Providers
 
@@ -263,9 +263,9 @@ privateKey:
 ```
 
 **Options**:
-| Field  | Type   | Required | Description           |
+| Field | Type | Required | Description |
 | ------ | ------ | -------- | --------------------- |
-| `path` | string | Yes      | Path to PEM key file  |
+| `path` | string | Yes | Path to PEM key file |
 
 ### macOS Keychain Provider
 
@@ -279,10 +279,10 @@ privateKey:
 ```
 
 **Options**:
-| Field     | Type   | Required | Description              |
+| Field | Type | Required | Description |
 | --------- | ------ | -------- | ------------------------ |
-| `service` | string | Yes      | Keychain service name    |
-| `account` | string | Yes      | Keychain account name    |
+| `service` | string | Yes | Keychain service name |
+| `account` | string | Yes | Keychain account name |
 
 **Requirements**: macOS only
 
@@ -295,15 +295,15 @@ privateKey:
   type: 1password
   vault: Private
   item: attest-it-signing-key
-  account: user@example.com  # optional
+  account: user@example.com # optional
 ```
 
 **Options**:
-| Field     | Type   | Required | Description                    |
+| Field | Type | Required | Description |
 | --------- | ------ | -------- | ------------------------------ |
-| `vault`   | string | Yes      | 1Password vault name           |
-| `item`    | string | Yes      | Item name in vault             |
-| `account` | string | No       | 1Password account (if multiple)|
+| `vault` | string | Yes | 1Password vault name |
+| `item` | string | Yes | Item name in vault |
+| `account` | string | No | 1Password account (if multiple)|
 
 **Requirements**: 1Password CLI (`op`) must be installed and configured
 

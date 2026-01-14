@@ -41,19 +41,19 @@ Use the official GitHub Action for streamlined integration:
 
 ### Action Inputs
 
-| Input             | Description                        | Required | Default                  |
-| ----------------- | ---------------------------------- | -------- | ------------------------ |
-| `config-path`     | Path to attest-it config file      | No       | `.attest-it/config.yaml` |
-| `gate`            | Verify specific gate only          | No       | (all gates)              |
-| `fail-on-missing` | Fail if any gate lacks a seal      | No       | `true`                   |
-| `strict`          | Fail on warnings (approaching expiry) | No    | `false`                  |
+| Input             | Description                           | Required | Default                  |
+| ----------------- | ------------------------------------- | -------- | ------------------------ |
+| `config-path`     | Path to attest-it config file         | No       | `.attest-it/config.yaml` |
+| `gate`            | Verify specific gate only             | No       | (all gates)              |
+| `fail-on-missing` | Fail if any gate lacks a seal         | No       | `true`                   |
+| `strict`          | Fail on warnings (approaching expiry) | No       | `false`                  |
 
 ### Action Outputs
 
-| Output   | Description                     | Type              |
-| -------- | ------------------------------- | ----------------- |
-| `valid`  | Whether all seals are valid     | `true` or `false` |
-| `gates`  | JSON object with per-gate status | JSON string      |
+| Output  | Description                      | Type              |
+| ------- | -------------------------------- | ----------------- |
+| `valid` | Whether all seals are valid      | `true` or `false` |
+| `gates` | JSON object with per-gate status | JSON string       |
 
 ### Full Example
 
