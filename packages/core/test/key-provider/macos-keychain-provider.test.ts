@@ -257,7 +257,8 @@ describe('MacOSKeychainKeyProvider', () => {
       const mockSpawnFn = vi.mocked(spawn)
       const mockSetKeyPermissions = vi.mocked(crypto.setKeyPermissions)
 
-      const originalKeyContent = '-----BEGIN PRIVATE KEY-----\nmock-key-content\n-----END PRIVATE KEY-----'
+      const originalKeyContent =
+        '-----BEGIN PRIVATE KEY-----\nmock-key-content\n-----END PRIVATE KEY-----'
       const base64Key = Buffer.from(originalKeyContent, 'utf8').toString('base64')
 
       let callCount = 0
@@ -606,7 +607,9 @@ describe('MacOSKeychainKeyProvider', () => {
         itemName: 'test-key',
       })
 
-      await expect(provider.getPrivateKey('test-key')).rejects.toThrow(/Key not found in macOS Keychain/)
+      await expect(provider.getPrivateKey('test-key')).rejects.toThrow(
+        /Key not found in macOS Keychain/,
+      )
     })
 
     it('should handle empty base64 string from keychain', async () => {
@@ -649,7 +652,8 @@ describe('MacOSKeychainKeyProvider', () => {
       const mockSpawnFn = vi.mocked(spawn)
       const mockSetKeyPermissions = vi.mocked(crypto.setKeyPermissions)
 
-      const mockPrivateKeyContent = '-----BEGIN PRIVATE KEY-----\nmock-key-content\n-----END PRIVATE KEY-----'
+      const mockPrivateKeyContent =
+        '-----BEGIN PRIVATE KEY-----\nmock-key-content\n-----END PRIVATE KEY-----'
       const base64Key = Buffer.from(mockPrivateKeyContent, 'utf8').toString('base64')
 
       const provider = new MacOSKeychainKeyProvider({
@@ -717,7 +721,8 @@ describe('MacOSKeychainKeyProvider', () => {
       const mockGenerateKeyPair = vi.mocked(crypto.generateKeyPair)
 
       const publicPath = path.join(tmpDir, 'integration-public.pem')
-      const privateKeyContent = '-----BEGIN PRIVATE KEY-----\nintegration-test\n-----END PRIVATE KEY-----'
+      const privateKeyContent =
+        '-----BEGIN PRIVATE KEY-----\nintegration-test\n-----END PRIVATE KEY-----'
 
       mockGenerateKeyPair.mockImplementation(async (opts) => {
         const tempPrivatePath = opts.privatePath
@@ -790,7 +795,9 @@ describe('MacOSKeychainKeyProvider', () => {
         itemName: 'test-key',
       })
 
-      await expect(provider.getPrivateKey('test-key')).rejects.toThrow(/Key not found in macOS Keychain/)
+      await expect(provider.getPrivateKey('test-key')).rejects.toThrow(
+        /Key not found in macOS Keychain/,
+      )
     })
   })
 })

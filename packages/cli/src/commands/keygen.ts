@@ -189,8 +189,8 @@ async function runNonInteractiveKeygen(options: KeygenOptions): Promise<void> {
       throw new Error('--item-name is required for macos-keychain provider')
     }
 
-    // Check if macOS Keychain is available
-    const isAvailable = await MacOSKeychainKeyProvider.isAvailable()
+    // Check if macOS Keychain is available (synchronous check)
+    const isAvailable = MacOSKeychainKeyProvider.isAvailable()
     if (!isAvailable) {
       throw new Error('macOS Keychain is not available on this platform')
     }

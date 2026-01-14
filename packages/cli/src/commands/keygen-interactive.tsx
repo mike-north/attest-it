@@ -118,14 +118,9 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
         setOpAvailable(false)
       }
 
-      // Check macOS Keychain
-      try {
-        const isAvailable = await MacOSKeychainKeyProvider.isAvailable()
-        setKeychainAvailable(isAvailable)
-      } catch {
-        // macOS Keychain not available
-        setKeychainAvailable(false)
-      }
+      // Check macOS Keychain (synchronous check)
+      const isKeychainAvailable = MacOSKeychainKeyProvider.isAvailable()
+      setKeychainAvailable(isKeychainAvailable)
 
       setStep('select-provider')
     }
@@ -260,8 +255,8 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
         }
 
         onComplete(completionResult)
-      } else if (provider === 'macos-keychain') {
-        // macOS Keychain provider
+      } else {
+        // macOS Keychain provider (provider === 'macos-keychain')
         if (!keychainItemName) {
           throw new Error('Item name is required for macOS Keychain')
         }
