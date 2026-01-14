@@ -222,11 +222,15 @@ describe('Interactive CLI Integration Tests', () => {
 
       // Run without attestation creation (--no-attest) to avoid RSA signing issue
       // Ed25519 keys from fixture don't work with OpenSSL-based attestation signing
-      const result = await execa('node', [CLI_PATH, 'run', '--suite', 'unit-tests', '--no-attest'], {
-        cwd: project.baseDir,
-        reject: false,
-        timeout: 30000, // Increased for CI stability
-      })
+      const result = await execa(
+        'node',
+        [CLI_PATH, 'run', '--suite', 'unit-tests', '--no-attest'],
+        {
+          cwd: project.baseDir,
+          reject: false,
+          timeout: 30000, // Increased for CI stability
+        },
+      )
 
       // Should succeed (exit code 0)
       expect(result.exitCode).toBe(0)
@@ -393,11 +397,15 @@ describe('Interactive CLI Integration Tests', () => {
       })
 
       // Re-seal the suite using --no-attest and then create seal directly
-      const result = await execa('node', [CLI_PATH, 'run', '--suite', 'test-suite', '--no-attest'], {
-        cwd: project.baseDir,
-        reject: false,
-        timeout: 10000,
-      })
+      const result = await execa(
+        'node',
+        [CLI_PATH, 'run', '--suite', 'test-suite', '--no-attest'],
+        {
+          cwd: project.baseDir,
+          reject: false,
+          timeout: 10000,
+        },
+      )
 
       // Should succeed
       expect(result.exitCode).toBe(0)

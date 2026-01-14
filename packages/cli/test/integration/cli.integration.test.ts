@@ -240,10 +240,7 @@ function createRealSealsFile(
  * Update the config.yaml to set the public key for the test-user.
  * Uses direct string replacement to avoid YAML formatting issues.
  */
-async function updateConfigPublicKey(
-  tempDir: string,
-  publicKeyBase64: string,
-): Promise<void> {
+async function updateConfigPublicKey(tempDir: string, publicKeyBase64: string): Promise<void> {
   const configPath = path.join(tempDir, '.attest-it', 'config.yaml')
   const content = await fs.promises.readFile(configPath, 'utf8')
 
@@ -280,7 +277,10 @@ describe('CLI Integration Tests', () => {
     const privateKeyPath = path.join(tempDir, '.attest-it', 'private.pem')
     const publicKeyPath = path.join(tempDir, '.attest-it', 'pubkey.pem')
     await fs.promises.writeFile(privateKeyPath, privateKeyPem)
-    await fs.promises.writeFile(publicKeyPath, `-----BEGIN PUBLIC KEY-----\n${publicKeyBase64}\n-----END PUBLIC KEY-----\n`)
+    await fs.promises.writeFile(
+      publicKeyPath,
+      `-----BEGIN PUBLIC KEY-----\n${publicKeyBase64}\n-----END PUBLIC KEY-----\n`,
+    )
 
     // Update the config with the generated public key
     await updateConfigPublicKey(tempDir, publicKeyBase64)

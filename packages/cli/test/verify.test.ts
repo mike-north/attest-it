@@ -144,9 +144,7 @@ describe('verify command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([
-        createMockVerificationResult({ state: 'VALID' }),
-      ])
+      vi.mocked(verifyAllSeals).mockReturnValue([createMockVerificationResult({ state: 'VALID' })])
 
       await runVerify([], {})
 
@@ -302,9 +300,7 @@ describe('verify command', () => {
 
   describe('displayResults', () => {
     it('should display valid status for all gates', () => {
-      const results: SealVerificationResult[] = [
-        createMockVerificationResult({ state: 'VALID' }),
-      ]
+      const results: SealVerificationResult[] = [createMockVerificationResult({ state: 'VALID' })]
 
       displayResults(results)
 
@@ -384,14 +380,14 @@ describe('verify command', () => {
       const mockAttestItConfig = {
         ...createMockAttestItConfig(),
         gates: {
-          'gate1': {
+          gate1: {
             name: 'Gate 1',
             description: 'Gate 1',
             authorizedSigners: ['alice'],
             fingerprint: { paths: ['src/**/*.ts'] },
             maxAge: '30d',
           },
-          'gate2': {
+          gate2: {
             name: 'Gate 2',
             description: 'Gate 2',
             authorizedSigners: ['alice'],

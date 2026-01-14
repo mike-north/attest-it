@@ -141,9 +141,7 @@ describe('status command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([
-        createMockVerificationResult({ state: 'VALID' }),
-      ])
+      vi.mocked(verifyAllSeals).mockReturnValue([createMockVerificationResult({ state: 'VALID' })])
 
       await runStatus([], {})
 
@@ -156,14 +154,14 @@ describe('status command', () => {
       const mockAttestItConfig = {
         ...createMockAttestItConfig(),
         gates: {
-          'gate1': {
+          gate1: {
             name: 'Gate 1',
             description: 'Gate 1',
             authorizedSigners: ['alice'],
             fingerprint: { paths: ['src/**/*.ts'] },
             maxAge: '30d',
           },
-          'gate2': {
+          gate2: {
             name: 'Gate 2',
             description: 'Gate 2',
             authorizedSigners: ['alice'],
@@ -203,9 +201,7 @@ describe('status command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([
-        createMockVerificationResult({ state: 'VALID' }),
-      ])
+      vi.mocked(verifyAllSeals).mockReturnValue([createMockVerificationResult({ state: 'VALID' })])
 
       await runStatus([], { json: true })
 
@@ -306,9 +302,7 @@ describe('status command', () => {
       await runStatus(['nonexistent-gate'], {})
 
       expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
-      expect(mockConsoleError).toHaveBeenCalledWith(
-        expect.stringContaining('not found'),
-      )
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('not found'))
     })
   })
 
@@ -318,14 +312,14 @@ describe('status command', () => {
       const mockAttestItConfig = {
         ...createMockAttestItConfig(),
         gates: {
-          'gate1': {
+          gate1: {
             name: 'Gate 1',
             description: 'Gate 1',
             authorizedSigners: ['alice'],
             fingerprint: { paths: ['src/**/*.ts'] },
             maxAge: '30d',
           },
-          'gate2': {
+          gate2: {
             name: 'Gate 2',
             description: 'Gate 2',
             authorizedSigners: ['alice'],
@@ -445,14 +439,14 @@ describe('status command', () => {
       const mockAttestItConfig = {
         ...createMockAttestItConfig(),
         gates: {
-          'gate1': {
+          gate1: {
             name: 'Gate 1',
             description: 'Gate 1',
             authorizedSigners: ['alice'],
             fingerprint: { paths: ['src/**/*.ts'] },
             maxAge: '30d',
           },
-          'gate2': {
+          gate2: {
             name: 'Gate 2',
             description: 'Gate 2',
             authorizedSigners: ['alice'],
