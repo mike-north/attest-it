@@ -9,6 +9,7 @@ This guide walks you through setting up attest-it for your project.
 - **Package manager**: npm, pnpm, or yarn
 
 **Optional** (for secure key storage):
+
 - 1Password CLI (`op`) for 1Password storage
 - macOS for Keychain storage
 
@@ -139,6 +140,7 @@ suites:
 ```
 
 Key concepts:
+
 - **Team**: People who can create seals, with their public keys
 - **Gates**: What code needs attestation and who can sign
 - **Suites**: Gates with associated test commands
@@ -158,7 +160,7 @@ team:
   alice:
     name: Alice Smith
     email: alice@example.com
-    publicKey: MCowBQYDK2VwAyEAabc123...  # From identity export
+    publicKey: MCowBQYDK2VwAyEAabc123... # From identity export
 ```
 
 Get your public key with:
@@ -339,6 +341,7 @@ npx attest-it identity create
 ### "Not authorized to seal gate"
 
 Your public key isn't in the gate's `authorizedSigners`. Either:
+
 - Add yourself to the team and gate configuration
 - Have an authorized team member seal
 
@@ -367,14 +370,14 @@ Run `npx attest-it status` locally to diagnose.
 
 ### Verification States
 
-| State                  | Meaning                            | Solution                     |
-| ---------------------- | ---------------------------------- | ---------------------------- |
-| `VALID`                | Seal is valid                      | None needed                  |
-| `MISSING`              | No seal for gate                   | Run `seal` or `run --suite`  |
-| `STALE`                | Seal exceeds maxAge                | Re-seal (warning only)       |
-| `FINGERPRINT_MISMATCH` | Code changed since seal            | Re-run tests and seal        |
-| `INVALID_SIGNATURE`    | Signature verification failed      | Check keys, re-seal          |
-| `UNKNOWN_SIGNER`       | Signer not in team config          | Add signer or re-seal        |
+| State                  | Meaning                       | Solution                    |
+| ---------------------- | ----------------------------- | --------------------------- |
+| `VALID`                | Seal is valid                 | None needed                 |
+| `MISSING`              | No seal for gate              | Run `seal` or `run --suite` |
+| `STALE`                | Seal exceeds maxAge           | Re-seal (warning only)      |
+| `FINGERPRINT_MISMATCH` | Code changed since seal       | Re-run tests and seal       |
+| `INVALID_SIGNATURE`    | Signature verification failed | Check keys, re-seal         |
+| `UNKNOWN_SIGNER`       | Signer not in team config     | Add signer or re-seal       |
 
 ## Best Practices
 
