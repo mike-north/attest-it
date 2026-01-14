@@ -35,6 +35,7 @@ export interface AttestItConfig {
 export interface AttestItSettings {
     attestationsPath: string;
     defaultCommand?: string;
+    keyProvider?: KeyProviderSettings;
     maxAgeDays: number;
     publicKeyPath: string;
 }
@@ -84,6 +85,25 @@ export interface CryptoVerifyOptions {
 }
 
 // @public
+export class FilesystemKeyProvider implements KeyProvider {
+    constructor(options?: FilesystemKeyProviderOptions);
+    // (undocumented)
+    readonly displayName = "Filesystem";
+    generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult>;
+    getConfig(): KeyProviderConfig;
+    getPrivateKey(keyRef: string): Promise<KeyRetrievalResult>;
+    isAvailable(): Promise<boolean>;
+    keyExists(keyRef: string): Promise<boolean>;
+    // (undocumented)
+    readonly type = "filesystem";
+}
+
+// @public
+export interface FilesystemKeyProviderOptions {
+    privateKeyPath?: string;
+}
+
+// @public
 export function findAttestation(attestations: AttestationsFile, suite: string): Attestation | undefined;
 
 // @public
@@ -113,6 +133,13 @@ export function getDefaultPrivateKeyPath(): string;
 export function getDefaultPublicKeyPath(): string;
 
 // @public
+export interface KeyGenerationResult {
+    privateKeyRef: string;
+    publicKeyPath: string;
+    storageDescription: string;
+}
+
+// @public
 export interface KeygenOptions {
     force?: boolean;
     privatePath?: string;
@@ -120,9 +147,59 @@ export interface KeygenOptions {
 }
 
 // @public
+export interface KeygenProviderOptions {
+    force?: boolean;
+    publicKeyPath: string;
+}
+
+// @public
 export interface KeyPaths {
     privatePath: string;
     publicPath: string;
+}
+
+// @public
+export interface KeyProvider {
+    readonly displayName: string;
+    generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult>;
+    getConfig(): KeyProviderConfig;
+    getPrivateKey(keyRef: string): Promise<KeyRetrievalResult>;
+    isAvailable(): Promise<boolean>;
+    keyExists(keyRef: string): Promise<boolean>;
+    readonly type: string;
+}
+
+// @public
+export interface KeyProviderConfig {
+    options: Record<string, unknown>;
+    type: string;
+}
+
+// @public
+export type KeyProviderFactory = (config: KeyProviderConfig) => KeyProvider;
+
+// @public
+export class KeyProviderRegistry {
+    static create(config: KeyProviderConfig): KeyProvider;
+    static getProviderTypes(): string[];
+    static register(type: string, factory: KeyProviderFactory): void;
+}
+
+// @public
+export interface KeyProviderSettings {
+    options?: {
+        account?: string;
+        itemName?: string;
+        privateKeyPath?: string;
+        vault?: string;
+    };
+    type: string;
+}
+
+// @public
+export interface KeyRetrievalResult {
+    cleanup: () => Promise<void>;
+    keyPath: string;
 }
 
 // @public
@@ -133,6 +210,44 @@ export function loadConfig(configPath?: string): Promise<Config>;
 
 // @public
 export function loadConfigSync(configPath?: string): Config;
+
+// @public
+export interface OnePasswordAccount {
+    account_uuid: string;
+    email: string;
+    url: string;
+    user_uuid: string;
+}
+
+// @public
+export class OnePasswordKeyProvider implements KeyProvider {
+    constructor(options: OnePasswordKeyProviderOptions);
+    // (undocumented)
+    readonly displayName = "1Password";
+    generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult>;
+    getConfig(): KeyProviderConfig;
+    getPrivateKey(keyRef: string): Promise<KeyRetrievalResult>;
+    isAvailable(): Promise<boolean>;
+    static isInstalled(): Promise<boolean>;
+    keyExists(keyRef: string): Promise<boolean>;
+    static listAccounts(): Promise<OnePasswordAccount[]>;
+    static listVaults(account?: string): Promise<OnePasswordVault[]>;
+    // (undocumented)
+    readonly type = "1password";
+}
+
+// @public
+export interface OnePasswordKeyProviderOptions {
+    account?: string;
+    itemName: string;
+    vault: string;
+}
+
+// @public
+export interface OnePasswordVault {
+    id: string;
+    name: string;
+}
 
 // @public
 export function readAndVerifyAttestations(options: ReadSignedAttestationsOptions): Promise<AttestationsFile>;
@@ -169,7 +284,9 @@ export class SignatureInvalidError extends Error {
 // @public
 export interface SignOptions {
     data: Buffer | string;
-    privateKeyPath: string;
+    keyProvider?: KeyProvider;
+    keyRef?: string;
+    privateKeyPath?: string;
 }
 
 // @public
@@ -239,7 +356,9 @@ export function writeSignedAttestations(options: WriteSignedAttestationsOptions)
 export interface WriteSignedAttestationsOptions {
     attestations: Attestation[];
     filePath: string;
-    privateKeyPath: string;
+    keyProvider?: KeyProvider;
+    keyRef?: string;
+    privateKeyPath?: string;
 }
 
 // (No @packageDocumentation comment for this package)

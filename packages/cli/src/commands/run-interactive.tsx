@@ -15,7 +15,6 @@
 import * as React from 'react'
 import { render } from 'ink'
 import { spawn } from 'node:child_process'
-import * as fs from 'node:fs'
 import * as os from 'node:os'
 import { parse as parseShellCommand } from 'shell-quote'
 import {
@@ -26,7 +25,10 @@ import {
   upsertAttestation,
   createAttestation,
   getDefaultPrivateKeyPath,
+  FilesystemKeyProvider,
+  KeyProviderRegistry,
   type Config,
+  type KeyProvider,
 } from '@attest-it/core'
 import { InteractiveRun } from '../components/InteractiveRun.js'
 import { getAllSuiteStatuses, type SuiteStatus } from './run-utils.js'
@@ -219,18 +221,44 @@ function createAttestationCreator(config: Config): (suite: string) => Promise<vo
     // Upsert the new attestation
     const newAttestations = upsertAttestation(existingAttestations, attestation)
 
-    // Get private key path
-    const privateKeyPath = getDefaultPrivateKeyPath()
+    // Set up key provider from config or use default
+    let keyProvider: KeyProvider
+    let keyRef: string
 
-    if (!fs.existsSync(privateKeyPath)) {
-      throw new Error(`Private key not found: ${privateKeyPath}. Run "attest-it keygen" first.`)
+    if (config.settings.keyProvider) {
+      keyProvider = KeyProviderRegistry.create({
+        type: config.settings.keyProvider.type,
+        options: config.settings.keyProvider.options ?? {},
+      })
+      if (config.settings.keyProvider.type === 'filesystem') {
+        keyRef = config.settings.keyProvider.options?.privateKeyPath ?? getDefaultPrivateKeyPath()
+      } else if (config.settings.keyProvider.type === '1password') {
+        keyRef = config.settings.keyProvider.options?.itemName ?? 'attest-it-private-key'
+      } else {
+        throw new Error(`Unsupported key provider type: ${config.settings.keyProvider.type}`)
+      }
+    } else {
+      // Default to filesystem provider with default path
+      keyProvider = new FilesystemKeyProvider()
+      keyRef = getDefaultPrivateKeyPath()
+    }
+
+    // Check if key exists
+    if (!(await keyProvider.keyExists(keyRef))) {
+      const providerName = keyProvider.displayName
+      const keygenMessage =
+        keyProvider.type === 'filesystem'
+          ? 'Run "attest-it keygen" first to generate a keypair.'
+          : 'Run "attest-it keygen" to generate and store a key.'
+      throw new Error(`Private key not found in ${providerName}. ${keygenMessage}`)
     }
 
     // Write signed attestations
     await writeSignedAttestations({
       filePath: attestationsPath,
       attestations: newAttestations,
-      privateKeyPath,
+      keyProvider,
+      keyRef,
     })
 
     log(`✓ Attestation created for ${suiteName}`)

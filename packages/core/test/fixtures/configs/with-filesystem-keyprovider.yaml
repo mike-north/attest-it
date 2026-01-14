@@ -1,0 +1,15 @@
+version: 1
+
+settings:
+  maxAgeDays: 30
+  publicKeyPath: .attest-it/pubkey.pem
+  attestationsPath: .attest-it/attestations.json
+  keyProvider:
+    type: filesystem
+    options:
+      privateKeyPath: /custom/path/private.pem
+
+suites:
+  unit:
+    packages:
+      - '@attest-it/core'

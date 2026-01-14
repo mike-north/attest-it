@@ -217,7 +217,10 @@ describe('CLI Integration Tests', () => {
 
     // Generate keypair for tests (force overwrite in case keys exist)
     // Use the public key path from the config (.attest-it/pubkey.pem)
-    await runCli(['keygen', '--force', '--public', '.attest-it/pubkey.pem'], tempDir)
+    await runCli(
+      ['keygen', '--force', '--output', '.attest-it/pubkey.pem', '--no-interactive'],
+      tempDir,
+    )
 
     // Initialize git repo (required for dirty check)
     await runCommand('git init', tempDir)
@@ -645,7 +648,7 @@ suites:
     })
 
     it('generates RSA keypair with --force', async () => {
-      const result = await runCli(['keygen', '--force'], tempDir)
+      const result = await runCli(['keygen', '--force', '--no-interactive'], tempDir)
       expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('Keypair generated successfully')
       expect(result.stdout).toContain('Private key')
@@ -657,7 +660,15 @@ suites:
       const publicKeyPath = path.join(tempDir, 'custom-public.pem')
 
       const result = await runCli(
-        ['keygen', '--output', privateKeyPath, '--public', publicKeyPath, '--force'],
+        [
+          'keygen',
+          '--private',
+          privateKeyPath,
+          '--output',
+          publicKeyPath,
+          '--force',
+          '--no-interactive',
+        ],
         tempDir,
       )
 
@@ -667,7 +678,7 @@ suites:
     })
 
     it('displays next steps after key generation', async () => {
-      const result = await runCli(['keygen', '--force'], tempDir)
+      const result = await runCli(['keygen', '--force', '--no-interactive'], tempDir)
       expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('Next steps')
       expect(result.stdout).toContain('git add')
@@ -675,7 +686,7 @@ suites:
     })
 
     it('warns about backing up private key', async () => {
-      const result = await runCli(['keygen', '--force'], tempDir)
+      const result = await runCli(['keygen', '--force', '--no-interactive'], tempDir)
       expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('Back up your private key')
       expect(result.stdout).toContain('KEEP SECRET')

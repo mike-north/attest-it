@@ -4,6 +4,26 @@
  */
 
 /**
+ * Key provider configuration in settings.
+ * @public
+ */
+export interface KeyProviderSettings {
+  /** Provider type identifier */
+  type: string
+  /** Provider-specific options */
+  options?: {
+    /** Path to private key (filesystem provider) */
+    privateKeyPath?: string
+    /** Vault name (1Password provider) */
+    vault?: string
+    /** Item name (1Password provider) */
+    itemName?: string
+    /** Account identifier (1Password provider) */
+    account?: string
+  }
+}
+
+/**
  * Settings from the configuration file.
  * @public
  */
@@ -16,6 +36,8 @@ export interface AttestItSettings {
   attestationsPath: string
   /** Default command to execute for attestation (can be overridden per suite) */
   defaultCommand?: string
+  /** Key provider configuration for signing attestations */
+  keyProvider?: KeyProviderSettings
 }
 
 /**

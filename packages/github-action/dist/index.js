@@ -113,11 +113,11 @@ var require_command = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.issue = exports.issueCommand = void 0;
-    var os2 = __importStar(__require("os"));
+    var os3 = __importStar(__require("os"));
     var utils_1 = require_utils();
     function issueCommand(command, properties, message) {
       const cmd = new Command(command, properties, message);
-      process.stdout.write(cmd.toString() + os2.EOL);
+      process.stdout.write(cmd.toString() + os3.EOL);
     }
     exports.issueCommand = issueCommand;
     function issue(name, message = "") {
@@ -202,7 +202,7 @@ var require_file_command = __commonJS({
     exports.prepareKeyValueMessage = exports.issueFileCommand = void 0;
     var crypto2 = __importStar(__require("crypto"));
     var fs3 = __importStar(__require("fs"));
-    var os2 = __importStar(__require("os"));
+    var os3 = __importStar(__require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
       const filePath = process.env[`GITHUB_${command}`];
@@ -212,7 +212,7 @@ var require_file_command = __commonJS({
       if (!fs3.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs3.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os2.EOL}`, {
+      fs3.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os3.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -226,7 +226,7 @@ var require_file_command = __commonJS({
       if (convertedValue.includes(delimiter)) {
         throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
       }
-      return `${key}<<${delimiter}${os2.EOL}${convertedValue}${os2.EOL}${delimiter}`;
+      return `${key}<<${delimiter}${os3.EOL}${convertedValue}${os3.EOL}${delimiter}`;
     }
     exports.prepareKeyValueMessage = prepareKeyValueMessage;
   }
@@ -18272,7 +18272,7 @@ var require_summary = __commonJS({
     exports.summary = exports.markdownSummary = exports.SUMMARY_DOCS_URL = exports.SUMMARY_ENV_VAR = void 0;
     var os_1 = __require("os");
     var fs_1 = __require("fs");
-    var { access: access2, appendFile, writeFile: writeFile2 } = fs_1.promises;
+    var { access: access3, appendFile, writeFile: writeFile2 } = fs_1.promises;
     exports.SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY";
     exports.SUMMARY_DOCS_URL = "https://docs.github.com/actions/using-workflows/workflow-commands-for-github-actions#adding-a-job-summary";
     var Summary = class {
@@ -18295,7 +18295,7 @@ var require_summary = __commonJS({
             throw new Error(`Unable to find environment variable for $${exports.SUMMARY_ENV_VAR}. Check if your runtime environment supports job summaries.`);
           }
           try {
-            yield access2(pathFromEnv, fs_1.constants.R_OK | fs_1.constants.W_OK);
+            yield access3(pathFromEnv, fs_1.constants.R_OK | fs_1.constants.W_OK);
           } catch (_a) {
             throw new Error(`Unable to access summary file: '${pathFromEnv}'. Check if the file has correct read/write permissions.`);
           }
@@ -19061,7 +19061,7 @@ var require_toolrunner = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.argStringToArray = exports.ToolRunner = void 0;
-    var os2 = __importStar(__require("os"));
+    var os3 = __importStar(__require("os"));
     var events = __importStar(__require("events"));
     var child = __importStar(__require("child_process"));
     var path5 = __importStar(__require("path"));
@@ -19116,12 +19116,12 @@ var require_toolrunner = __commonJS({
       _processLineBuffer(data, strBuffer, onLine) {
         try {
           let s = strBuffer + data.toString();
-          let n = s.indexOf(os2.EOL);
+          let n = s.indexOf(os3.EOL);
           while (n > -1) {
             const line = s.substring(0, n);
             onLine(line);
-            s = s.substring(n + os2.EOL.length);
-            n = s.indexOf(os2.EOL);
+            s = s.substring(n + os3.EOL.length);
+            n = s.indexOf(os3.EOL);
           }
           return s;
         } catch (err) {
@@ -19290,7 +19290,7 @@ var require_toolrunner = __commonJS({
             }
             const optionsNonNull = this._cloneExecOptions(this.options);
             if (!optionsNonNull.silent && optionsNonNull.outStream) {
-              optionsNonNull.outStream.write(this._getCommandString(optionsNonNull) + os2.EOL);
+              optionsNonNull.outStream.write(this._getCommandString(optionsNonNull) + os3.EOL);
             }
             const state = new ExecState(optionsNonNull, this.toolPath);
             state.on("debug", (message) => {
@@ -19781,7 +19781,7 @@ var require_core = __commonJS({
     var command_1 = require_command();
     var file_command_1 = require_file_command();
     var utils_1 = require_utils();
-    var os2 = __importStar(__require("os"));
+    var os3 = __importStar(__require("os"));
     var path5 = __importStar(__require("path"));
     var oidc_utils_1 = require_oidc_utils();
     var ExitCode;
@@ -19849,7 +19849,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       if (filePath) {
         return (0, file_command_1.issueFileCommand)("OUTPUT", (0, file_command_1.prepareKeyValueMessage)(name, value));
       }
-      process.stdout.write(os2.EOL);
+      process.stdout.write(os3.EOL);
       (0, command_1.issueCommand)("set-output", { name }, (0, utils_1.toCommandValue)(value));
     }
     exports.setOutput = setOutput2;
@@ -19883,7 +19883,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     }
     exports.notice = notice;
     function info2(message) {
-      process.stdout.write(message + os2.EOL);
+      process.stdout.write(message + os3.EOL);
     }
     exports.info = info2;
     function startGroup2(name) {
@@ -19947,7 +19947,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
-// ../core/dist/chunk-CEE7ONNG.js
+// ../core/dist/chunk-MWVVZIGH.js
 import { spawn } from "child_process";
 import * as fs from "fs/promises";
 import * as path2 from "path";
@@ -20083,28 +20083,55 @@ async function generateKeyPair(options = {}) {
 }
 async function sign(options) {
   await ensureOpenSSLAvailable();
-  const { privateKeyPath, data } = options;
-  if (!await fileExists(privateKeyPath)) {
-    throw new Error(`Private key not found: ${privateKeyPath}`);
+  const { privateKeyPath, keyProvider, keyRef, data } = options;
+  let effectiveKeyPath;
+  let cleanup;
+  if (keyProvider && keyRef) {
+    const result = await keyProvider.getPrivateKey(keyRef);
+    effectiveKeyPath = result.keyPath;
+    cleanup = result.cleanup;
+  } else if (privateKeyPath) {
+    effectiveKeyPath = privateKeyPath;
+  } else {
+    throw new Error(
+      "Either privateKeyPath or both keyProvider and keyRef must be provided for signing"
+    );
   }
-  const dataBuffer = typeof data === "string" ? Buffer.from(data, "utf8") : data;
-  const processBuffer = dataBuffer.length === 0 ? Buffer.from([0]) : dataBuffer;
-  const tmpDir = await fs.mkdtemp(path2.join(os.tmpdir(), "attest-it-"));
-  const dataFile = path2.join(tmpDir, "data.bin");
-  const sigFile = path2.join(tmpDir, "sig.bin");
   try {
-    await fs.writeFile(dataFile, processBuffer);
-    const signArgs = ["dgst", "-sha256", "-sign", privateKeyPath, "-out", sigFile, dataFile];
-    const result = await runOpenSSL(signArgs);
-    if (result.exitCode !== 0) {
-      throw new Error(`Failed to sign data: ${result.stderr}`);
+    if (!await fileExists(effectiveKeyPath)) {
+      throw new Error(`Private key not found: ${effectiveKeyPath}`);
     }
-    const sigBuffer = await fs.readFile(sigFile);
-    return sigBuffer.toString("base64");
-  } finally {
+    const dataBuffer = typeof data === "string" ? Buffer.from(data, "utf8") : data;
+    const processBuffer = dataBuffer.length === 0 ? Buffer.from([0]) : dataBuffer;
+    const tmpDir = await fs.mkdtemp(path2.join(os.tmpdir(), "attest-it-"));
+    const dataFile = path2.join(tmpDir, "data.bin");
+    const sigFile = path2.join(tmpDir, "sig.bin");
     try {
-      await fs.rm(tmpDir, { recursive: true, force: true });
-    } catch {
+      await fs.writeFile(dataFile, processBuffer);
+      const signArgs = [
+        "dgst",
+        "-sha256",
+        "-sign",
+        effectiveKeyPath,
+        "-out",
+        sigFile,
+        dataFile
+      ];
+      const result = await runOpenSSL(signArgs);
+      if (result.exitCode !== 0) {
+        throw new Error(`Failed to sign data: ${result.stderr}`);
+      }
+      const sigBuffer = await fs.readFile(sigFile);
+      return sigBuffer.toString("base64");
+    } finally {
+      try {
+        await fs.rm(tmpDir, { recursive: true, force: true });
+      } catch {
+      }
+    }
+  } finally {
+    if (cleanup) {
+      await cleanup();
     }
   }
 }
@@ -20149,8 +20176,8 @@ async function setKeyPermissions(keyPath) {
   }
 }
 var openSSLChecked;
-var init_chunk_CEE7ONNG = __esm({
-  "../core/dist/chunk-CEE7ONNG.js"() {
+var init_chunk_MWVVZIGH = __esm({
+  "../core/dist/chunk-MWVVZIGH.js"() {
     "use strict";
     init_esm_shims();
     openSSLChecked = false;
@@ -29080,9 +29107,9 @@ var require_canonicalize = __commonJS({
   }
 });
 
-// ../core/dist/crypto-VAXWUGKL.js
-var crypto_VAXWUGKL_exports = {};
-__export(crypto_VAXWUGKL_exports, {
+// ../core/dist/crypto-I4ZGDVZL.js
+var crypto_I4ZGDVZL_exports = {};
+__export(crypto_I4ZGDVZL_exports, {
   checkOpenSSL: () => checkOpenSSL,
   generateKeyPair: () => generateKeyPair,
   getDefaultPrivateKeyPath: () => getDefaultPrivateKeyPath,
@@ -29091,11 +29118,11 @@ __export(crypto_VAXWUGKL_exports, {
   sign: () => sign,
   verify: () => verify
 });
-var init_crypto_VAXWUGKL = __esm({
-  "../core/dist/crypto-VAXWUGKL.js"() {
+var init_crypto_I4ZGDVZL = __esm({
+  "../core/dist/crypto-I4ZGDVZL.js"() {
     "use strict";
     init_esm_shims();
-    init_chunk_CEE7ONNG();
+    init_chunk_MWVVZIGH();
   }
 });
 
@@ -29105,10 +29132,12 @@ var core = __toESM(require_core(), 1);
 
 // ../core/dist/index.js
 init_esm_shims();
-init_chunk_CEE7ONNG();
+init_chunk_MWVVZIGH();
+init_chunk_MWVVZIGH();
 var import_yaml = __toESM(require_dist(), 1);
 import * as fs2 from "fs";
 import { readFileSync as readFileSync2 } from "fs";
+import * as fs5 from "fs/promises";
 import { readFile as readFile2 } from "fs/promises";
 import * as path4 from "path";
 import { join as join3, resolve as resolve3 } from "path";
@@ -33961,11 +33990,24 @@ async function glob(patternsOrOptions, options) {
 
 // ../core/dist/index.js
 var canonicalizeNamespace = __toESM(require_canonicalize(), 1);
+import * as os2 from "os";
+import { spawn as spawn2 } from "child_process";
+var keyProviderOptionsSchema = external_exports.object({
+  privateKeyPath: external_exports.string().optional(),
+  account: external_exports.string().optional(),
+  vault: external_exports.string().optional(),
+  itemName: external_exports.string().optional()
+}).strict();
+var keyProviderSchema = external_exports.object({
+  type: external_exports.enum(["filesystem", "1password"]).or(external_exports.string()),
+  options: keyProviderOptionsSchema.optional()
+}).strict();
 var settingsSchema = external_exports.object({
   maxAgeDays: external_exports.number().int().positive().default(30),
   publicKeyPath: external_exports.string().default(".attest-it/pubkey.pem"),
   attestationsPath: external_exports.string().default(".attest-it/attestations.json"),
-  defaultCommand: external_exports.string().optional()
+  defaultCommand: external_exports.string().optional(),
+  keyProvider: keyProviderSchema.optional()
   // Note: algorithm field was removed - RSA is the only supported algorithm
 }).passthrough();
 var suiteSchema = external_exports.object({
@@ -34257,7 +34299,7 @@ function canonicalizeAttestations(attestations) {
   return canonical;
 }
 async function readAndVerifyAttestations(options) {
-  const { verify: verify2 } = await Promise.resolve().then(() => (init_crypto_VAXWUGKL(), crypto_VAXWUGKL_exports));
+  const { verify: verify2 } = await Promise.resolve().then(() => (init_crypto_I4ZGDVZL(), crypto_I4ZGDVZL_exports));
   const file = await readAttestations(options.filePath);
   if (!file) {
     throw new Error(`Attestations file not found: ${options.filePath}`);
@@ -34401,6 +34443,356 @@ function resolvePath(relativePath, baseDir) {
   }
   return path4.join(baseDir, relativePath);
 }
+var FilesystemKeyProvider = class {
+  type = "filesystem";
+  displayName = "Filesystem";
+  privateKeyPath;
+  /**
+   * Create a new FilesystemKeyProvider.
+   * @param options - Provider options
+   */
+  constructor(options = {}) {
+    this.privateKeyPath = options.privateKeyPath ?? getDefaultPrivateKeyPath();
+  }
+  /**
+   * Check if this provider is available.
+   * Filesystem provider is always available.
+   */
+  async isAvailable() {
+    return Promise.resolve(true);
+  }
+  /**
+   * Check if a key exists at the given path.
+   * @param keyRef - Path to the private key file
+   */
+  async keyExists(keyRef) {
+    try {
+      await fs5.access(keyRef);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Get the private key path for signing.
+   * Returns the path directly with a no-op cleanup function.
+   * @param keyRef - Path to the private key file
+   */
+  async getPrivateKey(keyRef) {
+    if (!await this.keyExists(keyRef)) {
+      throw new Error(`Private key not found: ${keyRef}`);
+    }
+    return {
+      keyPath: keyRef,
+      // No-op cleanup for filesystem provider
+      cleanup: async () => {
+      }
+    };
+  }
+  /**
+   * Generate a new keypair and store on filesystem.
+   * @param options - Key generation options
+   */
+  async generateKeyPair(options) {
+    const { publicKeyPath, force = false } = options;
+    const result = await generateKeyPair({
+      privatePath: this.privateKeyPath,
+      publicPath: publicKeyPath,
+      force
+    });
+    return {
+      privateKeyRef: result.privatePath,
+      publicKeyPath: result.publicPath,
+      storageDescription: `Filesystem: ${result.privatePath}`
+    };
+  }
+  /**
+   * Get the configuration for this provider.
+   */
+  getConfig() {
+    return {
+      type: this.type,
+      options: {
+        privateKeyPath: this.privateKeyPath
+      }
+    };
+  }
+};
+var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
+  type = "1password";
+  displayName = "1Password";
+  account;
+  vault;
+  itemName;
+  /**
+   * Create a new OnePasswordKeyProvider.
+   * @param options - Provider options
+   */
+  constructor(options) {
+    if (options.account !== void 0) {
+      this.account = options.account;
+    }
+    this.vault = options.vault;
+    this.itemName = options.itemName;
+  }
+  /**
+   * Check if the 1Password CLI is installed.
+   * @returns True if `op` command is available
+   */
+  static async isInstalled() {
+    try {
+      await execCommand("op", ["--version"]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * List all 1Password accounts.
+   * @returns Array of account information
+   */
+  static async listAccounts() {
+    try {
+      const output = await execCommand("op", ["account", "list", "--format=json"]);
+      const parsed = JSON.parse(output);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      return parsed;
+    } catch (error2) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Failed to list 1Password accounts:", error2);
+      }
+      return [];
+    }
+  }
+  /**
+   * List vaults in a specific account.
+   * @param account - Account email (optional if only one account)
+   * @returns Array of vault information
+   */
+  static async listVaults(account) {
+    try {
+      const args = ["vault", "list", "--format=json"];
+      if (account) {
+        args.push("--account", account);
+      }
+      const output = await execCommand("op", args);
+      const parsed = JSON.parse(output);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      return parsed;
+    } catch (error2) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Failed to list 1Password vaults:", error2);
+      }
+      return [];
+    }
+  }
+  /**
+   * Check if this provider is available.
+   * Requires `op` CLI to be installed and authenticated.
+   */
+  async isAvailable() {
+    return _OnePasswordKeyProvider.isInstalled();
+  }
+  /**
+   * Check if a key exists in 1Password.
+   * @param keyRef - Item name in 1Password
+   */
+  async keyExists(keyRef) {
+    try {
+      const args = ["item", "get", keyRef, "--vault", this.vault, "--format=json"];
+      if (this.account) {
+        args.push("--account", this.account);
+      }
+      await execCommand("op", args);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Get the private key from 1Password for signing.
+   * Downloads to a temporary file and returns a cleanup function.
+   * @param keyRef - Item name in 1Password
+   * @throws Error if the key does not exist in 1Password
+   */
+  async getPrivateKey(keyRef) {
+    if (!await this.keyExists(keyRef)) {
+      throw new Error(
+        `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` + (this.account ? ` (account: ${this.account})` : "")
+      );
+    }
+    const tempDir = await fs5.mkdtemp(path4.join(os2.tmpdir(), "attest-it-"));
+    const tempKeyPath = path4.join(tempDir, "private.pem");
+    try {
+      const args = [
+        "document",
+        "get",
+        keyRef,
+        "--vault",
+        this.vault,
+        "--out-file",
+        tempKeyPath
+      ];
+      if (this.account) {
+        args.push("--account", this.account);
+      }
+      await execCommand("op", args);
+      await setKeyPermissions(tempKeyPath);
+      return {
+        keyPath: tempKeyPath,
+        cleanup: async () => {
+          try {
+            await fs5.unlink(tempKeyPath);
+            await fs5.rmdir(tempDir);
+          } catch {
+          }
+        }
+      };
+    } catch (error2) {
+      try {
+        await fs5.rm(tempDir, { recursive: true, force: true });
+      } catch {
+      }
+      throw error2;
+    }
+  }
+  /**
+   * Generate a new keypair and store private key in 1Password.
+   * Public key is written to filesystem for repository commit.
+   * @param options - Key generation options
+   */
+  async generateKeyPair(options) {
+    const { publicKeyPath, force = false } = options;
+    const tempDir = await fs5.mkdtemp(path4.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempPrivateKeyPath = path4.join(tempDir, "private.pem");
+    try {
+      await generateKeyPair({
+        privatePath: tempPrivateKeyPath,
+        publicPath: publicKeyPath,
+        force
+      });
+      const args = [
+        "document",
+        "create",
+        tempPrivateKeyPath,
+        "--title",
+        this.itemName,
+        "--vault",
+        this.vault
+      ];
+      if (this.account) {
+        args.push("--account", this.account);
+      }
+      await execCommand("op", args);
+      await fs5.unlink(tempPrivateKeyPath);
+      await fs5.rmdir(tempDir);
+      return {
+        privateKeyRef: this.itemName,
+        publicKeyPath,
+        storageDescription: `1Password: ${this.vault}/${this.itemName}`
+      };
+    } catch (error2) {
+      try {
+        await fs5.rm(tempDir, { recursive: true, force: true });
+      } catch {
+      }
+      throw error2;
+    }
+  }
+  /**
+   * Get the configuration for this provider.
+   */
+  getConfig() {
+    return {
+      type: this.type,
+      options: {
+        ...this.account && { account: this.account },
+        vault: this.vault,
+        itemName: this.itemName
+      }
+    };
+  }
+};
+async function execCommand(command, args) {
+  return new Promise((resolve32, reject) => {
+    const proc = spawn2(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolve32(stdout.trim());
+      } else {
+        reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
+      }
+    });
+    proc.on("error", (error2) => {
+      reject(error2);
+    });
+  });
+}
+var KeyProviderRegistry = class {
+  static providers = /* @__PURE__ */ new Map();
+  /**
+   * Register a key provider factory.
+   * @param type - Provider type identifier
+   * @param factory - Factory function to create provider instances
+   */
+  static register(type, factory) {
+    this.providers.set(type, factory);
+  }
+  /**
+   * Create a key provider from configuration.
+   * @param config - Provider configuration
+   * @returns A key provider instance
+   * @throws Error if the provider type is not registered
+   */
+  static create(config) {
+    const factory = this.providers.get(config.type);
+    if (!factory) {
+      throw new Error(
+        `Unknown key provider type: ${config.type}. Available types: ${Array.from(this.providers.keys()).join(", ")}`
+      );
+    }
+    return factory(config);
+  }
+  /**
+   * Get all registered provider types.
+   * @returns Array of provider type identifiers
+   */
+  static getProviderTypes() {
+    return Array.from(this.providers.keys());
+  }
+};
+KeyProviderRegistry.register("filesystem", (config) => {
+  const privateKeyPath = typeof config.options.privateKeyPath === "string" ? config.options.privateKeyPath : void 0;
+  if (privateKeyPath !== void 0) {
+    return new FilesystemKeyProvider({ privateKeyPath });
+  }
+  return new FilesystemKeyProvider();
+});
+KeyProviderRegistry.register("1password", (config) => {
+  const { options } = config;
+  const account = typeof options.account === "string" ? options.account : void 0;
+  const vault = typeof options.vault === "string" ? options.vault : "";
+  const itemName = typeof options.itemName === "string" ? options.itemName : "";
+  if (!vault || !itemName) {
+    throw new Error("1Password provider requires vault and itemName options");
+  }
+  if (account !== void 0) {
+    return new OnePasswordKeyProvider({ account, vault, itemName });
+  }
+  return new OnePasswordKeyProvider({ vault, itemName });
+});
 
 // src/index.ts
 async function run() {

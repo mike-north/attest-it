@@ -70,7 +70,15 @@ async function setupProject(proj: Project): Promise<void> {
     const publicKeyPath = join(proj.baseDir, '.attest-it', 'pubkey.pem')
 
     const keygenResult = await runCli(
-      ['keygen', '--force', '--output', privateKeyPath, '--public', publicKeyPath],
+      [
+        'keygen',
+        '--force',
+        '--no-interactive',
+        '--private',
+        privateKeyPath,
+        '--output',
+        publicKeyPath,
+      ],
       proj.baseDir,
     )
 

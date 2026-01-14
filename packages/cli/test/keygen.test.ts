@@ -75,6 +75,7 @@ describe('keygen command', () => {
       it('should generate RSA keypair successfully', async () => {
         await runKeygen({
           force: false,
+          interactive: false,
         })
 
         expect(checkOpenSSL).toHaveBeenCalled()
@@ -91,9 +92,10 @@ describe('keygen command', () => {
 
       it('should use custom output paths when provided', async () => {
         await runKeygen({
-          output: '/custom/private.pem',
-          public: '/custom/public.pem',
+          private: '/custom/private.pem',
+          output: '/custom/public.pem',
           force: false,
+          interactive: false,
         })
 
         expect(generateKeyPair).toHaveBeenCalledWith({
@@ -108,6 +110,7 @@ describe('keygen command', () => {
 
         await runKeygen({
           force: true,
+          interactive: false,
         })
 
         // Should not prompt for confirmation
@@ -120,6 +123,7 @@ describe('keygen command', () => {
 
         await runKeygen({
           force: false,
+          interactive: false,
         })
 
         expect(mockConsoleLog).toHaveBeenCalledWith(
@@ -136,6 +140,7 @@ describe('keygen command', () => {
         await expect(async () => {
           await runKeygen({
             force: false,
+            interactive: false,
           })
         }).rejects.toThrow('process.exit called')
 
@@ -150,6 +155,7 @@ describe('keygen command', () => {
         await expect(async () => {
           await runKeygen({
             force: false,
+            interactive: false,
           })
         }).rejects.toThrow('process.exit called')
 
@@ -163,6 +169,7 @@ describe('keygen command', () => {
         await expect(async () => {
           await runKeygen({
             force: false,
+            interactive: false,
           })
         }).rejects.toThrow('process.exit called')
 
@@ -178,6 +185,7 @@ describe('keygen command', () => {
         await expect(async () => {
           await runKeygen({
             force: false,
+            interactive: false,
           })
         }).rejects.toThrow('process.exit called')
 
@@ -195,6 +203,7 @@ describe('keygen command', () => {
 
         await runKeygen({
           force: false,
+          interactive: false,
         })
 
         expect(confirmAction).toHaveBeenCalledWith({
@@ -212,6 +221,7 @@ describe('keygen command', () => {
 
         await runKeygen({
           force: false,
+          interactive: false,
         })
 
         expect(confirmAction).toHaveBeenCalledWith({
@@ -227,6 +237,7 @@ describe('keygen command', () => {
 
         await runKeygen({
           force: false,
+          interactive: false,
         })
 
         // Should display warnings via console.warn
@@ -248,6 +259,7 @@ describe('keygen command', () => {
 
         await runKeygen({
           force: false,
+          interactive: false,
         })
 
         expect(confirmAction).not.toHaveBeenCalled()
@@ -260,6 +272,7 @@ describe('keygen command', () => {
         await expect(async () => {
           await runKeygen({
             force: false,
+            interactive: false,
           })
         }).rejects.toThrow('process.exit called')
 

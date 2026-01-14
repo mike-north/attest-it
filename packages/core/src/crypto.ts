@@ -43,8 +43,12 @@ export interface KeygenOptions {
  * @public
  */
 export interface SignOptions {
-  /** Path to the private key file */
-  privateKeyPath: string
+  /** Path to the private key file (legacy) */
+  privateKeyPath?: string
+  /** Key provider to use for retrieving the private key */
+  keyProvider?: import('./key-provider/types.js').KeyProvider
+  /** Key reference for the provider */
+  keyRef?: string
   /** Data to sign (string or Buffer) */
   data: string | Buffer
 }
@@ -324,47 +328,72 @@ export async function sign(options: SignOptions): Promise<string> {
   // Ensure OpenSSL is available before proceeding
   await ensureOpenSSLAvailable()
 
-  const { privateKeyPath, data } = options
+  const { privateKeyPath, keyProvider, keyRef, data } = options
 
-  // Check if private key exists
-  if (!(await fileExists(privateKeyPath))) {
-    throw new Error(`Private key not found: ${privateKeyPath}`)
+  // Determine which key path to use
+  let effectiveKeyPath: string
+  let cleanup: (() => Promise<void>) | undefined
+
+  if (keyProvider && keyRef) {
+    // Use key provider to retrieve the key
+    const result = await keyProvider.getPrivateKey(keyRef)
+    effectiveKeyPath = result.keyPath
+    cleanup = result.cleanup
+  } else if (privateKeyPath) {
+    // Legacy path: use privateKeyPath directly
+    effectiveKeyPath = privateKeyPath
+  } else {
+    throw new Error(
+      'Either privateKeyPath or both keyProvider and keyRef must be provided for signing',
+    )
   }
 
-  // Convert data to Buffer
-  const dataBuffer = typeof data === 'string' ? Buffer.from(data, 'utf8') : data
-
-  // OpenSSL dgst cannot handle empty files, so we need to add a single byte
-  // for empty data and document this limitation
-  const processBuffer = dataBuffer.length === 0 ? Buffer.from([0x00]) : dataBuffer
-
-  // Create temporary directory with OS-level uniqueness guarantees
-  // This prevents TOCTOU race conditions that Math.random() would allow
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'attest-it-'))
-  const dataFile = path.join(tmpDir, 'data.bin')
-  const sigFile = path.join(tmpDir, 'sig.bin')
-
   try {
-    // Write data to temp file
-    await fs.writeFile(dataFile, processBuffer)
-
-    // Sign using openssl dgst -sha256 (cross-platform compatible)
-    const signArgs = ['dgst', '-sha256', '-sign', privateKeyPath, '-out', sigFile, dataFile]
-    const result = await runOpenSSL(signArgs)
-
-    if (result.exitCode !== 0) {
-      throw new Error(`Failed to sign data: ${result.stderr}`)
+    // Check if private key exists
+    if (!(await fileExists(effectiveKeyPath))) {
+      throw new Error(`Private key not found: ${effectiveKeyPath}`)
     }
 
-    // Read the signature
-    const sigBuffer = await fs.readFile(sigFile)
-    return sigBuffer.toString('base64')
-  } finally {
-    // Clean up temp directory and all files within it
+    // Convert data to Buffer
+    const dataBuffer = typeof data === 'string' ? Buffer.from(data, 'utf8') : data
+
+    // OpenSSL dgst cannot handle empty files, so we need to add a single byte
+    // for empty data and document this limitation
+    const processBuffer = dataBuffer.length === 0 ? Buffer.from([0x00]) : dataBuffer
+
+    // Create temporary directory with OS-level uniqueness guarantees
+    // This prevents TOCTOU race conditions that Math.random() would allow
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'attest-it-'))
+    const dataFile = path.join(tmpDir, 'data.bin')
+    const sigFile = path.join(tmpDir, 'sig.bin')
+
     try {
-      await fs.rm(tmpDir, { recursive: true, force: true })
-    } catch {
-      // Ignore cleanup errors - OS will eventually clean tmpdir
+      // Write data to temp file
+      await fs.writeFile(dataFile, processBuffer)
+
+      // Sign using openssl dgst -sha256 (cross-platform compatible)
+      const signArgs = ['dgst', '-sha256', '-sign', effectiveKeyPath, '-out', sigFile, dataFile]
+      const result = await runOpenSSL(signArgs)
+
+      if (result.exitCode !== 0) {
+        throw new Error(`Failed to sign data: ${result.stderr}`)
+      }
+
+      // Read the signature
+      const sigBuffer = await fs.readFile(sigFile)
+      return sigBuffer.toString('base64')
+    } finally {
+      // Clean up temp directory and all files within it
+      try {
+        await fs.rm(tmpDir, { recursive: true, force: true })
+      } catch {
+        // Ignore cleanup errors - OS will eventually clean tmpdir
+      }
+    }
+  } finally {
+    // Always call cleanup function if provided
+    if (cleanup) {
+      await cleanup()
     }
   }
 }

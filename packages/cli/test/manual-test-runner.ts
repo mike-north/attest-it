@@ -462,7 +462,7 @@ async function setupScenario(scenario: Scenario): Promise<Project> {
     console.log('  - Generating keypair...')
     await runCommand(
       'node',
-      [cliPath, 'keygen', '--force', '--public', '.attest-it/pubkey.pem'],
+      [cliPath, 'keygen', '--force', '--no-interactive', '--output', '.attest-it/pubkey.pem'],
       project.baseDir,
     )
     console.log('  - Keypair generated')

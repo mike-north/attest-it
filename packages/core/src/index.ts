@@ -14,6 +14,7 @@ export const version = '0.0.0'
 // Types
 export type {
   AttestItSettings,
+  KeyProviderSettings,
   SuiteConfig,
   AttestItConfig,
   Attestation,
@@ -78,3 +79,20 @@ export type {
 // Verification
 export { verifyAttestations } from './verify.js'
 export type { VerifyOptions, VerifyResult } from './verify.js'
+
+// Key Providers
+export {
+  FilesystemKeyProvider,
+  OnePasswordKeyProvider,
+  KeyProviderRegistry,
+  type KeyProvider,
+  type KeyProviderConfig,
+  type KeyRetrievalResult,
+  type KeyGenerationResult,
+  type KeygenProviderOptions,
+  type FilesystemKeyProviderOptions,
+  type OnePasswordKeyProviderOptions,
+  type OnePasswordAccount,
+  type OnePasswordVault,
+  type KeyProviderFactory,
+} from './key-provider/index.js'
