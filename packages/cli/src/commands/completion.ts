@@ -290,16 +290,15 @@ completionCommand
 /**
  * Hidden top-level command called by tabtab for shell completions.
  * tabtab expects `<program> completion-server` (with hyphen) at the root.
+ *
+ * We create this dynamically as a function so it can be added with { hidden: true }
+ * option when registering with the parent command.
  */
-export const completionServerCommand = new Command('completion-server')
-  .description('Completion server (internal)')
-
-// Hide from help output
-completionServerCommand.helpInformation = () => ''
-
-completionServerCommand.action(async () => {
-  const env = tabtab.parseEnv(process.env)
-  if (env.complete) {
-    await getCompletions(env)
-  }
-})
+export function createCompletionServerCommand(): Command {
+  return new Command('completion-server').action(async () => {
+    const env = tabtab.parseEnv(process.env)
+    if (env.complete) {
+      await getCompletions(env)
+    }
+  })
+}

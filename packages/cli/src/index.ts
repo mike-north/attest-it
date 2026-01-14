@@ -9,7 +9,7 @@ import { sealCommand } from './commands/seal.js'
 import { identityCommand } from './commands/identity/index.js'
 import { whoamiCommand } from './commands/whoami.js'
 import { teamCommand } from './commands/team/index.js'
-import { completionCommand, completionServerCommand } from './commands/completion.js'
+import { completionCommand, createCompletionServerCommand } from './commands/completion.js'
 import { setOutputOptions, initTheme } from './utils/output.js'
 import { setAttestItHomeDir } from '@attest-it/core'
 import { readFileSync } from 'fs'
@@ -92,7 +92,7 @@ program.addCommand(identityCommand)
 program.addCommand(teamCommand)
 program.addCommand(whoamiCommand)
 program.addCommand(completionCommand)
-program.addCommand(completionServerCommand)
+program.addCommand(createCompletionServerCommand(), { hidden: true })
 
 /**
  * Process the hidden --home-dir option before any other processing.
