@@ -170,6 +170,12 @@ export function generateKeyPair(options?: KeygenOptions): Promise<KeyPaths>;
 export function getActiveIdentity(config: LocalConfig): Identity | undefined;
 
 // @public
+export function getAttestItConfigDir(): string;
+
+// @public
+export function getAttestItHomeDir(): null | string;
+
+// @public
 export function getAuthorizedSignersForGate(config: AttestItConfig, gateId: string): TeamMember[];
 
 // @public
@@ -298,6 +304,12 @@ export class LocalConfigValidationError extends Error {
 }
 
 // @public
+export interface MacOSKeychain {
+    name: string;
+    path: string;
+}
+
+// @public
 export class MacOSKeychainKeyProvider implements KeyProvider {
     constructor(options: MacOSKeychainKeyProviderOptions);
     // (undocumented)
@@ -308,6 +320,7 @@ export class MacOSKeychainKeyProvider implements KeyProvider {
     static isAvailable(): boolean;
     isAvailable(): Promise<boolean>;
     keyExists(keyRef: string): Promise<boolean>;
+    static listKeychains(): Promise<MacOSKeychain[]>;
     // (undocumented)
     readonly type = "macos-keychain";
 }
@@ -315,6 +328,7 @@ export class MacOSKeychainKeyProvider implements KeyProvider {
 // @public
 export interface MacOSKeychainKeyProviderOptions {
     itemName: string;
+    keychain?: string;
 }
 
 // @public
@@ -361,6 +375,7 @@ export function parseDuration(duration: string): number;
 // @public
 export type PrivateKeyRef = {
     account: string;
+    keychain?: string;
     service: string;
     type: 'keychain';
 } | {
@@ -429,6 +444,9 @@ export interface SealVerificationResult {
     seal?: Seal;
     state: VerificationState;
 }
+
+// @public
+export function setAttestItHomeDir(dir: null | string): void;
 
 // @public
 export function setKeyPermissions(keyPath: string): Promise<void>;

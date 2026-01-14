@@ -1,10 +1,40 @@
 import { Command } from 'commander'
 import { confirm } from '@inquirer/prompts'
 import { loadLocalConfig, saveLocalConfig } from '@attest-it/core'
-import { log, success, error } from '../../utils/output.js'
+import type { PrivateKeyRef } from '@attest-it/core'
+import { log, success, error, getTheme } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
-import { getTheme } from '../../components/theme.js'
 import { unlink } from 'node:fs/promises'
+
+/**
+ * Format the private key storage location for display.
+ */
+function formatKeyLocation(privateKey: PrivateKeyRef): string {
+  const theme = getTheme()
+
+  switch (privateKey.type) {
+    case 'file':
+      return `${theme.blue.bold()('File')}: ${theme.muted(privateKey.path)}`
+    case 'keychain': {
+      // Extract keychain name from path if available
+      let keychainName = 'default'
+      if (privateKey.keychain) {
+        const filename = privateKey.keychain.split('/').pop() ?? privateKey.keychain
+        keychainName = filename.replace(/\.keychain(-db)?$/, '')
+      }
+      return `${theme.blue.bold()('macOS Keychain')}: ${theme.muted(`${keychainName}/${privateKey.service}`)}`
+    }
+    case '1password': {
+      const parts = [privateKey.vault, privateKey.item]
+      if (privateKey.account) {
+        parts.unshift(privateKey.account)
+      }
+      return `${theme.blue.bold()('1Password')}: ${theme.muted(parts.join('/'))}`
+    }
+    default:
+      return 'Unknown storage'
+  }
+}
 
 export const removeCommand = new Command('remove')
   .description('Delete identity and optionally delete private key')
@@ -53,7 +83,11 @@ async function runRemove(slug: string): Promise<void> {
       process.exit(ExitCode.CANCELLED)
     }
 
-    // Ask about deleting private key
+    // Ask about deleting private key, showing where it's stored
+    const keyLocation = formatKeyLocation(identity.privateKey)
+    log(`  Private key: ${keyLocation}`)
+    log('')
+
     const deletePrivateKey = await confirm({
       message: 'Also delete the private key from storage?',
       default: false,
@@ -81,13 +115,17 @@ async function runRemove(slug: string): Promise<void> {
           const execFileAsync = promisify(execFile)
 
           try {
-            await execFileAsync('security', [
+            const deleteArgs = [
               'delete-generic-password',
               '-s',
               identity.privateKey.service,
               '-a',
               identity.privateKey.account,
-            ])
+            ]
+            if (identity.privateKey.keychain) {
+              deleteArgs.push(identity.privateKey.keychain)
+            }
+            await execFileAsync('security', deleteArgs)
             log(`  Deleted private key from macOS Keychain`)
           } catch (err) {
             // Ignore if key doesn't exist

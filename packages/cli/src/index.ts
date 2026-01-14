@@ -9,7 +9,9 @@ import { sealCommand } from './commands/seal.js'
 import { identityCommand } from './commands/identity/index.js'
 import { whoamiCommand } from './commands/whoami.js'
 import { teamCommand } from './commands/team/index.js'
+import { completionCommand } from './commands/completion.js'
 import { setOutputOptions, initTheme } from './utils/output.js'
+import { setAttestItHomeDir } from '@attest-it/core'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
 import { dirname, join } from 'path'
@@ -89,8 +91,28 @@ program.addCommand(sealCommand)
 program.addCommand(identityCommand)
 program.addCommand(teamCommand)
 program.addCommand(whoamiCommand)
+program.addCommand(completionCommand)
+
+/**
+ * Process the hidden --home-dir option before any other processing.
+ * This must be done early so config loading uses the correct path.
+ */
+function processHomeDirOption(): void {
+  const homeDirIndex = process.argv.indexOf('--home-dir')
+  if (homeDirIndex !== -1 && homeDirIndex + 1 < process.argv.length) {
+    const homeDir = process.argv[homeDirIndex + 1]
+    if (homeDir && !homeDir.startsWith('-')) {
+      setAttestItHomeDir(homeDir)
+      // Remove the option from argv so Commander doesn't complain
+      process.argv.splice(homeDirIndex, 2)
+    }
+  }
+}
 
 export async function run(): Promise<void> {
+  // Process --home-dir before anything else (hidden option for testing)
+  processHomeDirOption()
+
   // Check for --version flag before initializing theme or doing other work
   if (process.argv.includes('--version') || process.argv.includes('-V')) {
     console.log(getPackageVersion())

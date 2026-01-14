@@ -108,6 +108,9 @@ importers:
       '@inquirer/prompts':
         specifier: ^7.0.0
         version: 7.10.1(@types/node@22.19.3)
+      '@pnpm/tabtab':
+        specifier: ^0.5.4
+        version: 0.5.4
       chromaterm:
         specifier: ^0.1.0
         version: 0.1.0
@@ -1594,6 +1597,10 @@ packages:
   '@pnpm/store-controller-types@18.1.0':
     resolution: {integrity: sha512-3FvgGtnWlKlC8CztqMqT5w2VTdOjKCu1ZrH+d5xFuVHyb2weIz9hxQo/3VHT+qdcN8O7q+rpzRgh3YtgO+r+tA==}
     engines: {node: '>=18.12'}
+
+  '@pnpm/tabtab@0.5.4':
+    resolution: {integrity: sha512-bWLDlHsBlgKY/05wDN/V3ETcn5G2SV/SiA2ZmNvKGGlmVX4G5li7GRDhHcgYvHJHyJ8TUStqg2xtHmCs0UbAbg==}
+    engines: {node: '>=18'}
 
   '@pnpm/text.comments-parser@3.0.0':
     resolution: {integrity: sha512-BSGvYd59kPKVTUk1InekEp+TiPnJ8650/bQyiOUFSvqHi61YipcR+E4H2i3xTnk2e+GHdGbXvEtAZbQmyxb0/g==}
@@ -4256,6 +4263,10 @@ packages:
     resolution: {integrity: sha512-gptHNQghINnc/vTGIk0SOFGFNXw7JVrlRUtConJRlvaw6DuX0wO5Jeko9sWrMBhh+PsYAZ7oXAiOnf/UKogyiw==}
     engines: {node: '>= 10.0.0'}
 
+  untildify@4.0.0:
+    resolution: {integrity: sha512-KK8xQ1mkzZeg9inewmFVDNkg3l5LUhoq9kN6iWYB/CC9YMG8HA+c1Q8HwDe6dEX7kErrEVNVBO3fWsVq5iDgtw==}
+    engines: {node: '>=8'}
+
   update-browserslist-db@1.2.3:
     resolution: {integrity: sha512-Js0m9cx+qOgDxo0eMiFGEueWztz+d4+M3rGlmKPT+T4IS/jP4ylw3Nwpu6cpTTP8R1MAC1kF4VbdLt3ARf209w==}
     hasBin: true
@@ -6177,6 +6188,15 @@ snapshots:
       '@pnpm/fetcher-base': 16.0.1
       '@pnpm/resolver-base': 12.0.1
       '@pnpm/types': 10.1.0
+
+  '@pnpm/tabtab@0.5.4':
+    dependencies:
+      debug: 4.4.3
+      enquirer: 2.4.1
+      minimist: 1.2.8
+      untildify: 4.0.0
+    transitivePeerDependencies:
+      - supports-color
 
   '@pnpm/text.comments-parser@3.0.0':
     dependencies:
@@ -8833,6 +8853,8 @@ snapshots:
   universalify@0.1.2: {}
 
   universalify@2.0.1: {}
+
+  untildify@4.0.0: {}
 
   update-browserslist-db@1.2.3(browserslist@4.28.1):
     dependencies:

@@ -29,6 +29,19 @@ import type {
 export interface MacOSKeychainKeyProviderOptions {
   /** Item name in keychain (e.g., "attest-it-private-key") */
   itemName: string
+  /** Path to the keychain file (optional, uses default keychain if not specified) */
+  keychain?: string
+}
+
+/**
+ * Information about a macOS keychain.
+ * @public
+ */
+export interface MacOSKeychain {
+  /** Full path to the keychain file */
+  path: string
+  /** Display name (filename without extension) */
+  name: string
 }
 
 /**
@@ -46,6 +59,7 @@ export class MacOSKeychainKeyProvider implements KeyProvider {
   readonly displayName = 'macOS Keychain'
 
   private readonly itemName: string
+  private readonly keychain?: string
   private static readonly ACCOUNT = 'attest-it'
 
   /**
@@ -54,6 +68,9 @@ export class MacOSKeychainKeyProvider implements KeyProvider {
    */
   constructor(options: MacOSKeychainKeyProviderOptions) {
     this.itemName = options.itemName
+    if (options.keychain !== undefined) {
+      this.keychain = options.keychain
+    }
   }
 
   /**
@@ -62,6 +79,37 @@ export class MacOSKeychainKeyProvider implements KeyProvider {
    */
   static isAvailable(): boolean {
     return process.platform === 'darwin'
+  }
+
+  /**
+   * List available keychains on the system.
+   * @returns Array of keychain information
+   */
+  static async listKeychains(): Promise<MacOSKeychain[]> {
+    if (!MacOSKeychainKeyProvider.isAvailable()) {
+      return []
+    }
+
+    try {
+      const output = await execCommand('security', ['list-keychains'])
+      // Parse output - each line is a quoted path like:
+      // "    "/Users/name/Library/Keychains/login.keychain-db""
+      const keychains: MacOSKeychain[] = []
+      const lines = output.split('\n')
+      for (const line of lines) {
+        const match = /"(.+)"/.exec(line.trim())
+        if (match?.[1]) {
+          const fullPath = match[1]
+          // Extract display name from path (filename without extension)
+          const filename = fullPath.split('/').pop() ?? fullPath
+          const name = filename.replace(/\.keychain(-db)?$/, '')
+          keychains.push({ path: fullPath, name })
+        }
+      }
+      return keychains
+    } catch {
+      return []
+    }
   }
 
   /**
@@ -77,13 +125,17 @@ export class MacOSKeychainKeyProvider implements KeyProvider {
    */
   async keyExists(keyRef: string): Promise<boolean> {
     try {
-      await execCommand('security', [
+      const args = [
         'find-generic-password',
         '-a',
         MacOSKeychainKeyProvider.ACCOUNT,
         '-s',
         keyRef,
-      ])
+      ]
+      if (this.keychain) {
+        args.push(this.keychain)
+      }
+      await execCommand('security', args)
       return true
     } catch {
       return false
@@ -110,14 +162,18 @@ export class MacOSKeychainKeyProvider implements KeyProvider {
 
     try {
       // Retrieve the base64-encoded key from keychain
-      const base64Key = await execCommand('security', [
+      const findArgs = [
         'find-generic-password',
         '-a',
         MacOSKeychainKeyProvider.ACCOUNT,
         '-s',
         keyRef,
         '-w',
-      ])
+      ]
+      if (this.keychain) {
+        findArgs.push(this.keychain)
+      }
+      const base64Key = await execCommand('security', findArgs)
 
       // Decode from base64 and write to temp file
       const keyContent = Buffer.from(base64Key, 'base64').toString('utf8')
@@ -182,7 +238,7 @@ export class MacOSKeychainKeyProvider implements KeyProvider {
       // Store in keychain
       // The -T "" flag allows all applications to access the key
       // The -U flag updates if the item already exists
-      await execCommand('security', [
+      const addArgs = [
         'add-generic-password',
         '-a',
         MacOSKeychainKeyProvider.ACCOUNT,
@@ -193,7 +249,11 @@ export class MacOSKeychainKeyProvider implements KeyProvider {
         '-T',
         '',
         '-U',
-      ])
+      ]
+      if (this.keychain) {
+        addArgs.push(this.keychain)
+      }
+      await execCommand('security', addArgs)
 
       // Clean up temporary private key
       await fs.unlink(tempPrivateKeyPath)

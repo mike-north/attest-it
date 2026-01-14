@@ -34930,6 +34930,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
   type = "macos-keychain";
   displayName = "macOS Keychain";
   itemName;
+  keychain;
   static ACCOUNT = "attest-it";
   /**
    * Create a new MacOSKeychainKeyProvider.
@@ -34937,6 +34938,9 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
    */
   constructor(options) {
     this.itemName = options.itemName;
+    if (options.keychain !== void 0) {
+      this.keychain = options.keychain;
+    }
   }
   /**
    * Check if this provider is available.
@@ -34944,6 +34948,32 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
    */
   static isAvailable() {
     return process.platform === "darwin";
+  }
+  /**
+   * List available keychains on the system.
+   * @returns Array of keychain information
+   */
+  static async listKeychains() {
+    if (!_MacOSKeychainKeyProvider.isAvailable()) {
+      return [];
+    }
+    try {
+      const output = await execCommand2("security", ["list-keychains"]);
+      const keychains = [];
+      const lines = output.split("\n");
+      for (const line of lines) {
+        const match = /"(.+)"/.exec(line.trim());
+        if (match?.[1]) {
+          const fullPath = match[1];
+          const filename = fullPath.split("/").pop() ?? fullPath;
+          const name = filename.replace(/\.keychain(-db)?$/, "");
+          keychains.push({ path: fullPath, name });
+        }
+      }
+      return keychains;
+    } catch {
+      return [];
+    }
   }
   /**
    * Check if this provider is available on the current system.
@@ -34957,13 +34987,17 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
    */
   async keyExists(keyRef) {
     try {
-      await execCommand2("security", [
+      const args = [
         "find-generic-password",
         "-a",
         _MacOSKeychainKeyProvider.ACCOUNT,
         "-s",
         keyRef
-      ]);
+      ];
+      if (this.keychain) {
+        args.push(this.keychain);
+      }
+      await execCommand2("security", args);
       return true;
     } catch {
       return false;
@@ -34984,14 +35018,18 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
     const tempDir = await fs6.mkdtemp(path6.join(os2.tmpdir(), "attest-it-"));
     const tempKeyPath = path6.join(tempDir, "private.pem");
     try {
-      const base64Key = await execCommand2("security", [
+      const findArgs = [
         "find-generic-password",
         "-a",
         _MacOSKeychainKeyProvider.ACCOUNT,
         "-s",
         keyRef,
         "-w"
-      ]);
+      ];
+      if (this.keychain) {
+        findArgs.push(this.keychain);
+      }
+      const base64Key = await execCommand2("security", findArgs);
       const keyContent = Buffer.from(base64Key, "base64").toString("utf8");
       await fs6.writeFile(tempKeyPath, keyContent, { mode: 384 });
       await setKeyPermissions(tempKeyPath);
@@ -35036,7 +35074,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
       });
       const privateKeyContent = await fs6.readFile(tempPrivateKeyPath, "utf8");
       const base64Key = Buffer.from(privateKeyContent, "utf8").toString("base64");
-      await execCommand2("security", [
+      const addArgs = [
         "add-generic-password",
         "-a",
         _MacOSKeychainKeyProvider.ACCOUNT,
@@ -35047,7 +35085,11 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
         "-T",
         "",
         "-U"
-      ]);
+      ];
+      if (this.keychain) {
+        addArgs.push(this.keychain);
+      }
+      await execCommand2("security", addArgs);
       await fs6.unlink(tempPrivateKeyPath);
       await fs6.rmdir(tempDir);
       return {
@@ -35170,7 +35212,8 @@ var privateKeyRefSchema = external_exports.discriminatedUnion("type", [
   external_exports.object({
     type: external_exports.literal("keychain"),
     service: external_exports.string().min(1, "Service name cannot be empty"),
-    account: external_exports.string().min(1, "Account name cannot be empty")
+    account: external_exports.string().min(1, "Account name cannot be empty"),
+    keychain: external_exports.string().optional()
   }),
   external_exports.object({
     type: external_exports.literal("1password"),

@@ -12,6 +12,34 @@ import { z } from 'zod'
 import type { Identity, LocalConfig, PrivateKeyRef } from './types.js'
 
 /**
+ * Module-level override for the attest-it home directory.
+ * When set, this overrides the default ~/.config/attest-it location.
+ * @internal
+ */
+let homeDirOverride: string | null = null
+
+/**
+ * Set a custom home directory for attest-it configuration.
+ * This is useful for testing or running with isolated state.
+ *
+ * @param dir - The directory to use, or null to reset to default
+ * @public
+ */
+export function setAttestItHomeDir(dir: string | null): void {
+  homeDirOverride = dir
+}
+
+/**
+ * Get the current attest-it home directory override.
+ *
+ * @returns The override directory, or null if using default
+ * @public
+ */
+export function getAttestItHomeDir(): string | null {
+  return homeDirOverride
+}
+
+/**
  * Zod schema for private key references.
  */
 const privateKeyRefSchema = z.discriminatedUnion('type', [
@@ -23,6 +51,7 @@ const privateKeyRefSchema = z.discriminatedUnion('type', [
     type: z.literal('keychain'),
     service: z.string().min(1, 'Service name cannot be empty'),
     account: z.string().min(1, 'Account name cannot be empty'),
+    keychain: z.string().optional(),
   }),
   z.object({
     type: z.literal('1password'),
@@ -77,12 +106,34 @@ export class LocalConfigValidationError extends Error {
 /**
  * Get the path to the local config file.
  *
- * @returns Path to ~/.config/attest-it/config.yaml
+ * If a home directory override is set via setAttestItHomeDir(),
+ * returns {homeDir}/config.yaml. Otherwise returns ~/.config/attest-it/config.yaml.
+ *
+ * @returns Path to the local config file
  * @public
  */
 export function getLocalConfigPath(): string {
+  if (homeDirOverride) {
+    return join(homeDirOverride, 'config.yaml')
+  }
   const home = homedir()
   return join(home, '.config', 'attest-it', 'config.yaml')
+}
+
+/**
+ * Get the attest-it configuration directory.
+ *
+ * If a home directory override is set via setAttestItHomeDir(),
+ * returns that directory. Otherwise returns ~/.config/attest-it.
+ *
+ * @returns Path to the configuration directory
+ * @public
+ */
+export function getAttestItConfigDir(): string {
+  if (homeDirOverride) {
+    return homeDirOverride
+  }
+  return join(homedir(), '.config', 'attest-it')
 }
 
 /**
@@ -130,6 +181,15 @@ function parseLocalConfigContent(content: string): LocalConfig {
             account: identity.privateKey.account,
           }),
           ...(identity.privateKey.field !== undefined && { field: identity.privateKey.field }),
+        }
+      } else if (identity.privateKey.type === 'keychain') {
+        privateKey = {
+          type: 'keychain',
+          service: identity.privateKey.service,
+          account: identity.privateKey.account,
+          ...(identity.privateKey.keychain !== undefined && {
+            keychain: identity.privateKey.keychain,
+          }),
         }
       } else {
         privateKey = identity.privateKey

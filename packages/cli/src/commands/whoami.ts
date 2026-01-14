@@ -1,8 +1,37 @@
 import { Command } from 'commander'
 import { loadLocalConfig, getActiveIdentity } from '@attest-it/core'
-import { log, error } from '../utils/output.js'
+import type { PrivateKeyRef } from '@attest-it/core'
+import { log, error, getTheme } from '../utils/output.js'
 import { ExitCode } from '../utils/exit-codes.js'
-import { getTheme } from '../components/theme.js'
+
+/**
+ * Format the private key storage location for display.
+ */
+function formatKeyLocation(privateKey: PrivateKeyRef): string {
+  const theme = getTheme()
+
+  switch (privateKey.type) {
+    case 'file':
+      return `${theme.blue.bold()('File')}: ${theme.muted(privateKey.path)}`
+    case 'keychain': {
+      let keychainName = 'default'
+      if (privateKey.keychain) {
+        const filename = privateKey.keychain.split('/').pop() ?? privateKey.keychain
+        keychainName = filename.replace(/\.keychain(-db)?$/, '')
+      }
+      return `${theme.blue.bold()('macOS Keychain')}: ${theme.muted(`${keychainName}/${privateKey.service}`)}`
+    }
+    case '1password': {
+      const parts = [privateKey.vault, privateKey.item]
+      if (privateKey.account) {
+        parts.unshift(privateKey.account)
+      }
+      return `${theme.blue.bold()('1Password')}: ${theme.muted(parts.join('/'))}`
+    }
+    default:
+      return 'Unknown storage'
+  }
+}
 
 export const whoamiCommand = new Command('whoami')
   .description('Show the current active identity')
@@ -34,15 +63,18 @@ async function runWhoami(): Promise<void> {
     const theme = getTheme()
 
     log('')
-    log(theme.green.bold()(identity.name))
+    log(theme.blue.bold()('Active Identity'))
+    log('')
+    log(`  Slug:       ${theme.green.bold()(config.activeIdentity)}`)
+    log(`  Name:       ${identity.name}`)
     if (identity.email) {
-      log(theme.muted(identity.email))
+      log(`  Email:      ${theme.muted(identity.email)}`)
     }
     if (identity.github) {
-      log(theme.muted('@' + identity.github))
+      log(`  GitHub:     ${theme.muted('@' + identity.github)}`)
     }
-    log('')
-    log(`Identity: ${theme.blue(config.activeIdentity)}`)
+    log(`  Public Key: ${theme.muted(identity.publicKey.slice(0, 24) + '...')}`)
+    log(`  Key Store:  ${formatKeyLocation(identity.privateKey)}`)
     log('')
   } catch (err) {
     if (err instanceof Error) {
