@@ -139,9 +139,9 @@ describe('FilesystemKeyProvider', () => {
       await customProvider.generateKeyPair({ publicKeyPath })
 
       // Try to generate again without force
-      await expect(
-        customProvider.generateKeyPair({ publicKeyPath, force: false }),
-      ).rejects.toThrow(/already exist/)
+      await expect(customProvider.generateKeyPair({ publicKeyPath, force: false })).rejects.toThrow(
+        /already exist/,
+      )
     })
 
     it('should overwrite keys when force is true', async () => {

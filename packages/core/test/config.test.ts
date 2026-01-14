@@ -147,7 +147,9 @@ describe('config', () => {
         expect(config.version).toBe(1)
         expect(config.settings.keyProvider).toBeDefined()
         expect(config.settings.keyProvider?.type).toBe('filesystem')
-        expect(config.settings.keyProvider?.options?.privateKeyPath).toBe('/custom/path/private.pem')
+        expect(config.settings.keyProvider?.options?.privateKeyPath).toBe(
+          '/custom/path/private.pem',
+        )
       })
 
       it('should accept 1password keyProvider', async () => {

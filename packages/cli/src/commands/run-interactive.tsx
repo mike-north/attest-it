@@ -232,7 +232,9 @@ function createAttestationCreator(config: Config): (suite: string) => Promise<vo
       } else if (config.settings.keyProvider.type === '1password') {
         keyRef = config.settings.keyProvider.options?.itemName ?? 'attest-it-private-key'
       } else {
-        keyRef = ''
+        throw new Error(
+          `Unsupported key provider type: ${String(config.settings.keyProvider.type)}`,
+        )
       }
     } else {
       // Default to filesystem provider with default path

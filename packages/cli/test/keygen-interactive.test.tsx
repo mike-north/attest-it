@@ -45,13 +45,7 @@ describe('KeygenInteractive', () => {
     it('should show checking spinner initially', () => {
       mockIsInstalled.mockResolvedValue(false)
 
-      const { lastFrame } = render(
-        <KeygenInteractive
-          onComplete={vi.fn()}
-          onCancel={vi.fn()}
-          onError={vi.fn()}
-        />,
-      )
+      render(<KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />)
 
       expect(lastFrame()).toContain('Checking for 1Password CLI')
     })
@@ -59,13 +53,7 @@ describe('KeygenInteractive', () => {
     it('should show filesystem option when 1Password not installed', async () => {
       mockIsInstalled.mockResolvedValue(false)
 
-      const { lastFrame } = render(
-        <KeygenInteractive
-          onComplete={vi.fn()}
-          onCancel={vi.fn()}
-          onError={vi.fn()}
-        />,
-      )
+      render(<KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />)
 
       // Wait for async state update
       await new Promise((resolve) => setTimeout(resolve, 100))
@@ -87,13 +75,7 @@ describe('KeygenInteractive', () => {
         },
       ])
 
-      const { lastFrame } = render(
-        <KeygenInteractive
-          onComplete={vi.fn()}
-          onCancel={vi.fn()}
-          onError={vi.fn()}
-        />,
-      )
+      render(<KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />)
 
       // Wait for async state update
       await new Promise((resolve) => setTimeout(resolve, 100))
@@ -123,13 +105,7 @@ describe('KeygenInteractive', () => {
       const onCancel = vi.fn()
       const onError = vi.fn()
 
-      render(
-        <KeygenInteractive
-          onComplete={onComplete}
-          onCancel={onCancel}
-          onError={onError}
-        />,
-      )
+      render(<KeygenInteractive onComplete={onComplete} onCancel={onCancel} onError={onError} />)
 
       // Wait for completion
       await new Promise((resolve) => setTimeout(resolve, 200))
@@ -158,13 +134,7 @@ describe('KeygenInteractive', () => {
         },
       ])
 
-      const { lastFrame } = render(
-        <KeygenInteractive
-          onComplete={vi.fn()}
-          onCancel={vi.fn()}
-          onError={vi.fn()}
-        />,
-      )
+      render(<KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />)
 
       // Wait for async state update
       await new Promise((resolve) => setTimeout(resolve, 100))
@@ -188,13 +158,7 @@ describe('KeygenInteractive', () => {
         { id: 'vault-2', name: 'Development' },
       ])
 
-      const { lastFrame } = render(
-        <KeygenInteractive
-          onComplete={vi.fn()}
-          onCancel={vi.fn()}
-          onError={vi.fn()}
-        />,
-      )
+      render(<KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />)
 
       await new Promise((resolve) => setTimeout(resolve, 100))
 
@@ -209,13 +173,7 @@ describe('KeygenInteractive', () => {
 
       const onError = vi.fn()
 
-      render(
-        <KeygenInteractive
-          onComplete={vi.fn()}
-          onCancel={vi.fn()}
-          onError={onError}
-        />,
-      )
+      render(<KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={onError} />)
 
       // Component should continue even if 1Password check fails
       await new Promise((resolve) => setTimeout(resolve, 100))
@@ -239,11 +197,7 @@ describe('KeygenInteractive', () => {
       const onError = vi.fn()
 
       const { lastFrame } = render(
-        <KeygenInteractive
-          onComplete={vi.fn()}
-          onCancel={vi.fn()}
-          onError={onError}
-        />,
+        <KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={onError} />,
       )
 
       await new Promise((resolve) => setTimeout(resolve, 100))
@@ -264,17 +218,9 @@ describe('KeygenInteractive', () => {
           user_uuid: 'user-1',
         },
       ])
-      mockListVaults.mockResolvedValue([
-        { id: 'vault-1', name: 'Private' },
-      ])
+      mockListVaults.mockResolvedValue([{ id: 'vault-1', name: 'Private' }])
 
-      const { lastFrame } = render(
-        <KeygenInteractive
-          onComplete={vi.fn()}
-          onCancel={vi.fn()}
-          onError={vi.fn()}
-        />,
-      )
+      render(<KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />)
 
       await new Promise((resolve) => setTimeout(resolve, 100))
 
@@ -286,13 +232,7 @@ describe('KeygenInteractive', () => {
       mockIsInstalled.mockResolvedValue(true)
       mockListAccounts.mockResolvedValue([])
 
-      const { lastFrame } = render(
-        <KeygenInteractive
-          onComplete={vi.fn()}
-          onCancel={vi.fn()}
-          onError={vi.fn()}
-        />,
-      )
+      render(<KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />)
 
       await new Promise((resolve) => setTimeout(resolve, 100))
 
@@ -312,13 +252,7 @@ describe('KeygenInteractive', () => {
       ])
       mockListVaults.mockResolvedValue([])
 
-      const { lastFrame } = render(
-        <KeygenInteractive
-          onComplete={vi.fn()}
-          onCancel={vi.fn()}
-          onError={vi.fn()}
-        />,
-      )
+      render(<KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />)
 
       await new Promise((resolve) => setTimeout(resolve, 100))
 
@@ -415,11 +349,7 @@ describe('KeygenInteractive - Negative Tests', () => {
     })
 
     const { lastFrame } = render(
-      <KeygenInteractive
-        onComplete={onComplete}
-        onCancel={vi.fn()}
-        onError={vi.fn()}
-      />,
+      <KeygenInteractive onComplete={onComplete} onCancel={vi.fn()} onError={vi.fn()} />,
     )
 
     await new Promise((resolve) => setTimeout(resolve, 100))
@@ -436,11 +366,7 @@ describe('KeygenInteractive - Negative Tests', () => {
     ])
 
     const { lastFrame } = render(
-      <KeygenInteractive
-        onComplete={vi.fn()}
-        onCancel={vi.fn()}
-        onError={vi.fn()}
-      />,
+      <KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />,
     )
 
     await new Promise((resolve) => setTimeout(resolve, 100))
@@ -457,11 +383,7 @@ describe('KeygenInteractive - Negative Tests', () => {
     const onError = vi.fn()
 
     const { lastFrame } = render(
-      <KeygenInteractive
-        onComplete={vi.fn()}
-        onCancel={vi.fn()}
-        onError={onError}
-      />,
+      <KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={onError} />,
     )
 
     await new Promise((resolve) => setTimeout(resolve, 100))

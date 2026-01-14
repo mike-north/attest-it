@@ -686,7 +686,8 @@ describe('OnePasswordKeyProvider', () => {
       const mockSetKeyPermissions = vi.mocked(crypto.setKeyPermissions)
 
       // Create a mock private key content
-      const mockPrivateKeyContent = '-----BEGIN PRIVATE KEY-----\nmock-key-content\n-----END PRIVATE KEY-----'
+      const mockPrivateKeyContent =
+        '-----BEGIN PRIVATE KEY-----\nmock-key-content\n-----END PRIVATE KEY-----'
       const mockPrivateKeyPath = path.join(tmpDir, 'mock-private.pem')
       await fs.writeFile(mockPrivateKeyPath, mockPrivateKeyContent)
 
@@ -752,7 +753,14 @@ describe('OnePasswordKeyProvider', () => {
       expect(mockSpawnFn).toHaveBeenNthCalledWith(
         2,
         'op',
-        expect.arrayContaining(['document', 'get', 'integration-test-key', '--vault', 'Private', '--out-file']),
+        expect.arrayContaining([
+          'document',
+          'get',
+          'integration-test-key',
+          '--vault',
+          'Private',
+          '--out-file',
+        ]),
         expect.any(Object),
       )
 

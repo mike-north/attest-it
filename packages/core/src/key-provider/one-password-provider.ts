@@ -13,10 +13,7 @@ import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { spawn } from 'node:child_process'
-import {
-  generateKeyPair as cryptoGenerateKeyPair,
-  setKeyPermissions,
-} from '../crypto.js'
+import { generateKeyPair as cryptoGenerateKeyPair, setKeyPermissions } from '../crypto.js'
 import type {
   KeyProvider,
   KeyProviderConfig,
@@ -207,15 +204,7 @@ export class OnePasswordKeyProvider implements KeyProvider {
 
     try {
       // Download the key from 1Password
-      const args = [
-        'document',
-        'get',
-        keyRef,
-        '--vault',
-        this.vault,
-        '--out-file',
-        tempKeyPath,
-      ]
+      const args = ['document', 'get', keyRef, '--vault', this.vault, '--out-file', tempKeyPath]
       if (this.account) {
         args.push('--account', this.account)
       }

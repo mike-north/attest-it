@@ -52,7 +52,16 @@ async function setupProject(proj: Project): Promise<void> {
 
     const keygenResult = await execa(
       'node',
-      [CLI_PATH, 'keygen', '--force', '--no-interactive', '--private', privateKeyPath, '--output', publicKeyPath],
+      [
+        CLI_PATH,
+        'keygen',
+        '--force',
+        '--no-interactive',
+        '--private',
+        privateKeyPath,
+        '--output',
+        publicKeyPath,
+      ],
       {
         cwd: proj.baseDir,
         reject: false,

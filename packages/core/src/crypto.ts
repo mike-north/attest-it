@@ -372,15 +372,7 @@ export async function sign(options: SignOptions): Promise<string> {
       await fs.writeFile(dataFile, processBuffer)
 
       // Sign using openssl dgst -sha256 (cross-platform compatible)
-      const signArgs = [
-        'dgst',
-        '-sha256',
-        '-sign',
-        effectiveKeyPath,
-        '-out',
-        sigFile,
-        dataFile,
-      ]
+      const signArgs = ['dgst', '-sha256', '-sign', effectiveKeyPath, '-out', sigFile, dataFile]
       const result = await runOpenSSL(signArgs)
 
       if (result.exitCode !== 0) {

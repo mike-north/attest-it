@@ -90,7 +90,9 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
   const [opAvailable, setOpAvailable] = useState(false)
   const [accounts, setAccounts] = useState<OnePasswordAccount[]>([])
   const [vaults, setVaults] = useState<OnePasswordVault[]>([])
-  const [_selectedProvider, setSelectedProvider] = useState<'filesystem' | '1password' | undefined>()
+  const [_selectedProvider, setSelectedProvider] = useState<
+    'filesystem' | '1password' | undefined
+  >()
   const [selectedAccount, setSelectedAccount] = useState<string | undefined>()
   const [selectedVault, setSelectedVault] = useState<string | undefined>()
   const [itemName, setItemName] = useState('attest-it-private-key')

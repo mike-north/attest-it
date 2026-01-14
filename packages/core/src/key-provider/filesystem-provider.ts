@@ -9,10 +9,7 @@
  */
 
 import * as fs from 'node:fs/promises'
-import {
-  generateKeyPair as cryptoGenerateKeyPair,
-  getDefaultPrivateKeyPath,
-} from '../crypto.js'
+import { generateKeyPair as cryptoGenerateKeyPair, getDefaultPrivateKeyPath } from '../crypto.js'
 import type {
   KeyProvider,
   KeyProviderConfig,

@@ -35,8 +35,8 @@ jobs:
         run: |
           mkdir -p test-keys
           node packages/cli/dist/bin/attest-it.js keygen \
-            --output test-keys/private.pem \
-            --public test-keys/public.pem \
+            --private test-keys/private.pem \
+            --output test-keys/public.pem \
             --force
 
       - name: Verify keys exist

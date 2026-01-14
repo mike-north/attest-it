@@ -1,6 +1,6 @@
 ---
-"@attest-it/core": minor
-"@attest-it/cli": minor
+'@attest-it/core': minor
+'@attest-it/cli': minor
 ---
 
 Add 1Password key provider for secure private key storage
@@ -34,7 +34,7 @@ settings:
     options:
       vault: Private
       itemName: attest-it-private-key
-      account: user@example.com  # optional, for multi-account setups
+      account: user@example.com # optional, for multi-account setups
 ```
 
 **Requirements:**
