@@ -5,6 +5,18 @@ settings:
   publicKeyPath: .attest-it/pubkey.pem
   attestationsPath: .attest-it/attestations.json
   defaultCommand: echo "tests passed"
+  # Optional: Configure key storage provider
+  # keyProvider:
+  #   type: filesystem
+  #   options:
+  #     privateKeyPath: .attest-it/private.pem
+  # Or use 1Password:
+  # keyProvider:
+  #   type: 1password
+  #   options:
+  #     account: user@example.com
+  #     vault: Development
+  #     itemName: attest-it-private-key
 
 suites:
   example:

@@ -9,6 +9,25 @@ import { parse as parseYaml } from 'yaml'
 import { z } from 'zod'
 
 /**
+ * Zod schema for key provider configuration.
+ */
+const keyProviderOptionsSchema = z
+  .object({
+    privateKeyPath: z.string().optional(),
+    account: z.string().optional(),
+    vault: z.string().optional(),
+    itemName: z.string().optional(),
+  })
+  .strict()
+
+const keyProviderSchema = z
+  .object({
+    type: z.enum(['filesystem', '1password']).or(z.string()),
+    options: keyProviderOptionsSchema.optional(),
+  })
+  .strict()
+
+/**
  * Zod schema for settings with defaults applied.
  */
 const settingsSchema = z
@@ -17,6 +36,7 @@ const settingsSchema = z
     publicKeyPath: z.string().default('.attest-it/pubkey.pem'),
     attestationsPath: z.string().default('.attest-it/attestations.json'),
     defaultCommand: z.string().optional(),
+    keyProvider: keyProviderSchema.optional(),
     // Note: algorithm field was removed - RSA is the only supported algorithm
   })
   .passthrough()

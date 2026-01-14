@@ -4,7 +4,6 @@
 
 import { Command } from 'commander'
 import { spawn } from 'node:child_process'
-import * as fs from 'node:fs'
 import * as os from 'node:os'
 import { parse as parseShellCommand } from 'shell-quote'
 import {
@@ -15,7 +14,10 @@ import {
   upsertAttestation,
   createAttestation,
   getDefaultPrivateKeyPath,
+  FilesystemKeyProvider,
+  KeyProviderRegistry,
   type Config,
+  type KeyProvider,
 } from '@attest-it/core'
 import { log, success, error, warn, verbose } from '../utils/output.js'
 import { confirmAction } from '../utils/prompts.js'
@@ -410,13 +412,33 @@ async function runSingleSuite(
   // Upsert the new attestation
   const newAttestations = upsertAttestation(existingAttestations, attestation)
 
-  // Get private key path (from config or default)
-  const privateKeyPath = getDefaultPrivateKeyPath()
+  // Set up key provider from config or use default
+  let keyProvider: KeyProvider
+  let keyRef: string
 
-  // Check if private key exists
-  if (!fs.existsSync(privateKeyPath)) {
-    error(`Private key not found: ${privateKeyPath}`)
-    error('Run "attest-it keygen" first to generate a keypair.')
+  if (config.settings.keyProvider) {
+    keyProvider = KeyProviderRegistry.create(config.settings.keyProvider)
+    if (config.settings.keyProvider.type === 'filesystem') {
+      keyRef = config.settings.keyProvider.options?.privateKeyPath ?? getDefaultPrivateKeyPath()
+    } else if (config.settings.keyProvider.type === '1password') {
+      keyRef = config.settings.keyProvider.options?.itemName ?? 'attest-it-private-key'
+    } else {
+      keyRef = ''
+    }
+  } else {
+    // Default to filesystem provider with default path
+    keyProvider = new FilesystemKeyProvider()
+    keyRef = getDefaultPrivateKeyPath()
+  }
+
+  // Check if key exists
+  if (!(await keyProvider.keyExists(keyRef))) {
+    error(`Private key not found in ${keyProvider.displayName}`)
+    if (keyProvider.type === 'filesystem') {
+      error('Run "attest-it keygen" first to generate a keypair.')
+    } else {
+      error('Run "attest-it keygen" to generate and store a key.')
+    }
     process.exit(ExitCode.MISSING_KEY)
   }
 
@@ -424,7 +446,8 @@ async function runSingleSuite(
   await writeSignedAttestations({
     filePath: attestationsPath,
     attestations: newAttestations,
-    privateKeyPath,
+    keyProvider,
+    keyRef,
   })
 
   success(`Attestation created for ${suiteName}`)

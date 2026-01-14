@@ -40,6 +40,42 @@
           "enum": ["ed25519", "rsa"],
           "default": "ed25519",
           "description": "Cryptographic algorithm to use for signatures"
+        },
+        "keyProvider": {
+          "type": "object",
+          "description": "Configuration for the key storage provider",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["filesystem", "1password"],
+              "description": "Key provider type"
+            },
+            "options": {
+              "type": "object",
+              "description": "Provider-specific options",
+              "properties": {
+                "privateKeyPath": {
+                  "type": "string",
+                  "description": "Path to private key file (filesystem provider)"
+                },
+                "account": {
+                  "type": "string",
+                  "description": "1Password account email or ID"
+                },
+                "vault": {
+                  "type": "string",
+                  "description": "1Password vault name"
+                },
+                "itemName": {
+                  "type": "string",
+                  "description": "1Password item name for the private key"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": ["type"],
+          "additionalProperties": false
         }
       },
       "additionalProperties": false

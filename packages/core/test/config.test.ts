@@ -131,6 +131,36 @@ describe('config', () => {
         expect(config.suites.unit?.depends_on).toBeUndefined()
         expect(config.groups).toBeUndefined()
       })
+
+      it('should accept config without keyProvider', async () => {
+        const configPath = path.join(FIXTURES_DIR, 'minimal.yaml')
+        const config = await loadConfig(configPath)
+
+        expect(config.version).toBe(1)
+        expect(config.settings.keyProvider).toBeUndefined()
+      })
+
+      it('should accept filesystem keyProvider', async () => {
+        const configPath = path.join(FIXTURES_DIR, 'with-filesystem-keyprovider.yaml')
+        const config = await loadConfig(configPath)
+
+        expect(config.version).toBe(1)
+        expect(config.settings.keyProvider).toBeDefined()
+        expect(config.settings.keyProvider?.type).toBe('filesystem')
+        expect(config.settings.keyProvider?.options?.privateKeyPath).toBe('/custom/path/private.pem')
+      })
+
+      it('should accept 1password keyProvider', async () => {
+        const configPath = path.join(FIXTURES_DIR, 'with-1password-keyprovider.yaml')
+        const config = await loadConfig(configPath)
+
+        expect(config.version).toBe(1)
+        expect(config.settings.keyProvider).toBeDefined()
+        expect(config.settings.keyProvider?.type).toBe('1password')
+        expect(config.settings.keyProvider?.options?.account).toBe('user@example.com')
+        expect(config.settings.keyProvider?.options?.vault).toBe('Development')
+        expect(config.settings.keyProvider?.options?.itemName).toBe('attest-it-key')
+      })
     })
 
     describe('negative tests', () => {
@@ -423,6 +453,19 @@ extraTopLevel: invalid
         } finally {
           fs.rmSync(tempDir, { recursive: true, force: true })
         }
+      })
+
+      it('should reject keyProvider without type', async () => {
+        const configPath = path.join(FIXTURES_DIR, 'invalid-keyprovider-no-type.yaml')
+
+        await expect(loadConfig(configPath)).rejects.toThrow(ConfigValidationError)
+        await expect(loadConfig(configPath)).rejects.toThrow('type')
+      })
+
+      it('should reject keyProvider with unknown options', async () => {
+        const configPath = path.join(FIXTURES_DIR, 'invalid-keyprovider-unknown-option.yaml')
+
+        await expect(loadConfig(configPath)).rejects.toThrow(ConfigValidationError)
       })
     })
 
@@ -767,6 +810,67 @@ groups:
           const config = await loadConfig(configPath)
           expect(config.groups?.['group-a']).toEqual(['unit'])
           expect(config.groups?.['group-b']).toEqual(['unit'])
+        } finally {
+          fs.rmSync(tempDir, { recursive: true, force: true })
+        }
+      })
+
+      it('should handle keyProvider without options', async () => {
+        const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-config-'))
+        const configPath = path.join(tempDir, 'config.yaml')
+
+        try {
+          fs.writeFileSync(
+            configPath,
+            `
+version: 1
+settings:
+  maxAgeDays: 30
+  publicKeyPath: .attest-it/pubkey.pem
+  attestationsPath: .attest-it/attestations.json
+  keyProvider:
+    type: filesystem
+suites:
+  unit:
+    packages:
+      - '@attest-it/core'
+`,
+          )
+
+          const config = await loadConfig(configPath)
+          expect(config.settings.keyProvider?.type).toBe('filesystem')
+          expect(config.settings.keyProvider?.options).toBeUndefined()
+        } finally {
+          fs.rmSync(tempDir, { recursive: true, force: true })
+        }
+      })
+
+      it('should handle keyProvider with empty options object', async () => {
+        const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-config-'))
+        const configPath = path.join(tempDir, 'config.yaml')
+
+        try {
+          fs.writeFileSync(
+            configPath,
+            `
+version: 1
+settings:
+  maxAgeDays: 30
+  publicKeyPath: .attest-it/pubkey.pem
+  attestationsPath: .attest-it/attestations.json
+  keyProvider:
+    type: filesystem
+    options: {}
+suites:
+  unit:
+    packages:
+      - '@attest-it/core'
+`,
+          )
+
+          const config = await loadConfig(configPath)
+          expect(config.settings.keyProvider?.type).toBe('filesystem')
+          expect(config.settings.keyProvider?.options).toEqual({})
         } finally {
           fs.rmSync(tempDir, { recursive: true, force: true })
         }

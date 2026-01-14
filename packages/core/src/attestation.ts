@@ -309,8 +309,12 @@ export interface WriteSignedAttestationsOptions {
   filePath: string
   /** Array of attestations to write */
   attestations: Attestation[]
-  /** Path to the private key for signing */
-  privateKeyPath: string
+  /** Path to the private key for signing (legacy) */
+  privateKeyPath?: string
+  /** Key provider for signing */
+  keyProvider?: import('./key-provider/types.js').KeyProvider
+  /** Key reference for the provider */
+  keyRef?: string
 }
 
 /**
@@ -340,11 +344,33 @@ export async function writeSignedAttestations(
   // Import sign function here to avoid circular dependency
   const { sign } = await import('./crypto.js')
 
+  const { privateKeyPath, keyProvider, keyRef } = options
+
+  // Validate that we have either legacy path or provider + ref
+  if (!privateKeyPath && (!keyProvider || !keyRef)) {
+    throw new Error(
+      'Either privateKeyPath or both keyProvider and keyRef must be provided for signing',
+    )
+  }
+
   const canonical = canonicalizeAttestations(options.attestations)
-  const signature = await sign({
-    privateKeyPath: options.privateKeyPath,
+
+  // Build sign options, only including defined properties
+  const signOptions: Parameters<typeof sign>[0] = {
     data: canonical,
-  })
+  }
+
+  if (privateKeyPath !== undefined) {
+    signOptions.privateKeyPath = privateKeyPath
+  }
+  if (keyProvider !== undefined) {
+    signOptions.keyProvider = keyProvider
+  }
+  if (keyRef !== undefined) {
+    signOptions.keyRef = keyRef
+  }
+
+  const signature = await sign(signOptions)
   await writeAttestations(options.filePath, options.attestations, signature)
 }
 
