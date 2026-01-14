@@ -3,12 +3,12 @@
   "attestations": [
     {
       "suite": "unit-tests",
-      "fingerprint": "sha256:71df8fb9583814425140c3c1af38be6c7cb05abb0e6aa007653ffe7d8bff1500",
-      "attestedAt": "2026-01-11T20:34:23.956Z",
-      "attestedBy": "test-fixture-generator",
+      "fingerprint": "sha256:744f086a6836bec6695a6d8e8038a88237c9813205e164060fbbfdf8cce699fb",
+      "attestedAt": "2026-01-14T06:35:03.755Z",
+      "attestedBy": "mnorth",
       "command": "echo \"tests passed\"",
       "exitCode": 0
     }
   ],
-  "signature": "WWkscNeGPxwWoCEd3gIrh9UJUDsIv8IZfz1PRtrhQHdFTVCOkqquDgjySValU4DXuQEvTLqScYUunccny2axfBwdIkvvk8huEs2v5Z+XxqNW0vOh1boAe6haeB0O7hUwdNfXgnlaUSjACZfkfaaKsohvWI0gigjyI8XBXArYitRJ33e4d/rd1KnvvU/P7hTSOQfktNl2LJy7AfvcitGJgp22+ntZP8Flr77TeDd+mWkqnTBrREVKt9NFYbLcezQ+quGeyfcyWb4oF5Qgodgc0R+n7nCiBfwYJFlSH7dEpa8BRzv7Qoj0G18RdHJVT/iYTiAEIgZIB5uvmgD1Jvj0tw=="
+  "signature": "KiGSpKZ1pyIVyt1pkWFpYEoXrSlYiS9pqAcH//0vvIf4s9eBs0V4MouVJSiDokT6AJNxHhd6u8q3HV0LigDxQF3kaR31w6W7Hzy1RSvlrVm+d+oNVxmjpGMo0ew1FaMF2eZmVCB1R5bZoyOOqs6CS82KcWpvlTfB/sMFOAR0u+HOj62QN1tCkMtR6r4hUTdlOASdXkZGxVTpT+TjDvt5XXoR09OnyRSiOoB6lTHtSyixZNTLDcdU1v6kfDMBp45/ceDxTp3xaJlrDHAi3gaqjNBccPNBJy1IOp5+8Gygtba4wPsRkjiTrZN7uNKuZB8scyzP02jIk286ZPTNR9qrfw=="
 }
