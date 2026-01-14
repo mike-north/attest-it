@@ -45,7 +45,9 @@ describe('KeygenInteractive', () => {
     it('should show checking spinner initially', () => {
       mockIsInstalled.mockResolvedValue(false)
 
-      render(<KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />)
+      const { lastFrame } = render(
+        <KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />,
+      )
 
       expect(lastFrame()).toContain('Checking for 1Password CLI')
     })
@@ -53,7 +55,9 @@ describe('KeygenInteractive', () => {
     it('should show filesystem option when 1Password not installed', async () => {
       mockIsInstalled.mockResolvedValue(false)
 
-      render(<KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />)
+      const { lastFrame } = render(
+        <KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />,
+      )
 
       // Wait for async state update
       await new Promise((resolve) => setTimeout(resolve, 100))
@@ -75,7 +79,9 @@ describe('KeygenInteractive', () => {
         },
       ])
 
-      render(<KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />)
+      const { lastFrame } = render(
+        <KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />,
+      )
 
       // Wait for async state update
       await new Promise((resolve) => setTimeout(resolve, 100))
@@ -158,7 +164,9 @@ describe('KeygenInteractive', () => {
         { id: 'vault-2', name: 'Development' },
       ])
 
-      render(<KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />)
+      const { lastFrame } = render(
+        <KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />,
+      )
 
       await new Promise((resolve) => setTimeout(resolve, 100))
 
@@ -220,7 +228,9 @@ describe('KeygenInteractive', () => {
       ])
       mockListVaults.mockResolvedValue([{ id: 'vault-1', name: 'Private' }])
 
-      render(<KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />)
+      const { lastFrame } = render(
+        <KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />,
+      )
 
       await new Promise((resolve) => setTimeout(resolve, 100))
 
@@ -232,7 +242,9 @@ describe('KeygenInteractive', () => {
       mockIsInstalled.mockResolvedValue(true)
       mockListAccounts.mockResolvedValue([])
 
-      render(<KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />)
+      const { lastFrame } = render(
+        <KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />,
+      )
 
       await new Promise((resolve) => setTimeout(resolve, 100))
 
@@ -252,7 +264,9 @@ describe('KeygenInteractive', () => {
       ])
       mockListVaults.mockResolvedValue([])
 
-      render(<KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />)
+      const { lastFrame } = render(
+        <KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />,
+      )
 
       await new Promise((resolve) => setTimeout(resolve, 100))
 
