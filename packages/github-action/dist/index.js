@@ -34987,13 +34987,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
    */
   async keyExists(keyRef) {
     try {
-      const args = [
-        "find-generic-password",
-        "-a",
-        _MacOSKeychainKeyProvider.ACCOUNT,
-        "-s",
-        keyRef
-      ];
+      const args = ["find-generic-password", "-a", _MacOSKeychainKeyProvider.ACCOUNT, "-s", keyRef];
       if (this.keychain) {
         args.push(this.keychain);
       }
