@@ -229,21 +229,61 @@ async function getSuiteNames(): Promise<string[]> {
 
 export const completionCommand = new Command('completion').description('Shell completion commands')
 
+/**
+ * Detect the user's current shell from the SHELL environment variable.
+ */
+function detectCurrentShell(): SupportedShell | null {
+  const shellPath = process.env.SHELL ?? ''
+  if (shellPath.endsWith('/bash') || shellPath.endsWith('/bash.exe')) {
+    return 'bash'
+  }
+  if (shellPath.endsWith('/zsh') || shellPath.endsWith('/zsh.exe')) {
+    return 'zsh'
+  }
+  if (shellPath.endsWith('/fish') || shellPath.endsWith('/fish.exe')) {
+    return 'fish'
+  }
+  return null
+}
+
+/**
+ * Get the source command for reloading a shell's config.
+ */
+function getSourceCommand(shell: SupportedShell): string {
+  switch (shell) {
+    case 'bash':
+      return 'source ~/.bashrc'
+    case 'zsh':
+      return 'source ~/.zshrc'
+    case 'fish':
+      return 'source ~/.config/fish/config.fish'
+  }
+}
+
 // Install subcommand
 completionCommand
   .command('install [shell]')
-  .description('Install shell completion (bash, zsh, or fish)')
+  .description('Install shell completion (auto-detects shell, or specify bash/zsh/fish)')
   .action(async (shellArg?: string) => {
     try {
-      // Validate and narrow shell type
-      let shell: 'bash' | 'zsh' | 'fish' | 'pwsh' | undefined
+      let shell: SupportedShell
+
       if (shellArg !== undefined) {
-        if (tabtab.isShellSupported(shellArg)) {
-          shell = shellArg
-        } else {
+        // User explicitly specified a shell
+        if (!tabtab.isShellSupported(shellArg) || shellArg === 'pwsh') {
           error(`Shell "${shellArg}" is not supported. Use bash, zsh, or fish.`)
           process.exit(ExitCode.CONFIG_ERROR)
         }
+        shell = shellArg as SupportedShell
+      } else {
+        // Auto-detect from SHELL environment variable
+        const detected = detectCurrentShell()
+        if (!detected) {
+          error('Could not detect your shell. Please specify: attest-it completion install <bash|zsh|fish>')
+          process.exit(ExitCode.CONFIG_ERROR)
+        }
+        shell = detected
+        info(`Detected shell: ${shell}`)
       }
 
       await tabtab.install({
@@ -253,18 +293,10 @@ completionCommand
       })
 
       log('')
-      success('Shell completion installed!')
+      success(`Shell completion installed for ${shell}!`)
       log('')
       info('Restart your shell or run:')
-      if (shell === 'bash' || !shell) {
-        log('  source ~/.bashrc')
-      }
-      if (shell === 'zsh' || !shell) {
-        log('  source ~/.zshrc')
-      }
-      if (shell === 'fish' || !shell) {
-        log('  source ~/.config/fish/config.fish')
-      }
+      log(`  ${getSourceCommand(shell)}`)
       log('')
     } catch (err) {
       error(`Failed to install completion: ${err instanceof Error ? err.message : String(err)}`)
