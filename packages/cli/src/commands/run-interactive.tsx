@@ -226,7 +226,10 @@ function createAttestationCreator(config: Config): (suite: string) => Promise<vo
     let keyRef: string
 
     if (config.settings.keyProvider) {
-      keyProvider = KeyProviderRegistry.create(config.settings.keyProvider)
+      keyProvider = KeyProviderRegistry.create({
+        type: config.settings.keyProvider.type,
+        options: config.settings.keyProvider.options ?? {},
+      })
       if (config.settings.keyProvider.type === 'filesystem') {
         keyRef = config.settings.keyProvider.options?.privateKeyPath ?? getDefaultPrivateKeyPath()
       } else if (config.settings.keyProvider.type === '1password') {
