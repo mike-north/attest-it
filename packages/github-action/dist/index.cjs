@@ -33,10 +33,10 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// ../../node_modules/.pnpm/tsup@8.5.1_@microsoft+api-extractor@7.55.2_@types+node@22.19.3__jiti@2.6.1_postcss@8.5.6_typescript@5.8.3_yaml@2.8.2/node_modules/tsup/assets/cjs_shims.js
+// ../../node_modules/.pnpm/tsup@8.5.1_@microsoft+api-extractor@7.55.2_@types+node@22.19.3__jiti@2.6.1_postcss@8.5._65dab1016c61d0c054da0a70acdf15cb/node_modules/tsup/assets/cjs_shims.js
 var getImportMetaUrl, importMetaUrl;
 var init_cjs_shims = __esm({
-  "../../node_modules/.pnpm/tsup@8.5.1_@microsoft+api-extractor@7.55.2_@types+node@22.19.3__jiti@2.6.1_postcss@8.5.6_typescript@5.8.3_yaml@2.8.2/node_modules/tsup/assets/cjs_shims.js"() {
+  "../../node_modules/.pnpm/tsup@8.5.1_@microsoft+api-extractor@7.55.2_@types+node@22.19.3__jiti@2.6.1_postcss@8.5._65dab1016c61d0c054da0a70acdf15cb/node_modules/tsup/assets/cjs_shims.js"() {
     "use strict";
     getImportMetaUrl = () => typeof document === "undefined" ? new URL(`file:${__filename}`).href : document.currentScript && document.currentScript.tagName.toUpperCase() === "SCRIPT" ? document.currentScript.src : new URL("main.js", document.baseURI).href;
     importMetaUrl = /* @__PURE__ */ getImportMetaUrl();

@@ -736,9 +736,10 @@ describe('verification edge cases', () => {
 
     const result = verifyGateSeal(config, 'bad-maxage', seals, fingerprint)
 
-    // Should still return VALID but with a warning message
-    expect(result.state).toBe('VALID')
-    expect(result.message).toContain('could not parse maxAge')
+    // Should return STALE (fail closed) when maxAge cannot be parsed
+    // This prevents bypassing staleness checks with invalid maxAge values
+    expect(result.state).toBe('STALE')
+    expect(result.message).toContain('invalid maxAge format')
   })
 
   it('should verify seal just under maxAge boundary', () => {

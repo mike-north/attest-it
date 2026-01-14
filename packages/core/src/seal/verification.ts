@@ -143,12 +143,13 @@ export function verifyGateSeal(
       }
     }
   } catch (error) {
-    // If we can't parse maxAge, treat as an error but don't fail verification
+    // If we can't parse maxAge, fail closed - treat as stale to enforce freshness
+    // This prevents bypassing staleness checks with invalid maxAge values
     return {
       gateId,
-      state: 'VALID',
+      state: 'STALE',
       seal,
-      message: `Warning: could not parse maxAge: ${error instanceof Error ? error.message : String(error)}`,
+      message: `Cannot verify freshness: invalid maxAge format: ${error instanceof Error ? error.message : String(error)}`,
     }
   }
 

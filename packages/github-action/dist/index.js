@@ -37,11 +37,11 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// ../../node_modules/.pnpm/tsup@8.5.1_@microsoft+api-extractor@7.55.2_@types+node@22.19.3__jiti@2.6.1_postcss@8.5.6_typescript@5.8.3_yaml@2.8.2/node_modules/tsup/assets/esm_shims.js
+// ../../node_modules/.pnpm/tsup@8.5.1_@microsoft+api-extractor@7.55.2_@types+node@22.19.3__jiti@2.6.1_postcss@8.5._65dab1016c61d0c054da0a70acdf15cb/node_modules/tsup/assets/esm_shims.js
 import path from "path";
 import { fileURLToPath } from "url";
 var init_esm_shims = __esm({
-  "../../node_modules/.pnpm/tsup@8.5.1_@microsoft+api-extractor@7.55.2_@types+node@22.19.3__jiti@2.6.1_postcss@8.5.6_typescript@5.8.3_yaml@2.8.2/node_modules/tsup/assets/esm_shims.js"() {
+  "../../node_modules/.pnpm/tsup@8.5.1_@microsoft+api-extractor@7.55.2_@types+node@22.19.3__jiti@2.6.1_postcss@8.5._65dab1016c61d0c054da0a70acdf15cb/node_modules/tsup/assets/esm_shims.js"() {
     "use strict";
   }
 });
