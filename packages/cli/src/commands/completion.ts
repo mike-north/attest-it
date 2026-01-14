@@ -275,6 +275,8 @@ completionCommand
   })
 
 // Hidden server subcommand (called by shell for completions)
+// Note: This is kept for backwards compatibility, but tabtab actually
+// calls `attest-it completion-server` (with hyphen) at the top level.
 completionCommand
   .command('server', { hidden: true })
   .description('Completion server (internal)')
@@ -284,3 +286,20 @@ completionCommand
       await getCompletions(env)
     }
   })
+
+/**
+ * Hidden top-level command called by tabtab for shell completions.
+ * tabtab expects `<program> completion-server` (with hyphen) at the root.
+ */
+export const completionServerCommand = new Command('completion-server')
+  .description('Completion server (internal)')
+
+// Hide from help output
+completionServerCommand.helpInformation = () => ''
+
+completionServerCommand.action(async () => {
+  const env = tabtab.parseEnv(process.env)
+  if (env.complete) {
+    await getCompletions(env)
+  }
+})
