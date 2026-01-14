@@ -5,6 +5,7 @@
 import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
+import ms from 'ms'
 import { parse as parseYaml } from 'yaml'
 import { z } from 'zod'
 
@@ -28,6 +29,64 @@ const keyProviderSchema = z
   .strict()
 
 /**
+ * Zod schema for a team member configuration.
+ */
+const teamMemberSchema = z
+  .object({
+    name: z.string().min(1, 'Team member name cannot be empty'),
+    email: z.string().email().optional(),
+    github: z.string().min(1).optional(),
+    publicKey: z.string().min(1, 'Public key is required'),
+  })
+  .strict()
+
+/**
+ * Zod schema for fingerprint configuration.
+ */
+const fingerprintConfigSchema = z
+  .object({
+    paths: z.array(z.string().min(1, 'Path cannot be empty')).min(1, 'At least one path is required'),
+    exclude: z.array(z.string().min(1, 'Exclude pattern cannot be empty')).optional(),
+  })
+  .strict()
+
+/**
+ * Zod schema for duration strings.
+ * Validates and parses duration strings like "30d", "7d", "24h".
+ */
+const durationSchema = z.string().refine(
+  (val) => {
+    try {
+      // Type assertion needed because ms has strict StringValue type
+      // We validate the result is a positive number below
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/consistent-type-assertions
+      const parsed = ms(val as any)
+      return typeof parsed === 'number' && parsed > 0
+    } catch {
+      return false
+    }
+  },
+  {
+    message: 'Duration must be a valid duration string (e.g., "30d", "7d", "24h")',
+  },
+)
+
+/**
+ * Zod schema for a gate configuration.
+ */
+const gateSchema = z
+  .object({
+    name: z.string().min(1, 'Gate name cannot be empty'),
+    description: z.string().min(1, 'Gate description cannot be empty'),
+    authorizedSigners: z
+      .array(z.string().min(1, 'Authorized signer slug cannot be empty'))
+      .min(1, 'At least one authorized signer is required'),
+    fingerprint: fingerprintConfigSchema,
+    maxAge: durationSchema,
+  })
+  .strict()
+
+/**
  * Zod schema for settings with defaults applied.
  */
 const settingsSchema = z
@@ -43,20 +102,36 @@ const settingsSchema = z
 
 /**
  * Zod schema for a suite configuration.
+ * Suites are CLI-layer extensions of gates with command execution capabilities.
+ * For backward compatibility, suites can define their own fingerprint via packages/files/ignore.
  */
 const suiteSchema = z
   .object({
+    // Gate fields (if present, this suite references a gate)
+    gate: z.string().optional(),
+    // Legacy fingerprint definition (for backward compatibility)
     description: z.string().optional(),
-    packages: z
-      .array(z.string().min(1, 'Package path cannot be empty'))
-      .min(1, 'At least one package pattern is required'),
+    packages: z.array(z.string().min(1, 'Package path cannot be empty')).optional(),
     files: z.array(z.string().min(1, 'File path cannot be empty')).optional(),
     ignore: z.array(z.string().min(1, 'Ignore pattern cannot be empty')).optional(),
+    // CLI-specific fields
     command: z.string().optional(),
+    timeout: z.string().optional(),
+    interactive: z.boolean().optional(),
+    // Relationship fields
     invalidates: z.array(z.string().min(1, 'Invalidated suite name cannot be empty')).optional(),
     depends_on: z.array(z.string().min(1, 'Dependency suite name cannot be empty')).optional(),
   })
   .strict()
+  .refine(
+    (suite) => {
+      // Either gate is specified, or packages is specified (for legacy compatibility)
+      return suite.gate !== undefined || (suite.packages !== undefined && suite.packages.length > 0)
+    },
+    {
+      message: 'Suite must either reference a gate or define packages for fingerprinting',
+    },
+  )
 
 /**
  * Zod schema for the full configuration file.
@@ -65,6 +140,8 @@ const configSchema = z
   .object({
     version: z.literal(1),
     settings: settingsSchema.default({}),
+    team: z.record(z.string(), teamMemberSchema).optional(),
+    gates: z.record(z.string(), gateSchema).optional(),
     suites: z.record(z.string(), suiteSchema).refine((suites) => Object.keys(suites).length >= 1, {
       message: 'At least one suite must be defined',
     }),
@@ -293,30 +370,59 @@ export function resolveConfigPaths(config: Config, repoRoot: string): Config {
  * @public
  */
 export function toAttestItConfig(config: Config): import('./types.js').AttestItConfig {
-  return {
+  const result: import('./types.js').AttestItConfig = {
     version: config.version,
     settings: {
       maxAgeDays: config.settings.maxAgeDays,
       publicKeyPath: config.settings.publicKeyPath,
       attestationsPath: config.settings.attestationsPath,
-      ...(config.settings.defaultCommand !== undefined && {
-        defaultCommand: config.settings.defaultCommand,
-      }),
     },
-    suites: Object.fromEntries(
-      Object.entries(config.suites).map(([name, suite]) => [
-        name,
-        {
-          packages: suite.packages,
-          ...(suite.description !== undefined && { description: suite.description }),
-          ...(suite.files !== undefined && { files: suite.files }),
-          ...(suite.ignore !== undefined && { ignore: suite.ignore }),
-          ...(suite.command !== undefined && { command: suite.command }),
-          ...(suite.invalidates !== undefined && { invalidates: suite.invalidates }),
-          ...(suite.depends_on !== undefined && { depends_on: suite.depends_on }),
-        },
-      ]),
-    ),
-    ...(config.groups !== undefined && { groups: config.groups }),
+    suites: {},
   }
+
+  // Add optional settings fields
+  if (config.settings.defaultCommand !== undefined) {
+    result.settings.defaultCommand = config.settings.defaultCommand
+  }
+  if (config.settings.keyProvider !== undefined) {
+    result.settings.keyProvider = {
+      type: config.settings.keyProvider.type,
+      ...(config.settings.keyProvider.options !== undefined && {
+        options: config.settings.keyProvider.options,
+      }),
+    }
+  }
+
+  // Add optional top-level fields
+  if (config.team !== undefined) {
+    result.team = config.team
+  }
+  if (config.gates !== undefined) {
+    result.gates = config.gates
+  }
+  if (config.groups !== undefined) {
+    result.groups = config.groups
+  }
+
+  // Map suites
+  result.suites = Object.fromEntries(
+    Object.entries(config.suites).map(([name, suite]) => {
+      const mappedSuite: import('./types.js').SuiteConfig = {}
+
+      if (suite.gate !== undefined) mappedSuite.gate = suite.gate
+      if (suite.packages !== undefined) mappedSuite.packages = suite.packages
+      if (suite.description !== undefined) mappedSuite.description = suite.description
+      if (suite.files !== undefined) mappedSuite.files = suite.files
+      if (suite.ignore !== undefined) mappedSuite.ignore = suite.ignore
+      if (suite.command !== undefined) mappedSuite.command = suite.command
+      if (suite.timeout !== undefined) mappedSuite.timeout = suite.timeout
+      if (suite.interactive !== undefined) mappedSuite.interactive = suite.interactive
+      if (suite.invalidates !== undefined) mappedSuite.invalidates = suite.invalidates
+      if (suite.depends_on !== undefined) mappedSuite.depends_on = suite.depends_on
+
+      return [name, mappedSuite]
+    }),
+  )
+
+  return result
 }

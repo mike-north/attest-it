@@ -81,7 +81,7 @@ async function runPrune(options: PruneOptions): Promise<void> {
       let fingerprintMatches = false
       if (suiteExists) {
         const suiteConfig = config.suites[attestation.suite]
-        if (suiteConfig) {
+        if (suiteConfig?.packages) {
           const fingerprintOptions = {
             packages: suiteConfig.packages,
             ...(suiteConfig.ignore && { ignore: suiteConfig.ignore }),

@@ -1,0 +1,8 @@
+activeIdentity: default
+identities:
+  default:
+    name: default
+    publicKey: ""
+    privateKey:
+      type: file
+      path: /path/to/key

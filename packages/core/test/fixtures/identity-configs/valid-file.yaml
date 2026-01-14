@@ -1,0 +1,10 @@
+activeIdentity: default
+identities:
+  default:
+    name: default
+    email: user@example.com
+    github: testuser
+    publicKey: AbCdEfGhIjKlMnOpQrStUvWxYz1234567890=
+    privateKey:
+      type: file
+      path: /home/user/.ssh/attest-it.key

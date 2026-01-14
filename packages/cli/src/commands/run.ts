@@ -8,7 +8,9 @@ import * as os from 'node:os'
 import { parse as parseShellCommand } from 'shell-quote'
 import {
   loadConfig,
+  toAttestItConfig,
   computeFingerprint,
+  computeFingerprintSync,
   readAttestations,
   writeSignedAttestations,
   upsertAttestation,
@@ -16,8 +18,15 @@ import {
   getDefaultPrivateKeyPath,
   FilesystemKeyProvider,
   KeyProviderRegistry,
+  loadLocalConfigSync,
+  getActiveIdentity,
+  isAuthorizedSigner,
+  createSeal,
+  readSealsSync,
+  writeSealsSync,
   type Config,
   type KeyProvider,
+  type Identity,
 } from '@attest-it/core'
 import { log, success, error, warn, verbose } from '../utils/output.js'
 import { confirmAction } from '../utils/prompts.js'
@@ -348,6 +357,11 @@ async function runSingleSuite(
     process.exit(ExitCode.CONFIG_ERROR)
   }
 
+  if (!suiteConfig.packages) {
+    error(`Suite "${suiteName}" has no packages defined`)
+    process.exit(ExitCode.CONFIG_ERROR)
+  }
+
   log(`\n=== Running suite: ${suiteName} ===\n`)
 
   // Compute fingerprint before running
@@ -452,6 +466,183 @@ async function runSingleSuite(
   log(`  Fingerprint: ${fingerprintResult.fingerprint}`)
   log(`  Attested by: ${attestation.attestedBy}`)
   log(`  Attested at: ${attestation.attestedAt}`)
+
+  // Check if this suite has a linked gate, and if so, prompt for seal
+  if (suiteConfig.gate) {
+    await promptForSeal(suiteName, suiteConfig.gate, config)
+  }
+}
+
+/**
+ * Prompt for seal creation after successful suite execution.
+ *
+ * @param suiteName - Name of the suite that was executed
+ * @param gateId - ID of the gate linked to the suite
+ * @param config - Configuration object
+ */
+async function promptForSeal(
+  suiteName: string,
+  gateId: string,
+  config: Config,
+): Promise<void> {
+  log('')
+  log(`Suite '${suiteName}' is linked to gate '${gateId}'`)
+
+  // Load local identity config
+  const localConfig = loadLocalConfigSync()
+  if (!localConfig) {
+    warn('No local identity configuration found - cannot create seal')
+    warn('Run "attest-it keygen" to set up your identity')
+    return
+  }
+
+  // Get active identity
+  const identity = getActiveIdentity(localConfig)
+  if (!identity) {
+    warn(`Active identity '${localConfig.activeIdentity}' not found in local config`)
+    return
+  }
+
+  // Convert to AttestItConfig
+  const attestItConfig = toAttestItConfig(config)
+
+  // Check if user is authorized to seal this gate
+  const authorized = isAuthorizedSigner(attestItConfig, gateId, identity.publicKey)
+  if (!authorized) {
+    warn(`You are not authorized to seal gate '${gateId}'`)
+    return
+  }
+
+  // Prompt for seal confirmation
+  const shouldSeal = await confirmAction({
+    message: `Create seal for gate '${gateId}'`,
+    default: true,
+  })
+
+  if (!shouldSeal) {
+    log('Seal creation skipped')
+    return
+  }
+
+  try {
+    // Get gate config
+    if (!attestItConfig.gates?.[gateId]) {
+      error(`Gate '${gateId}' not found in configuration`)
+      return
+    }
+
+    // eslint-disable-next-line security/detect-object-injection
+    const gate = attestItConfig.gates[gateId]
+
+    // Compute fingerprint for the gate
+    const gateFingerprint = computeFingerprintSync({
+      packages: gate.fingerprint.paths,
+      ...(gate.fingerprint.exclude && { ignore: gate.fingerprint.exclude }),
+    })
+
+    // Create key provider from identity's private key reference
+    const keyProvider = createKeyProviderFromIdentity(identity)
+    const keyRef = getKeyRefFromIdentity(identity)
+
+    // Get private key from provider
+    const keyResult = await keyProvider.getPrivateKey(keyRef)
+
+    // Read the key file content
+    const fs = await import('node:fs/promises')
+    const privateKeyPem = await fs.readFile(keyResult.keyPath, 'utf8')
+
+    // Clean up after reading
+    await keyResult.cleanup()
+
+    // Create seal
+    const seal = createSeal({
+      gateId,
+      fingerprint: gateFingerprint.fingerprint,
+      sealedBy: identity.name,
+      privateKey: privateKeyPem,
+    })
+
+    // Read existing seals
+    const projectRoot = process.cwd()
+    const sealsFile = readSealsSync(projectRoot)
+
+    // Add seal to seals file
+    // eslint-disable-next-line security/detect-object-injection
+    sealsFile.seals[gateId] = seal
+
+    // Write seals file
+    writeSealsSync(projectRoot, sealsFile)
+
+    success(`Seal created for gate '${gateId}'`)
+    log(`  Sealed by: ${identity.name}`)
+    log(`  Timestamp: ${seal.timestamp}`)
+  } catch (err) {
+    if (err instanceof Error) {
+      error(`Failed to create seal: ${err.message}`)
+    } else {
+      error('Failed to create seal: Unknown error')
+    }
+  }
+}
+
+/**
+ * Create a key provider from an identity's private key reference.
+ *
+ * @param identity - The identity containing the private key reference
+ * @returns A key provider instance
+ */
+function createKeyProviderFromIdentity(identity: Identity): ReturnType<typeof KeyProviderRegistry.create> {
+  const { privateKey } = identity
+
+  switch (privateKey.type) {
+    case 'file':
+      return KeyProviderRegistry.create({
+        type: 'filesystem',
+        options: { privateKeyPath: privateKey.path },
+      })
+    case 'keychain':
+      return KeyProviderRegistry.create({
+        type: 'macos-keychain',
+        options: {
+          service: privateKey.service,
+          account: privateKey.account,
+        },
+      })
+    case '1password':
+      return KeyProviderRegistry.create({
+        type: '1password',
+        options: {
+          account: privateKey.account,
+          vault: privateKey.vault,
+          itemName: privateKey.item,
+          field: privateKey.field,
+        },
+      })
+    default:
+      // This should never happen due to TypeScript's discriminated union
+      throw new Error(`Unsupported private key type: ${(privateKey as { type: string }).type}`)
+  }
+}
+
+/**
+ * Get the key reference string from an identity's private key reference.
+ *
+ * @param identity - The identity containing the private key reference
+ * @returns The key reference string
+ */
+function getKeyRefFromIdentity(identity: Identity): string {
+  const { privateKey } = identity
+
+  switch (privateKey.type) {
+    case 'file':
+      return privateKey.path
+    case 'keychain':
+      return `${privateKey.service}:${privateKey.account}`
+    case '1password':
+      return privateKey.item
+    default:
+      throw new Error(`Unsupported private key type: ${(privateKey as { type: string }).type}`)
+  }
 }
 
 // Export for testing

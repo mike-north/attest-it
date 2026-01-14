@@ -25,9 +25,11 @@ export interface AttestationsFile {
 
 // @public
 export interface AttestItConfig {
+    gates?: Record<string, GateConfig>;
     groups?: Record<string, string[]>;
     settings: AttestItSettings;
     suites: Record<string, SuiteConfig>;
+    team?: Record<string, TeamMember>;
     version: 1;
 }
 
@@ -78,10 +80,27 @@ export function createAttestation(params: {
 }): Attestation;
 
 // @public
+export function createSeal(options: CreateSealOptions): Seal;
+
+// @public
+export interface CreateSealOptions {
+    fingerprint: string;
+    gateId: string;
+    privateKey: string;
+    sealedBy: string;
+}
+
+// @public
 export interface CryptoVerifyOptions {
     data: Buffer | string;
     publicKeyPath: string;
     signature: string;
+}
+
+// @public
+export interface Ed25519KeyPair {
+    privateKey: string;
+    publicKey: string;
 }
 
 // @public
@@ -110,6 +129,15 @@ export function findAttestation(attestations: AttestationsFile, suite: string): 
 export function findConfigPath(startDir?: string): null | string;
 
 // @public
+export function findTeamMemberByPublicKey(config: AttestItConfig, publicKey: string): TeamMember | undefined;
+
+// @public
+export interface FingerprintConfig {
+    exclude?: string[] | undefined;
+    paths: string[];
+}
+
+// @public
 export interface FingerprintOptions {
     baseDir?: string;
     ignore?: string[];
@@ -124,13 +152,60 @@ export interface FingerprintResult {
 }
 
 // @public
+export interface GateConfig {
+    authorizedSigners: string[];
+    description: string;
+    fingerprint: FingerprintConfig;
+    maxAge: string;
+    name: string;
+}
+
+// @public
+export interface GateSealVerificationResult {
+    gateId: string;
+    message?: string;
+    seal?: Seal;
+    state: VerificationState;
+}
+
+// @public
+export function generateEd25519KeyPair(): Ed25519KeyPair;
+
+// @public
 export function generateKeyPair(options?: KeygenOptions): Promise<KeyPaths>;
+
+// @public
+export function getActiveIdentity(config: LocalConfig): Identity | undefined;
+
+// @public
+export function getAuthorizedSignersForGate(config: AttestItConfig, gateId: string): TeamMember[];
 
 // @public
 export function getDefaultPrivateKeyPath(): string;
 
 // @public
 export function getDefaultPublicKeyPath(): string;
+
+// @public
+export function getGate(config: AttestItConfig, gateId: string): GateConfig | undefined;
+
+// @public
+export function getLocalConfigPath(): string;
+
+// @public
+export function getPublicKeyFromPrivate(privateKeyPem: string): string;
+
+// @public
+export interface Identity {
+    email?: string;
+    github?: string;
+    name: string;
+    privateKey: PrivateKeyRef;
+    publicKey: string;
+}
+
+// @public
+export function isAuthorizedSigner(config: AttestItConfig, gateId: string, publicKey: string): boolean;
 
 // @public
 export interface KeyGenerationResult {
@@ -188,11 +263,11 @@ export class KeyProviderRegistry {
 // @public
 export interface KeyProviderSettings {
     options?: {
-        account?: string;
-        itemName?: string;
-        privateKeyPath?: string;
-        vault?: string;
-    };
+        account?: string | undefined;
+        itemName?: string | undefined;
+        privateKeyPath?: string | undefined;
+        vault?: string | undefined;
+    } | undefined;
     type: string;
 }
 
@@ -210,6 +285,25 @@ export function loadConfig(configPath?: string): Promise<Config>;
 
 // @public
 export function loadConfigSync(configPath?: string): Config;
+
+// @public
+export function loadLocalConfig(configPath?: string): Promise<LocalConfig | null>;
+
+// @public
+export function loadLocalConfigSync(configPath?: string): LocalConfig | null;
+
+// @public
+export interface LocalConfig {
+    activeIdentity: string;
+    identities: Record<string, Identity>;
+}
+
+// @public
+export class LocalConfigValidationError extends Error {
+    constructor(message: string, issues: z.ZodIssue[]);
+    // (undocumented)
+    readonly issues: z.ZodIssue[];
+}
 
 // @public
 export class MacOSKeychainKeyProvider implements KeyProvider {
@@ -270,6 +364,25 @@ export interface OnePasswordVault {
 }
 
 // @public
+export function parseDuration(duration: string): number;
+
+// @public
+export type PrivateKeyRef = {
+    account: string;
+    service: string;
+    type: 'keychain';
+} | {
+    account?: string;
+    field?: string;
+    item: string;
+    type: '1password';
+    vault: string;
+} | {
+    path: string;
+    type: 'file';
+};
+
+// @public
 export function readAndVerifyAttestations(options: ReadSignedAttestationsOptions): Promise<AttestationsFile>;
 
 // @public
@@ -277,6 +390,12 @@ export function readAttestations(filePath: string): Promise<AttestationsFile | n
 
 // @public
 export function readAttestationsSync(filePath: string): AttestationsFile | null;
+
+// @public
+export function readSeals(dir: string): Promise<SealsFile>;
+
+// @public
+export function readSealsSync(dir: string): SealsFile;
 
 // @public
 export interface ReadSignedAttestationsOptions {
@@ -291,6 +410,33 @@ export function removeAttestation(attestations: Attestation[], suite: string): A
 export function resolveConfigPaths(config: Config, repoRoot: string): Config;
 
 // @public
+export function saveLocalConfig(config: LocalConfig, configPath?: string): Promise<void>;
+
+// @public
+export function saveLocalConfigSync(config: LocalConfig, configPath?: string): void;
+
+// @public
+export interface Seal {
+    fingerprint: string;
+    gateId: string;
+    sealedBy: string;
+    signature: string;
+    timestamp: string;
+}
+
+// @public
+export interface SealsFile {
+    seals: Record<string, Seal>;
+    version: 1;
+}
+
+// @public
+export interface SealVerificationResult {
+    error?: string;
+    valid: boolean;
+}
+
+// @public
 export function setKeyPermissions(keyPath: string): Promise<void>;
 
 // @public
@@ -300,6 +446,9 @@ export function sign(options: SignOptions): Promise<string>;
 export class SignatureInvalidError extends Error {
     constructor(filePath: string);
 }
+
+// @public
+export function signEd25519(data: Buffer | string, privateKeyPem: string): string;
 
 // @public
 export interface SignOptions {
@@ -315,9 +464,12 @@ export interface SuiteConfig {
     depends_on?: string[];
     description?: string;
     files?: string[];
+    gate?: string;
     ignore?: string[];
+    interactive?: boolean;
     invalidates?: string[];
-    packages: string[];
+    packages?: string[];
+    timeout?: string;
 }
 
 // @public
@@ -332,10 +484,21 @@ export interface SuiteVerificationResult {
 }
 
 // @public
+export interface TeamMember {
+    email?: string | undefined;
+    github?: string | undefined;
+    name: string;
+    publicKey: string;
+}
+
+// @public
 export function toAttestItConfig(config: Config): AttestItConfig;
 
 // @public
 export function upsertAttestation(attestations: Attestation[], newAttestation: Attestation): Attestation[];
+
+// @public
+export type VerificationState = 'FINGERPRINT_MISMATCH' | 'INVALID_SIGNATURE' | 'MISSING' | 'STALE' | 'UNKNOWN_SIGNER' | 'VALID';
 
 // @public
 export type VerificationStatus = 'EXPIRED' | 'FINGERPRINT_CHANGED' | 'INVALIDATED_BY_PARENT' | 'NEEDS_ATTESTATION' | 'SIGNATURE_INVALID' | 'VALID';
@@ -344,7 +507,16 @@ export type VerificationStatus = 'EXPIRED' | 'FINGERPRINT_CHANGED' | 'INVALIDATE
 export function verify(options: CryptoVerifyOptions): Promise<boolean>;
 
 // @public
+export function verifyAllSeals(config: AttestItConfig, seals: SealsFile, fingerprints: Record<string, string>): GateSealVerificationResult[];
+
+// @public
 export function verifyAttestations(options: VerifyOptions): Promise<VerifyResult>;
+
+// @public
+export function verifyEd25519(data: Buffer | string, signature: string, publicKeyBase64: string): boolean;
+
+// @public
+export function verifyGateSeal(config: AttestItConfig, gateId: string, seals: SealsFile, currentFingerprint: string): GateSealVerificationResult;
 
 // @public
 export interface VerifyOptions {
@@ -361,6 +533,9 @@ export interface VerifyResult {
 }
 
 // @public
+export function verifySeal(seal: Seal, config: AttestItConfig): SealVerificationResult;
+
+// @public
 export const version = "0.0.0";
 
 // @public
@@ -368,6 +543,12 @@ export function writeAttestations(filePath: string, attestations: Attestation[],
 
 // @public
 export function writeAttestationsSync(filePath: string, attestations: Attestation[], signature: string): void;
+
+// @public
+export function writeSeals(dir: string, sealsFile: SealsFile): Promise<void>;
+
+// @public
+export function writeSealsSync(dir: string, sealsFile: SealsFile): void;
 
 // @public
 export function writeSignedAttestations(options: WriteSignedAttestationsOptions): Promise<void>;

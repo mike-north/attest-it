@@ -128,7 +128,7 @@ interface VerifySuiteOptions {
   /** Name of the suite */
   suiteName: string
   /** Suite configuration */
-  suiteConfig: { packages: string[]; ignore?: string[] }
+  suiteConfig: { packages?: string[]; ignore?: string[] }
   /** All attestations from the attestations file */
   attestations: Attestation[]
   /** Maximum age in days before attestation expires */
@@ -143,6 +143,17 @@ interface VerifySuiteOptions {
  */
 async function verifySuite(options: VerifySuiteOptions): Promise<SuiteVerificationResult> {
   const { suiteName, suiteConfig, attestations, maxAgeDays, repoRoot } = options
+
+  // Validate that packages is defined (required for legacy verification)
+  // Note: For gate-based verification, use the seal system functions instead
+  if (!suiteConfig.packages || suiteConfig.packages.length === 0) {
+    return {
+      suite: suiteName,
+      status: 'NEEDS_ATTESTATION',
+      fingerprint: '',
+      message: 'Suite configuration missing packages field',
+    }
+  }
 
   // Compute current fingerprint
   const fingerprintOptions = {

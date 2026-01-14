@@ -5,6 +5,10 @@ import { runCommand } from './commands/run.js'
 import { keygenCommand } from './commands/keygen.js'
 import { pruneCommand } from './commands/prune.js'
 import { verifyCommand } from './commands/verify.js'
+import { sealCommand } from './commands/seal.js'
+import { identityCommand } from './commands/identity/index.js'
+import { whoamiCommand } from './commands/whoami.js'
+import { teamCommand } from './commands/team/index.js'
 import { setOutputOptions, initTheme } from './utils/output.js'
 import { readFileSync } from 'fs'
 import { fileURLToPath } from 'url'
@@ -81,6 +85,10 @@ program.addCommand(runCommand)
 program.addCommand(keygenCommand)
 program.addCommand(pruneCommand)
 program.addCommand(verifyCommand)
+program.addCommand(sealCommand)
+program.addCommand(identityCommand)
+program.addCommand(teamCommand)
+program.addCommand(whoamiCommand)
 
 export async function run(): Promise<void> {
   // Check for --version flag before initializing theme or doing other work

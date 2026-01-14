@@ -2,10 +2,13 @@ import { Command } from 'commander'
 import {
   loadConfig,
   toAttestItConfig,
-  verifyAttestations,
-  type Config,
-  type VerifyResult,
-  type SuiteVerificationResult,
+  computeFingerprintSync,
+  readSealsSync,
+  verifyAllSeals,
+  verifyGateSeal,
+  type VerificationState,
+  type Seal,
+  type GateSealVerificationResult,
 } from '@attest-it/core'
 import {
   log,
@@ -13,107 +16,112 @@ import {
   error,
   warn,
   formatTable,
-  colorizeStatus,
   outputJson,
   type TableRow,
 } from '../utils/output.js'
 import { ExitCode } from '../utils/exit-codes.js'
 
 export const verifyCommand = new Command('verify')
-  .description('Verify all attestations (for CI)')
-  .option('-s, --suite <name>', 'Verify specific suite only')
+  .description('Verify all gate seals (for CI)')
+  .argument('[gates...]', 'Verify specific gates only')
   .option('--json', 'Output JSON for machine parsing')
-  .option('--strict', 'Fail on warnings (approaching expiry)')
-  .action(async (options: VerifyOptions) => {
-    await runVerify(options)
+  .action(async (gates: string[], options: VerifyOptions) => {
+    await runVerify(gates, options)
   })
 
 interface VerifyOptions {
-  suite?: string
   json?: boolean
-  strict?: boolean
 }
 
 /**
- * Run the verify command to validate attestations.
+ * Run the verify command to validate gate seals.
  *
- * Verifies signature validity and checks attestation status for all suites
- * or a specific suite. Intended for CI/CD pipelines.
+ * Verifies signature validity and checks seal status for all gates
+ * or specific gates. Intended for CI/CD pipelines.
  *
+ * @param gates - Array of gate IDs to verify, or empty for all gates
  * @param options - Command options
- * @param options.suite - Verify specific suite only
  * @param options.json - Output JSON for machine parsing
- * @param options.strict - Fail on warnings (approaching expiry)
  * @public
  */
-async function runVerify(options: VerifyOptions): Promise<void> {
+async function runVerify(gates: string[], options: VerifyOptions): Promise<void> {
   try {
     // Load config
     const config = await loadConfig()
+    const attestItConfig = toAttestItConfig(config)
 
-    // Filter to specific suite if requested
-    if (options.suite) {
-      if (!config.suites[options.suite]) {
-        error(`Suite "${options.suite}" not found in config`)
-        process.exit(ExitCode.CONFIG_ERROR)
-      }
-      // Create filtered config
-      const filteredSuiteEntry = config.suites[options.suite]
-      if (!filteredSuiteEntry) {
-        error(`Suite "${options.suite}" not found in config`)
-        process.exit(ExitCode.CONFIG_ERROR)
-      }
-      const filteredConfig: Config = {
-        version: config.version,
-        settings: config.settings,
-        suites: { [options.suite]: filteredSuiteEntry },
-      }
-
-      // Run verification with filtered config, converting from Zod Config to AttestItConfig
-      const result = await verifyAttestations({ config: toAttestItConfig(filteredConfig) })
-
-      // Output results
-      if (options.json) {
-        outputJson(result)
-      } else {
-        displayResults(result, filteredConfig.settings.maxAgeDays, options.strict)
-      }
-
-      // Determine exit code
-      if (!result.success) {
-        process.exit(ExitCode.FAILURE)
-        return
-      }
-
-      if (options.strict && hasWarnings(result, filteredConfig.settings.maxAgeDays)) {
-        process.exit(ExitCode.FAILURE)
-        return
-      }
-
-      process.exit(ExitCode.SUCCESS)
-      return
+    // Check if gates are defined
+    if (!attestItConfig.gates || Object.keys(attestItConfig.gates).length === 0) {
+      error('No gates defined in configuration')
+      process.exit(ExitCode.CONFIG_ERROR)
     }
 
-    // Run verification with full config, converting from Zod Config to AttestItConfig
-    const result = await verifyAttestations({ config: toAttestItConfig(config) })
+    // Read seals
+    const projectRoot = process.cwd()
+    const sealsFile = readSealsSync(projectRoot)
+
+    // Determine which gates to verify
+    const gatesToVerify = gates.length > 0 ? gates : Object.keys(attestItConfig.gates)
+
+    // Validate that specified gates exist
+    for (const gateId of gatesToVerify) {
+      // eslint-disable-next-line security/detect-object-injection
+      if (!attestItConfig.gates[gateId]) {
+        error(`Gate '${gateId}' not found in configuration`)
+        process.exit(ExitCode.CONFIG_ERROR)
+      }
+    }
+
+    // Compute fingerprints for all gates
+    const fingerprints: Record<string, string> = {}
+    for (const gateId of gatesToVerify) {
+      // eslint-disable-next-line security/detect-object-injection
+      const gate = attestItConfig.gates[gateId]
+      if (!gate) continue
+
+      const result = computeFingerprintSync({
+        packages: gate.fingerprint.paths,
+        ...(gate.fingerprint.exclude && { ignore: gate.fingerprint.exclude }),
+      })
+      // eslint-disable-next-line security/detect-object-injection
+      fingerprints[gateId] = result.fingerprint
+    }
+
+    // Verify seals
+    const results =
+      gates.length > 0
+        ? gatesToVerify.map((gateId) =>
+            // eslint-disable-next-line security/detect-object-injection
+            verifyGateSeal(attestItConfig, gateId, sealsFile, fingerprints[gateId] ?? ''),
+          )
+        : verifyAllSeals(attestItConfig, sealsFile, fingerprints)
 
     // Output results
     if (options.json) {
-      outputJson(result)
+      outputJson(results)
     } else {
-      displayResults(result, config.settings.maxAgeDays, options.strict)
+      displayResults(results)
     }
 
     // Determine exit code
-    if (!result.success) {
-      process.exit(ExitCode.FAILURE)
-    }
+    const hasInvalid = results.some(
+      (r) =>
+        r.state === 'MISSING' ||
+        r.state === 'FINGERPRINT_MISMATCH' ||
+        r.state === 'INVALID_SIGNATURE' ||
+        r.state === 'UNKNOWN_SIGNER',
+    )
 
-    if (options.strict && hasWarnings(result, config.settings.maxAgeDays)) {
-      process.exit(ExitCode.FAILURE)
-    }
+    const hasStale = results.some((r) => r.state === 'STALE')
 
-    process.exit(ExitCode.SUCCESS)
+    if (hasInvalid) {
+      process.exit(ExitCode.FAILURE)
+    } else if (hasStale) {
+      // Stale seals are warnings but not failures
+      process.exit(ExitCode.SUCCESS)
+    } else {
+      process.exit(ExitCode.SUCCESS)
+    }
   } catch (err) {
     if (err instanceof Error) {
       error(err.message)
@@ -127,117 +135,131 @@ async function runVerify(options: VerifyOptions): Promise<void> {
 /**
  * Display verification results in a formatted table.
  *
- * Shows signature status, errors, suite results, and remediation steps.
+ * Shows verification state, seal metadata, and remediation steps.
  *
- * @param result - Verification result from verifyAttestations
- * @param maxAgeDays - Maximum age in days before expiry
- * @param strict - Whether to show warnings as errors
+ * @param results - Verification results from verifyAllSeals or verifyGateSeal
  * @public
  */
-function displayResults(result: VerifyResult, maxAgeDays: number, strict?: boolean): void {
+function displayResults(results: GateSealVerificationResult[]): void {
   log('')
 
-  // Signature status
-  if (!result.signatureValid) {
-    error('Signature verification FAILED')
-    log('The attestations file may have been tampered with.')
-    log('')
-  }
-
-  // Errors
-  for (const errorMsg of result.errors) {
-    error(errorMsg)
-  }
-  if (result.errors.length > 0) {
-    log('')
-  }
-
-  // Suite results as table
-  const tableRows: TableRow[] = result.suites.map((s) => ({
-    suite: s.suite,
-    status: colorizeStatus(s.status),
-    fingerprint: s.fingerprint.slice(0, 16) + '...',
-    age: formatAgeColumn(s),
+  // Build table rows
+  const tableRows: TableRow[] = results.map((r) => ({
+    suite: r.gateId,
+    status: colorizeState(r.state),
+    fingerprint: formatFingerprint(r),
+    age: formatAge(r),
   }))
 
   log(formatTable(tableRows))
   log('')
 
-  // Summary
-  if (result.success) {
-    success('All attestations valid')
-  } else {
-    // Show remediation steps
-    const needsAttestation = result.suites.filter((s) => s.status !== 'VALID')
-
-    if (needsAttestation.length > 0) {
-      log('Remediation:')
-      for (const suite of needsAttestation) {
-        log(`  attest-it run --suite ${suite.suite}`)
-        if (suite.message) {
-          log(`    ${suite.message}`)
-        }
-      }
-    }
-  }
-
-  // Warnings (approaching expiry)
-  const warningThreshold = 7 // days before expiry to warn
-  const nearExpiry = result.suites.filter(
-    (s) => s.status === 'VALID' && (s.age ?? 0) > maxAgeDays - warningThreshold,
+  // Show messages for any gates with issues
+  const withIssues = results.filter(
+    (r) =>
+      r.state !== 'VALID' &&
+      r.state !== 'STALE' && // STALE gets its own warning below
+      r.message,
   )
 
-  if (nearExpiry.length > 0) {
+  if (withIssues.length > 0) {
+    for (const result of withIssues) {
+      if (result.message) {
+        log(`${result.gateId}: ${result.message}`)
+      }
+    }
     log('')
-    for (const suite of nearExpiry) {
-      warn(`${suite.suite} attestation approaching expiry (${String(suite.age)} days old)`)
+  }
+
+  // Summary
+  const validCount = results.filter((r) => r.state === 'VALID').length
+  const staleCount = results.filter((r) => r.state === 'STALE').length
+  const invalidCount = results.length - validCount - staleCount
+
+  if (invalidCount === 0 && staleCount === 0) {
+    success('All gate seals valid')
+  } else {
+    if (invalidCount > 0) {
+      error(`${invalidCount} gate(s) have invalid or missing seals`)
+      log('Run `attest-it seal` to create seals for these gates')
     }
-    if (strict) {
-      log('(--strict mode: warnings are treated as errors)')
+    if (staleCount > 0) {
+      warn(`${staleCount} gate(s) have stale seals (exceeds maxAge)`)
+      log('Run `attest-it seal --force <gate>` to update stale seals')
     }
   }
-}
-
-function formatAgeColumn(s: SuiteVerificationResult): string {
-  if (s.status === 'VALID') {
-    return `${String(s.age ?? 0)} days`
-  }
-
-  if (s.status === 'NEEDS_ATTESTATION') {
-    return '(none)'
-  }
-
-  if (s.status === 'EXPIRED') {
-    return `${String(s.age ?? 0)} days (expired)`
-  }
-
-  if (s.status === 'FINGERPRINT_CHANGED') {
-    return '(changed)'
-  }
-
-  if (s.status === 'INVALIDATED_BY_PARENT') {
-    return '(invalidated)'
-  }
-
-  return '-'
 }
 
 /**
- * Check if verification result has warnings.
+ * Colorize verification state for display.
  *
- * Returns true if any valid attestations are approaching expiry
- * (within 7 days of maxAgeDays).
- *
- * @param result - Verification result to check
- * @param maxAgeDays - Maximum age in days before expiry
- * @returns True if warnings exist, false otherwise
- * @public
+ * @param state - Verification state
+ * @returns Colorized state string
  */
-function hasWarnings(result: VerifyResult, maxAgeDays: number): boolean {
-  const warningThreshold = 7 // days before expiry to warn
-  return result.suites.some(
-    (s) => s.status === 'VALID' && (s.age ?? 0) > maxAgeDays - warningThreshold,
-  )
+function colorizeState(state: VerificationState): string {
+  // Use the theme from output utils
+  const { getTheme } = require('../utils/output.js')
+  const theme = getTheme?.() ?? { green: (s: string) => s, yellow: (s: string) => s, red: (s: string) => s }
+
+  switch (state) {
+    case 'VALID':
+      return theme.green(state)
+    case 'MISSING':
+    case 'STALE':
+      return theme.yellow(state)
+    case 'FINGERPRINT_MISMATCH':
+    case 'INVALID_SIGNATURE':
+    case 'UNKNOWN_SIGNER':
+      return theme.red(state)
+    default:
+      return state
+  }
 }
 
-export { runVerify, displayResults, hasWarnings }
+/**
+ * Format fingerprint for display.
+ *
+ * @param result - Verification result
+ * @returns Formatted fingerprint string
+ */
+function formatFingerprint(result: GateSealVerificationResult): string {
+  if (result.seal?.fingerprint) {
+    const fp = result.seal.fingerprint
+    if (fp.length > 16) {
+      return fp.slice(0, 16) + '...'
+    }
+    return fp
+  }
+  return result.state === 'MISSING' ? '(none)' : '-'
+}
+
+/**
+ * Format age for display.
+ *
+ * @param result - Verification result
+ * @returns Formatted age string
+ */
+function formatAge(result: GateSealVerificationResult): string {
+  if (result.seal?.timestamp) {
+    const timestamp = new Date(result.seal.timestamp)
+    const now = Date.now()
+    const ageMs = now - timestamp.getTime()
+    const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24))
+
+    if (result.state === 'STALE') {
+      return `${ageDays} days (stale)`
+    }
+    return `${ageDays} days`
+  }
+
+  switch (result.state) {
+    case 'MISSING':
+      return '(none)'
+    case 'FINGERPRINT_MISMATCH':
+      return '(changed)'
+    default:
+      return '-'
+  }
+}
+
+export { runVerify, displayResults }

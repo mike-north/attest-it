@@ -1,0 +1,8 @@
+activeIdentity: minimal
+identities:
+  minimal:
+    name: minimal
+    publicKey: bWluaW1hbCBwdWJsaWMga2V5IGZvciB0ZXN0aW5n
+    privateKey:
+      type: file
+      path: /path/to/key

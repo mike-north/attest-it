@@ -133,8 +133,11 @@ export class MacOSKeychainKeyProvider implements KeyProvider {
           try {
             await fs.unlink(tempKeyPath)
             await fs.rmdir(tempDir)
-          } catch {
-            // Best effort cleanup
+          } catch (cleanupError) {
+            // Log warning for security audit - temporary keys may not have been cleaned up
+            console.warn(
+              `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
+            )
           }
         },
       }
@@ -142,8 +145,11 @@ export class MacOSKeychainKeyProvider implements KeyProvider {
       // Clean up temp directory on error
       try {
         await fs.rm(tempDir, { recursive: true, force: true })
-      } catch {
-        // Best effort cleanup
+      } catch (cleanupError) {
+        // Log warning for security audit - temporary keys may not have been cleaned up
+        console.warn(
+          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
+        )
       }
       throw error
     }
@@ -202,8 +208,11 @@ export class MacOSKeychainKeyProvider implements KeyProvider {
       // Clean up on error
       try {
         await fs.rm(tempDir, { recursive: true, force: true })
-      } catch {
-        // Best effort cleanup
+      } catch (cleanupError) {
+        // Log warning for security audit - temporary keys may not have been cleaned up
+        console.warn(
+          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
+        )
       }
       throw error
     }

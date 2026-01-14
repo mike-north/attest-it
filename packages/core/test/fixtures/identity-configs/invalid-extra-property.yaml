@@ -1,0 +1,9 @@
+activeIdentity: default
+identities:
+  default:
+    name: default
+    publicKey: dGVzdCBwdWJsaWMga2V5
+    privateKey:
+      type: file
+      path: /path/to/key
+    extraField: invalid

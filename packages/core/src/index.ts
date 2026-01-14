@@ -15,6 +15,9 @@ export const version = '0.0.0'
 export type {
   AttestItSettings,
   KeyProviderSettings,
+  TeamMember,
+  FingerprintConfig,
+  GateConfig,
   SuiteConfig,
   AttestItConfig,
   Attestation,
@@ -76,6 +79,15 @@ export type {
   VerifyOptions as CryptoVerifyOptions,
 } from './crypto.js'
 
+// Ed25519 Cryptography
+export {
+  generateKeyPair as generateEd25519KeyPair,
+  sign as signEd25519,
+  verify as verifyEd25519,
+  getPublicKeyFromPrivate,
+} from './crypto/ed25519.js'
+export type { KeyPair as Ed25519KeyPair } from './crypto/ed25519.js'
+
 // Verification
 export { verifyAttestations } from './verify.js'
 export type { VerifyOptions, VerifyResult } from './verify.js'
@@ -98,3 +110,44 @@ export {
   type MacOSKeychainKeyProviderOptions,
   type KeyProviderFactory,
 } from './key-provider/index.js'
+
+// Identity System
+export {
+  getLocalConfigPath,
+  loadLocalConfig,
+  loadLocalConfigSync,
+  saveLocalConfig,
+  saveLocalConfigSync,
+  getActiveIdentity,
+  LocalConfigValidationError,
+  type PrivateKeyRef,
+  type Identity,
+  type LocalConfig,
+} from './identity/index.js'
+
+// Authorization
+export {
+  isAuthorizedSigner,
+  getAuthorizedSignersForGate,
+  findTeamMemberByPublicKey,
+  getGate,
+  parseDuration,
+} from './authorization.js'
+
+// Seal System
+export {
+  createSeal,
+  verifySeal,
+  readSeals,
+  readSealsSync,
+  writeSeals,
+  writeSealsSync,
+  verifyGateSeal,
+  verifyAllSeals,
+  type Seal,
+  type SealsFile,
+  type CreateSealOptions,
+  type SignatureVerificationResult,
+  type VerificationState,
+  type SealVerificationResult,
+} from './seal/index.js'

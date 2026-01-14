@@ -1,143 +1,151 @@
 import { Command } from 'commander'
 import {
   loadConfig,
-  computeFingerprint,
-  readAttestations,
-  findAttestation,
-  type VerificationStatus,
-  type AttestationsFile,
-  type Attestation,
+  toAttestItConfig,
+  computeFingerprintSync,
+  readSealsSync,
+  verifyGateSeal,
+  verifyAllSeals,
+  type VerificationState,
+  type GateSealVerificationResult,
 } from '@attest-it/core'
 import {
   log,
   success,
   error,
   formatTable,
-  colorizeStatus,
   outputJson,
   type TableRow,
 } from '../utils/output.js'
 import { ExitCode } from '../utils/exit-codes.js'
 
 export const statusCommand = new Command('status')
-  .description('Show attestation status for all suites')
-  .option('-s, --suite <name>', 'Show status for specific suite only')
+  .description('Show seal status for all gates')
+  .argument('[gates...]', 'Show status for specific gates only')
   .option('--json', 'Output JSON for machine parsing')
-  .action(async (options: StatusOptions) => {
-    await runStatus(options)
+  .action(async (gates: string[], options: StatusOptions) => {
+    await runStatus(gates, options)
   })
 
 interface StatusOptions {
-  suite?: string
   json?: boolean
 }
 
-interface SuiteStatus {
-  name: string
-  status: VerificationStatus
+interface GateStatus {
+  gateId: string
+  state: VerificationState
   currentFingerprint: string
-  attestedFingerprint?: string | undefined
-  attestedAt?: string | undefined
-  age?: number | undefined
+  sealedFingerprint?: string
+  sealedBy?: string
+  sealedAt?: string
+  age?: number
+  message?: string | undefined
 }
 
 /**
- * Run the status command to show attestation status.
+ * Run the status command to show seal status.
  *
- * Displays the current status of attestations for all suites or a specific suite,
+ * Displays the current status of seals for all gates or specific gates,
  * including validation status, fingerprints, and age information.
  *
+ * @param gates - Array of gate IDs to show status for, or empty for all gates
  * @param options - Command options
- * @param options.suite - Show status for specific suite only
  * @param options.json - Output JSON for machine parsing
  * @public
  */
-async function runStatus(options: StatusOptions): Promise<void> {
+async function runStatus(gates: string[], options: StatusOptions): Promise<void> {
   try {
     // Load config
     const config = await loadConfig()
+    const attestItConfig = toAttestItConfig(config)
 
-    // Load attestations (may not exist)
-    const attestationsPath = config.settings.attestationsPath
-    let attestationsFile: AttestationsFile | null = null
-    try {
-      attestationsFile = await readAttestations(attestationsPath)
-    } catch (err) {
-      // Attestations file may not exist yet - that's okay
-      if (err instanceof Error && !err.message.includes('ENOENT')) {
-        throw err
-      }
-    }
-    const attestations = attestationsFile?.attestations ?? []
-
-    // Get suites to check
-    const suiteNames = options.suite ? [options.suite] : Object.keys(config.suites)
-
-    // Validate suite exists
-    if (options.suite && !config.suites[options.suite]) {
-      error(`Suite "${options.suite}" not found in config`)
+    // Check if gates are defined
+    if (!attestItConfig.gates || Object.keys(attestItConfig.gates).length === 0) {
+      error('No gates defined in configuration')
       process.exit(ExitCode.CONFIG_ERROR)
     }
 
-    // Check each suite
-    const results: SuiteStatus[] = []
-    let hasInvalid = false
+    // Read seals
+    const projectRoot = process.cwd()
+    const sealsFile = readSealsSync(projectRoot)
 
-    for (const suiteName of suiteNames) {
+    // Determine which gates to check
+    const gatesToCheck = gates.length > 0 ? gates : Object.keys(attestItConfig.gates)
+
+    // Validate that specified gates exist
+    for (const gateId of gatesToCheck) {
       // eslint-disable-next-line security/detect-object-injection
-      const suiteConfig = config.suites[suiteName]
-      if (!suiteConfig) continue
-
-      // Compute current fingerprint
-      const fingerprintResult = await computeFingerprint({
-        packages: suiteConfig.packages,
-        ...(suiteConfig.ignore && { ignore: suiteConfig.ignore }),
-      })
-
-      // Find existing attestation
-      const attestation = findAttestation(
-        {
-          schemaVersion: '1',
-          attestations,
-          signature: '',
-        },
-        suiteName,
-      )
-
-      // Determine status
-      const status = determineStatus(
-        attestation ?? null,
-        fingerprintResult.fingerprint,
-        config.settings.maxAgeDays,
-      )
-
-      // Calculate age if attestation exists
-      let age: number | undefined
-      if (attestation) {
-        const attestedAt = new Date(attestation.attestedAt)
-        age = Math.floor((Date.now() - attestedAt.getTime()) / (1000 * 60 * 60 * 24))
+      if (!attestItConfig.gates[gateId]) {
+        error(`Gate '${gateId}' not found in configuration`)
+        process.exit(ExitCode.CONFIG_ERROR)
       }
-
-      if (status !== 'VALID') {
-        hasInvalid = true
-      }
-
-      results.push({
-        name: suiteName,
-        status,
-        currentFingerprint: fingerprintResult.fingerprint,
-        attestedFingerprint: attestation?.fingerprint,
-        attestedAt: attestation?.attestedAt,
-        age,
-      })
     }
+
+    // Compute fingerprints for all gates
+    const fingerprints: Record<string, string> = {}
+    for (const gateId of gatesToCheck) {
+      // eslint-disable-next-line security/detect-object-injection
+      const gate = attestItConfig.gates[gateId]
+      if (!gate) continue
+
+      const result = computeFingerprintSync({
+        packages: gate.fingerprint.paths,
+        ...(gate.fingerprint.exclude && { ignore: gate.fingerprint.exclude }),
+      })
+      // eslint-disable-next-line security/detect-object-injection
+      fingerprints[gateId] = result.fingerprint
+    }
+
+    // Verify seals
+    const verificationResults =
+      gates.length > 0
+        ? gatesToCheck.map((gateId) =>
+            // eslint-disable-next-line security/detect-object-injection
+            verifyGateSeal(attestItConfig, gateId, sealsFile, fingerprints[gateId] ?? ''),
+          )
+        : verifyAllSeals(attestItConfig, sealsFile, fingerprints)
+
+    // Build status results
+    const results: GateStatus[] = verificationResults.map((result: GateSealVerificationResult) => {
+      const status: GateStatus = {
+        gateId: result.gateId,
+        state: result.state,
+        // eslint-disable-next-line security/detect-object-injection
+        currentFingerprint: fingerprints[result.gateId] ?? '',
+        message: result.message,
+      }
+
+      if (result.seal) {
+        status.sealedFingerprint = result.seal.fingerprint
+        status.sealedBy = result.seal.sealedBy
+        status.sealedAt = result.seal.timestamp
+
+        // Calculate age
+        const timestamp = new Date(result.seal.timestamp)
+        const now = Date.now()
+        const ageMs = now - timestamp.getTime()
+        status.age = Math.floor(ageMs / (1000 * 60 * 60 * 24))
+      }
+
+      return status
+    })
 
     // Output results
     if (options.json) {
       outputJson(results)
     } else {
-      displayStatusTable(results, hasInvalid)
+      displayStatusTable(results)
     }
+
+    // Exit with appropriate code
+    const hasInvalid = results.some(
+      (r) =>
+        r.state === 'MISSING' ||
+        r.state === 'FINGERPRINT_MISMATCH' ||
+        r.state === 'INVALID_SIGNATURE' ||
+        r.state === 'UNKNOWN_SIGNER' ||
+        r.state === 'STALE',
+    )
 
     process.exit(hasInvalid ? ExitCode.FAILURE : ExitCode.SUCCESS)
   } catch (err) {
@@ -150,33 +158,15 @@ async function runStatus(options: StatusOptions): Promise<void> {
   }
 }
 
-function determineStatus(
-  attestation: Attestation | null,
-  currentFingerprint: string,
-  maxAgeDays: number,
-): VerificationStatus {
-  if (!attestation) {
-    return 'NEEDS_ATTESTATION'
-  }
-
-  if (attestation.fingerprint !== currentFingerprint) {
-    return 'FINGERPRINT_CHANGED'
-  }
-
-  const attestedAt = new Date(attestation.attestedAt)
-  const ageInDays = Math.floor((Date.now() - attestedAt.getTime()) / (1000 * 60 * 60 * 24))
-
-  if (ageInDays > maxAgeDays) {
-    return 'EXPIRED'
-  }
-
-  return 'VALID'
-}
-
-function displayStatusTable(results: SuiteStatus[], hasInvalid: boolean): void {
+/**
+ * Display status results in a formatted table.
+ *
+ * @param results - Status results for gates
+ */
+function displayStatusTable(results: GateStatus[]): void {
   const tableRows: TableRow[] = results.map((r) => ({
-    suite: r.name,
-    status: colorizeStatus(r.status),
+    suite: r.gateId,
+    status: colorizeState(r.state),
     fingerprint: r.currentFingerprint.slice(0, 16) + '...',
     age: formatAge(r),
   }))
@@ -185,31 +175,91 @@ function displayStatusTable(results: SuiteStatus[], hasInvalid: boolean): void {
   log(formatTable(tableRows))
   log('')
 
-  if (hasInvalid) {
-    log('Run `attest-it run --suite <name>` to update attestations')
+  // Show seal metadata for each gate (who sealed, when)
+  const sealed = results.filter((r) => r.sealedBy && r.sealedAt)
+  if (sealed.length > 0) {
+    log('Seal metadata:')
+    for (const result of sealed) {
+      log(`  ${result.gateId}:`)
+      log(`    Sealed by: ${result.sealedBy ?? 'unknown'}`)
+      if (result.sealedAt) {
+        const date = new Date(result.sealedAt)
+        log(`    Sealed at: ${date.toLocaleString()}`)
+      }
+    }
+    log('')
+  }
+
+  // Show messages for any gates with issues
+  const withIssues = results.filter((r) => r.state !== 'VALID' && r.message)
+  if (withIssues.length > 0) {
+    log('Issues:')
+    for (const result of withIssues) {
+      log(`  ${result.gateId}: ${result.message ?? 'Unknown issue'}`)
+    }
+    log('')
+  }
+
+  // Summary
+  const validCount = results.filter((r) => r.state === 'VALID').length
+  const invalidCount = results.length - validCount
+
+  if (invalidCount === 0) {
+    success('All gate seals valid')
   } else {
-    success('All attestations valid')
+    log(`Run 'attest-it seal' to create or update seals`)
   }
 }
 
-function formatAge(result: SuiteStatus): string {
-  if (result.status === 'VALID') {
-    return `${String(result.age ?? 0)} days`
+/**
+ * Colorize verification state for display.
+ *
+ * @param state - Verification state
+ * @returns Colorized state string
+ */
+function colorizeState(state: VerificationState): string {
+  // Use the theme from output utils
+  const { getTheme } = require('../utils/output.js')
+  const theme = getTheme?.() ?? {
+    green: (s: string) => s,
+    yellow: (s: string) => s,
+    red: (s: string) => s,
   }
 
-  if (result.status === 'FINGERPRINT_CHANGED') {
-    return '(changed)'
+  switch (state) {
+    case 'VALID':
+      return theme.green(state)
+    case 'MISSING':
+    case 'STALE':
+      return theme.yellow(state)
+    case 'FINGERPRINT_MISMATCH':
+    case 'INVALID_SIGNATURE':
+    case 'UNKNOWN_SIGNER':
+      return theme.red(state)
+    default:
+      return state
+  }
+}
+
+/**
+ * Format age for display.
+ *
+ * @param result - Status result
+ * @returns Formatted age string
+ */
+function formatAge(result: GateStatus): string {
+  if (result.state === 'VALID' || result.state === 'STALE') {
+    return `${result.age ?? 0} days${result.state === 'STALE' ? ' (stale)' : ''}`
   }
 
-  if (result.status === 'NEEDS_ATTESTATION') {
-    return '(none)'
+  switch (result.state) {
+    case 'MISSING':
+      return '(none)'
+    case 'FINGERPRINT_MISMATCH':
+      return '(changed)'
+    default:
+      return '-'
   }
-
-  if (result.status === 'EXPIRED') {
-    return `${String(result.age ?? 0)} days (expired)`
-  }
-
-  return '-'
 }
 
 export { runStatus }

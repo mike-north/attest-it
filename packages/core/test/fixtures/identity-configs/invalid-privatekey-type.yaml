@@ -1,0 +1,8 @@
+activeIdentity: default
+identities:
+  default:
+    name: default
+    publicKey: dGVzdCBwdWJsaWMga2V5
+    privateKey:
+      type: invalid-type
+      path: /path/to/key
