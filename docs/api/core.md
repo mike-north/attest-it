@@ -41,6 +41,61 @@ Error thrown when configuration is invalid.
 </td></tr>
 <tr><td>
 
+[FilesystemKeyProvider](./core.filesystemkeyprovider.md)
+
+
+</td><td>
+
+Key provider that stores private keys on the filesystem.
+
+
+</td></tr>
+<tr><td>
+
+[KeyProviderRegistry](./core.keyproviderregistry.md)
+
+
+</td><td>
+
+Registry for key provider implementations.
+
+
+</td></tr>
+<tr><td>
+
+[LocalConfigValidationError](./core.localconfigvalidationerror.md)
+
+
+</td><td>
+
+Error thrown when local config validation fails.
+
+
+</td></tr>
+<tr><td>
+
+[MacOSKeychainKeyProvider](./core.macoskeychainkeyprovider.md)
+
+
+</td><td>
+
+Key provider that stores private keys in macOS Keychain.
+
+
+</td></tr>
+<tr><td>
+
+[OnePasswordKeyProvider](./core.onepasswordkeyprovider.md)
+
+
+</td><td>
+
+Key provider that stores private keys in 1Password.
+
+
+</td></tr>
+<tr><td>
+
 [SignatureInvalidError](./core.signatureinvaliderror.md)
 
 
@@ -98,7 +153,7 @@ Check if OpenSSL is available and get version info.
 
 Compute a deterministic fingerprint for a set of packages (async).
 
-Algorithm: 1. List all files in packages (respecting ignore globs) 2. Sort files lexicographically by relative path 3. For each file: compute SHA256(relativePath + "<!-- -->\\<!-- -->0" + content) 4. Concatenate all file hashes in sorted order 5. Compute final SHA256 of concatenated hashes 6. Return "sha256:" + hex(fingerprint)
+Algorithm: 1. List all files in packages (respecting ignore globs) 2. Sort files lexicographically by relative path 3. For each file: compute SHA256(relativePath + ":" + content) 4. Concatenate all file hashes in sorted order 5. Compute final SHA256 of concatenated hashes 6. Return "sha256:" + hex(fingerprint)
 
 
 </td></tr>
@@ -121,6 +176,17 @@ Compute a deterministic fingerprint for a set of packages (sync).
 </td><td>
 
 Create a new attestation entry.
+
+
+</td></tr>
+<tr><td>
+
+[createSeal(options)](./core.createseal.md)
+
+
+</td><td>
+
+Create a seal by signing the canonical string: gateId:fingerprint:timestamp
 
 
 </td></tr>
@@ -150,6 +216,28 @@ Searches in this order: 1. .attest-it/config.yaml 2. .attest-it/config.yml 3. .a
 </td></tr>
 <tr><td>
 
+[findTeamMemberByPublicKey(config, publicKey)](./core.findteammemberbypublickey.md)
+
+
+</td><td>
+
+Find a team member by their public key.
+
+
+</td></tr>
+<tr><td>
+
+[generateEd25519KeyPair()](./core.generateed25519keypair.md)
+
+
+</td><td>
+
+Generate a new Ed25519 keypair.
+
+
+</td></tr>
+<tr><td>
+
 [generateKeyPair(options)](./core.generatekeypair.md)
 
 
@@ -158,6 +246,28 @@ Searches in this order: 1. .attest-it/config.yaml 2. .attest-it/config.yml 3. .a
 Generate a new RSA-2048 keypair using OpenSSL.
 
 RSA-2048 with SHA-256 is used because it's universally supported across all OpenSSL and LibreSSL versions, including older macOS systems.
+
+
+</td></tr>
+<tr><td>
+
+[getActiveIdentity(config)](./core.getactiveidentity.md)
+
+
+</td><td>
+
+Get the active identity from a config.
+
+
+</td></tr>
+<tr><td>
+
+[getAuthorizedSignersForGate(config, gateId)](./core.getauthorizedsignersforgate.md)
+
+
+</td><td>
+
+Get all team members authorized to sign for a gate.
 
 
 </td></tr>
@@ -180,6 +290,50 @@ Get the default private key path based on OS. - macOS/Linux: \~/.config/attest-i
 </td><td>
 
 Get the default public key path (in repo).
+
+
+</td></tr>
+<tr><td>
+
+[getGate(config, gateId)](./core.getgate.md)
+
+
+</td><td>
+
+Get the gate configuration for a given gate ID.
+
+
+</td></tr>
+<tr><td>
+
+[getLocalConfigPath()](./core.getlocalconfigpath.md)
+
+
+</td><td>
+
+Get the path to the local config file.
+
+
+</td></tr>
+<tr><td>
+
+[getPublicKeyFromPrivate(privateKeyPem)](./core.getpublickeyfromprivate.md)
+
+
+</td><td>
+
+Extract the public key from an Ed25519 private key.
+
+
+</td></tr>
+<tr><td>
+
+[isAuthorizedSigner(config, gateId, publicKey)](./core.isauthorizedsigner.md)
+
+
+</td><td>
+
+Check if a public key belongs to an authorized signer for a gate.
 
 
 </td></tr>
@@ -213,6 +367,39 @@ Load and validate configuration from a file (async).
 </td><td>
 
 Load and validate configuration from a file (sync).
+
+
+</td></tr>
+<tr><td>
+
+[loadLocalConfig(configPath)](./core.loadlocalconfig.md)
+
+
+</td><td>
+
+Load and validate local config from file (async).
+
+
+</td></tr>
+<tr><td>
+
+[loadLocalConfigSync(configPath)](./core.loadlocalconfigsync.md)
+
+
+</td><td>
+
+Load and validate local config from file (sync).
+
+
+</td></tr>
+<tr><td>
+
+[parseDuration(duration)](./core.parseduration.md)
+
+
+</td><td>
+
+Parse a duration string to milliseconds. Uses the ms library to parse strings like "30d", "7d", "24h".
 
 
 </td></tr>
@@ -253,6 +440,28 @@ Read attestations file from disk (sync).
 </td></tr>
 <tr><td>
 
+[readSeals(dir)](./core.readseals.md)
+
+
+</td><td>
+
+Read seals from the seals.json file (async).
+
+
+</td></tr>
+<tr><td>
+
+[readSealsSync(dir)](./core.readsealssync.md)
+
+
+</td><td>
+
+Read seals from the seals.json file (sync).
+
+
+</td></tr>
+<tr><td>
+
 [removeAttestation(attestations, suite)](./core.removeattestation.md)
 
 
@@ -279,6 +488,28 @@ This converts relative paths in settings.publicKeyPath and settings.attestations
 </td></tr>
 <tr><td>
 
+[saveLocalConfig(config, configPath)](./core.savelocalconfig.md)
+
+
+</td><td>
+
+Save local config to file (async).
+
+
+</td></tr>
+<tr><td>
+
+[saveLocalConfigSync(config, configPath)](./core.savelocalconfigsync.md)
+
+
+</td><td>
+
+Save local config to file (sync).
+
+
+</td></tr>
+<tr><td>
+
 [setKeyPermissions(keyPath)](./core.setkeypermissions.md)
 
 
@@ -298,6 +529,17 @@ Set restrictive permissions on a private key file.
 Sign data using an RSA private key with SHA-256.
 
 Uses `openssl dgst -sha256 -sign` which is universally supported across all OpenSSL and LibreSSL versions.
+
+
+</td></tr>
+<tr><td>
+
+[signEd25519(data, privateKeyPem)](./core.signed25519.md)
+
+
+</td><td>
+
+Sign data with an Ed25519 private key.
 
 
 </td></tr>
@@ -344,6 +586,17 @@ Uses `openssl dgst -sha256 -verify` which is universally supported across all Op
 </td></tr>
 <tr><td>
 
+[verifyAllSeals(config, seals, fingerprints)](./core.verifyallseals.md)
+
+
+</td><td>
+
+Verify all gates' seals.
+
+
+</td></tr>
+<tr><td>
+
 [verifyAttestations(options)](./core.verifyattestations.md)
 
 
@@ -352,6 +605,39 @@ Uses `openssl dgst -sha256 -verify` which is universally supported across all Op
 Verify all attestations against current code state.
 
 Verification algorithm: 1. Load and verify attestations file signature 2. For each suite in config: a. Compute current fingerprint b. Find matching attestation c. Compare fingerprints d. Check age 3. Check invalidation chains 4. Return aggregated results
+
+
+</td></tr>
+<tr><td>
+
+[verifyEd25519(data, signature, publicKeyBase64)](./core.verifyed25519.md)
+
+
+</td><td>
+
+Verify an Ed25519 signature.
+
+
+</td></tr>
+<tr><td>
+
+[verifyGateSeal(config, gateId, seals, currentFingerprint)](./core.verifygateseal.md)
+
+
+</td><td>
+
+Verify a single gate's seal.
+
+
+</td></tr>
+<tr><td>
+
+[verifySeal(seal, config)](./core.verifyseal.md)
+
+
+</td><td>
+
+Verify a seal's signature against the team member's public key.
 
 
 </td></tr>
@@ -378,6 +664,28 @@ Creates parent directories if needed. The signature should be computed separatel
 Write attestations file to disk (sync).
 
 Creates parent directories if needed. The signature should be computed separately and passed in.
+
+
+</td></tr>
+<tr><td>
+
+[writeSeals(dir, sealsFile)](./core.writeseals.md)
+
+
+</td><td>
+
+Write seals to the seals.json file (async).
+
+
+</td></tr>
+<tr><td>
+
+[writeSealsSync(dir, sealsFile)](./core.writesealssync.md)
+
+
+</td><td>
+
+Write seals to the seals.json file (sync).
 
 
 </td></tr>
@@ -455,12 +763,56 @@ Settings from the configuration file.
 </td></tr>
 <tr><td>
 
+[CreateSealOptions](./core.createsealoptions.md)
+
+
+</td><td>
+
+Options for creating a seal.
+
+
+</td></tr>
+<tr><td>
+
 [CryptoVerifyOptions](./core.cryptoverifyoptions.md)
 
 
 </td><td>
 
 Options for verifying signatures.
+
+
+</td></tr>
+<tr><td>
+
+[Ed25519KeyPair](./core.ed25519keypair.md)
+
+
+</td><td>
+
+An Ed25519 keypair with base64-encoded public key and PEM-encoded private key.
+
+
+</td></tr>
+<tr><td>
+
+[FilesystemKeyProviderOptions](./core.filesystemkeyprovideroptions.md)
+
+
+</td><td>
+
+Options for creating a FilesystemKeyProvider.
+
+
+</td></tr>
+<tr><td>
+
+[FingerprintConfig](./core.fingerprintconfig.md)
+
+
+</td><td>
+
+Fingerprint configuration for gates.
 
 
 </td></tr>
@@ -488,12 +840,56 @@ Result of computing a package fingerprint.
 </td></tr>
 <tr><td>
 
+[GateConfig](./core.gateconfig.md)
+
+
+</td><td>
+
+Gate definition - defines what needs to be signed and who can sign it.
+
+
+</td></tr>
+<tr><td>
+
+[Identity](./core.identity.md)
+
+
+</td><td>
+
+A single identity configuration.
+
+
+</td></tr>
+<tr><td>
+
+[KeyGenerationResult](./core.keygenerationresult.md)
+
+
+</td><td>
+
+Result of key generation.
+
+
+</td></tr>
+<tr><td>
+
 [KeygenOptions](./core.keygenoptions.md)
 
 
 </td><td>
 
 Options for key generation.
+
+
+</td></tr>
+<tr><td>
+
+[KeygenProviderOptions](./core.keygenprovideroptions.md)
+
+
+</td><td>
+
+Options for key generation via provider.
 
 
 </td></tr>
@@ -510,12 +906,155 @@ Paths to a generated keypair.
 </td></tr>
 <tr><td>
 
+[KeyProvider](./core.keyprovider.md)
+
+
+</td><td>
+
+Abstract interface for key storage providers.
+
+
+</td></tr>
+<tr><td>
+
+[KeyProviderConfig](./core.keyproviderconfig.md)
+
+
+</td><td>
+
+Configuration for a key provider instance.
+
+
+</td></tr>
+<tr><td>
+
+[KeyProviderSettings](./core.keyprovidersettings.md)
+
+
+</td><td>
+
+Key provider configuration in settings.
+
+
+</td></tr>
+<tr><td>
+
+[KeyRetrievalResult](./core.keyretrievalresult.md)
+
+
+</td><td>
+
+Result of a key retrieval operation.
+
+
+</td></tr>
+<tr><td>
+
+[LocalConfig](./core.localconfig.md)
+
+
+</td><td>
+
+The local config file structure at \~/.config/attest-it/config.yaml.
+
+
+</td></tr>
+<tr><td>
+
+[MacOSKeychainKeyProviderOptions](./core.macoskeychainkeyprovideroptions.md)
+
+
+</td><td>
+
+Options for creating a MacOSKeychainKeyProvider.
+
+
+</td></tr>
+<tr><td>
+
+[OnePasswordAccount](./core.onepasswordaccount.md)
+
+
+</td><td>
+
+Information about a 1Password account.
+
+
+</td></tr>
+<tr><td>
+
+[OnePasswordKeyProviderOptions](./core.onepasswordkeyprovideroptions.md)
+
+
+</td><td>
+
+Options for creating a OnePasswordKeyProvider.
+
+
+</td></tr>
+<tr><td>
+
+[OnePasswordVault](./core.onepasswordvault.md)
+
+
+</td><td>
+
+Information about a 1Password vault.
+
+
+</td></tr>
+<tr><td>
+
 [ReadSignedAttestationsOptions](./core.readsignedattestationsoptions.md)
 
 
 </td><td>
 
 Options for reading and verifying signed attestations.
+
+
+</td></tr>
+<tr><td>
+
+[Seal](./core.seal.md)
+
+
+</td><td>
+
+A seal represents a cryptographic attestation that a gate's fingerprint was signed by an authorized team member.
+
+
+</td></tr>
+<tr><td>
+
+[SealsFile](./core.sealsfile.md)
+
+
+</td><td>
+
+The seals file structure stored at .attest-it/seals.json.
+
+
+</td></tr>
+<tr><td>
+
+[SealVerificationResult](./core.sealverificationresult.md)
+
+
+</td><td>
+
+Result of verifying a single gate's seal.
+
+
+</td></tr>
+<tr><td>
+
+[SignatureVerificationResult](./core.signatureverificationresult.md)
+
+
+</td><td>
+
+Result of seal signature verification.
 
 
 </td></tr>
@@ -537,7 +1076,7 @@ Options for signing data.
 
 </td><td>
 
-Suite definition from the configuration file.
+Suite definition from the configuration file. Suites are CLI-layer extensions of gates with command execution capabilities.
 
 
 </td></tr>
@@ -549,6 +1088,17 @@ Suite definition from the configuration file.
 </td><td>
 
 Result of verifying a single suite's attestation.
+
+
+</td></tr>
+<tr><td>
+
+[TeamMember](./core.teammember.md)
+
+
+</td><td>
+
+Team member configuration.
 
 
 </td></tr>
@@ -634,6 +1184,39 @@ Description
 </td><td>
 
 Type inference from Zod schema (should match AttestItConfig). This is the same as AttestItConfig but with defaults applied.
+
+
+</td></tr>
+<tr><td>
+
+[KeyProviderFactory](./core.keyproviderfactory.md)
+
+
+</td><td>
+
+Type for a key provider factory function.
+
+
+</td></tr>
+<tr><td>
+
+[PrivateKeyRef](./core.privatekeyref.md)
+
+
+</td><td>
+
+Private key reference - points to where the key is stored.
+
+
+</td></tr>
+<tr><td>
+
+[VerificationState](./core.verificationstate.md)
+
+
+</td><td>
+
+Verification state for a gate's seal.
 
 
 </td></tr>

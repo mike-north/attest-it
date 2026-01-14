@@ -4,10 +4,10 @@
 
 ## SignOptions.privateKeyPath property
 
-Path to the private key file
+Path to the private key file (legacy)
 
 **Signature:**
 
 ```typescript
-privateKeyPath: string;
+privateKeyPath?: string;
 ```

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { runVerify, displayResults, hasWarnings } from '../src/commands/verify.js'
-import type { VerifyResult, AttestItConfig } from '@attest-it/core'
+import { runVerify, displayResults } from '../src/commands/verify.js'
+import type { SealVerificationResult, AttestItConfig, SealsFile, Config } from '@attest-it/core'
 
 // Mock the core functions
 vi.mock('@attest-it/core', async () => {
@@ -8,7 +8,11 @@ vi.mock('@attest-it/core', async () => {
   return {
     ...actual,
     loadConfig: vi.fn(),
-    verifyAttestations: vi.fn(),
+    toAttestItConfig: vi.fn(),
+    computeFingerprintSync: vi.fn(),
+    readSealsSync: vi.fn(),
+    verifyAllSeals: vi.fn(),
+    verifyGateSeal: vi.fn(),
   }
 })
 
@@ -29,7 +33,14 @@ const mockProcessExit = vi
   .mockImplementation(() => {})
 
 // Import mocked functions
-const { loadConfig, verifyAttestations } = await import('@attest-it/core')
+const {
+  loadConfig,
+  toAttestItConfig,
+  computeFingerprintSync,
+  readSealsSync,
+  verifyAllSeals,
+  verifyGateSeal,
+} = await import('@attest-it/core')
 
 describe('verify command', () => {
   beforeEach(() => {
@@ -40,129 +51,226 @@ describe('verify command', () => {
     vi.clearAllMocks()
   })
 
-  // Helper to create a mock config
-  function createMockConfig(): AttestItConfig {
+  // Helper to create a mock Config (CLI layer)
+  function createMockConfig(): Config {
     return {
       version: 1,
       settings: {
-        attestationsPath: '.attestations.json',
+        attestationsPath: '.attest-it/attestations.json',
         maxAgeDays: 30,
-        publicKeyPath: 'test.pub',
-        algorithm: 'ed25519',
+        publicKeyPath: '.attest-it/pubkey.pem',
       },
       suites: {
         'test-suite': {
-          packages: ['pkg1'],
-        },
-        'another-suite': {
-          packages: ['pkg2'],
+          packages: ['src/**/*.ts'],
+          gate: 'test-gate',
         },
       },
     }
   }
 
-  // Helper to create a mock verify result
-  function createMockVerifyResult(overrides?: Partial<VerifyResult>): VerifyResult {
+  // Helper to create a mock AttestItConfig (core layer)
+  function createMockAttestItConfig(): AttestItConfig {
     return {
-      success: true,
-      signatureValid: true,
-      suites: [
-        {
-          suite: 'test-suite',
-          status: 'VALID',
-          fingerprint: 'sha256:abc123def456',
-          age: 5,
+      version: 1,
+      settings: {
+        maxAgeDays: 30,
+        publicKeyPath: '.attest-it/pubkey.pem',
+        attestationsPath: '.attest-it/attestations.json',
+      },
+      team: {
+        alice: {
+          name: 'Alice Developer',
+          publicKey: 'test-public-key-base64',
         },
-      ],
-      errors: [],
+      },
+      gates: {
+        'test-gate': {
+          name: 'Test Gate',
+          description: 'Test gate description',
+          authorizedSigners: ['alice'],
+          fingerprint: {
+            paths: ['src/**/*.ts'],
+          },
+          maxAge: '30d',
+        },
+      },
+    }
+  }
+
+  // Helper to create mock seals file
+  function createMockSealsFile(): SealsFile {
+    return {
+      version: 1,
+      seals: {
+        'test-gate': {
+          gateId: 'test-gate',
+          fingerprint: 'sha256:abc123def456',
+          timestamp: new Date().toISOString(),
+          sealedBy: 'alice',
+          signature: 'test-signature-base64',
+        },
+      },
+    }
+  }
+
+  // Helper to create a mock verification result
+  function createMockVerificationResult(
+    overrides?: Partial<SealVerificationResult>,
+  ): SealVerificationResult {
+    return {
+      gateId: 'test-gate',
+      state: 'VALID',
+      seal: {
+        gateId: 'test-gate',
+        fingerprint: 'sha256:abc123def456',
+        timestamp: new Date().toISOString(),
+        sealedBy: 'alice',
+        signature: 'test-signature-base64',
+      },
       ...overrides,
     }
   }
 
   describe('runVerify', () => {
-    it('should exit with code 0 when all attestations are valid', async () => {
+    it('should exit with code 0 when all seals are valid', async () => {
       const mockConfig = createMockConfig()
+      const mockAttestItConfig = createMockAttestItConfig()
       vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(verifyAttestations).mockResolvedValue(
-        createMockVerifyResult({
-          success: true,
-          signatureValid: true,
-        }),
-      )
+      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
+      vi.mocked(computeFingerprintSync).mockReturnValue({
+        fingerprint: 'sha256:abc123def456',
+        fileCount: 10,
+        files: [],
+      })
+      vi.mocked(verifyAllSeals).mockReturnValue([createMockVerificationResult({ state: 'VALID' })])
 
-      await runVerify({})
+      await runVerify([], {})
 
       expect(mockProcessExit).toHaveBeenCalledWith(0)
     })
 
-    it('should exit with code 1 when attestations are invalid', async () => {
+    it('should exit with code 1 when seals are invalid (MISSING)', async () => {
       const mockConfig = createMockConfig()
+      const mockAttestItConfig = createMockAttestItConfig()
       vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(verifyAttestations).mockResolvedValue(
-        createMockVerifyResult({
-          success: false,
-          suites: [
-            {
-              suite: 'test-suite',
-              status: 'NEEDS_ATTESTATION',
-              fingerprint: 'sha256:abc123',
-            },
-          ],
+      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(readSealsSync).mockReturnValue({ version: 1, seals: {} })
+      vi.mocked(computeFingerprintSync).mockReturnValue({
+        fingerprint: 'sha256:abc123def456',
+        fileCount: 10,
+        files: [],
+      })
+      vi.mocked(verifyAllSeals).mockReturnValue([
+        createMockVerificationResult({
+          state: 'MISSING',
+          seal: undefined,
+          message: 'No seal found for gate',
         }),
-      )
+      ])
 
-      await runVerify({})
+      await runVerify([], {})
 
       expect(mockProcessExit).toHaveBeenCalledWith(1)
+    })
+
+    it('should exit with code 1 when seals have FINGERPRINT_MISMATCH', async () => {
+      const mockConfig = createMockConfig()
+      const mockAttestItConfig = createMockAttestItConfig()
+      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
+      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
+      vi.mocked(computeFingerprintSync).mockReturnValue({
+        fingerprint: 'sha256:different-fingerprint',
+        fileCount: 10,
+        files: [],
+      })
+      vi.mocked(verifyAllSeals).mockReturnValue([
+        createMockVerificationResult({
+          state: 'FINGERPRINT_MISMATCH',
+          message: 'Fingerprint changed since seal was created',
+        }),
+      ])
+
+      await runVerify([], {})
+
+      expect(mockProcessExit).toHaveBeenCalledWith(1)
+    })
+
+    it('should exit with code 0 when seals are STALE (warning only)', async () => {
+      const mockConfig = createMockConfig()
+      const mockAttestItConfig = createMockAttestItConfig()
+      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
+      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
+      vi.mocked(computeFingerprintSync).mockReturnValue({
+        fingerprint: 'sha256:abc123def456',
+        fileCount: 10,
+        files: [],
+      })
+      vi.mocked(verifyAllSeals).mockReturnValue([
+        createMockVerificationResult({
+          state: 'STALE',
+          message: 'Seal is 45 days old, exceeds maxAge of 30 days',
+        }),
+      ])
+
+      await runVerify([], {})
+
+      // STALE is a warning, not a failure
+      expect(mockProcessExit).toHaveBeenCalledWith(0)
     })
 
     it('should exit with code 3 on config error', async () => {
       vi.mocked(loadConfig).mockRejectedValue(new Error('Config not found'))
 
-      await runVerify({})
+      await runVerify([], {})
 
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Config not found'))
       expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
     })
 
-    it('should filter to specific suite with --suite option', async () => {
+    it('should exit with code 3 when no gates are defined', async () => {
       const mockConfig = createMockConfig()
+      const mockAttestItConfig = { ...createMockAttestItConfig(), gates: undefined }
       vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(verifyAttestations).mockResolvedValue(
-        createMockVerifyResult({
-          suites: [
-            {
-              suite: 'test-suite',
-              status: 'VALID',
-              fingerprint: 'sha256:abc123',
-              age: 5,
-            },
-          ],
-        }),
+      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+
+      await runVerify([], {})
+
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('No gates defined in configuration'),
       )
+      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
+    })
 
-      await runVerify({ suite: 'test-suite' })
-
-      // Verify that verifyAttestations was called with filtered config
-      expect(verifyAttestations).toHaveBeenCalledTimes(1)
-      const calls = vi.mocked(verifyAttestations).mock.calls
-      const firstCall = calls[0]
-      expect(firstCall).toBeDefined()
-      if (!firstCall) {
-        throw new Error('Expected verifyAttestations to be called')
-      }
-      const callArg = firstCall[0]
-      expect(callArg.config.suites).toEqual({
-        'test-suite': mockConfig.suites['test-suite'],
+    it('should verify specific gates when provided', async () => {
+      const mockConfig = createMockConfig()
+      const mockAttestItConfig = createMockAttestItConfig()
+      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
+      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
+      vi.mocked(computeFingerprintSync).mockReturnValue({
+        fingerprint: 'sha256:abc123def456',
+        fileCount: 10,
+        files: [],
       })
+      vi.mocked(verifyGateSeal).mockReturnValue(createMockVerificationResult({ state: 'VALID' }))
+
+      await runVerify(['test-gate'], {})
+
+      expect(verifyGateSeal).toHaveBeenCalledTimes(1)
       expect(mockProcessExit).toHaveBeenCalledWith(0)
     })
 
-    it('should exit with code 3 when specified suite does not exist', async () => {
+    it('should exit with code 3 when specified gate does not exist', async () => {
       const mockConfig = createMockConfig()
+      const mockAttestItConfig = createMockAttestItConfig()
       vi.mocked(loadConfig).mockResolvedValue(mockConfig)
+      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
 
-      await runVerify({ suite: 'nonexistent-suite' })
+      await runVerify(['nonexistent-gate'], {})
 
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('not found'))
       expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
@@ -170,333 +278,143 @@ describe('verify command', () => {
 
     it('should output JSON with --json option', async () => {
       const mockConfig = createMockConfig()
-      const mockResult = createMockVerifyResult()
+      const mockAttestItConfig = createMockAttestItConfig()
+      const mockResults = [createMockVerificationResult({ state: 'VALID' })]
       vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(verifyAttestations).mockResolvedValue(mockResult)
+      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
+      vi.mocked(computeFingerprintSync).mockReturnValue({
+        fingerprint: 'sha256:abc123def456',
+        fileCount: 10,
+        files: [],
+      })
+      vi.mocked(verifyAllSeals).mockReturnValue(mockResults)
 
-      await runVerify({ json: true })
+      await runVerify([], { json: true })
 
-      // Should output JSON and not call displayResults
-      expect(mockConsoleLog).toHaveBeenCalledWith(JSON.stringify(mockResult, null, 2))
-      expect(mockProcessExit).toHaveBeenCalledWith(0)
-    })
-
-    it('should exit with code 1 in strict mode with warnings', async () => {
-      const mockConfig = createMockConfig()
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(verifyAttestations).mockResolvedValue(
-        createMockVerifyResult({
-          success: true,
-          suites: [
-            {
-              suite: 'test-suite',
-              status: 'VALID',
-              fingerprint: 'sha256:abc123',
-              age: 28, // Close to 30 day expiry
-            },
-          ],
-        }),
-      )
-
-      await runVerify({ strict: true })
-
-      expect(mockProcessExit).toHaveBeenCalledWith(1)
-    })
-
-    it('should exit with code 0 in non-strict mode with warnings', async () => {
-      const mockConfig = createMockConfig()
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(verifyAttestations).mockResolvedValue(
-        createMockVerifyResult({
-          success: true,
-          suites: [
-            {
-              suite: 'test-suite',
-              status: 'VALID',
-              fingerprint: 'sha256:abc123',
-              age: 28, // Close to 30 day expiry
-            },
-          ],
-        }),
-      )
-
-      await runVerify({ strict: false })
-
+      // Should output JSON
+      expect(mockConsoleLog).toHaveBeenCalledWith(JSON.stringify(mockResults, null, 2))
       expect(mockProcessExit).toHaveBeenCalledWith(0)
     })
   })
 
   describe('displayResults', () => {
-    it('should display valid status for all suites', () => {
-      const result = createMockVerifyResult({
-        success: true,
-        suites: [
-          {
-            suite: 'test-suite',
-            status: 'VALID',
-            fingerprint: 'sha256:abc123def456',
-            age: 5,
-          },
-        ],
-      })
+    it('should display valid status for all gates', () => {
+      const results: SealVerificationResult[] = [createMockVerificationResult({ state: 'VALID' })]
 
-      displayResults(result, 30)
+      displayResults(results)
 
       // Should show success message
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('All attestations valid'))
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('All gate seals valid'))
     })
 
-    it('should display NEEDS_ATTESTATION status', () => {
-      const result = createMockVerifyResult({
-        success: false,
-        suites: [
-          {
-            suite: 'test-suite',
-            status: 'NEEDS_ATTESTATION',
-            fingerprint: 'sha256:abc123',
-            message: 'No attestation found for this suite',
-          },
-        ],
-      })
+    it('should display MISSING status with remediation', () => {
+      const results: SealVerificationResult[] = [
+        createMockVerificationResult({
+          state: 'MISSING',
+          seal: undefined,
+          message: 'No seal found for gate',
+        }),
+      ]
 
-      displayResults(result, 30)
+      displayResults(results)
 
-      // Should show remediation steps
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Remediation:'))
-      expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('attest-it run --suite test-suite'),
-      )
-    })
-
-    it('should display FINGERPRINT_CHANGED status', () => {
-      const result = createMockVerifyResult({
-        success: false,
-        suites: [
-          {
-            suite: 'test-suite',
-            status: 'FINGERPRINT_CHANGED',
-            fingerprint: 'sha256:new123',
-            message: 'Fingerprint changed',
-          },
-        ],
-      })
-
-      displayResults(result, 30)
-
-      expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('attest-it run --suite test-suite'),
-      )
-    })
-
-    it('should display EXPIRED status', () => {
-      const result = createMockVerifyResult({
-        success: false,
-        suites: [
-          {
-            suite: 'test-suite',
-            status: 'EXPIRED',
-            fingerprint: 'sha256:abc123',
-            age: 45,
-            message: 'Attestation expired',
-          },
-        ],
-      })
-
-      displayResults(result, 30)
-
-      expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('attest-it run --suite test-suite'),
-      )
-    })
-
-    it('should display INVALIDATED_BY_PARENT status', () => {
-      const result = createMockVerifyResult({
-        success: false,
-        suites: [
-          {
-            suite: 'child-suite',
-            status: 'INVALIDATED_BY_PARENT',
-            fingerprint: 'sha256:abc123',
-            message: 'Invalidated by parent',
-          },
-        ],
-      })
-
-      displayResults(result, 30)
-
-      expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('attest-it run --suite child-suite'),
-      )
-    })
-
-    it('should display signature verification failure', () => {
-      const result = createMockVerifyResult({
-        success: false,
-        signatureValid: false,
-        errors: ['Signature verification failed'],
-      })
-
-      displayResults(result, 30)
-
+      // Should show error count
       expect(mockConsoleError).toHaveBeenCalledWith(
-        expect.stringContaining('Signature verification FAILED'),
+        expect.stringContaining('gate(s) have invalid or missing seals'),
       )
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('tampered'))
     })
 
-    it('should display errors', () => {
-      const result = createMockVerifyResult({
-        success: false,
-        errors: ['Public key not found', 'Another error'],
-      })
+    it('should display STALE status with warning', () => {
+      const results: SealVerificationResult[] = [
+        createMockVerificationResult({
+          state: 'STALE',
+          message: 'Seal is 45 days old, exceeds maxAge of 30 days',
+        }),
+      ]
 
-      displayResults(result, 30)
+      displayResults(results)
 
-      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Public key not found'))
-      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Another error'))
+      // Should show warning
+      expect(mockConsoleWarn).toHaveBeenCalledWith(
+        expect.stringContaining('gate(s) have stale seals'),
+      )
     })
 
-    it('should display warnings for approaching expiry', () => {
-      const result = createMockVerifyResult({
-        success: true,
-        suites: [
-          {
-            suite: 'test-suite',
-            status: 'VALID',
-            fingerprint: 'sha256:abc123',
-            age: 28, // Close to 30 day expiry
-          },
-        ],
-      })
+    it('should display INVALID_SIGNATURE status', () => {
+      const results: SealVerificationResult[] = [
+        createMockVerificationResult({
+          state: 'INVALID_SIGNATURE',
+          message: 'Signature verification failed',
+        }),
+      ]
 
-      displayResults(result, 30)
+      displayResults(results)
 
-      expect(mockConsoleWarn).toHaveBeenCalledWith(expect.stringContaining('approaching expiry'))
-      expect(mockConsoleWarn).toHaveBeenCalledWith(expect.stringContaining('28 days old'))
+      // Should show error count
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('gate(s) have invalid or missing seals'),
+      )
     })
 
-    it('should display strict mode message with warnings', () => {
-      const result = createMockVerifyResult({
-        success: true,
-        suites: [
-          {
-            suite: 'test-suite',
-            status: 'VALID',
-            fingerprint: 'sha256:abc123',
-            age: 28,
-          },
-        ],
-      })
+    it('should display UNKNOWN_SIGNER status', () => {
+      const results: SealVerificationResult[] = [
+        createMockVerificationResult({
+          state: 'UNKNOWN_SIGNER',
+          message: "Signer 'bob' not found in team",
+        }),
+      ]
 
-      displayResults(result, 30, true)
+      displayResults(results)
 
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('--strict mode'))
-    })
-
-    it('should not display warnings for fresh attestations', () => {
-      const result = createMockVerifyResult({
-        success: true,
-        suites: [
-          {
-            suite: 'test-suite',
-            status: 'VALID',
-            fingerprint: 'sha256:abc123',
-            age: 5, // Fresh
-          },
-        ],
-      })
-
-      displayResults(result, 30)
-
-      expect(mockConsoleWarn).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('hasWarnings', () => {
-    it('should return true when attestation is approaching expiry', () => {
-      const result = createMockVerifyResult({
-        suites: [
-          {
-            suite: 'test-suite',
-            status: 'VALID',
-            fingerprint: 'sha256:abc123',
-            age: 28,
-          },
-        ],
-      })
-
-      expect(hasWarnings(result, 30)).toBe(true)
-    })
-
-    it('should return false when attestation is fresh', () => {
-      const result = createMockVerifyResult({
-        suites: [
-          {
-            suite: 'test-suite',
-            status: 'VALID',
-            fingerprint: 'sha256:abc123',
-            age: 5,
-          },
-        ],
-      })
-
-      expect(hasWarnings(result, 30)).toBe(false)
-    })
-
-    it('should return false when all suites have issues', () => {
-      const result = createMockVerifyResult({
-        success: false,
-        suites: [
-          {
-            suite: 'test-suite',
-            status: 'NEEDS_ATTESTATION',
-            fingerprint: 'sha256:abc123',
-          },
-        ],
-      })
-
-      expect(hasWarnings(result, 30)).toBe(false)
-    })
-
-    it('should return false with no suites', () => {
-      const result = createMockVerifyResult({
-        suites: [],
-      })
-
-      expect(hasWarnings(result, 30)).toBe(false)
+      // Should show error count
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('gate(s) have invalid or missing seals'),
+      )
     })
   })
 
   describe('edge cases', () => {
-    it('should handle multiple suites with mixed statuses', async () => {
+    it('should handle multiple gates with mixed statuses', async () => {
       const mockConfig = createMockConfig()
+      const mockAttestItConfig = {
+        ...createMockAttestItConfig(),
+        gates: {
+          gate1: {
+            name: 'Gate 1',
+            description: 'Gate 1',
+            authorizedSigners: ['alice'],
+            fingerprint: { paths: ['src/**/*.ts'] },
+            maxAge: '30d',
+          },
+          gate2: {
+            name: 'Gate 2',
+            description: 'Gate 2',
+            authorizedSigners: ['alice'],
+            fingerprint: { paths: ['lib/**/*.ts'] },
+            maxAge: '30d',
+          },
+        },
+      }
       vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(verifyAttestations).mockResolvedValue(
-        createMockVerifyResult({
-          success: false,
-          suites: [
-            {
-              suite: 'suite1',
-              status: 'VALID',
-              fingerprint: 'sha256:abc123',
-              age: 5,
-            },
-            {
-              suite: 'suite2',
-              status: 'NEEDS_ATTESTATION',
-              fingerprint: 'sha256:def456',
-            },
-            {
-              suite: 'suite3',
-              status: 'EXPIRED',
-              fingerprint: 'sha256:ghi789',
-              age: 45,
-            },
-          ],
+      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
+      vi.mocked(computeFingerprintSync).mockReturnValue({
+        fingerprint: 'sha256:abc123def456',
+        fileCount: 10,
+        files: [],
+      })
+      vi.mocked(verifyAllSeals).mockReturnValue([
+        createMockVerificationResult({ gateId: 'gate1', state: 'VALID' }),
+        createMockVerificationResult({
+          gateId: 'gate2',
+          state: 'MISSING',
+          seal: undefined,
+          message: 'No seal found',
         }),
-      )
+      ])
 
-      await runVerify({})
+      await runVerify([], {})
 
       expect(mockProcessExit).toHaveBeenCalledWith(1)
     })
@@ -504,28 +422,24 @@ describe('verify command', () => {
     it('should handle unknown error type', async () => {
       vi.mocked(loadConfig).mockRejectedValue('string error')
 
-      await runVerify({})
+      await runVerify([], {})
 
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Unknown error'))
       expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
     })
 
-    it('should handle empty suite list', async () => {
+    it('should handle empty gates', async () => {
       const mockConfig = createMockConfig()
-      vi.mocked(loadConfig).mockResolvedValue({
-        ...mockConfig,
-        suites: {},
-      })
-      vi.mocked(verifyAttestations).mockResolvedValue(
-        createMockVerifyResult({
-          success: true,
-          suites: [],
-        }),
+      const mockAttestItConfig = { ...createMockAttestItConfig(), gates: {} }
+      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
+      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+
+      await runVerify([], {})
+
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('No gates defined in configuration'),
       )
-
-      await runVerify({})
-
-      expect(mockProcessExit).toHaveBeenCalledWith(0)
+      expect(mockProcessExit).toHaveBeenCalledWith(3)
     })
   })
 })

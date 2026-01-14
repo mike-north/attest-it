@@ -199,6 +199,10 @@ function createAttestationCreator(config: Config): (suite: string) => Promise<vo
       throw new Error(`Suite "${suiteName}" not found`)
     }
 
+    if (!suiteConfig.packages) {
+      throw new Error(`Suite "${suiteName}" has no packages defined`)
+    }
+
     // Compute fingerprint
     const fingerprintResult = await computeFingerprint({
       packages: suiteConfig.packages,

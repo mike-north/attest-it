@@ -1,0 +1,18 @@
+activeIdentity: work
+identities:
+  work:
+    name: work
+    email: work@company.com
+    github: workuser
+    publicKey: d29yayBwdWJsaWMga2V5IGZvciB0ZXN0aW5n
+    privateKey:
+      type: keychain
+      service: attest-it
+      account: work-key
+  personal:
+    name: personal
+    email: personal@example.com
+    publicKey: cGVyc29uYWwgcHVibGljIGtleSBmb3IgdGVzdGluZw==
+    privateKey:
+      type: file
+      path: ~/.ssh/personal.key

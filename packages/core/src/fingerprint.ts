@@ -97,7 +97,7 @@ async function hashFileAsync(
     return new Promise((resolve, reject) => {
       const hash = crypto.createHash('sha256')
       hash.update(normalizedPath)
-      hash.update('\0')
+      hash.update(':')
 
       const stream = fs.createReadStream(realPath)
       stream.on('data', (chunk: string | Buffer) => {
@@ -114,7 +114,7 @@ async function hashFileAsync(
   const content = await fs.promises.readFile(realPath)
   const hash = crypto.createHash('sha256')
   hash.update(normalizedPath)
-  hash.update('\0')
+  hash.update(':')
   hash.update(content)
   return hash.digest()
 }
@@ -127,7 +127,7 @@ function hashFileSync(realPath: string, normalizedPath: string): Buffer {
   const content = fs.readFileSync(realPath)
   const hash = crypto.createHash('sha256')
   hash.update(normalizedPath)
-  hash.update('\0')
+  hash.update(':')
   hash.update(content)
   return hash.digest()
 }
@@ -159,7 +159,7 @@ function validateOptions(options: FingerprintOptions): string {
  * Algorithm:
  * 1. List all files in packages (respecting ignore globs)
  * 2. Sort files lexicographically by relative path
- * 3. For each file: compute SHA256(relativePath + "\0" + content)
+ * 3. For each file: compute SHA256(relativePath + ":" + content)
  * 4. Concatenate all file hashes in sorted order
  * 5. Compute final SHA256 of concatenated hashes
  * 6. Return "sha256:" + hex(fingerprint)

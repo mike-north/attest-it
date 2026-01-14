@@ -24,7 +24,7 @@ export async function initTheme(): Promise<void> {
  * Get the theme, initializing it synchronously if needed (for tests).
  * Uses a fallback no-op theme if async initialization hasn't been called.
  */
-function getTheme(): Theme {
+export function getTheme(): Theme {
   if (!theme) {
     // Fallback for tests or when initTheme() wasn't called
     // This creates a simple pass-through theme that returns strings unchanged

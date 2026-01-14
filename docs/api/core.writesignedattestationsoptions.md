@@ -75,7 +75,26 @@ Path to write the attestations file
 </td></tr>
 <tr><td>
 
-[privateKeyPath](./core.writesignedattestationsoptions.privatekeypath.md)
+[keyProvider?](./core.writesignedattestationsoptions.keyprovider.md)
+
+
+</td><td>
+
+
+</td><td>
+
+[KeyProvider](./core.keyprovider.md)
+
+
+</td><td>
+
+_(Optional)_ Key provider for signing
+
+
+</td></tr>
+<tr><td>
+
+[keyRef?](./core.writesignedattestationsoptions.keyref.md)
 
 
 </td><td>
@@ -88,7 +107,26 @@ string
 
 </td><td>
 
-Path to the private key for signing
+_(Optional)_ Key reference for the provider
+
+
+</td></tr>
+<tr><td>
+
+[privateKeyPath?](./core.writesignedattestationsoptions.privatekeypath.md)
+
+
+</td><td>
+
+
+</td><td>
+
+string
+
+
+</td><td>
+
+_(Optional)_ Path to the private key for signing (legacy)
 
 
 </td></tr>

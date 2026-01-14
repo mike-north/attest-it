@@ -86,6 +86,11 @@ export async function getAllSuiteStatuses(config: Config): Promise<SuiteStatus[]
   const results: SuiteStatus[] = []
 
   for (const [suiteName, suiteConfig] of Object.entries(config.suites)) {
+    // Skip suites without packages
+    if (!suiteConfig.packages) {
+      continue
+    }
+
     // Compute current fingerprint
     const fingerprintResult = await computeFingerprint({
       packages: suiteConfig.packages,

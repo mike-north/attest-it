@@ -11,7 +11,7 @@ Uses `openssl dgst -sha256 -sign` which is universally supported across all Open
 **Signature:**
 
 ```typescript
-declare function sign(options: SignOptions): Promise<string>;
+declare function sign$1(options: SignOptions): Promise<string>;
 ```
 
 ## Parameters

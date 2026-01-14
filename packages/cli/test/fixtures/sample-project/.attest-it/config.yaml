@@ -18,9 +18,39 @@ settings:
   #     vault: Development
   #     itemName: attest-it-private-key
 
+# Team members who can create seals
+team:
+  test-user:
+    name: Test User
+    publicKey: placeholder-will-be-set-by-keygen
+
+# Gates for seal-based verification
+gates:
+  example-gate:
+    name: Example Gate
+    description: Example test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - packages/example
+    maxAge: 30d
+
+  failing-gate:
+    name: Failing Gate
+    description: Gate with failing tests
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - packages/example
+    maxAge: 30d
+
+# Suites for CLI run command (extends gates with commands)
 suites:
   example:
     description: Example test suite
+    gate: example-gate
     packages:
       - packages/example
     files:
@@ -29,6 +59,7 @@ suites:
 
   failing:
     description: Suite with failing tests
+    gate: failing-gate
     packages:
       - packages/example
     command: exit 1

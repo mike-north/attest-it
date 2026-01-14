@@ -4,10 +4,10 @@
 
 ## SuiteConfig.packages property
 
-Glob patterns for npm packages to include in fingerprint
+Glob patterns for npm packages to include in fingerprint (legacy/backward compatibility)
 
 **Signature:**
 
 ```typescript
-packages: string[];
+packages?: string[];
 ```

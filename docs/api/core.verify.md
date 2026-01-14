@@ -11,7 +11,7 @@ Uses `openssl dgst -sha256 -verify` which is universally supported across all Op
 **Signature:**
 
 ```typescript
-declare function verify(options: VerifyOptions$1): Promise<boolean>;
+declare function verify$1(options: VerifyOptions$1): Promise<boolean>;
 ```
 
 ## Parameters

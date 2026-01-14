@@ -6,7 +6,7 @@
 
 Compute a deterministic fingerprint for a set of packages (async).
 
-Algorithm: 1. List all files in packages (respecting ignore globs) 2. Sort files lexicographically by relative path 3. For each file: compute SHA256(relativePath + "<!-- -->\\<!-- -->0" + content) 4. Concatenate all file hashes in sorted order 5. Compute final SHA256 of concatenated hashes 6. Return "sha256:" + hex(fingerprint)
+Algorithm: 1. List all files in packages (respecting ignore globs) 2. Sort files lexicographically by relative path 3. For each file: compute SHA256(relativePath + ":" + content) 4. Concatenate all file hashes in sorted order 5. Compute final SHA256 of concatenated hashes 6. Return "sha256:" + hex(fingerprint)
 
 **Signature:**
 

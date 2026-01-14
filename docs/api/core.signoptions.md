@@ -56,7 +56,26 @@ Data to sign (string or Buffer)
 </td></tr>
 <tr><td>
 
-[privateKeyPath](./core.signoptions.privatekeypath.md)
+[keyProvider?](./core.signoptions.keyprovider.md)
+
+
+</td><td>
+
+
+</td><td>
+
+[KeyProvider](./core.keyprovider.md)
+
+
+</td><td>
+
+_(Optional)_ Key provider to use for retrieving the private key
+
+
+</td></tr>
+<tr><td>
+
+[keyRef?](./core.signoptions.keyref.md)
 
 
 </td><td>
@@ -69,7 +88,26 @@ string
 
 </td><td>
 
-Path to the private key file
+_(Optional)_ Key reference for the provider
+
+
+</td></tr>
+<tr><td>
+
+[privateKeyPath?](./core.signoptions.privatekeypath.md)
+
+
+</td><td>
+
+
+</td><td>
+
+string
+
+
+</td><td>
+
+_(Optional)_ Path to the private key file (legacy)
 
 
 </td></tr>

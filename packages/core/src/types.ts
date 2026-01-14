@@ -11,16 +11,18 @@ export interface KeyProviderSettings {
   /** Provider type identifier */
   type: string
   /** Provider-specific options */
-  options?: {
-    /** Path to private key (filesystem provider) */
-    privateKeyPath?: string
-    /** Vault name (1Password provider) */
-    vault?: string
-    /** Item name (1Password provider) */
-    itemName?: string
-    /** Account identifier (1Password provider) */
-    account?: string
-  }
+  options?:
+    | {
+        /** Path to private key (filesystem provider) */
+        privateKeyPath?: string | undefined
+        /** Vault name (1Password provider) */
+        vault?: string | undefined
+        /** Item name (1Password provider) */
+        itemName?: string | undefined
+        /** Account identifier (1Password provider) */
+        account?: string | undefined
+      }
+    | undefined
 }
 
 /**
@@ -41,20 +43,70 @@ export interface AttestItSettings {
 }
 
 /**
+ * Team member configuration.
+ * @public
+ */
+export interface TeamMember {
+  /** Display name for the team member */
+  name: string
+  /** Email address (optional) */
+  email?: string | undefined
+  /** GitHub username (optional) */
+  github?: string | undefined
+  /** Base64-encoded Ed25519 public key */
+  publicKey: string
+}
+
+/**
+ * Fingerprint configuration for gates.
+ * @public
+ */
+export interface FingerprintConfig {
+  /** Glob patterns for paths to include in fingerprint */
+  paths: string[]
+  /** Patterns to exclude from fingerprint */
+  exclude?: string[] | undefined
+}
+
+/**
+ * Gate definition - defines what needs to be signed and who can sign it.
+ * @public
+ */
+export interface GateConfig {
+  /** Human-readable name for the gate */
+  name: string
+  /** Description of what this gate protects */
+  description: string
+  /** Team member slugs authorized to sign for this gate */
+  authorizedSigners: string[]
+  /** Fingerprint configuration */
+  fingerprint: FingerprintConfig
+  /** Maximum age before attestation expires (duration string like "30d", "7d", "24h") */
+  maxAge: string
+}
+
+/**
  * Suite definition from the configuration file.
+ * Suites are CLI-layer extensions of gates with command execution capabilities.
  * @public
  */
 export interface SuiteConfig {
+  /** Reference to a gate (if present, inherits gate configuration) */
+  gate?: string
   /** Human-readable description of what this suite tests */
   description?: string
-  /** Glob patterns for npm packages to include in fingerprint */
-  packages: string[]
+  /** Glob patterns for npm packages to include in fingerprint (legacy/backward compatibility) */
+  packages?: string[]
   /** Additional file patterns to include in fingerprint */
   files?: string[]
   /** Patterns to ignore when computing fingerprint */
   ignore?: string[]
   /** Command to execute for this suite (overrides defaultCommand) */
   command?: string
+  /** Timeout for command execution (duration string) */
+  timeout?: string
+  /** Whether the command is interactive */
+  interactive?: boolean
   /** Other suite names that, when changed, invalidate this suite's attestation */
   invalidates?: string[]
   /** Array of suite names this suite depends on */
@@ -70,6 +122,10 @@ export interface AttestItConfig {
   version: 1
   /** Global settings for attestation behavior */
   settings: AttestItSettings
+  /** Team members mapped by slug */
+  team?: Record<string, TeamMember>
+  /** Gates defining authorization and fingerprinting */
+  gates?: Record<string, GateConfig>
   /** Named test suites with their configurations */
   suites: Record<string, SuiteConfig>
   /** Named groups of suites */

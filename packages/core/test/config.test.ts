@@ -178,7 +178,7 @@ describe('config', () => {
 
         await expect(loadConfig(configPath)).rejects.toThrow(ConfigValidationError)
         await expect(loadConfig(configPath)).rejects.toThrow(
-          'At least one package pattern is required',
+          'Suite must either reference a gate or define packages for fingerprinting',
         )
       })
 
