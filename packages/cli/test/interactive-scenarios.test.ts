@@ -48,62 +48,28 @@ async function runCli(args: string[], cwd: string): Promise<RunResult> {
 }
 
 /**
- * Execute a shell command
- */
-async function runCommand(command: string, cwd: string): Promise<{ exitCode: number }> {
-  const result = await execa(command, {
-    cwd,
-    shell: true,
-    reject: false,
-  })
-
-  return { exitCode: result.exitCode }
-}
-
-/**
- * Setup helper to initialize a project for CLI use
+ * Setup helper to initialize a project for CLI use.
+ *
+ * Note: createProjectFixture now generates Ed25519 keys and includes them in the project,
+ * so this function just needs to verify the project is ready.
  */
 async function setupProject(proj: Project): Promise<void> {
   return wrapWithSignatureErrorDetection(async () => {
-    // Generate keypair with project-local private key to avoid conflicts
+    // Keys are already created and committed by createProjectFixture
+    // Just verify they exist
+    const fs = await import('node:fs/promises')
     const privateKeyPath = join(proj.baseDir, '.attest-it', 'private.pem')
     const publicKeyPath = join(proj.baseDir, '.attest-it', 'pubkey.pem')
 
-    const keygenResult = await runCli(
-      [
-        'keygen',
-        '--force',
-        '--no-interactive',
-        '--private',
-        privateKeyPath,
-        '--output',
-        publicKeyPath,
-      ],
-      proj.baseDir,
-    )
-
-    if (keygenResult.exitCode !== 0) {
-      throw new Error(
-        `Keygen failed:\nExit code: ${keygenResult.exitCode}\n` +
-          `Stderr: ${keygenResult.stderr}\nStdout: ${keygenResult.stdout}`,
-      )
-    }
-
-    // Verify keypair was created
-    const fs = await import('node:fs/promises')
     try {
       await fs.access(publicKeyPath)
       await fs.access(privateKeyPath)
     } catch {
       throw new Error(
-        `Keypair not created:\nPublic key: ${publicKeyPath}\nPrivate key: ${privateKeyPath}`,
+        `Keypair not found:\nPublic key: ${publicKeyPath}\nPrivate key: ${privateKeyPath}`,
       )
     }
-
-    // Git init is already done by fixture factory, but ensure keypair is committed
-    await runCommand('git add .', proj.baseDir)
-    await runCommand('git commit -m "Add keypair" --allow-empty', proj.baseDir)
-  }, `Setting up project with keypair in ${proj.baseDir}`)
+  }, `Setting up project in ${proj.baseDir}`)
 }
 
 /**
@@ -119,9 +85,9 @@ async function checkGitStatus(cwd: string): Promise<string> {
 describe('Interactive CLI Scenarios with fixturify-project', () => {
   let project: Project | null = null
 
-  afterEach(async () => {
+  afterEach(() => {
     if (project) {
-      await project.dispose()
+      project.dispose()
       project = null
     }
   })
