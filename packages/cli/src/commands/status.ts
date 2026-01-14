@@ -7,9 +7,17 @@ import {
   verifyGateSeal,
   verifyAllSeals,
   type VerificationState,
-  type GateSealVerificationResult,
+  type SealVerificationResult,
 } from '@attest-it/core'
-import { log, success, error, formatTable, outputJson, type TableRow } from '../utils/output.js'
+import {
+  log,
+  success,
+  error,
+  formatTable,
+  outputJson,
+  getTheme,
+  type TableRow,
+} from '../utils/output.js'
 import { ExitCode } from '../utils/exit-codes.js'
 
 export const statusCommand = new Command('status')
@@ -99,11 +107,10 @@ async function runStatus(gates: string[], options: StatusOptions): Promise<void>
         : verifyAllSeals(attestItConfig, sealsFile, fingerprints)
 
     // Build status results
-    const results: GateStatus[] = verificationResults.map((result: GateSealVerificationResult) => {
+    const results: GateStatus[] = verificationResults.map((result: SealVerificationResult) => {
       const status: GateStatus = {
         gateId: result.gateId,
         state: result.state,
-        // eslint-disable-next-line security/detect-object-injection
         currentFingerprint: fingerprints[result.gateId] ?? '',
         message: result.message,
       }
@@ -211,13 +218,7 @@ function displayStatusTable(results: GateStatus[]): void {
  * @returns Colorized state string
  */
 function colorizeState(state: VerificationState): string {
-  // Use the theme from output utils
-  const { getTheme } = require('../utils/output.js')
-  const theme = getTheme?.() ?? {
-    green: (s: string) => s,
-    yellow: (s: string) => s,
-    red: (s: string) => s,
-  }
+  const theme = getTheme()
 
   switch (state) {
     case 'VALID':
@@ -242,7 +243,7 @@ function colorizeState(state: VerificationState): string {
  */
 function formatAge(result: GateStatus): string {
   if (result.state === 'VALID' || result.state === 'STALE') {
-    return `${result.age ?? 0} days${result.state === 'STALE' ? ' (stale)' : ''}`
+    return `${String(result.age ?? 0)} days${result.state === 'STALE' ? ' (stale)' : ''}`
   }
 
   switch (result.state) {

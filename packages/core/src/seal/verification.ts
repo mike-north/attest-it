@@ -92,7 +92,6 @@ export function verifyGateSeal(
     }
   }
 
-  // eslint-disable-next-line security/detect-object-injection
   const teamMember = config.team[seal.sealedBy]
   if (!teamMember) {
     return {

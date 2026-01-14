@@ -7,8 +7,7 @@ import {
   verifyAllSeals,
   verifyGateSeal,
   type VerificationState,
-  type Seal,
-  type GateSealVerificationResult,
+  type SealVerificationResult,
 } from '@attest-it/core'
 import {
   log,
@@ -17,6 +16,7 @@ import {
   warn,
   formatTable,
   outputJson,
+  getTheme,
   type TableRow,
 } from '../utils/output.js'
 import { ExitCode } from '../utils/exit-codes.js'
@@ -140,7 +140,7 @@ async function runVerify(gates: string[], options: VerifyOptions): Promise<void>
  * @param results - Verification results from verifyAllSeals or verifyGateSeal
  * @public
  */
-function displayResults(results: GateSealVerificationResult[]): void {
+function displayResults(results: SealVerificationResult[]): void {
   log('')
 
   // Build table rows
@@ -180,11 +180,11 @@ function displayResults(results: GateSealVerificationResult[]): void {
     success('All gate seals valid')
   } else {
     if (invalidCount > 0) {
-      error(`${invalidCount} gate(s) have invalid or missing seals`)
+      error(`${String(invalidCount)} gate(s) have invalid or missing seals`)
       log('Run `attest-it seal` to create seals for these gates')
     }
     if (staleCount > 0) {
-      warn(`${staleCount} gate(s) have stale seals (exceeds maxAge)`)
+      warn(`${String(staleCount)} gate(s) have stale seals (exceeds maxAge)`)
       log('Run `attest-it seal --force <gate>` to update stale seals')
     }
   }
@@ -197,13 +197,7 @@ function displayResults(results: GateSealVerificationResult[]): void {
  * @returns Colorized state string
  */
 function colorizeState(state: VerificationState): string {
-  // Use the theme from output utils
-  const { getTheme } = require('../utils/output.js')
-  const theme = getTheme?.() ?? {
-    green: (s: string) => s,
-    yellow: (s: string) => s,
-    red: (s: string) => s,
-  }
+  const theme = getTheme()
 
   switch (state) {
     case 'VALID':
@@ -226,7 +220,7 @@ function colorizeState(state: VerificationState): string {
  * @param result - Verification result
  * @returns Formatted fingerprint string
  */
-function formatFingerprint(result: GateSealVerificationResult): string {
+function formatFingerprint(result: SealVerificationResult): string {
   if (result.seal?.fingerprint) {
     const fp = result.seal.fingerprint
     if (fp.length > 16) {
@@ -243,7 +237,7 @@ function formatFingerprint(result: GateSealVerificationResult): string {
  * @param result - Verification result
  * @returns Formatted age string
  */
-function formatAge(result: GateSealVerificationResult): string {
+function formatAge(result: SealVerificationResult): string {
   if (result.seal?.timestamp) {
     const timestamp = new Date(result.seal.timestamp)
     const now = Date.now()
@@ -251,9 +245,9 @@ function formatAge(result: GateSealVerificationResult): string {
     const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24))
 
     if (result.state === 'STALE') {
-      return `${ageDays} days (stale)`
+      return `${String(ageDays)} days (stale)`
     }
-    return `${ageDays} days`
+    return `${String(ageDays)} days`
   }
 
   switch (result.state) {

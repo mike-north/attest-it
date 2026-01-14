@@ -13,7 +13,6 @@ import {
   readSealsSync,
   writeSeals,
   writeSealsSync,
-  type Seal,
   type SealsFile,
 } from '../../src/seal/index.js'
 import type { AttestItConfig } from '../../src/types.js'

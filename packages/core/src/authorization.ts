@@ -163,7 +163,7 @@ export function parseDuration(duration: string): number {
 
   // The ms function accepts the StringValue type which is a union of specific string patterns
   // After validating the format, we can safely call ms
-  // Using type assertion here is safe because we've validated the format matches what ms expects
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- safe after format validation
   const result = ms(duration as Parameters<typeof ms>[0])
   if (typeof result !== 'number' || result <= 0) {
     throw new Error(`Invalid duration string: ${duration}`)

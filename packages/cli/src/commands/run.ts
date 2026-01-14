@@ -616,9 +616,11 @@ function createKeyProviderFromIdentity(
           field: privateKey.field,
         },
       })
-    default:
+    default: {
       // This should never happen due to TypeScript's discriminated union
-      throw new Error(`Unsupported private key type: ${(privateKey as { type: string }).type}`)
+      const _exhaustiveCheck: never = privateKey
+      throw new Error(`Unsupported private key type: ${String(_exhaustiveCheck)}`)
+    }
   }
 }
 
@@ -638,8 +640,10 @@ function getKeyRefFromIdentity(identity: Identity): string {
       return `${privateKey.service}:${privateKey.account}`
     case '1password':
       return privateKey.item
-    default:
-      throw new Error(`Unsupported private key type: ${(privateKey as { type: string }).type}`)
+    default: {
+      const _exhaustiveCheck: never = privateKey
+      throw new Error(`Unsupported private key type: ${String(_exhaustiveCheck)}`)
+    }
   }
 }
 

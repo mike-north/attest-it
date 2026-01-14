@@ -16,7 +16,6 @@ import {
   readSealsSync,
   writeSealsSync,
   KeyProviderRegistry,
-  type Config,
   type AttestItConfig,
   type Identity,
   type SealsFile,
@@ -267,12 +266,12 @@ function displaySummary(summary: SealSummary, dryRun?: boolean): void {
   const prefix = dryRun ? 'Would seal' : 'Sealed'
 
   if (summary.sealed.length > 0) {
-    success(`${prefix} ${summary.sealed.length} gate(s): ${summary.sealed.join(', ')}`)
+    success(`${prefix} ${String(summary.sealed.length)} gate(s): ${summary.sealed.join(', ')}`)
   }
 
   if (summary.skipped.length > 0) {
     log('')
-    warn(`Skipped ${summary.skipped.length} gate(s):`)
+    warn(`Skipped ${String(summary.skipped.length)} gate(s):`)
     for (const skip of summary.skipped) {
       log(`  ${skip.gate}: ${skip.reason}`)
     }
@@ -280,7 +279,7 @@ function displaySummary(summary: SealSummary, dryRun?: boolean): void {
 
   if (summary.failed.length > 0) {
     log('')
-    error(`Failed to seal ${summary.failed.length} gate(s):`)
+    error(`Failed to seal ${String(summary.failed.length)} gate(s):`)
     for (const fail of summary.failed) {
       log(`  ${fail.gate}: ${fail.error}`)
     }
@@ -327,9 +326,11 @@ function createKeyProviderFromIdentity(
           field: privateKey.field,
         },
       })
-    default:
+    default: {
       // This should never happen due to TypeScript's discriminated union
-      throw new Error(`Unsupported private key type: ${(privateKey as { type: string }).type}`)
+      const _exhaustiveCheck: never = privateKey
+      throw new Error(`Unsupported private key type: ${String(_exhaustiveCheck)}`)
+    }
   }
 }
 
@@ -351,7 +352,9 @@ function getKeyRefFromIdentity(identity: Identity): string {
       return privateKey.service
     case '1password':
       return privateKey.item
-    default:
-      throw new Error(`Unsupported private key type: ${(privateKey as { type: string }).type}`)
+    default: {
+      const _exhaustiveCheck: never = privateKey
+      throw new Error(`Unsupported private key type: ${String(_exhaustiveCheck)}`)
+    }
   }
 }

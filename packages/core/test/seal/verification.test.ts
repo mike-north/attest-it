@@ -3,13 +3,7 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import {
-  verifyGateSeal,
-  verifyAllSeals,
-  type SealsFile,
-  type VerificationState,
-  createSeal,
-} from '../../src/seal/index.js'
+import { verifyGateSeal, verifyAllSeals, type SealsFile, createSeal } from '../../src/seal/index.js'
 import type { AttestItConfig } from '../../src/types.js'
 import { generateKeyPair, sign } from '../../src/crypto/ed25519.js'
 import type { Seal } from '../../src/seal/types.js'
