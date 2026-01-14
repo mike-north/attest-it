@@ -161,14 +161,6 @@ export interface GateConfig {
 }
 
 // @public
-export interface GateSealVerificationResult {
-    gateId: string;
-    message?: string;
-    seal?: Seal;
-    state: VerificationState;
-}
-
-// @public
 export function generateEd25519KeyPair(): Ed25519KeyPair;
 
 // @public
@@ -432,8 +424,10 @@ export interface SealsFile {
 
 // @public
 export interface SealVerificationResult {
-    error?: string;
-    valid: boolean;
+    gateId: string;
+    message?: string;
+    seal?: Seal;
+    state: VerificationState;
 }
 
 // @public
@@ -445,6 +439,12 @@ export function sign(options: SignOptions): Promise<string>;
 // @public
 export class SignatureInvalidError extends Error {
     constructor(filePath: string);
+}
+
+// @public
+export interface SignatureVerificationResult {
+    error?: string;
+    valid: boolean;
 }
 
 // @public
@@ -507,7 +507,7 @@ export type VerificationStatus = 'EXPIRED' | 'FINGERPRINT_CHANGED' | 'INVALIDATE
 export function verify(options: CryptoVerifyOptions): Promise<boolean>;
 
 // @public
-export function verifyAllSeals(config: AttestItConfig, seals: SealsFile, fingerprints: Record<string, string>): GateSealVerificationResult[];
+export function verifyAllSeals(config: AttestItConfig, seals: SealsFile, fingerprints: Record<string, string>): SealVerificationResult[];
 
 // @public
 export function verifyAttestations(options: VerifyOptions): Promise<VerifyResult>;
@@ -516,7 +516,7 @@ export function verifyAttestations(options: VerifyOptions): Promise<VerifyResult
 export function verifyEd25519(data: Buffer | string, signature: string, publicKeyBase64: string): boolean;
 
 // @public
-export function verifyGateSeal(config: AttestItConfig, gateId: string, seals: SealsFile, currentFingerprint: string): GateSealVerificationResult;
+export function verifyGateSeal(config: AttestItConfig, gateId: string, seals: SealsFile, currentFingerprint: string): SealVerificationResult;
 
 // @public
 export interface VerifyOptions {
@@ -533,7 +533,7 @@ export interface VerifyResult {
 }
 
 // @public
-export function verifySeal(seal: Seal, config: AttestItConfig): SealVerificationResult;
+export function verifySeal(seal: Seal, config: AttestItConfig): SignatureVerificationResult;
 
 // @public
 export const version = "0.0.0";

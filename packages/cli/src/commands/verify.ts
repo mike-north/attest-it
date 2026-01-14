@@ -199,7 +199,11 @@ function displayResults(results: GateSealVerificationResult[]): void {
 function colorizeState(state: VerificationState): string {
   // Use the theme from output utils
   const { getTheme } = require('../utils/output.js')
-  const theme = getTheme?.() ?? { green: (s: string) => s, yellow: (s: string) => s, red: (s: string) => s }
+  const theme = getTheme?.() ?? {
+    green: (s: string) => s,
+    yellow: (s: string) => s,
+    red: (s: string) => s,
+  }
 
   switch (state) {
     case 'VALID':

@@ -2,7 +2,7 @@ activeIdentity: default
 identities:
   default:
     name: default
-    publicKey: ""
+    publicKey: ''
     privateKey:
       type: file
       path: /path/to/key

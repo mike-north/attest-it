@@ -53,5 +53,3 @@ async function runWhoami(): Promise<void> {
     process.exit(ExitCode.CONFIG_ERROR)
   }
 }
-
-export { runWhoami }

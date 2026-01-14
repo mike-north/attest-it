@@ -81,5 +81,3 @@ async function runList(): Promise<void> {
     process.exit(ExitCode.CONFIG_ERROR)
   }
 }
-
-export { runList }

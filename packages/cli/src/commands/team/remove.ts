@@ -145,5 +145,3 @@ async function runRemove(slug: string, options: { force?: boolean }): Promise<vo
     process.exit(ExitCode.CONFIG_ERROR)
   }
 }
-
-export { runRemove }

@@ -196,5 +196,3 @@ async function runEdit(slug: string): Promise<void> {
     process.exit(ExitCode.CONFIG_ERROR)
   }
 }
-
-export { runEdit }

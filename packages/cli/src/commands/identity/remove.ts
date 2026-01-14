@@ -158,9 +158,7 @@ async function runRemove(slug: string): Promise<void> {
       }
       newActiveIdentity = firstKey
       log('')
-      log(
-        theme.yellow(`  Removed active identity. New active identity: ${newActiveIdentity}`),
-      )
+      log(theme.yellow(`  Removed active identity. New active identity: ${newActiveIdentity}`))
     }
 
     const newConfig = {
@@ -182,5 +180,3 @@ async function runRemove(slug: string): Promise<void> {
     process.exit(ExitCode.CONFIG_ERROR)
   }
 }
-
-export { runRemove }

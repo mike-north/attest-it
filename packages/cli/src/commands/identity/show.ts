@@ -92,5 +92,3 @@ async function runShow(slug?: string): Promise<void> {
     process.exit(ExitCode.CONFIG_ERROR)
   }
 }
-
-export { runShow }

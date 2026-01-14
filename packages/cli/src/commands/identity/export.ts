@@ -75,5 +75,3 @@ async function runExport(slug?: string): Promise<void> {
     process.exit(ExitCode.CONFIG_ERROR)
   }
 }
-
-export { runExport }

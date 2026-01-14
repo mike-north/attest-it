@@ -187,5 +187,3 @@ async function runAdd(): Promise<void> {
     process.exit(ExitCode.CONFIG_ERROR)
   }
 }
-
-export { runAdd }

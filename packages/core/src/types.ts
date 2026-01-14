@@ -11,16 +11,18 @@ export interface KeyProviderSettings {
   /** Provider type identifier */
   type: string
   /** Provider-specific options */
-  options?: {
-    /** Path to private key (filesystem provider) */
-    privateKeyPath?: string | undefined
-    /** Vault name (1Password provider) */
-    vault?: string | undefined
-    /** Item name (1Password provider) */
-    itemName?: string | undefined
-    /** Account identifier (1Password provider) */
-    account?: string | undefined
-  } | undefined
+  options?:
+    | {
+        /** Path to private key (filesystem provider) */
+        privateKeyPath?: string | undefined
+        /** Vault name (1Password provider) */
+        vault?: string | undefined
+        /** Item name (1Password provider) */
+        itemName?: string | undefined
+        /** Account identifier (1Password provider) */
+        account?: string | undefined
+      }
+    | undefined
 }
 
 /**

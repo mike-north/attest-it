@@ -9,14 +9,7 @@ import {
   type VerificationState,
   type GateSealVerificationResult,
 } from '@attest-it/core'
-import {
-  log,
-  success,
-  error,
-  formatTable,
-  outputJson,
-  type TableRow,
-} from '../utils/output.js'
+import { log, success, error, formatTable, outputJson, type TableRow } from '../utils/output.js'
 import { ExitCode } from '../utils/exit-codes.js'
 
 export const statusCommand = new Command('status')

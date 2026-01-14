@@ -34557,7 +34557,7 @@ async function verifySuite(options) {
       suite: suiteName,
       status: "NEEDS_ATTESTATION",
       fingerprint: "",
-      message: "Suite configuration missing packages field (gate-based verification not yet implemented)"
+      message: "Suite configuration missing packages field"
     };
   }
   const fingerprintOptions = {
@@ -34825,14 +34825,20 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
           try {
             await fs6.unlink(tempKeyPath);
             await fs6.rmdir(tempDir);
-          } catch {
+          } catch (cleanupError) {
+            console.warn(
+              `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+            );
           }
         }
       };
     } catch (error2) {
       try {
         await fs6.rm(tempDir, { recursive: true, force: true });
-      } catch {
+      } catch (cleanupError) {
+        console.warn(
+          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+        );
       }
       throw error2;
     }
@@ -34875,7 +34881,10 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
     } catch (error2) {
       try {
         await fs6.rm(tempDir, { recursive: true, force: true });
-      } catch {
+      } catch (cleanupError) {
+        console.warn(
+          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+        );
       }
       throw error2;
     }
@@ -34992,14 +35001,20 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
           try {
             await fs6.unlink(tempKeyPath);
             await fs6.rmdir(tempDir);
-          } catch {
+          } catch (cleanupError) {
+            console.warn(
+              `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+            );
           }
         }
       };
     } catch (error2) {
       try {
         await fs6.rm(tempDir, { recursive: true, force: true });
-      } catch {
+      } catch (cleanupError) {
+        console.warn(
+          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+        );
       }
       throw error2;
     }
@@ -35043,7 +35058,10 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
     } catch (error2) {
       try {
         await fs6.rm(tempDir, { recursive: true, force: true });
-      } catch {
+      } catch (cleanupError) {
+        console.warn(
+          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+        );
       }
       throw error2;
     }
@@ -35171,13 +35189,23 @@ var identitySchema = external_exports.object({
 }).strict();
 var localConfigSchema = external_exports.object({
   activeIdentity: external_exports.string().min(1, "Active identity name cannot be empty"),
-  identities: external_exports.record(external_exports.string(), identitySchema).refine(
-    (identities) => Object.keys(identities).length >= 1,
-    {
-      message: "At least one identity must be defined"
-    }
-  )
+  identities: external_exports.record(external_exports.string(), identitySchema).refine((identities) => Object.keys(identities).length >= 1, {
+    message: "At least one identity must be defined"
+  })
 }).strict();
+var sealSchema = external_exports.object({
+  gateId: external_exports.string().min(1, "Gate ID cannot be empty"),
+  // Fingerprint format: sha256:<hex> where hex is at least 1 character
+  // Full fingerprints are 64 hex chars, but tests may use shorter values
+  fingerprint: external_exports.string().regex(/^sha256:[a-f0-9]+$/i, "Invalid fingerprint format (expected sha256:<hex>)"),
+  timestamp: external_exports.string().datetime({ message: "Invalid ISO 8601 timestamp" }),
+  sealedBy: external_exports.string().min(1, "Signer slug cannot be empty"),
+  signature: external_exports.string().min(1, "Signature cannot be empty")
+});
+var sealsFileSchema = external_exports.object({
+  version: external_exports.literal(1, { errorMap: () => ({ message: "Unsupported seals file version" }) }),
+  seals: external_exports.record(external_exports.string(), sealSchema)
+});
 
 // src/index.ts
 async function run() {

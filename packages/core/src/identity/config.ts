@@ -52,12 +52,11 @@ const identitySchema = z
 const localConfigSchema = z
   .object({
     activeIdentity: z.string().min(1, 'Active identity name cannot be empty'),
-    identities: z.record(z.string(), identitySchema).refine(
-      (identities) => Object.keys(identities).length >= 1,
-      {
+    identities: z
+      .record(z.string(), identitySchema)
+      .refine((identities) => Object.keys(identities).length >= 1, {
         message: 'At least one identity must be defined',
-      },
-    ),
+      }),
   })
   .strict()
 
@@ -127,7 +126,9 @@ function parseLocalConfigContent(content: string): LocalConfig {
           type: '1password',
           vault: identity.privateKey.vault,
           item: identity.privateKey.item,
-          ...(identity.privateKey.account !== undefined && { account: identity.privateKey.account }),
+          ...(identity.privateKey.account !== undefined && {
+            account: identity.privateKey.account,
+          }),
           ...(identity.privateKey.field !== undefined && { field: identity.privateKey.field }),
         }
       } else {

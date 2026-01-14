@@ -47,5 +47,3 @@ async function runUse(slug: string): Promise<void> {
     process.exit(ExitCode.CONFIG_ERROR)
   }
 }
-
-export { runUse }

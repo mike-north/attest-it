@@ -141,7 +141,9 @@ describe('Ed25519 Cryptography', () => {
       // Public key that's not 32 bytes
       const invalidPublicKey = Buffer.from('too short').toString('base64')
 
-      expect(() => ed25519.verify(data, signature, invalidPublicKey)).toThrow(/Invalid Ed25519 public key length/)
+      expect(() => ed25519.verify(data, signature, invalidPublicKey)).toThrow(
+        /Invalid Ed25519 public key length/,
+      )
     })
 
     it('should fail with malformed private key', () => {
@@ -184,7 +186,8 @@ describe('Ed25519 Cryptography', () => {
     })
 
     it('should fail with wrong key type', () => {
-      const wrongKeyType = '-----BEGIN RSA PRIVATE KEY-----\nMIIBogIBAAJBALRiMLAA\n-----END RSA PRIVATE KEY-----'
+      const wrongKeyType =
+        '-----BEGIN RSA PRIVATE KEY-----\nMIIBogIBAAJBALRiMLAA\n-----END RSA PRIVATE KEY-----'
 
       expect(() => ed25519.getPublicKeyFromPrivate(wrongKeyType)).toThrow()
     })

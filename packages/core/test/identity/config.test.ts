@@ -135,7 +135,9 @@ describe('identity/config', () => {
         const configPath = path.join(FIXTURES_DIR, 'invalid-no-identities.yaml')
 
         await expect(loadLocalConfig(configPath)).rejects.toThrow(LocalConfigValidationError)
-        await expect(loadLocalConfig(configPath)).rejects.toThrow('At least one identity must be defined')
+        await expect(loadLocalConfig(configPath)).rejects.toThrow(
+          'At least one identity must be defined',
+        )
       })
 
       it('should throw LocalConfigValidationError for empty public key', async () => {
@@ -222,7 +224,9 @@ identities:
           )
 
           await expect(loadLocalConfig(configPath)).rejects.toThrow(LocalConfigValidationError)
-          await expect(loadLocalConfig(configPath)).rejects.toThrow('Active identity name cannot be empty')
+          await expect(loadLocalConfig(configPath)).rejects.toThrow(
+            'Active identity name cannot be empty',
+          )
         } finally {
           fs.rmSync(tempDir, { recursive: true, force: true })
         }

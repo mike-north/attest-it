@@ -45,7 +45,9 @@ const teamMemberSchema = z
  */
 const fingerprintConfigSchema = z
   .object({
-    paths: z.array(z.string().min(1, 'Path cannot be empty')).min(1, 'At least one path is required'),
+    paths: z
+      .array(z.string().min(1, 'Path cannot be empty'))
+      .min(1, 'At least one path is required'),
     exclude: z.array(z.string().min(1, 'Exclude pattern cannot be empty')).optional(),
   })
   .strict()

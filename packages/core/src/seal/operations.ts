@@ -19,7 +19,9 @@ const sealSchema = z.object({
   gateId: z.string().min(1, 'Gate ID cannot be empty'),
   // Fingerprint format: sha256:<hex> where hex is at least 1 character
   // Full fingerprints are 64 hex chars, but tests may use shorter values
-  fingerprint: z.string().regex(/^sha256:[a-f0-9]+$/i, 'Invalid fingerprint format (expected sha256:<hex>)'),
+  fingerprint: z
+    .string()
+    .regex(/^sha256:[a-f0-9]+$/i, 'Invalid fingerprint format (expected sha256:<hex>)'),
   timestamp: z.string().datetime({ message: 'Invalid ISO 8601 timestamp' }),
   sealedBy: z.string().min(1, 'Signer slug cannot be empty'),
   signature: z.string().min(1, 'Signature cannot be empty'),

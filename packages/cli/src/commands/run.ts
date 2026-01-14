@@ -480,11 +480,7 @@ async function runSingleSuite(
  * @param gateId - ID of the gate linked to the suite
  * @param config - Configuration object
  */
-async function promptForSeal(
-  suiteName: string,
-  gateId: string,
-  config: Config,
-): Promise<void> {
+async function promptForSeal(suiteName: string, gateId: string, config: Config): Promise<void> {
   log('')
   log(`Suite '${suiteName}' is linked to gate '${gateId}'`)
 
@@ -591,7 +587,9 @@ async function promptForSeal(
  * @param identity - The identity containing the private key reference
  * @returns A key provider instance
  */
-function createKeyProviderFromIdentity(identity: Identity): ReturnType<typeof KeyProviderRegistry.create> {
+function createKeyProviderFromIdentity(
+  identity: Identity,
+): ReturnType<typeof KeyProviderRegistry.create> {
   const { privateKey } = identity
 
   switch (privateKey.type) {

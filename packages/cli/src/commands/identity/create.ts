@@ -258,5 +258,3 @@ async function runCreate(): Promise<void> {
     process.exit(ExitCode.CONFIG_ERROR)
   }
 }
-
-export { runCreate }

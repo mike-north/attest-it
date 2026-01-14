@@ -78,6 +78,7 @@ identities:
 **Migration:**
 
 Users upgrading from v1.x will need to:
+
 1. Create a local identity: `attest-it identity create`
 2. Add team members to project config with their public keys
 3. Define gates with authorized signers

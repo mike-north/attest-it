@@ -148,10 +148,18 @@ export function verify(data: Buffer | string, signature: string, publicKeyBase64
 
     // SPKI header for Ed25519 (algorithm OID)
     const spkiHeader = Buffer.from([
-      0x30, 0x2a, // SEQUENCE, 42 bytes
-      0x30, 0x05, // SEQUENCE, 5 bytes
-      0x06, 0x03, 0x2b, 0x65, 0x70, // OID 1.3.101.112 (Ed25519)
-      0x03, 0x21, 0x00, // BIT STRING, 33 bytes (32 key + 1 padding)
+      0x30,
+      0x2a, // SEQUENCE, 42 bytes
+      0x30,
+      0x05, // SEQUENCE, 5 bytes
+      0x06,
+      0x03,
+      0x2b,
+      0x65,
+      0x70, // OID 1.3.101.112 (Ed25519)
+      0x03,
+      0x21,
+      0x00, // BIT STRING, 33 bytes (32 key + 1 padding)
     ])
 
     const spkiBuffer = Buffer.concat([spkiHeader, rawPublicKey])

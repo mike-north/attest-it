@@ -108,13 +108,7 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
 
     for (const gateId of gatesToSeal) {
       try {
-        const result = await processSingleGate(
-          gateId,
-          attestItConfig,
-          identity,
-          sealsFile,
-          options,
-        )
+        const result = await processSingleGate(gateId, attestItConfig, identity, sealsFile, options)
 
         if (result.sealed) {
           summary.sealed.push(gateId)
@@ -188,7 +182,11 @@ async function processSingleGate(
   // eslint-disable-next-line security/detect-object-injection
   const existingSeal = sealsFile.seals[gateId]
   if (existingSeal && !options.force) {
-    return { sealed: false, skipped: true, reason: 'Gate already has a seal (use --force to override)' }
+    return {
+      sealed: false,
+      skipped: true,
+      reason: 'Gate already has a seal (use --force to override)',
+    }
   }
 
   // Compute current fingerprint
@@ -299,7 +297,9 @@ function displaySummary(summary: SealSummary, dryRun?: boolean): void {
  * @param identity - The identity containing the private key reference
  * @returns A key provider instance
  */
-function createKeyProviderFromIdentity(identity: Identity): ReturnType<typeof KeyProviderRegistry.create> {
+function createKeyProviderFromIdentity(
+  identity: Identity,
+): ReturnType<typeof KeyProviderRegistry.create> {
   const { privateKey } = identity
 
   switch (privateKey.type) {
@@ -355,5 +355,3 @@ function getKeyRefFromIdentity(identity: Identity): string {
       throw new Error(`Unsupported private key type: ${(privateKey as { type: string }).type}`)
   }
 }
-
-export { runSeal }
