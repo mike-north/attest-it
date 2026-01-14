@@ -54,8 +54,8 @@
     "check:types": "tsc --noEmit",
     "test": "vitest run",
     "test:manual": "tsx test/manual-test-runner.ts",
-    "test:manual:agent": "tsx test/manual-test-runner.ts --print-command",
     "test:manual:1password": "tsx test/manual/scripts/1password-integration.ts",
+    "test:manual:agent": "tsx test/manual-test-runner.ts --print-command",
     "test:manual:keychain": "tsx test/manual/scripts/keychain-integration.ts",
     "test:manual:visual": "tsx test/manual/scripts/visual-verification.ts"
   },
