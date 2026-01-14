@@ -1,125 +1,145 @@
 # attest-it
 
-Human-gated test attestation system with CI-friendly automated verification
+Cryptographically signed attestations for tests that can't run in CI.
 
-## Why attest-it?
+## Why?
 
-Some tests can't run in CI:
-
-- Tests requiring desktop applications (Cursor, VS Code)
-- Tests requiring OAuth flows with real browsers
-- Tests requiring AI assistants (Claude Code, GitHub Copilot)
-- Tests requiring human verification of visual correctness
-
-These tests still need to be on the critical path. `attest-it` enforces that a human ran them by requiring cryptographically signed attestations.
+Some tests require a human: desktop apps, OAuth flows, AI assistants, visual verification. `attest-it` lets you run these locally and create cryptographic proof that they passed.
 
 ## Quick Start
 
 ```bash
-# Install
 npm install attest-it
 
-# Initialize configuration
+# One-time setup: create your signing identity
+npx attest-it identity create
+
+# Initialize project config
 npx attest-it init
 
-# Generate signing keys
-npx attest-it keygen
-
-# Run tests and create attestation
+# Run tests and seal the gate
 npx attest-it run --suite my-suite
 
-# Verify attestations (in CI)
+# In CI: verify all seals
 npx attest-it verify
 ```
 
 ## How It Works
 
-1. **Configure suites** - Define which packages and tests need human attestation
-2. **Generate keys** - Create a keypair; private key stays local, public key goes in repo
-3. **Run and attest** - Execute tests locally, confirm they passed, sign the attestation
-4. **Verify in CI** - CI checks the signature and fingerprint match current code
+1. **Identity** - Your Ed25519 keypair (stored in 1Password, Keychain, or filesystem)
+2. **Gates** - Define what code needs attestation and who can sign
+3. **Seals** - Run tests, confirm they passed, create cryptographic signature
+4. **Verify** - CI checks signatures against team member public keys
 
-## Security Model
+## Security
 
-### Threat Model
+The primary threat is an AI assistant creating a fake attestation. attest-it prevents this with:
 
-The primary threat is a well-meaning AI assistant that sees "attestation missing" and tries to help by generating a fake attestation. Asymmetric cryptography prevents this:
-
-- Private key stored outside repo (`~/.config/attest-it/`)
-- Only the signature (not the key) is in the repo
-- AI can't sign without the private key
-
-### Key Management
-
-**Private Key:**
-
-- Stored in `~/.config/attest-it/key.pem` (outside repository)
-- File permissions automatically set to 0600 (owner read/write only)
-- Never commit to version control
-- Back up securely (password manager, encrypted backup)
-
-**Public Key:**
-
-- Stored in repository (e.g., `.attest-it/pubkey.pem`)
-- Safe to share and commit
-- Used by CI to verify attestations
-
-### What attest-it Protects Against
-
-- AI assistants creating fake attestations
-- Attestation tampering (signature verification fails)
-- Outdated attestations (maxAgeDays expiration)
-- Code changes without re-attestation (fingerprint verification)
-
-### What attest-it Does NOT Protect Against
-
-- Compromised private keys
-- Malicious developers with legitimate access
-- Attackers with write access to both code and private key
-
-## Installation
-
-```bash
-npm install attest-it
-# or
-pnpm add attest-it
-# or
-yarn add attest-it
-```
+- **Asymmetric crypto**: Private keys never enter the repo
+- **Secure storage**: Keys stored in 1Password, macOS Keychain, or encrypted files
+- **Team authorization**: Each gate specifies who can sign
+- **Fingerprinting**: Code changes invalidate seals
 
 ## Configuration
 
-Create `.attest-it/config.yaml`:
+### Project Configuration
+
+Create `.attest-it/config.yaml` in your repository:
 
 ```yaml
 version: 1
 
 settings:
-  maxAgeDays: 30
-  algorithm: ed25519
   publicKeyPath: .attest-it/pubkey.pem
-  attestationsPath: .attest-it/attestations.json
+  sealsPath: .attest-it/seals.json
 
+# Team members who can create seals
+team:
+  alice:
+    name: Alice Smith
+    email: alice@example.com
+    publicKey: MCowBQYDK2VwAyEA... # Base64 Ed25519 public key
+
+# Gates define what code requires human attestation
+gates:
+  desktop-tests:
+    name: Desktop Tests
+    description: Tests requiring VS Code desktop application
+    authorizedSigners: [alice]
+    fingerprint:
+      paths:
+        - packages/vscode-extension/**/*.ts
+      exclude:
+        - '**/*.test.ts'
+    maxAge: 30d
+
+# Suites extend gates with test commands (optional)
 suites:
   desktop-tests:
-    description: Tests requiring desktop application
-    packages:
-      - packages/my-app
+    gate: desktop-tests
     command: pnpm vitest --project desktop
+```
+
+### Local Identity Configuration
+
+Your identity is stored locally at `~/.config/attest-it/config.yaml`:
+
+```yaml
+activeIdentity: work
+
+identities:
+  work:
+    name: Alice Smith
+    email: alice@example.com
+    publicKey: MCowBQYDK2VwAyEA...
+    privateKey:
+      type: keychain # or '1password' or 'file'
+      service: attest-it
+      account: alice
 ```
 
 See [Configuration Guide](docs/configuration.md) for full options.
 
 ## CLI Commands
 
+### Identity Management
+
+| Command                  | Description                           |
+| ------------------------ | ------------------------------------- |
+| `identity create`        | Create a new identity with keypair    |
+| `identity list`          | List all local identities             |
+| `identity use <slug>`    | Switch active identity                |
+| `identity show [slug]`   | Show identity details                 |
+| `identity export [slug]` | Export public key for team onboarding |
+| `identity edit <slug>`   | Edit identity or rotate keys          |
+| `identity remove <slug>` | Delete identity and associated key    |
+| `whoami`                 | Show current active identity          |
+
+### Team Management
+
+| Command              | Description                  |
+| -------------------- | ---------------------------- |
+| `team list`          | List team members and gates  |
+| `team add`           | Add a team member            |
+| `team edit <slug>`   | Edit team member             |
+| `team remove <slug>` | Remove team member           |
+
+### Sealing and Verification
+
+| Command            | Description                        |
+| ------------------ | ---------------------------------- |
+| `seal [gates...]`  | Create seals for specified gates   |
+| `verify [gates...]`| Verify seals (for CI)              |
+| `status`           | Show seal status for all gates     |
+| `run --suite`      | Run tests and optionally seal      |
+
+### Project Setup
+
 | Command  | Description                      |
 | -------- | -------------------------------- |
-| `init`   | Initialize configuration         |
+| `init`   | Initialize project configuration |
 | `keygen` | Generate signing keypair         |
-| `status` | Show attestation status          |
-| `run`    | Run tests and create attestation |
-| `verify` | Verify attestations (for CI)     |
-| `prune`  | Remove stale attestations        |
+| `prune`  | Remove stale seals               |
 
 Run `npx attest-it <command> --help` for detailed usage.
 
@@ -186,34 +206,41 @@ it('renders complex chart correctly', async () => {
 })
 ```
 
-## How Attestations Work
+## How Seals Work
 
-1. **Fingerprinting**: Compute SHA-256 hash of all test files and dependencies
-2. **Execution**: Run the test suite locally
-3. **Attestation**: Create signed record of fingerprint + timestamp + user
-4. **Verification**: CI verifies signature and checks fingerprint matches current code
+1. **Fingerprinting**: Compute SHA-256 hash of all files in gate's fingerprint paths
+2. **Execution**: Run the test suite locally (if using `run` command)
+3. **Sealing**: Create Ed25519 signature of fingerprint + timestamp + gate ID
+4. **Verification**: CI verifies signature against team member's public key
 
-## Fingerprint Invalidation
+### Verification States
 
-Attestations become invalid when:
+| State                  | Description                                      |
+| ---------------------- | ------------------------------------------------ |
+| `VALID`                | Seal is valid and current                        |
+| `MISSING`              | No seal found for gate                           |
+| `STALE`                | Seal exceeds maxAge (warning, not failure)       |
+| `FINGERPRINT_MISMATCH` | Code changed since seal was created              |
+| `INVALID_SIGNATURE`    | Signature verification failed                    |
+| `UNKNOWN_SIGNER`       | Signer not found in team configuration           |
 
-- Test files change (fingerprint mismatch)
-- Dependencies change (if included in packages)
-- Attestation expires (exceeds maxAgeDays)
-- Parent suite changes (via invalidates property)
+### Seal Invalidation
 
-## Security Features
+Seals become invalid when:
 
-- **Ed25519 signatures**: Fast, modern elliptic curve cryptography
-- **Canonical JSON**: Deterministic serialization prevents tampering
-- **File permissions**: Private keys automatically set to 0600
-- **Git integration**: Detects uncommitted changes before attesting
+- Files in fingerprint paths change (fingerprint mismatch)
+- Seal expires (exceeds gate's maxAge)
+- Signer is removed from team configuration
+- Signer is removed from gate's authorizedSigners
 
 ## Requirements
 
 - Node.js 20+
-- OpenSSL (for key generation)
 - Git (for fingerprinting and detecting changes)
+
+**Optional** (for key storage):
+- 1Password CLI (`op`) for 1Password key storage
+- macOS for Keychain key storage
 
 ## Contributing
 
