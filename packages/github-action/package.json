@@ -3,6 +3,7 @@
   "version": "0.0.1",
   "dependencies": {
     "@actions/core": "^1.11.0",
+    "@actions/github": "^7.0.0",
     "@attest-it/core": "workspace:*"
   },
   "devDependencies": {
@@ -17,6 +18,7 @@
     "build": "tsup",
     "lint": "eslint src",
     "test": "vitest run",
+    "test:act": "act -W ./test/act-workflows push --container-architecture linux/amd64",
     "typecheck": "tsc --noEmit"
   },
   "type": "module"

@@ -16,6 +16,23 @@ inputs:
     description: 'Path to attest-it config file (relative to working-directory)'
     required: false
 
+  github-token:
+    description: 'GitHub token for fetching policy from base branch (required for PRs)'
+    required: false
+    default: ${{ github.token }}
+
+  policy-path:
+    description: 'Path to policy file (relative to repo root)'
+    required: false
+    default: '.attest-it/policy.yaml'
+
+  policy-ref:
+    description: |
+      Git ref (branch/tag) to fetch policy from. Defaults to base branch for PRs,
+      or reads from filesystem for pushes. Use this to enforce policy from a
+      specific branch like 'production' regardless of PR target.
+    required: false
+
   suite:
     description: 'Verify specific suite only'
     required: false
