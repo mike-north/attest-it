@@ -6,6 +6,8 @@
 
 Get the path to the local config file.
 
+If a home directory override is set via setAttestItHomeDir(), returns {<!-- -->homeDir<!-- -->}<!-- -->/config.yaml. Otherwise returns \~/.config/attest-it/config.yaml.
+
 **Signature:**
 
 ```typescript
@@ -15,5 +17,5 @@ declare function getLocalConfigPath(): string;
 
 string
 
-Path to \~/.config/attest-it/config.yaml
+Path to the local config file
 

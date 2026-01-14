@@ -262,6 +262,30 @@ Get the active identity from a config.
 </td></tr>
 <tr><td>
 
+[getAttestItConfigDir()](./core.getattestitconfigdir.md)
+
+
+</td><td>
+
+Get the attest-it configuration directory.
+
+If a home directory override is set via setAttestItHomeDir(), returns that directory. Otherwise returns \~/.config/attest-it.
+
+
+</td></tr>
+<tr><td>
+
+[getAttestItHomeDir()](./core.getattestithomedir.md)
+
+
+</td><td>
+
+Get the current attest-it home directory override.
+
+
+</td></tr>
+<tr><td>
+
 [getAuthorizedSignersForGate(config, gateId)](./core.getauthorizedsignersforgate.md)
 
 
@@ -312,6 +336,8 @@ Get the gate configuration for a given gate ID.
 </td><td>
 
 Get the path to the local config file.
+
+If a home directory override is set via setAttestItHomeDir(), returns {<!-- -->homeDir<!-- -->}<!-- -->/config.yaml. Otherwise returns \~/.config/attest-it/config.yaml.
 
 
 </td></tr>
@@ -505,6 +531,17 @@ Save local config to file (async).
 </td><td>
 
 Save local config to file (sync).
+
+
+</td></tr>
+<tr><td>
+
+[setAttestItHomeDir(dir)](./core.setattestithomedir.md)
+
+
+</td><td>
+
+Set a custom home directory for attest-it configuration. This is useful for testing or running with isolated state.
 
 
 </td></tr>
@@ -956,6 +993,17 @@ Result of a key retrieval operation.
 </td><td>
 
 The local config file structure at \~/.config/attest-it/config.yaml.
+
+
+</td></tr>
+<tr><td>
+
+[MacOSKeychain](./core.macoskeychain.md)
+
+
+</td><td>
+
+Information about a macOS keychain.
 
 
 </td></tr>

@@ -11,6 +11,7 @@ Private key reference - points to where the key is stored.
 ```typescript
 type PrivateKeyRef = {
     account: string;
+    keychain?: string;
     service: string;
     type: 'keychain';
 } | {

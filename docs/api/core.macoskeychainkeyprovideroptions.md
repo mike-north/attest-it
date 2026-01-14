@@ -54,5 +54,24 @@ Item name in keychain (e.g., "attest-it-private-key")
 
 
 </td></tr>
+<tr><td>
+
+[keychain?](./core.macoskeychainkeyprovideroptions.keychain.md)
+
+
+</td><td>
+
+
+</td><td>
+
+string
+
+
+</td><td>
+
+_(Optional)_ Path to the keychain file (optional, uses default keychain if not specified)
+
+
+</td></tr>
 </tbody></table>
 

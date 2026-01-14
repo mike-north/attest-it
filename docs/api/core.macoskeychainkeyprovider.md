@@ -218,5 +218,21 @@ Check if a key exists in the keychain.
 
 
 </td></tr>
+<tr><td>
+
+[listKeychains()](./core.macoskeychainkeyprovider.listkeychains.md)
+
+
+</td><td>
+
+`static`
+
+
+</td><td>
+
+List available keychains on the system.
+
+
+</td></tr>
 </tbody></table>
 
