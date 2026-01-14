@@ -1,10 +1,5 @@
 version: 1
 
-settings:
-  maxAgeDays: 3650
-  publicKeyPath: .attest-it/pubkey.pem
-  attestationsPath: .attest-it/attestations.json
-
 suites:
   unit-tests:
     description: Unit test suite

@@ -1,0 +1,100 @@
+name: Test attest-it Action (Local)
+
+# This workflow is designed to be run locally with `act`
+# It tests the GitHub Action in various scenarios without requiring CI
+
+on: push
+
+jobs:
+  # Test 1: Split config - valid attestation should pass
+  test-split-config-valid:
+    name: Split config - valid attestation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build action
+        run: |
+          cd packages/github-action
+          npm install
+          npm run build
+
+      - name: Verify valid attestation with split config
+        uses: ./packages/github-action
+        with:
+          working-directory: packages/github-action/test/fixtures/split-config-valid
+          policy-path: .attest-it/policy.yaml
+          config-path: .attest-it/config.yaml
+          fail-on-missing: 'true'
+
+      - name: Confirm success
+        run: echo "Split config valid attestation test passed"
+
+  # Test 2: policy-ref input (simulated - no API access in local testing)
+  test-policy-ref-filesystem:
+    name: policy-ref fallback to filesystem
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build action
+        run: |
+          cd packages/github-action
+          npm install
+          npm run build
+
+      # In non-PR context without policy-ref, should use filesystem
+      - name: Verify uses filesystem in non-PR context
+        uses: ./packages/github-action
+        with:
+          working-directory: packages/github-action/test/fixtures/split-config-valid
+          policy-path: .attest-it/policy.yaml
+          config-path: .attest-it/config.yaml
+          fail-on-missing: 'true'
+
+      - name: Confirm success
+        run: echo "Non-PR filesystem test passed"
+
+  # Test 3: Missing attestation should fail
+  test-missing-attestation:
+    name: Missing attestation fails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build action
+        run: |
+          cd packages/github-action
+          npm install
+          npm run build
+
+      - name: Verify missing attestation fails
+        id: verify
+        uses: ./packages/github-action
+        continue-on-error: true
+        with:
+          working-directory: packages/github-action/test/fixtures/missing-attestation
+          fail-on-missing: 'true'
+
+      - name: Check that action failed as expected
+        run: |
+          if [ "${{ steps.verify.outcome }}" != "failure" ]; then
+            echo "Expected action to fail but it succeeded"
+            exit 1
+          fi
+          echo "Missing attestation correctly caused failure"
