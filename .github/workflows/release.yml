@@ -1,7 +1,10 @@
 name: Release
 
 on:
-  push:
+  workflow_run:
+    workflows: ['CI']
+    types:
+      - completed
     branches: [main]
 
 concurrency:
@@ -9,6 +12,7 @@ concurrency:
 
 jobs:
   release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     environment: npm-publish
     runs-on: ubuntu-latest
     permissions:
