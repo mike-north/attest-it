@@ -1,0 +1,23 @@
+# Invalid policy file
+# Gate references a team member that doesn't exist
+# This should fail validation
+version: 1
+
+team:
+  # Only Alice is defined
+  alice:
+    name: Alice
+    publicKey: MCowBQYDK2VwAyEAtest1234567890abcdefghijklmnop=
+
+gates:
+  # This gate is broken because it references 'charlie' who doesn't exist
+  broken:
+    name: Broken Gate
+    description: References non-existent signer
+    authorizedSigners:
+      - alice
+      - charlie # ERROR: charlie is not defined in team
+    fingerprint:
+      paths:
+        - src/**
+    maxAge: 30d
