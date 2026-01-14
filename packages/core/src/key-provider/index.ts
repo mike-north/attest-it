@@ -30,6 +30,10 @@ export type {
   OnePasswordVault,
 } from './one-password-provider.js'
 
+// macOS Keychain provider
+export { MacOSKeychainKeyProvider } from './macos-keychain-provider.js'
+export type { MacOSKeychainKeyProviderOptions } from './macos-keychain-provider.js'
+
 // Registry
 export { KeyProviderRegistry } from './registry.js'
 export type { KeyProviderFactory } from './registry.js'

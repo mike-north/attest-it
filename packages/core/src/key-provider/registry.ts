@@ -11,6 +11,7 @@
 import type { KeyProvider, KeyProviderConfig } from './types.js'
 import { FilesystemKeyProvider } from './filesystem-provider.js'
 import { OnePasswordKeyProvider } from './one-password-provider.js'
+import { MacOSKeychainKeyProvider } from './macos-keychain-provider.js'
 
 /**
  * Type for a key provider factory function.
@@ -95,4 +96,16 @@ KeyProviderRegistry.register('1password', (config) => {
     return new OnePasswordKeyProvider({ account, vault, itemName })
   }
   return new OnePasswordKeyProvider({ vault, itemName })
+})
+
+// Register the macOS Keychain provider
+KeyProviderRegistry.register('macos-keychain', (config) => {
+  const { options } = config
+  const itemName = typeof options.itemName === 'string' ? options.itemName : ''
+
+  if (!itemName) {
+    throw new Error('macOS Keychain provider requires itemName option')
+  }
+
+  return new MacOSKeychainKeyProvider({ itemName })
 })

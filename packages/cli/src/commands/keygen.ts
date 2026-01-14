@@ -7,6 +7,7 @@ import {
   getDefaultPublicKeyPath,
   setKeyPermissions,
   OnePasswordKeyProvider,
+  MacOSKeychainKeyProvider,
 } from '@attest-it/core'
 import { log, success, error, warn, info } from '../utils/output.js'
 import { confirmAction } from '../utils/prompts.js'
@@ -17,9 +18,12 @@ export const keygenCommand = new Command('keygen')
   .description('Generate a new RSA keypair for signing attestations')
   .option('-o, --output <path>', 'Public key output path')
   .option('-p, --private <path>', 'Private key output path (filesystem only)')
-  .option('--provider <type>', 'Key provider: filesystem or 1password (skips interactive)')
+  .option(
+    '--provider <type>',
+    'Key provider: filesystem, 1password, or macos-keychain (skips interactive)',
+  )
   .option('--vault <name>', '1Password vault name')
-  .option('--item-name <name>', '1Password item name')
+  .option('--item-name <name>', '1Password/macOS Keychain item name')
   .option('--account <email>', '1Password account')
   .option('-f, --force', 'Overwrite existing keys')
   .option('--no-interactive', 'Disable interactive mode')
@@ -97,11 +101,21 @@ async function runKeygen(options: KeygenOptions): Promise<void> {
         log(`      vault: ${result.vault ?? ''}`)
         log(`      itemName: ${result.itemName ?? ''}`)
         log('')
+      } else if (result.provider === 'macos-keychain') {
+        log('Add to your .attest-it/config.yaml:')
+        log('')
+        log('settings:')
+        log(`  publicKeyPath: ${result.publicKeyPath}`)
+        log('  keyProvider:')
+        log('    type: macos-keychain')
+        log('    options:')
+        log(`      itemName: ${result.itemName ?? ''}`)
+        log('')
       }
 
       log('Next steps:')
       log(`  1. git add ${result.publicKeyPath}`)
-      if (result.provider === '1password') {
+      if (result.provider === '1password' || result.provider === 'macos-keychain') {
         log('  2. Update .attest-it/config.yaml with keyProvider settings')
       } else {
         log('  2. Update .attest-it/config.yaml publicKeyPath if needed')
@@ -152,6 +166,40 @@ async function runNonInteractiveKeygen(options: KeygenOptions): Promise<void> {
 
     log(`Generating keypair with 1Password storage...`)
     log(`Vault: ${options.vault}`)
+    log(`Item: ${options.itemName}`)
+
+    // Build generation options, only including force if defined
+    const genOptions: { publicKeyPath: string; force?: boolean } = { publicKeyPath: publicPath }
+    if (options.force !== undefined) {
+      genOptions.force = options.force
+    }
+
+    const result = await provider.generateKeyPair(genOptions)
+
+    success('Keypair generated successfully!')
+    log('')
+    log('Private key stored in:')
+    log(`  ${result.storageDescription}`)
+    log('')
+    log('Public key (commit to repo):')
+    log(`  ${result.publicKeyPath}`)
+  } else if (options.provider === 'macos-keychain') {
+    // macOS Keychain provider mode
+    if (!options.itemName) {
+      throw new Error('--item-name is required for macos-keychain provider')
+    }
+
+    // Check if macOS Keychain is available
+    const isAvailable = await MacOSKeychainKeyProvider.isAvailable()
+    if (!isAvailable) {
+      throw new Error('macOS Keychain is not available on this platform')
+    }
+
+    const provider = new MacOSKeychainKeyProvider({
+      itemName: options.itemName,
+    })
+
+    log(`Generating keypair with macOS Keychain storage...`)
     log(`Item: ${options.itemName}`)
 
     // Build generation options, only including force if defined
