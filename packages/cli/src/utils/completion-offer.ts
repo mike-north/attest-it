@@ -8,7 +8,10 @@ import { loadPreferences, savePreferences } from '@attest-it/core'
 import { log, info, success, error } from './output.js'
 import tabtab from '@pnpm/tabtab'
 
+/** Primary program name */
 const PROGRAM_NAME = 'attest-it'
+/** Short alias for the program */
+const PROGRAM_ALIAS = 'attest'
 
 type SupportedShell = 'bash' | 'zsh' | 'fish'
 
@@ -88,15 +91,21 @@ export async function offerCompletionInstall(): Promise<boolean> {
       return false
     }
 
-    // Install completions
+    // Install completions for both program names (attest-it and attest)
     await tabtab.install({
       name: PROGRAM_NAME,
       completer: PROGRAM_NAME,
       shell,
     })
+    await tabtab.install({
+      name: PROGRAM_ALIAS,
+      completer: PROGRAM_ALIAS,
+      shell,
+    })
 
     log('')
     success(`Shell completions installed for ${shell}!`)
+    info(`Completions enabled for both "${PROGRAM_NAME}" and "${PROGRAM_ALIAS}" commands.`)
     log('')
     info('Restart your shell or run:')
     log(`  ${getSourceCommand(shell)}`)

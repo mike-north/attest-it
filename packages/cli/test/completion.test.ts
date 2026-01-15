@@ -267,4 +267,63 @@ describe('Shell Completion', () => {
       expect(stdout).toBeDefined()
     })
   })
+
+  // Test that the "attest" alias works identically to "attest-it"
+  describe('"attest" alias support', () => {
+    describe.each(['bash', 'zsh', 'fish'] as const)('%s shell with "attest" alias', (shell) => {
+      it('should complete top-level commands when typing "attest "', async () => {
+        const { stdout, exitCode } = await getCompletions('attest ', shell)
+        expect(exitCode).toBe(0)
+
+        const completions = parseCompletions(stdout, shell)
+        expect(completions).toContain('status')
+        expect(completions).toContain('run')
+        expect(completions).toContain('verify')
+        expect(completions).toContain('seal')
+        expect(completions).toContain('init')
+        expect(completions).toContain('identity')
+        expect(completions).toContain('completion')
+      })
+
+      it('should complete global options when typing "attest -"', async () => {
+        const { stdout, exitCode } = await getCompletions('attest -', shell)
+        expect(exitCode).toBe(0)
+
+        const completions = parseCompletions(stdout, shell)
+        expect(completions).toContain('--help')
+        expect(completions).toContain('--version')
+        expect(completions).toContain('--verbose')
+      })
+
+      it('should complete identity subcommands with "attest" alias', async () => {
+        const { stdout, exitCode } = await getCompletions('attest identity ', shell)
+        expect(exitCode).toBe(0)
+
+        const completions = parseCompletions(stdout, shell)
+        expect(completions).toContain('create')
+        expect(completions).toContain('list')
+        expect(completions).toContain('use')
+        expect(completions).toContain('remove')
+      })
+
+      it('should complete team subcommands with "attest" alias', async () => {
+        const { stdout, exitCode } = await getCompletions('attest team ', shell)
+        expect(exitCode).toBe(0)
+
+        const completions = parseCompletions(stdout, shell)
+        expect(completions).toContain('add')
+        expect(completions).toContain('list')
+        expect(completions).toContain('remove')
+      })
+
+      it('should complete completion subcommands with "attest" alias', async () => {
+        const { stdout, exitCode } = await getCompletions('attest completion ', shell)
+        expect(exitCode).toBe(0)
+
+        const completions = parseCompletions(stdout, shell)
+        expect(completions).toContain('install')
+        expect(completions).toContain('uninstall')
+      })
+    })
+  })
 })

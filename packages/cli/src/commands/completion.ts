@@ -4,7 +4,12 @@ import { loadLocalConfig, loadConfig } from '@attest-it/core'
 import { success, error, log, info } from '../utils/output.js'
 import { ExitCode } from '../utils/exit-codes.js'
 
+/** Primary program name */
 const PROGRAM_NAME = 'attest-it'
+/** Short alias for the program */
+const PROGRAM_ALIAS = 'attest'
+/** All valid program names for completion context detection */
+const PROGRAM_NAMES = [PROGRAM_NAME, PROGRAM_ALIAS]
 
 type SupportedShell = 'bash' | 'zsh' | 'fish'
 
@@ -86,8 +91,9 @@ async function getCompletions(env: tabtab.ParseEnvResult): Promise<void> {
   }
 
   // Determine which command we're in
+  // Skip program names (attest-it, attest) and npx
   const commandIndex = words.findIndex(
-    (w: string) => !w.startsWith('-') && w !== PROGRAM_NAME && w !== 'npx',
+    (w: string) => !w.startsWith('-') && !PROGRAM_NAMES.includes(w) && w !== 'npx',
   )
   const currentCommand: string | null = commandIndex >= 0 ? (words[commandIndex] ?? null) : null
 
@@ -286,14 +292,21 @@ completionCommand
         info(`Detected shell: ${shell}`)
       }
 
+      // Install completions for both program names (attest-it and attest)
       await tabtab.install({
         name: PROGRAM_NAME,
         completer: PROGRAM_NAME,
         shell,
       })
+      await tabtab.install({
+        name: PROGRAM_ALIAS,
+        completer: PROGRAM_ALIAS,
+        shell,
+      })
 
       log('')
       success(`Shell completion installed for ${shell}!`)
+      info(`Completions enabled for both "${PROGRAM_NAME}" and "${PROGRAM_ALIAS}" commands.`)
       log('')
       info('Restart your shell or run:')
       log(`  ${getSourceCommand(shell)}`)
@@ -310,8 +323,12 @@ completionCommand
   .description('Uninstall shell completion')
   .action(async () => {
     try {
+      // Uninstall completions for both program names
       await tabtab.uninstall({
         name: PROGRAM_NAME,
+      })
+      await tabtab.uninstall({
+        name: PROGRAM_ALIAS,
       })
 
       log('')
