@@ -3,6 +3,19 @@
  *
  * Policy files contain trust and security-critical configuration that should
  * be loaded from the default branch to prevent tampering by PR authors.
+ *
+ * ============================================================================
+ * IMPORTANT: DOCUMENTATION SYNC REQUIRED
+ * ============================================================================
+ * When modifying any schema in this file, you MUST also update:
+ *
+ * 1. README.md - Update the "Configuration" section's quick example
+ * 2. docs/configuration.md - Update the comprehensive configuration reference
+ * 3. schemas/policy.schema.json - Run `pnpm --filter @attest-it/core generate:schemas`
+ *
+ * The configuration format is a key part of the user experience. Any schema
+ * changes should be reflected in user-facing documentation.
+ * ============================================================================
  */
 
 import { parse as parseYaml } from 'yaml'

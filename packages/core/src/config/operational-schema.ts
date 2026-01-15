@@ -3,6 +3,19 @@
  *
  * Operational files contain non-security-critical configuration that can
  * be loaded from PR branches (e.g., suite definitions, command execution settings).
+ *
+ * ============================================================================
+ * IMPORTANT: DOCUMENTATION SYNC REQUIRED
+ * ============================================================================
+ * When modifying any schema in this file, you MUST also update:
+ *
+ * 1. README.md - Update the "Configuration" section's quick example
+ * 2. docs/configuration.md - Update the comprehensive configuration reference
+ * 3. schemas/config.schema.json - Run `pnpm --filter @attest-it/core generate:schemas`
+ *
+ * The configuration format is a key part of the user experience. Any schema
+ * changes should be reflected in user-facing documentation.
+ * ============================================================================
  */
 
 import { parse as parseYaml } from 'yaml'
