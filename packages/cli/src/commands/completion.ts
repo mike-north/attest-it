@@ -13,6 +13,10 @@ const PROGRAM_NAMES = [PROGRAM_NAME, PROGRAM_ALIAS]
 
 type SupportedShell = 'bash' | 'zsh' | 'fish'
 
+function isSupportedShell(value: string): value is SupportedShell {
+  return value === 'bash' || value === 'zsh' || value === 'fish'
+}
+
 /**
  * Get completions based on the current completion context.
  */
@@ -276,16 +280,18 @@ completionCommand
 
       if (shellArg !== undefined) {
         // User explicitly specified a shell
-        if (!tabtab.isShellSupported(shellArg) || shellArg === 'pwsh') {
+        if (!isSupportedShell(shellArg)) {
           error(`Shell "${shellArg}" is not supported. Use bash, zsh, or fish.`)
           process.exit(ExitCode.CONFIG_ERROR)
         }
-        shell = shellArg as SupportedShell
+        shell = shellArg
       } else {
         // Auto-detect from SHELL environment variable
         const detected = detectCurrentShell()
         if (!detected) {
-          error('Could not detect your shell. Please specify: attest-it completion install <bash|zsh|fish>')
+          error(
+            'Could not detect your shell. Please specify: attest-it completion install <bash|zsh|fish>',
+          )
           process.exit(ExitCode.CONFIG_ERROR)
         }
         shell = detected

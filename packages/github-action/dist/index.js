@@ -40347,6 +40347,12 @@ var localConfigSchema = external_exports.object({
     message: "At least one identity must be defined"
   })
 }).strict();
+var cliExperienceSchema = external_exports.object({
+  declinedCompletionInstall: external_exports.boolean().optional()
+}).strict();
+var userPreferencesSchema = external_exports.object({
+  cliExperience: cliExperienceSchema.optional()
+}).strict();
 var sealSchema = external_exports.object({
   gateId: external_exports.string().min(1, "Gate ID cannot be empty"),
   // Fingerprint format: sha256:<hex> where hex is at least 1 character

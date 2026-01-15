@@ -1,140 +1,135 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://attest-it.dev/schemas/config.schema.json",
-  "title": "attest-it Configuration",
-  "description": "Configuration file schema for the attest-it testing attestation framework",
-  "type": "object",
-  "required": ["version", "suites"],
-  "properties": {
-    "version": {
-      "type": "integer",
-      "const": 1,
-      "description": "Configuration schema version"
-    },
-    "settings": {
+  "title": "attest-it Operational Configuration",
+  "description": "Operational configuration schema for attest-it. Contains suite definitions and command execution settings.",
+  "$ref": "#/definitions/config",
+  "definitions": {
+    "config": {
       "type": "object",
-      "description": "Global settings for attestation behavior",
       "properties": {
-        "maxAgeDays": {
-          "type": "integer",
-          "minimum": 1,
-          "default": 30,
-          "description": "Maximum age in days before an attestation expires"
+        "version": {
+          "type": "number",
+          "const": 1
         },
-        "publicKeyPath": {
-          "type": "string",
-          "default": ".attest-it/pubkey.pem",
-          "description": "Path to the public key file used for signature verification"
-        },
-        "attestationsPath": {
-          "type": "string",
-          "default": ".attest-it/attestations.json",
-          "description": "Path to the attestations file"
-        },
-        "defaultCommand": {
-          "type": "string",
-          "description": "Default command to execute for attestation (can be overridden per suite)"
-        },
-        "algorithm": {
-          "type": "string",
-          "enum": ["ed25519", "rsa"],
-          "default": "ed25519",
-          "description": "Cryptographic algorithm to use for signatures"
-        },
-        "keyProvider": {
+        "settings": {
           "type": "object",
-          "description": "Configuration for the key storage provider",
           "properties": {
-            "type": {
-              "type": "string",
-              "enum": ["filesystem", "1password", "macos-keychain"],
-              "description": "Key provider type"
+            "defaultCommand": {
+              "type": "string"
             },
-            "options": {
+            "keyProvider": {
               "type": "object",
-              "description": "Provider-specific options",
               "properties": {
-                "privateKeyPath": {
-                  "type": "string",
-                  "description": "Path to private key file (filesystem provider)"
+                "type": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": ["filesystem", "1password"]
+                    },
+                    {
+                      "type": "string"
+                    }
+                  ]
                 },
-                "account": {
-                  "type": "string",
-                  "description": "1Password account email or ID"
-                },
-                "vault": {
-                  "type": "string",
-                  "description": "1Password vault name"
-                },
-                "itemName": {
-                  "type": "string",
-                  "description": "1Password item name for the private key"
+                "options": {
+                  "type": "object",
+                  "properties": {
+                    "privateKeyPath": {
+                      "type": "string"
+                    },
+                    "account": {
+                      "type": "string"
+                    },
+                    "vault": {
+                      "type": "string"
+                    },
+                    "itemName": {
+                      "type": "string"
+                    }
+                  },
+                  "additionalProperties": true
                 }
               },
+              "required": ["type"],
               "additionalProperties": false
             }
           },
-          "required": ["type"],
-          "additionalProperties": false
+          "additionalProperties": false,
+          "default": {}
+        },
+        "suites": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "gate": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "packages": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "ignore": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "command": {
+                "type": "string"
+              },
+              "timeout": {
+                "type": "string"
+              },
+              "interactive": {
+                "type": "boolean"
+              },
+              "invalidates": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "depends_on": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "groups": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       },
-      "additionalProperties": false
-    },
-    "suites": {
-      "type": "object",
-      "description": "Named test suites with their configurations",
-      "minProperties": 1,
-      "additionalProperties": {
-        "$ref": "#/definitions/suite"
-      }
-    }
-  },
-  "definitions": {
-    "suite": {
-      "type": "object",
-      "description": "Configuration for a single test suite",
-      "required": ["packages"],
-      "properties": {
-        "description": {
-          "type": "string",
-          "description": "Human-readable description of what this suite tests"
-        },
-        "packages": {
-          "type": "array",
-          "description": "Glob patterns for npm packages to include in fingerprint",
-          "items": {
-            "type": "string"
-          },
-          "minItems": 1
-        },
-        "files": {
-          "type": "array",
-          "description": "Additional file patterns to include in fingerprint",
-          "items": {
-            "type": "string"
-          }
-        },
-        "ignore": {
-          "type": "array",
-          "description": "Patterns to ignore when computing fingerprint",
-          "items": {
-            "type": "string"
-          }
-        },
-        "command": {
-          "type": "string",
-          "description": "Command to execute for this suite (overrides defaultCommand)"
-        },
-        "invalidates": {
-          "type": "array",
-          "description": "Other suite names that, when changed, invalidate this suite's attestation",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
+      "required": ["version", "suites"],
       "additionalProperties": false
     }
-  },
-  "additionalProperties": false
+  }
 }

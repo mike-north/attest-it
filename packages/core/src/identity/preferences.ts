@@ -91,7 +91,6 @@ export async function loadPreferences(): Promise<UserPreferences> {
     }
 
     // Log warning but don't fail - preferences aren't critical
-    // eslint-disable-next-line no-console
     console.warn('Invalid preferences file, using defaults:', result.error.message)
     return {}
   } catch (error) {

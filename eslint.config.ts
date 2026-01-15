@@ -76,6 +76,7 @@ export default tseslint.config(
       '**/.vite/**',
       '**/.nx/**',
       '**/tsup.config.ts',
+      '**/scripts/**', // Standalone scripts run with tsx, not compiled
     ],
   },
 )

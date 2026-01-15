@@ -122,19 +122,3 @@ export async function offerCompletionInstall(): Promise<boolean> {
     return false
   }
 }
-
-/**
- * Check if shell completions should be offered to the user.
- * Returns false if user has already declined or shell can't be detected.
- */
-export async function shouldOfferCompletions(): Promise<boolean> {
-  try {
-    const prefs = await loadPreferences()
-    if (prefs.cliExperience?.declinedCompletionInstall) {
-      return false
-    }
-    return detectCurrentShell() !== null
-  } catch {
-    return false
-  }
-}

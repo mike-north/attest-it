@@ -42,12 +42,15 @@ act -W ./test/act-workflows push -P ubuntu-latest=catthehacker/ubuntu:act-latest
 ## Test Scenarios
 
 ### 1. Split Config - Valid Attestation
+
 Tests that a valid attestation passes verification with the new split config model (policy.yaml + config.yaml).
 
 ### 2. Policy-ref Filesystem Fallback
+
 Tests that in non-PR context without policy-ref, the action correctly loads config from the filesystem.
 
 ### 3. Missing Attestation
+
 Tests that missing attestations correctly cause failure when `fail-on-missing: true`.
 
 ## Notes

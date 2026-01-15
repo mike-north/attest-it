@@ -73,7 +73,9 @@ const mockVerifyAttestations = vi.mocked(mockAttestItCoreModule.verifyAttestatio
 const mockParsePolicyContent = vi.mocked(mockAttestItCoreModule.parsePolicyContent)
 const mockParseOperationalContent = vi.mocked(mockAttestItCoreModule.parseOperationalContent)
 const mockMergeConfigs = vi.mocked(mockAttestItCoreModule.mergeConfigs)
-const mockValidateSuiteGateReferences = vi.mocked(mockAttestItCoreModule.validateSuiteGateReferences)
+const mockValidateSuiteGateReferences = vi.mocked(
+  mockAttestItCoreModule.validateSuiteGateReferences,
+)
 
 const mockFetchPolicy = {
   fetchPolicyFromRef: vi.mocked(mockFetchPolicyModule.fetchPolicyFromRef),
@@ -349,7 +351,9 @@ describe('GitHub Action', () => {
 
       await run()
 
-      expect(mockCore.setFailed).toHaveBeenCalledWith('Attestations approaching expiry (strict mode)')
+      expect(mockCore.setFailed).toHaveBeenCalledWith(
+        'Attestations approaching expiry (strict mode)',
+      )
     })
 
     it('should not fail in strict mode when attestation is fresh', async () => {

@@ -49,6 +49,11 @@ export function canonicalizeAttestations(attestations: Attestation[]): string;
 export function checkOpenSSL(): Promise<string>;
 
 // @public
+export interface CliExperiencePreferences {
+    declinedCompletionInstall?: boolean;
+}
+
+// @public
 export function computeFingerprint(options: FingerprintOptions): Promise<FingerprintResult>;
 
 // @public
@@ -191,6 +196,12 @@ export function getGate(config: AttestItConfig, gateId: string): GateConfig | un
 export function getLocalConfigPath(): string;
 
 // @public
+export function getPreference<K extends keyof UserPreferences>(key: K): Promise<undefined | UserPreferences[K]>;
+
+// @public
+export function getPreferencesPath(): string;
+
+// @public
 export function getPublicKeyFromPrivate(privateKeyPem: string): string;
 
 // @public
@@ -289,6 +300,9 @@ export function loadLocalConfig(configPath?: string): Promise<LocalConfig | null
 
 // @public
 export function loadLocalConfigSync(configPath?: string): LocalConfig | null;
+
+// @public
+export function loadPreferences(): Promise<UserPreferences>;
 
 // @public
 export interface LocalConfig {
@@ -764,6 +778,9 @@ export function saveLocalConfig(config: LocalConfig, configPath?: string): Promi
 export function saveLocalConfigSync(config: LocalConfig, configPath?: string): void;
 
 // @public
+export function savePreferences(preferences: UserPreferences): Promise<void>;
+
+// @public
 export interface Seal {
     fingerprint: string;
     gateId: string;
@@ -791,6 +808,9 @@ export function setAttestItHomeDir(dir: null | string): void;
 
 // @public
 export function setKeyPermissions(keyPath: string): Promise<void>;
+
+// @public
+export function setPreference<K extends keyof UserPreferences>(key: K, value: UserPreferences[K]): Promise<void>;
 
 // @public
 export function sign(options: SignOptions): Promise<string>;
@@ -855,6 +875,11 @@ export function toAttestItConfig(config: Config): AttestItConfig;
 
 // @public
 export function upsertAttestation(attestations: Attestation[], newAttestation: Attestation): Attestation[];
+
+// @public
+export interface UserPreferences {
+    cliExperience?: CliExperiencePreferences;
+}
 
 // @public
 export function validateSuiteGateReferences(policy: PolicyConfig, operational: OperationalConfig): ValidationError[];
