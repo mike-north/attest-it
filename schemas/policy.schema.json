@@ -54,7 +54,10 @@
                 "minLength": 1
               }
             },
-            "required": ["name", "publicKey"],
+            "required": [
+              "name",
+              "publicKey"
+            ],
             "additionalProperties": false
           }
         },
@@ -98,19 +101,29 @@
                     }
                   }
                 },
-                "required": ["paths"],
+                "required": [
+                  "paths"
+                ],
                 "additionalProperties": false
               },
               "maxAge": {
                 "type": "string"
               }
             },
-            "required": ["name", "description", "authorizedSigners", "fingerprint", "maxAge"],
+            "required": [
+              "name",
+              "description",
+              "authorizedSigners",
+              "fingerprint",
+              "maxAge"
+            ],
             "additionalProperties": false
           }
         }
       },
-      "required": ["version"],
+      "required": [
+        "version"
+      ],
       "additionalProperties": false
     }
   }
