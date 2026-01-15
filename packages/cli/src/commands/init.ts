@@ -4,6 +4,7 @@ import * as path from 'node:path'
 import { log, success, error } from '../utils/output.js'
 import { confirmAction } from '../utils/prompts.js'
 import { ExitCode } from '../utils/exit-codes.js'
+import { offerCompletionInstall } from '../utils/completion-offer.js'
 
 export const initCommand = new Command('init')
   .description('Initialize attest-it configuration')
@@ -92,6 +93,9 @@ async function runInit(options: InitOptions): Promise<void> {
     log(`  1. Edit ${options.path} to define your test suites`)
     log('  2. Run: attest-it keygen')
     log('  3. Run: attest-it status')
+
+    // Offer to install shell completions
+    await offerCompletionInstall()
   } catch (err) {
     if (err instanceof Error) {
       error(err.message)

@@ -148,6 +148,17 @@ export {
   type LocalConfig,
 } from './identity/index.js'
 
+// User Preferences
+export {
+  getPreferencesPath,
+  loadPreferences,
+  savePreferences,
+  setPreference,
+  getPreference,
+  type UserPreferences,
+  type CliExperiencePreferences,
+} from './identity/index.js'
+
 // Authorization
 export {
   isAuthorizedSigner,

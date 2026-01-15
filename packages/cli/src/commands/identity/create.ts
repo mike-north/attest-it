@@ -12,6 +12,7 @@ import type { Identity, LocalConfig, PrivateKeyRef } from '@attest-it/core'
 import { log, success, error, info, getTheme } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
 import { validateSlug, validateEmail } from './validation.js'
+import { offerCompletionInstall } from '../../utils/completion-offer.js'
 import { join } from 'node:path'
 import { writeFile, mkdir } from 'node:fs/promises'
 
@@ -413,6 +414,9 @@ async function runCreate(): Promise<void> {
       log(`To use this identity, run: attest-it identity use ${slug}`)
       log('')
     }
+
+    // Offer to install shell completions
+    await offerCompletionInstall()
   } catch (err) {
     if (err instanceof Error) {
       error(err.message)

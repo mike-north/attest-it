@@ -5,6 +5,7 @@
 
 // Types
 export type { PrivateKeyRef, Identity, LocalConfig } from './types.js'
+export type { UserPreferences, CliExperiencePreferences } from './preferences.js'
 
 // Config functions
 export {
@@ -19,3 +20,12 @@ export {
   getActiveIdentity,
   LocalConfigValidationError,
 } from './config.js'
+
+// Preferences functions
+export {
+  getPreferencesPath,
+  loadPreferences,
+  savePreferences,
+  setPreference,
+  getPreference,
+} from './preferences.js'
