@@ -1,16 +1,40 @@
 import * as core from '@actions/core'
+import { readFile } from 'node:fs/promises'
+import { resolve } from 'node:path'
 import {
-  loadConfig,
   toAttestItConfig,
   verifyAttestations,
   type VerifyResult,
+  type SuiteVerificationResult,
+  parsePolicyContent,
+  parseOperationalContent,
+  mergeConfigs,
+  validateSuiteGateReferences,
+  PolicyValidationError,
+  OperationalValidationError,
 } from '@attest-it/core'
+import { fetchPolicyFromRef, getRepoInfo, getBaseBranch, isPullRequest } from './fetch-policy.js'
+
+/**
+ * Type guard to check if an error is a file not found error.
+ * Uses type assertions in a controlled way within a type guard function.
+ */
+function isFileNotFoundError(err: unknown): err is Error & { code: string; path?: string } {
+  if (!(err instanceof Error)) return false
+  // Type assertion justified: we're in a type guard checking runtime properties
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+  const errWithCode = err as { code?: unknown }
+  return 'code' in err && errWithCode.code === 'ENOENT'
+}
 
 export async function run(): Promise<void> {
   try {
     // Get inputs
     const workingDirectory = core.getInput('working-directory') || '.'
     const configPath = core.getInput('config-path')
+    const githubToken = core.getInput('github-token')
+    const policyPath = core.getInput('policy-path') || '.attest-it/policy.yaml'
+    const policyRef = core.getInput('policy-ref') || undefined
     const suite = core.getInput('suite')
     const failOnMissing = core.getInput('fail-on-missing') === 'true'
     const strict = core.getInput('strict') === 'true'
@@ -21,11 +45,138 @@ export async function run(): Promise<void> {
       process.chdir(workingDirectory)
     }
 
+    // Construct full paths from repo root for GitHub API calls
+    // When working-directory is set, policy/config paths are relative to it
+    const repoRootPolicyPath =
+      workingDirectory !== '.' ? `${workingDirectory}/${policyPath}` : policyPath
+
     core.info('Loading configuration...')
 
-    // Load config
-    const loadedConfig = await loadConfig(configPath || undefined)
-    let config = toAttestItConfig(loadedConfig)
+    let config: ReturnType<typeof toAttestItConfig>
+
+    // Determine the policy ref to use:
+    // 1. If policy-ref is explicitly specified, always use it
+    // 2. Otherwise, if in PR context, use the base branch
+    // 3. Otherwise, load from filesystem (no ref needed)
+    const isInPR = isPullRequest()
+    const baseBranch = getBaseBranch()
+    const effectivePolicyRef = policyRef ?? (isInPR ? baseBranch : undefined)
+
+    // Validate PR context when no explicit policy-ref
+    if (isInPR && !policyRef && !baseBranch) {
+      core.setFailed('Running in PR context but base branch not detected')
+      return
+    }
+
+    if (effectivePolicyRef) {
+      // Fetch policy from specified ref (or base branch for PRs)
+      core.info(`Fetching policy from ref: ${effectivePolicyRef}`)
+
+      try {
+        const { owner, repo } = getRepoInfo()
+
+        // Fetch policy from the specified ref
+        // Use full path from repo root for API call
+        const policyResult = await fetchPolicyFromRef({
+          token: githubToken,
+          owner,
+          repo,
+          ref: effectivePolicyRef,
+          path: repoRootPolicyPath,
+        })
+
+        core.info(`Fetched policy from ${effectivePolicyRef} (SHA: ${policyResult.sha})`)
+
+        // Parse policy (determine format from path)
+        const policyFormat = policyPath.endsWith('.json') ? 'json' : 'yaml'
+        const policyConfig = parsePolicyContent(policyResult.content, policyFormat)
+
+        // Load operational config from filesystem
+        const operationalConfigPath = configPath || '.attest-it/config.yaml'
+        const operationalContent = await readFile(
+          resolve(process.cwd(), operationalConfigPath),
+          'utf8',
+        )
+        const operationalFormat = operationalConfigPath.endsWith('.json') ? 'json' : 'yaml'
+        const operationalConfig = parseOperationalContent(operationalContent, operationalFormat)
+
+        // Validate cross-references
+        core.info('Validating configuration...')
+        const validationErrors = validateSuiteGateReferences(policyConfig, operationalConfig)
+
+        if (validationErrors.length > 0) {
+          core.error('Configuration validation failed:')
+          for (const error of validationErrors) {
+            core.error(`- ${error.message}`)
+          }
+          core.setFailed('Configuration validation failed. See errors above.')
+          return
+        }
+
+        // Merge configurations
+        config = mergeConfigs(policyConfig, operationalConfig)
+      } catch (err: unknown) {
+        if (err instanceof PolicyValidationError) {
+          core.setFailed(`Policy validation failed: ${err.message}`)
+          return
+        }
+        if (err instanceof OperationalValidationError) {
+          core.setFailed(`Operational config validation failed: ${err.message}`)
+          return
+        }
+        throw err
+      }
+    } else {
+      // Non-PR context without policy-ref: load both from filesystem
+      core.info('Loading configuration from filesystem')
+
+      try {
+        // Read policy file
+        const policyContent = await readFile(resolve(process.cwd(), policyPath), 'utf8')
+        const policyFormat = policyPath.endsWith('.json') ? 'json' : 'yaml'
+        const policyConfig = parsePolicyContent(policyContent, policyFormat)
+
+        // Read operational config
+        const operationalConfigPath = configPath || '.attest-it/config.yaml'
+        const operationalContent = await readFile(
+          resolve(process.cwd(), operationalConfigPath),
+          'utf8',
+        )
+        const operationalFormat = operationalConfigPath.endsWith('.json') ? 'json' : 'yaml'
+        const operationalConfig = parseOperationalContent(operationalContent, operationalFormat)
+
+        // Validate cross-references
+        core.info('Validating configuration...')
+        const validationErrors = validateSuiteGateReferences(policyConfig, operationalConfig)
+
+        if (validationErrors.length > 0) {
+          core.error('Configuration validation failed:')
+          for (const error of validationErrors) {
+            core.error(`- ${error.message}`)
+          }
+          core.setFailed('Configuration validation failed. See errors above.')
+          return
+        }
+
+        // Merge configurations
+        config = mergeConfigs(policyConfig, operationalConfig)
+      } catch (err: unknown) {
+        if (err instanceof PolicyValidationError) {
+          core.setFailed(`Policy validation failed: ${err.message}`)
+          return
+        }
+        if (err instanceof OperationalValidationError) {
+          core.setFailed(`Operational config validation failed: ${err.message}`)
+          return
+        }
+        // Handle file not found errors
+        if (isFileNotFoundError(err)) {
+          core.setFailed(`Configuration file not found: ${err.path ?? 'unknown'}`)
+          return
+        }
+        throw err
+      }
+    }
 
     // Filter to specific suite if requested
     if (suite) {
@@ -62,7 +213,7 @@ export async function run(): Promise<void> {
       }
     }
 
-    const invalid = result.suites.filter((s) => s.status !== 'VALID')
+    const invalid = result.suites.filter((s: SuiteVerificationResult) => s.status !== 'VALID')
 
     if (invalid.length > 0 && failOnMissing) {
       core.setFailed(`${String(invalid.length)} suite(s) have invalid attestations`)
@@ -82,7 +233,8 @@ export async function run(): Promise<void> {
     if (strict) {
       const warningThreshold = 7 // days before expiry to warn
       const nearExpiry = result.suites.filter(
-        (s) => s.status === 'VALID' && (s.age ?? 0) > config.settings.maxAgeDays - warningThreshold,
+        (s: SuiteVerificationResult) =>
+          s.status === 'VALID' && (s.age ?? 0) > config.settings.maxAgeDays - warningThreshold,
       )
       if (nearExpiry.length > 0) {
         core.setFailed('Attestations approaching expiry (strict mode)')

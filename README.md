@@ -42,63 +42,45 @@ The primary threat is an AI assistant creating a fake attestation. attest-it pre
 
 ## Configuration
 
-### Project Configuration
-
-Create `.attest-it/config.yaml` in your repository:
+Create `.attest-it/config.yaml` in your repository. Here's a minimal example:
 
 ```yaml
 version: 1
 
-settings:
-  publicKeyPath: .attest-it/pubkey.pem
-  sealsPath: .attest-it/seals.json
-
-# Team members who can create seals
+# Team members authorized to create seals
 team:
   alice:
     name: Alice Smith
-    email: alice@example.com
-    publicKey: MCowBQYDK2VwAyEA... # Base64 Ed25519 public key
+    publicKey: MCowBQYDK2VwAyEA... # Ed25519 public key (base64)
 
 # Gates define what code requires human attestation
 gates:
   desktop-tests:
     name: Desktop Tests
-    description: Tests requiring VS Code desktop application
+    description: Tests requiring the desktop app
     authorizedSigners: [alice]
     fingerprint:
       paths:
-        - packages/vscode-extension/**/*.ts
+        - src/**/*.ts
       exclude:
         - '**/*.test.ts'
     maxAge: 30d
 
-# Suites extend gates with test commands (optional)
+# Suites add test commands to gates (optional)
 suites:
   desktop-tests:
     gate: desktop-tests
-    command: pnpm vitest --project desktop
+    command: pnpm test:desktop
 ```
 
-### Local Identity Configuration
+**Key concepts:**
 
-Your identity is stored locally at `~/.config/attest-it/config.yaml`:
+- **Team** - People authorized to create seals, identified by their public key
+- **Gates** - Define which files require attestation and who can sign
+- **Fingerprint** - Files to hash; any change invalidates the seal
+- **Suites** - Optional; add `command` to run tests before sealing
 
-```yaml
-activeIdentity: work
-
-identities:
-  work:
-    name: Alice Smith
-    email: alice@example.com
-    publicKey: MCowBQYDK2VwAyEA...
-    privateKey:
-      type: keychain # or '1password' or 'file'
-      service: attest-it
-      account: alice
-```
-
-See [Configuration Guide](docs/configuration.md) for full options.
+See [Configuration Reference](docs/configuration.md) for all options.
 
 ## CLI Commands
 

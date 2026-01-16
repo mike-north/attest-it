@@ -1,0 +1,9 @@
+# Minimal valid operational config file
+# Contains only required fields for operational configuration
+version: 1
+
+suites:
+  # Single test suite with minimal configuration
+  test:
+    gate: default
+    command: pnpm test

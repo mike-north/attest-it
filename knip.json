@@ -1,11 +1,17 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
   "ignoreDependencies": ["@nx/js", "lint-staged", "@types/picomatch"],
-  "ignoreBinaries": ["op"],
+  "ignoreBinaries": ["op", "act"],
   "ignore": ["**/vitest.config.*", "**/test/fixtures/**", "**/fixtures/**"],
   "workspaces": {
     "packages/core": {
-      "entry": ["test/**/*.test.ts", "test/**/*.ts"]
+      "entry": ["test/**/*.test.ts", "test/**/*.ts"],
+      "ignore": [
+        "src/config/policy-schema.ts",
+        "src/config/operational-schema.ts",
+        "src/config/shared-schemas.ts",
+        "src/config/index.ts"
+      ]
     },
     "packages/cli": {
       "entry": ["test/**/*.test.ts", "test/**/*.ts"]

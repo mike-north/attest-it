@@ -4,9 +4,18 @@ import { loadLocalConfig, loadConfig } from '@attest-it/core'
 import { success, error, log, info } from '../utils/output.js'
 import { ExitCode } from '../utils/exit-codes.js'
 
+/** Primary program name */
 const PROGRAM_NAME = 'attest-it'
+/** Short alias for the program */
+const PROGRAM_ALIAS = 'attest'
+/** All valid program names for completion context detection */
+const PROGRAM_NAMES = [PROGRAM_NAME, PROGRAM_ALIAS]
 
 type SupportedShell = 'bash' | 'zsh' | 'fish'
+
+function isSupportedShell(value: string): value is SupportedShell {
+  return value === 'bash' || value === 'zsh' || value === 'fish'
+}
 
 /**
  * Get completions based on the current completion context.
@@ -86,8 +95,9 @@ async function getCompletions(env: tabtab.ParseEnvResult): Promise<void> {
   }
 
   // Determine which command we're in
+  // Skip program names (attest-it, attest) and npx
   const commandIndex = words.findIndex(
-    (w: string) => !w.startsWith('-') && w !== PROGRAM_NAME && w !== 'npx',
+    (w: string) => !w.startsWith('-') && !PROGRAM_NAMES.includes(w) && w !== 'npx',
   )
   const currentCommand: string | null = commandIndex >= 0 ? (words[commandIndex] ?? null) : null
 
@@ -162,7 +172,24 @@ async function getCompletions(env: tabtab.ParseEnvResult): Promise<void> {
   }
 
   // Default: show top-level commands
-  if (!currentCommand) {
+  // This handles both:
+  // 1. No command typed yet (e.g., "attest-it ")
+  // 2. Partial/unknown command being typed (e.g., "attest-it ini")
+  // The shell will filter by prefix for partial matches
+  const knownCommands = [
+    'init',
+    'status',
+    'run',
+    'verify',
+    'seal',
+    'keygen',
+    'prune',
+    'identity',
+    'team',
+    'whoami',
+    'completion',
+  ]
+  if (!currentCommand || !knownCommands.includes(currentCommand)) {
     tabtab.log([...commands, ...globalOptions], shell, console.log)
   }
 }
@@ -212,42 +239,83 @@ async function getSuiteNames(): Promise<string[]> {
 
 export const completionCommand = new Command('completion').description('Shell completion commands')
 
+/**
+ * Detect the user's current shell from the SHELL environment variable.
+ */
+function detectCurrentShell(): SupportedShell | null {
+  const shellPath = process.env.SHELL ?? ''
+  if (shellPath.endsWith('/bash') || shellPath.endsWith('/bash.exe')) {
+    return 'bash'
+  }
+  if (shellPath.endsWith('/zsh') || shellPath.endsWith('/zsh.exe')) {
+    return 'zsh'
+  }
+  if (shellPath.endsWith('/fish') || shellPath.endsWith('/fish.exe')) {
+    return 'fish'
+  }
+  return null
+}
+
+/**
+ * Get the source command for reloading a shell's config.
+ */
+function getSourceCommand(shell: SupportedShell): string {
+  switch (shell) {
+    case 'bash':
+      return 'source ~/.bashrc'
+    case 'zsh':
+      return 'source ~/.zshrc'
+    case 'fish':
+      return 'source ~/.config/fish/config.fish'
+  }
+}
+
 // Install subcommand
 completionCommand
   .command('install [shell]')
-  .description('Install shell completion (bash, zsh, or fish)')
+  .description('Install shell completion (auto-detects shell, or specify bash/zsh/fish)')
   .action(async (shellArg?: string) => {
     try {
-      // Validate and narrow shell type
-      let shell: 'bash' | 'zsh' | 'fish' | 'pwsh' | undefined
+      let shell: SupportedShell
+
       if (shellArg !== undefined) {
-        if (tabtab.isShellSupported(shellArg)) {
-          shell = shellArg
-        } else {
+        // User explicitly specified a shell
+        if (!isSupportedShell(shellArg)) {
           error(`Shell "${shellArg}" is not supported. Use bash, zsh, or fish.`)
           process.exit(ExitCode.CONFIG_ERROR)
         }
+        shell = shellArg
+      } else {
+        // Auto-detect from SHELL environment variable
+        const detected = detectCurrentShell()
+        if (!detected) {
+          error(
+            'Could not detect your shell. Please specify: attest-it completion install <bash|zsh|fish>',
+          )
+          process.exit(ExitCode.CONFIG_ERROR)
+        }
+        shell = detected
+        info(`Detected shell: ${shell}`)
       }
 
+      // Install completions for both program names (attest-it and attest)
       await tabtab.install({
         name: PROGRAM_NAME,
         completer: PROGRAM_NAME,
         shell,
       })
+      await tabtab.install({
+        name: PROGRAM_ALIAS,
+        completer: PROGRAM_ALIAS,
+        shell,
+      })
 
       log('')
-      success('Shell completion installed!')
+      success(`Shell completion installed for ${shell}!`)
+      info(`Completions enabled for both "${PROGRAM_NAME}" and "${PROGRAM_ALIAS}" commands.`)
       log('')
       info('Restart your shell or run:')
-      if (shell === 'bash' || !shell) {
-        log('  source ~/.bashrc')
-      }
-      if (shell === 'zsh' || !shell) {
-        log('  source ~/.zshrc')
-      }
-      if (shell === 'fish' || !shell) {
-        log('  source ~/.config/fish/config.fish')
-      }
+      log(`  ${getSourceCommand(shell)}`)
       log('')
     } catch (err) {
       error(`Failed to install completion: ${err instanceof Error ? err.message : String(err)}`)
@@ -261,8 +329,12 @@ completionCommand
   .description('Uninstall shell completion')
   .action(async () => {
     try {
+      // Uninstall completions for both program names
       await tabtab.uninstall({
         name: PROGRAM_NAME,
+      })
+      await tabtab.uninstall({
+        name: PROGRAM_ALIAS,
       })
 
       log('')
@@ -275,6 +347,8 @@ completionCommand
   })
 
 // Hidden server subcommand (called by shell for completions)
+// Note: This is kept for backwards compatibility, but tabtab actually
+// calls `attest-it completion-server` (with hyphen) at the top level.
 completionCommand
   .command('server', { hidden: true })
   .description('Completion server (internal)')
@@ -284,3 +358,22 @@ completionCommand
       await getCompletions(env)
     }
   })
+
+/**
+ * Hidden top-level command called by tabtab for shell completions.
+ * tabtab expects `<program> completion-server` (with hyphen) at the root.
+ *
+ * We create this dynamically as a function so it can be added with { hidden: true }
+ * option when registering with the parent command.
+ */
+export function createCompletionServerCommand(): Command {
+  return new Command('completion-server')
+    .allowUnknownOption()
+    .allowExcessArguments(true)
+    .action(async () => {
+      const env = tabtab.parseEnv(process.env)
+      if (env.complete) {
+        await getCompletions(env)
+      }
+    })
+}

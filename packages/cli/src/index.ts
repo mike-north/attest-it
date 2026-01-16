@@ -9,7 +9,7 @@ import { sealCommand } from './commands/seal.js'
 import { identityCommand } from './commands/identity/index.js'
 import { whoamiCommand } from './commands/whoami.js'
 import { teamCommand } from './commands/team/index.js'
-import { completionCommand } from './commands/completion.js'
+import { completionCommand, createCompletionServerCommand } from './commands/completion.js'
 import { setOutputOptions, initTheme } from './utils/output.js'
 import { setAttestItHomeDir } from '@attest-it/core'
 import { readFileSync } from 'fs'
@@ -92,6 +92,7 @@ program.addCommand(identityCommand)
 program.addCommand(teamCommand)
 program.addCommand(whoamiCommand)
 program.addCommand(completionCommand)
+program.addCommand(createCompletionServerCommand(), { hidden: true })
 
 /**
  * Process the hidden --home-dir option before any other processing.
@@ -119,8 +120,12 @@ export async function run(): Promise<void> {
     process.exit(0)
   }
 
-  // Initialize theme before any output
-  await initTheme()
+  // Skip theme initialization for completion-server (outputs escape sequences that corrupt completions)
+  const isCompletionServer = process.argv.includes('completion-server')
+  if (!isCompletionServer) {
+    // Initialize theme before any output
+    await initTheme()
+  }
 
   // Parse options and set global output options
   program.parse()

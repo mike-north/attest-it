@@ -1,0 +1,21 @@
+# Minimal valid policy file
+# Contains only required fields for policy configuration
+version: 1
+
+team:
+  # Single team member with minimal information
+  dev:
+    name: Developer
+    publicKey: MCowBQYDK2VwAyEAminimalkey1234567890abcdef=
+
+gates:
+  # Single default gate with minimal configuration
+  default:
+    name: Default Gate
+    description: Default gate for all tests
+    authorizedSigners:
+      - dev
+    fingerprint:
+      paths:
+        - src/**
+    maxAge: 30d

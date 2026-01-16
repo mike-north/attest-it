@@ -14,8 +14,10 @@
     "@types/ms": "~2.1.0",
     "@types/node": "~22.19.3",
     "tsup": "^8.3.5",
+    "tsx": "^4.21.0",
     "typescript": "5.8.3",
-    "vitest": "^3.0.0"
+    "vitest": "^3.0.0",
+    "zod-to-json-schema": "^3.25.1"
   },
   "exports": {
     ".": {
@@ -45,6 +47,7 @@
     "check:eslint": "eslint .",
     "check:types": "tsc --noEmit",
     "generate:api-report": "api-extractor run --local",
+    "generate:schemas": "tsx scripts/generate-schemas.ts",
     "test": "vitest run",
     "test:watch": "vitest"
   },

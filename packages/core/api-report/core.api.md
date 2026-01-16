@@ -49,6 +49,11 @@ export function canonicalizeAttestations(attestations: Attestation[]): string;
 export function checkOpenSSL(): Promise<string>;
 
 // @public
+export interface CliExperiencePreferences {
+    declinedCompletionInstall?: boolean;
+}
+
+// @public
 export function computeFingerprint(options: FingerprintOptions): Promise<FingerprintResult>;
 
 // @public
@@ -191,6 +196,12 @@ export function getGate(config: AttestItConfig, gateId: string): GateConfig | un
 export function getLocalConfigPath(): string;
 
 // @public
+export function getPreference<K extends keyof UserPreferences>(key: K): Promise<undefined | UserPreferences[K]>;
+
+// @public
+export function getPreferencesPath(): string;
+
+// @public
 export function getPublicKeyFromPrivate(privateKeyPem: string): string;
 
 // @public
@@ -291,6 +302,9 @@ export function loadLocalConfig(configPath?: string): Promise<LocalConfig | null
 export function loadLocalConfigSync(configPath?: string): LocalConfig | null;
 
 // @public
+export function loadPreferences(): Promise<UserPreferences>;
+
+// @public
 export interface LocalConfig {
     activeIdentity: string;
     identities: Record<string, Identity>;
@@ -332,6 +346,9 @@ export interface MacOSKeychainKeyProviderOptions {
 }
 
 // @public
+export function mergeConfigs(policy: PolicyConfig, operational: OperationalConfig): AttestItConfig;
+
+// @public
 export interface OnePasswordAccount {
     account_uuid: string;
     email: string;
@@ -370,7 +387,345 @@ export interface OnePasswordVault {
 }
 
 // @public
+export type OperationalConfig = z.infer<typeof operationalSchema>;
+
+// @public
+export const operationalSchema: z.ZodObject<{
+    groups: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodArray<z.ZodString, "many">>>;
+    settings: z.ZodDefault<z.ZodObject<{
+        defaultCommand: z.ZodOptional<z.ZodString>;
+        keyProvider: z.ZodOptional<z.ZodObject<{
+            options: z.ZodOptional<z.ZodObject<{
+                account: z.ZodOptional<z.ZodString>;
+                itemName: z.ZodOptional<z.ZodString>;
+                privateKeyPath: z.ZodOptional<z.ZodString>;
+                vault: z.ZodOptional<z.ZodString>;
+            }, "passthrough", z.ZodTypeAny, z.objectOutputType<{
+                account: z.ZodOptional<z.ZodString>;
+                itemName: z.ZodOptional<z.ZodString>;
+                privateKeyPath: z.ZodOptional<z.ZodString>;
+                vault: z.ZodOptional<z.ZodString>;
+            }, z.ZodTypeAny, "passthrough">, z.objectInputType<{
+                account: z.ZodOptional<z.ZodString>;
+                itemName: z.ZodOptional<z.ZodString>;
+                privateKeyPath: z.ZodOptional<z.ZodString>;
+                vault: z.ZodOptional<z.ZodString>;
+            }, z.ZodTypeAny, "passthrough">>>;
+            type: z.ZodUnion<[z.ZodEnum<["filesystem", "1password"]>, z.ZodString]>;
+        }, "strict", z.ZodTypeAny, {
+            options?: undefined | z.objectOutputType<{
+                account: z.ZodOptional<z.ZodString>;
+                itemName: z.ZodOptional<z.ZodString>;
+                privateKeyPath: z.ZodOptional<z.ZodString>;
+                vault: z.ZodOptional<z.ZodString>;
+            }, z.ZodTypeAny, "passthrough">;
+            type: string;
+        }, {
+            options?: undefined | z.objectInputType<{
+                account: z.ZodOptional<z.ZodString>;
+                itemName: z.ZodOptional<z.ZodString>;
+                privateKeyPath: z.ZodOptional<z.ZodString>;
+                vault: z.ZodOptional<z.ZodString>;
+            }, z.ZodTypeAny, "passthrough">;
+            type: string;
+        }>>;
+    }, "strict", z.ZodTypeAny, {
+        defaultCommand?: string | undefined;
+        keyProvider?: {
+            options?: undefined | z.objectOutputType<{
+                account: z.ZodOptional<z.ZodString>;
+                itemName: z.ZodOptional<z.ZodString>;
+                privateKeyPath: z.ZodOptional<z.ZodString>;
+                vault: z.ZodOptional<z.ZodString>;
+            }, z.ZodTypeAny, "passthrough">;
+            type: string;
+        } | undefined;
+    }, {
+        defaultCommand?: string | undefined;
+        keyProvider?: {
+            options?: undefined | z.objectInputType<{
+                account: z.ZodOptional<z.ZodString>;
+                itemName: z.ZodOptional<z.ZodString>;
+                privateKeyPath: z.ZodOptional<z.ZodString>;
+                vault: z.ZodOptional<z.ZodString>;
+            }, z.ZodTypeAny, "passthrough">;
+            type: string;
+        } | undefined;
+    }>>;
+    suites: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEffects<z.ZodObject<{
+        command: z.ZodOptional<z.ZodString>;
+        depends_on: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        description: z.ZodOptional<z.ZodString>;
+        files: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        gate: z.ZodOptional<z.ZodString>;
+        ignore: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        interactive: z.ZodOptional<z.ZodBoolean>;
+        invalidates: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        packages: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        timeout: z.ZodOptional<z.ZodString>;
+    }, "strict", z.ZodTypeAny, {
+        command?: string | undefined;
+        depends_on?: string[] | undefined;
+        description?: string | undefined;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
+        interactive?: boolean | undefined;
+        invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
+        timeout?: string | undefined;
+    }, {
+        command?: string | undefined;
+        depends_on?: string[] | undefined;
+        description?: string | undefined;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
+        interactive?: boolean | undefined;
+        invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
+        timeout?: string | undefined;
+    }>, {
+        command?: string | undefined;
+        depends_on?: string[] | undefined;
+        description?: string | undefined;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
+        interactive?: boolean | undefined;
+        invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
+        timeout?: string | undefined;
+    }, {
+        command?: string | undefined;
+        depends_on?: string[] | undefined;
+        description?: string | undefined;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
+        interactive?: boolean | undefined;
+        invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
+        timeout?: string | undefined;
+    }>>, Record<string, {
+        command?: string | undefined;
+        depends_on?: string[] | undefined;
+        description?: string | undefined;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
+        interactive?: boolean | undefined;
+        invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
+        timeout?: string | undefined;
+    }>, Record<string, {
+        command?: string | undefined;
+        depends_on?: string[] | undefined;
+        description?: string | undefined;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
+        interactive?: boolean | undefined;
+        invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
+        timeout?: string | undefined;
+    }>>;
+    version: z.ZodLiteral<1>;
+}, "strict", z.ZodTypeAny, {
+    groups?: Record<string, string[]> | undefined;
+    settings: {
+        defaultCommand?: string | undefined;
+        keyProvider?: {
+            options?: undefined | z.objectOutputType<{
+                account: z.ZodOptional<z.ZodString>;
+                itemName: z.ZodOptional<z.ZodString>;
+                privateKeyPath: z.ZodOptional<z.ZodString>;
+                vault: z.ZodOptional<z.ZodString>;
+            }, z.ZodTypeAny, "passthrough">;
+            type: string;
+        } | undefined;
+    };
+    suites: Record<string, {
+        command?: string | undefined;
+        depends_on?: string[] | undefined;
+        description?: string | undefined;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
+        interactive?: boolean | undefined;
+        invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
+        timeout?: string | undefined;
+    }>;
+    version: 1;
+}, {
+    groups?: Record<string, string[]> | undefined;
+    settings?: {
+        defaultCommand?: string | undefined;
+        keyProvider?: {
+            options?: undefined | z.objectInputType<{
+                account: z.ZodOptional<z.ZodString>;
+                itemName: z.ZodOptional<z.ZodString>;
+                privateKeyPath: z.ZodOptional<z.ZodString>;
+                vault: z.ZodOptional<z.ZodString>;
+            }, z.ZodTypeAny, "passthrough">;
+            type: string;
+        } | undefined;
+    } | undefined;
+    suites: Record<string, {
+        command?: string | undefined;
+        depends_on?: string[] | undefined;
+        description?: string | undefined;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
+        interactive?: boolean | undefined;
+        invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
+        timeout?: string | undefined;
+    }>;
+    version: 1;
+}>;
+
+// @public
+export class OperationalValidationError extends Error {
+    constructor(message: string, issues: z.ZodIssue[]);
+    // (undocumented)
+    readonly issues: z.ZodIssue[];
+}
+
+// @public
 export function parseDuration(duration: string): number;
+
+// @public
+export function parseOperationalContent(content: string, format: 'json' | 'yaml'): OperationalConfig;
+
+// @public
+export function parsePolicyContent(content: string, format: 'json' | 'yaml'): PolicyConfig;
+
+// @public
+export type PolicyConfig = z.infer<typeof policySchema>;
+
+// @public
+export const policySchema: z.ZodObject<{
+    gates: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodObject<{
+        authorizedSigners: z.ZodArray<z.ZodString, "many">;
+        description: z.ZodString;
+        fingerprint: z.ZodObject<{
+            exclude: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+            paths: z.ZodArray<z.ZodString, "many">;
+        }, "strict", z.ZodTypeAny, {
+            exclude?: string[] | undefined;
+            paths: string[];
+        }, {
+            exclude?: string[] | undefined;
+            paths: string[];
+        }>;
+        maxAge: z.ZodEffects<z.ZodString, string, string>;
+        name: z.ZodString;
+    }, "strict", z.ZodTypeAny, {
+        authorizedSigners: string[];
+        description: string;
+        fingerprint: {
+            exclude?: string[] | undefined;
+            paths: string[];
+        };
+        maxAge: string;
+        name: string;
+    }, {
+        authorizedSigners: string[];
+        description: string;
+        fingerprint: {
+            exclude?: string[] | undefined;
+            paths: string[];
+        };
+        maxAge: string;
+        name: string;
+    }>>>;
+    settings: z.ZodDefault<z.ZodObject<{
+        attestationsPath: z.ZodDefault<z.ZodString>;
+        maxAgeDays: z.ZodDefault<z.ZodNumber>;
+        publicKeyPath: z.ZodDefault<z.ZodString>;
+    }, "strict", z.ZodTypeAny, {
+        attestationsPath: string;
+        maxAgeDays: number;
+        publicKeyPath: string;
+    }, {
+        attestationsPath?: string | undefined;
+        maxAgeDays?: number | undefined;
+        publicKeyPath?: string | undefined;
+    }>>;
+    team: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodObject<{
+        email: z.ZodOptional<z.ZodString>;
+        github: z.ZodOptional<z.ZodString>;
+        name: z.ZodString;
+        publicKey: z.ZodString;
+    }, "strict", z.ZodTypeAny, {
+        email?: string | undefined;
+        github?: string | undefined;
+        name: string;
+        publicKey: string;
+    }, {
+        email?: string | undefined;
+        github?: string | undefined;
+        name: string;
+        publicKey: string;
+    }>>>;
+    version: z.ZodLiteral<1>;
+}, "strict", z.ZodTypeAny, {
+    gates?: Record<string, {
+        authorizedSigners: string[];
+        description: string;
+        fingerprint: {
+            exclude?: string[] | undefined;
+            paths: string[];
+        };
+        maxAge: string;
+        name: string;
+    }> | undefined;
+    settings: {
+        attestationsPath: string;
+        maxAgeDays: number;
+        publicKeyPath: string;
+    };
+    team?: Record<string, {
+        email?: string | undefined;
+        github?: string | undefined;
+        name: string;
+        publicKey: string;
+    }> | undefined;
+    version: 1;
+}, {
+    gates?: Record<string, {
+        authorizedSigners: string[];
+        description: string;
+        fingerprint: {
+            exclude?: string[] | undefined;
+            paths: string[];
+        };
+        maxAge: string;
+        name: string;
+    }> | undefined;
+    settings?: {
+        attestationsPath?: string | undefined;
+        maxAgeDays?: number | undefined;
+        publicKeyPath?: string | undefined;
+    } | undefined;
+    team?: Record<string, {
+        email?: string | undefined;
+        github?: string | undefined;
+        name: string;
+        publicKey: string;
+    }> | undefined;
+    version: 1;
+}>;
+
+// @public
+export class PolicyValidationError extends Error {
+    constructor(message: string, issues: z.ZodIssue[]);
+    // (undocumented)
+    readonly issues: z.ZodIssue[];
+}
 
 // @public
 export type PrivateKeyRef = {
@@ -423,6 +778,9 @@ export function saveLocalConfig(config: LocalConfig, configPath?: string): Promi
 export function saveLocalConfigSync(config: LocalConfig, configPath?: string): void;
 
 // @public
+export function savePreferences(preferences: UserPreferences): Promise<void>;
+
+// @public
 export interface Seal {
     fingerprint: string;
     gateId: string;
@@ -450,6 +808,9 @@ export function setAttestItHomeDir(dir: null | string): void;
 
 // @public
 export function setKeyPermissions(keyPath: string): Promise<void>;
+
+// @public
+export function setPreference<K extends keyof UserPreferences>(key: K, value: UserPreferences[K]): Promise<void>;
 
 // @public
 export function sign(options: SignOptions): Promise<string>;
@@ -514,6 +875,26 @@ export function toAttestItConfig(config: Config): AttestItConfig;
 
 // @public
 export function upsertAttestation(attestations: Attestation[], newAttestation: Attestation): Attestation[];
+
+// @public
+export interface UserPreferences {
+    cliExperience?: CliExperiencePreferences;
+}
+
+// @public
+export function validateSuiteGateReferences(policy: PolicyConfig, operational: OperationalConfig): ValidationError[];
+
+// @public
+export interface ValidationError {
+    gate?: string;
+    message: string;
+    signer?: string;
+    suite?: string;
+    type: ValidationErrorType;
+}
+
+// @public
+export type ValidationErrorType = 'MISSING_TEAM_MEMBER' | 'UNKNOWN_GATE';
 
 // @public
 export type VerificationState = 'FINGERPRINT_MISMATCH' | 'INVALID_SIGNATURE' | 'MISSING' | 'STALE' | 'UNKNOWN_SIGNER' | 'VALID';

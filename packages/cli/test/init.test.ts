@@ -22,6 +22,11 @@ vi.mock('../src/utils/prompts.js', () => ({
   confirmAction: vi.fn(),
 }))
 
+// Mock completion offer (no-op in tests)
+vi.mock('../src/utils/completion-offer.js', () => ({
+  offerCompletionInstall: vi.fn().mockResolvedValue(false),
+}))
+
 // Mock console methods
 const mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {
   // Intentionally empty

@@ -1,0 +1,51 @@
+# Complete, valid policy file
+# Contains trust/security settings that come from the default branch
+version: 1
+
+settings:
+  # Maximum age for attestations (in days)
+  maxAgeDays: 30
+  # Path to store public keys
+  publicKeyPath: .attest-it/pubkey.pem
+  # Path to store attestations
+  attestationsPath: .attest-it/attestations.json
+
+team:
+  # Team member: Alice Developer
+  alice:
+    name: Alice Developer
+    email: alice@example.com
+    github: alice-dev
+    publicKey: MCowBQYDK2VwAyEAtest1234567890abcdefghijklmnop=
+
+  # Team member: Bob Engineer
+  bob:
+    name: Bob Engineer
+    publicKey: MCowBQYDK2VwAyEAtest0987654321zyxwvutsrqponmlk=
+
+gates:
+  # Gate for security-critical tests
+  security-tests:
+    name: Security Tests
+    description: Tests for security-critical code paths
+    authorizedSigners:
+      - alice
+      - bob
+    fingerprint:
+      paths:
+        - src/security/**
+        - src/auth/**
+      exclude:
+        - '**/*.test.ts'
+    maxAge: 7d
+
+  # Gate for general unit tests
+  unit-tests:
+    name: Unit Tests
+    description: General unit tests
+    authorizedSigners:
+      - alice
+    fingerprint:
+      paths:
+        - src/**
+    maxAge: 30d

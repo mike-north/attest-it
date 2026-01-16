@@ -31,7 +31,7 @@ jobs:
       - name: Test
         run: pnpm run test
 
-  # Test the GitHub Action
+  # Test the GitHub Action using act (runs action in simulated GitHub environment)
   test-action:
     runs-on: ubuntu-latest
     steps:
@@ -49,7 +49,14 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm run build
 
-      # Test action with sample config
-      - name: Test attest-it action
-        uses: ./packages/github-action
-        continue-on-error: true # Expected to fail without attestations
+      - name: Install act
+        run: |
+          curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+          # The install script puts act in ./bin/act, move it to /usr/local/bin
+          sudo mv ./bin/act /usr/local/bin/act
+
+      - name: Run action tests with act
+        run: |
+          act -W packages/github-action/test/act-workflows push \
+            -P ubuntu-latest=catthehacker/ubuntu:act-latest \
+            --container-architecture linux/amd64

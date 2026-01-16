@@ -38,6 +38,25 @@ export {
   type Config,
 } from './config.js'
 
+// Split config support
+export {
+  // Policy config
+  type PolicyConfig,
+  policySchema,
+  parsePolicyContent,
+  PolicyValidationError,
+  // Operational config
+  type OperationalConfig,
+  operationalSchema,
+  parseOperationalContent,
+  OperationalValidationError,
+  // Merge and validation
+  mergeConfigs,
+  validateSuiteGateReferences,
+  type ValidationError,
+  type ValidationErrorType,
+} from './config/index.js'
+
 // Fingerprinting
 export { computeFingerprint, computeFingerprintSync, listPackageFiles } from './fingerprint.js'
 export type { FingerprintOptions, FingerprintResult } from './fingerprint.js'
@@ -127,6 +146,17 @@ export {
   type PrivateKeyRef,
   type Identity,
   type LocalConfig,
+} from './identity/index.js'
+
+// User Preferences
+export {
+  getPreferencesPath,
+  loadPreferences,
+  savePreferences,
+  setPreference,
+  getPreference,
+  type UserPreferences,
+  type CliExperiencePreferences,
 } from './identity/index.js'
 
 // Authorization

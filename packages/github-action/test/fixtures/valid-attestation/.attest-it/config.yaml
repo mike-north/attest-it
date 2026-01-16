@@ -1,13 +1,9 @@
 version: 1
 
-settings:
-  maxAgeDays: 3650
-  publicKeyPath: .attest-it/pubkey.pem
-  attestationsPath: .attest-it/attestations.json
-
 suites:
   unit-tests:
+    gate: unit-tests
     description: Unit test suite
+    command: echo "tests passed"
     packages:
       - src
-    command: echo "tests passed"
