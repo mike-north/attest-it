@@ -40,10 +40,7 @@ for (const fixture of [validFixture, missingFixture, splitConfigFixture]) {
 
 // Copy test keys to fixtures (using RSA keys for broader OpenSSL compatibility)
 for (const fixture of [validFixture, missingFixture, splitConfigFixture]) {
-  copyFileSync(
-    join(coreTestKeys, 'test-rsa-public.pem'),
-    join(fixture, '.attest-it', 'pubkey.pem'),
-  )
+  copyFileSync(join(coreTestKeys, 'test-rsa-public.pem'), join(fixture, '.attest-it', 'pubkey.pem'))
 }
 
 // Create a simple source file to fingerprint

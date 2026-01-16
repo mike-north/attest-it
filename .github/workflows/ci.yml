@@ -56,8 +56,7 @@ jobs:
           sudo mv ./bin/act /usr/local/bin/act
 
       - name: Run action tests with act
-        working-directory: packages/github-action
         run: |
-          act -W ./test/act-workflows push \
+          act -W packages/github-action/test/act-workflows push \
             -P ubuntu-latest=catthehacker/ubuntu:act-latest \
             --container-architecture linux/amd64
