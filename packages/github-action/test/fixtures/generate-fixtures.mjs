@@ -6,7 +6,7 @@
  * This script uses the actual @attest-it/core library to ensure
  * the attestation format and signatures are correct.
  */
-import { writeFileSync, mkdirSync, copyFileSync } from 'fs'
+import { writeFileSync, mkdirSync, copyFileSync, readFileSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import {
@@ -21,22 +21,30 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const coreTestKeys = join(__dirname, '../../../core/test/fixtures/test-keys')
 const validFixture = join(__dirname, 'valid-attestation')
 const missingFixture = join(__dirname, 'missing-attestation')
+const splitConfigFixture = join(__dirname, 'split-config-valid')
+
+// Read the public key in base64 format for policy files
+const pubKeyPem = readFileSync(join(coreTestKeys, 'test-rsa-public.pem'), 'utf8')
+// Extract the base64 content (remove header/footer and newlines)
+const pubKeyBase64 = pubKeyPem
+  .replace(/-----BEGIN PUBLIC KEY-----/, '')
+  .replace(/-----END PUBLIC KEY-----/, '')
+  .replace(/\n/g, '')
+  .trim()
 
 // Create directories
-mkdirSync(join(validFixture, '.attest-it'), { recursive: true })
-mkdirSync(join(validFixture, 'src'), { recursive: true })
-mkdirSync(join(missingFixture, '.attest-it'), { recursive: true })
-mkdirSync(join(missingFixture, 'src'), { recursive: true })
+for (const fixture of [validFixture, missingFixture, splitConfigFixture]) {
+  mkdirSync(join(fixture, '.attest-it'), { recursive: true })
+  mkdirSync(join(fixture, 'src'), { recursive: true })
+}
 
 // Copy test keys to fixtures (using RSA keys for broader OpenSSL compatibility)
-copyFileSync(
-  join(coreTestKeys, 'test-rsa-public.pem'),
-  join(validFixture, '.attest-it', 'pubkey.pem'),
-)
-copyFileSync(
-  join(coreTestKeys, 'test-rsa-public.pem'),
-  join(missingFixture, '.attest-it', 'pubkey.pem'),
-)
+for (const fixture of [validFixture, missingFixture, splitConfigFixture]) {
+  copyFileSync(
+    join(coreTestKeys, 'test-rsa-public.pem'),
+    join(fixture, '.attest-it', 'pubkey.pem'),
+  )
+}
 
 // Create a simple source file to fingerprint
 const srcContent = `// Test file for attestation fixture
@@ -44,29 +52,54 @@ export function hello() {
   return 'Hello, World!'
 }
 `
-writeFileSync(join(validFixture, 'src', 'index.ts'), srcContent)
-writeFileSync(join(missingFixture, 'src', 'index.ts'), srcContent)
+for (const fixture of [validFixture, missingFixture, splitConfigFixture]) {
+  writeFileSync(join(fixture, 'src', 'index.ts'), srcContent)
+}
 
-// Config with 10-year expiry (3650 days)
-const config = `version: 1
+// Policy config (security-critical settings)
+const policyConfig = `version: 1
 
 settings:
   maxAgeDays: 3650
   publicKeyPath: .attest-it/pubkey.pem
   attestationsPath: .attest-it/attestations.json
 
-suites:
+team:
+  developer:
+    name: Test Developer
+    publicKey: ${pubKeyBase64}
+
+gates:
   unit-tests:
-    description: Unit test suite
-    packages:
-      - src
-    command: echo "tests passed"
+    name: Unit Tests
+    description: Unit test suite for the project
+    authorizedSigners:
+      - developer
+    fingerprint:
+      paths:
+        - src/**/*.ts
+    maxAge: 3650d
 `
 
-writeFileSync(join(validFixture, '.attest-it', 'config.yaml'), config)
-writeFileSync(join(missingFixture, '.attest-it', 'config.yaml'), config)
+// Operational config (references the gate and includes packages for fingerprinting)
+const operationalConfig = `version: 1
 
-// Compute fingerprint using the core library
+suites:
+  unit-tests:
+    gate: unit-tests
+    description: Unit test suite
+    command: echo "tests passed"
+    packages:
+      - src
+`
+
+// Write config files for all fixtures
+for (const fixture of [validFixture, missingFixture, splitConfigFixture]) {
+  writeFileSync(join(fixture, '.attest-it', 'policy.yaml'), policyConfig)
+  writeFileSync(join(fixture, '.attest-it', 'config.yaml'), operationalConfig)
+}
+
+// Compute fingerprint using the suite's packages config
 const fingerprintResult = await computeFingerprint({
   packages: ['src'],
   baseDir: validFixture,
@@ -79,22 +112,23 @@ const attestation = createAttestation({
   suite: 'unit-tests',
   fingerprint: fingerprintResult.fingerprint,
   command: 'echo "tests passed"',
-  attestedBy: 'test-fixture-generator',
+  attestedBy: 'developer',
 })
 
 console.log('Created attestation:', JSON.stringify(attestation, null, 2))
 
-// Write signed attestations using the core library
+// Write signed attestations using the core library for valid fixtures
 const privateKeyPath = join(coreTestKeys, 'test-rsa-private.pem')
-const attestationsPath = join(validFixture, '.attest-it', 'attestations.json')
 
-await writeSignedAttestations({
-  attestations: [attestation],
-  privateKeyPath,
-  filePath: attestationsPath,
-})
-
-console.log('Wrote signed attestations to:', attestationsPath)
+for (const fixture of [validFixture, splitConfigFixture]) {
+  const attestationsPath = join(fixture, '.attest-it', 'attestations.json')
+  await writeSignedAttestations({
+    attestations: [attestation],
+    privateKeyPath,
+    filePath: attestationsPath,
+  })
+  console.log('Wrote signed attestations to:', attestationsPath)
+}
 
 // For missing-attestation fixture, don't create attestations.json
 // (the config exists but no attestations)
@@ -102,3 +136,4 @@ console.log('Wrote signed attestations to:', attestationsPath)
 console.log('\nFixtures generated successfully!')
 console.log('- Valid attestation:', validFixture)
 console.log('- Missing attestation:', missingFixture)
+console.log('- Split config valid:', splitConfigFixture)
