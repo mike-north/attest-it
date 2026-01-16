@@ -2,7 +2,6 @@ version: 1
 
 suites:
   unit-tests:
+    gate: unit-tests
     description: Unit test suite
-    packages:
-      - src
     command: echo "tests passed"

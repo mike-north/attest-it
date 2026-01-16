@@ -8,9 +8,16 @@ settings:
 team:
   developer:
     name: Test Developer
+    # Base64-encoded Ed25519 public key for test fixtures
+    publicKey: MCowBQYDK2VwAyEAJrql38S2l02x4A5d8aGFKjE+UHhMh6qhJlIU0rqhk/o=
 
 gates:
-  standard:
-    name: Standard Tests
+  unit-tests:
+    name: Unit Tests
+    description: Unit test suite for the project
     authorizedSigners:
       - developer
+    fingerprint:
+      paths:
+        - src/**/*.ts
+    maxAge: 365d
