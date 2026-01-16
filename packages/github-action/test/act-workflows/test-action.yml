@@ -20,9 +20,8 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Build action
+      - name: Install and build
         run: |
-          cd packages/github-action
           pnpm install
           pnpm run build
 
@@ -51,9 +50,8 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Build action
+      - name: Install and build
         run: |
-          cd packages/github-action
           pnpm install
           pnpm run build
 
@@ -83,9 +81,8 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Build action
+      - name: Install and build
         run: |
-          cd packages/github-action
           pnpm install
           pnpm run build
 
