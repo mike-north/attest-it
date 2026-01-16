@@ -45,6 +45,11 @@ export async function run(): Promise<void> {
       process.chdir(workingDirectory)
     }
 
+    // Construct full paths from repo root for GitHub API calls
+    // When working-directory is set, policy/config paths are relative to it
+    const repoRootPolicyPath =
+      workingDirectory !== '.' ? `${workingDirectory}/${policyPath}` : policyPath
+
     core.info('Loading configuration...')
 
     let config: ReturnType<typeof toAttestItConfig>
@@ -71,12 +76,13 @@ export async function run(): Promise<void> {
         const { owner, repo } = getRepoInfo()
 
         // Fetch policy from the specified ref
+        // Use full path from repo root for API call
         const policyResult = await fetchPolicyFromRef({
           token: githubToken,
           owner,
           repo,
           ref: effectivePolicyRef,
-          path: policyPath,
+          path: repoRootPolicyPath,
         })
 
         core.info(`Fetched policy from ${effectivePolicyRef} (SHA: ${policyResult.sha})`)

@@ -40432,6 +40432,7 @@ async function run() {
       core.info(`Changing to working directory: ${workingDirectory}`);
       process.chdir(workingDirectory);
     }
+    const repoRootPolicyPath = workingDirectory !== "." ? `${workingDirectory}/${policyPath}` : policyPath;
     core.info("Loading configuration...");
     let config;
     const isInPR = isPullRequest();
@@ -40450,7 +40451,7 @@ async function run() {
           owner,
           repo,
           ref: effectivePolicyRef,
-          path: policyPath
+          path: repoRootPolicyPath
         });
         core.info(`Fetched policy from ${effectivePolicyRef} (SHA: ${policyResult.sha})`);
         const policyFormat = policyPath.endsWith(".json") ? "json" : "yaml";
