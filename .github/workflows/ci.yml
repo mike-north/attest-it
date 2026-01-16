@@ -52,6 +52,8 @@ jobs:
       - name: Install act
         run: |
           curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+          # The install script puts act in ./bin/act, move it to /usr/local/bin
+          sudo mv ./bin/act /usr/local/bin/act
 
       - name: Run action tests with act
         working-directory: packages/github-action

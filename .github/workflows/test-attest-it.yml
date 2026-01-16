@@ -18,6 +18,8 @@ jobs:
           working-directory: packages/github-action/test/fixtures/valid-attestation
           policy-path: .attest-it/policy.yaml
           config-path: .attest-it/config.yaml
+          # Use PR branch for policy since test fixtures only exist in PR
+          policy-ref: ${{ github.head_ref }}
           fail-on-missing: 'true'
 
       - name: Confirm success
@@ -38,6 +40,8 @@ jobs:
           working-directory: packages/github-action/test/fixtures/missing-attestation
           policy-path: .attest-it/policy.yaml
           config-path: .attest-it/config.yaml
+          # Use PR branch for policy since test fixtures only exist in PR
+          policy-ref: ${{ github.head_ref }}
           fail-on-missing: 'true'
 
       - name: Check that action failed as expected

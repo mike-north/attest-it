@@ -25,10 +25,7 @@
                   "anyOf": [
                     {
                       "type": "string",
-                      "enum": [
-                        "filesystem",
-                        "1password"
-                      ]
+                      "enum": ["filesystem", "1password"]
                     },
                     {
                       "type": "string"
@@ -54,9 +51,7 @@
                   "additionalProperties": true
                 }
               },
-              "required": [
-                "type"
-              ],
+              "required": ["type"],
               "additionalProperties": false
             }
           },
@@ -133,10 +128,7 @@
           }
         }
       },
-      "required": [
-        "version",
-        "suites"
-      ],
+      "required": ["version", "suites"],
       "additionalProperties": false
     }
   }
