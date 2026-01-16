@@ -13,6 +13,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -21,8 +23,8 @@ jobs:
       - name: Build action
         run: |
           cd packages/github-action
-          npm install
-          npm run build
+          pnpm install
+          pnpm run build
 
       - name: Verify valid attestation with split config
         uses: ./packages/github-action
@@ -42,6 +44,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -50,8 +54,8 @@ jobs:
       - name: Build action
         run: |
           cd packages/github-action
-          npm install
-          npm run build
+          pnpm install
+          pnpm run build
 
       # In non-PR context without policy-ref, should use filesystem
       - name: Verify uses filesystem in non-PR context
@@ -72,6 +76,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -80,8 +86,8 @@ jobs:
       - name: Build action
         run: |
           cd packages/github-action
-          npm install
-          npm run build
+          pnpm install
+          pnpm run build
 
       - name: Verify missing attestation fails
         id: verify
