@@ -154,7 +154,7 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
       setSelectedProvider('1password')
       // Move to account selection (or skip if only one)
       if (accounts.length === 1 && accounts[0]) {
-        setSelectedAccount(accounts[0].url)
+        setSelectedAccount(accounts[0].user_uuid)
         setStep('select-vault')
       } else {
         setStep('select-account')
@@ -340,7 +340,7 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
   if (step === 'select-account') {
     const options = accounts.map((account) => ({
       label: account.email,
-      value: account.url,
+      value: account.user_uuid,
     }))
 
     return (
