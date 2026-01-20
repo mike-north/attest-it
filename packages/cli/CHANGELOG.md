@@ -1,5 +1,60 @@
 # @attest-it/cli
 
+## 0.6.0
+
+### Minor Changes
+
+- 745fedc: Add shell completion support and improve configuration documentation
+
+  **CLI Package:**
+  - Add shell completion for bash, zsh, and fish shells
+  - Auto-detect user's shell from `$SHELL` environment variable
+  - Support both `attest-it` and `attest` command aliases
+  - Offer shell completion installation during `init` and `identity create` commands
+  - Remember user's preference if they decline completion installation
+  - Fix escape sequence corruption in fish shell completions
+
+  **Core Package:**
+  - Add user preferences system for CLI experience settings
+  - Add JSON schema generation from Zod schemas (`pnpm generate:schemas`)
+  - Schemas in `schemas/policy.schema.json` and `schemas/config.schema.json` now stay in sync with validation logic
+
+  **Documentation:**
+  - Simplify README configuration example with clearer gate setup
+  - Rewrite docs/configuration.md as comprehensive reference with:
+    - Complete field reference tables with types, defaults, and required status
+    - Duration string format reference
+    - Glob pattern examples
+    - All key provider options documented
+    - JSON schema integration instructions for VS Code
+    - Troubleshooting section
+  - Add documentation sync reminder comments to Zod schema files
+
+### Patch Changes
+
+- 4fc9cfa: Security hardening for YubiKey key provider
+
+  **Core Package:**
+  - Add Zod schema validation for encrypted key file structure with runtime type checking
+  - Add Additional Authenticated Data (AAD) to AES-256-GCM encryption, binding metadata to ciphertext
+  - Add path traversal protection - encrypted key paths must be within the config directory
+  - Add serial number verification with security warnings when not specified
+  - Add process exit handlers for temp file cleanup on SIGINT/SIGTERM
+  - Remove TOCTOU (time-of-check/time-of-use) vulnerabilities in file operations
+  - Sanitize error messages to prevent information leakage
+  - Add buffer size validation for IV, auth tag, salt, and challenge
+  - Document memory security limitations for JavaScript string handling in JSDoc
+
+  **CLI Package:**
+  - Integrate YubiKey provider into identity creation flow
+  - Add YubiKey device selection when multiple keys are connected
+  - Add challenge-response slot configuration guidance
+
+- Updated dependencies [745fedc]
+- Updated dependencies [9c55c10]
+- Updated dependencies [4fc9cfa]
+  - @attest-it/core@0.6.0
+
 ## 0.5.0
 
 ### Minor Changes
