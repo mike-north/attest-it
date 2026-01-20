@@ -1,6 +1,5 @@
 ---
 '@attest-it/core': minor
-'@attest-it/github-action': minor
 ---
 
 Add split config model and policy-ref input for GitHub Action
