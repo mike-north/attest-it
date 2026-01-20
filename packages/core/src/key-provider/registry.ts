@@ -12,6 +12,7 @@ import type { KeyProvider, KeyProviderConfig } from './types.js'
 import { FilesystemKeyProvider } from './filesystem-provider.js'
 import { OnePasswordKeyProvider } from './one-password-provider.js'
 import { MacOSKeychainKeyProvider } from './macos-keychain-provider.js'
+import { YubiKeyProvider } from './yubikey-provider.js'
 
 /**
  * Type for a key provider factory function.
@@ -108,4 +109,34 @@ KeyProviderRegistry.register('macos-keychain', (config) => {
   }
 
   return new MacOSKeychainKeyProvider({ itemName })
+})
+
+// Register the YubiKey provider
+KeyProviderRegistry.register('yubikey', (config) => {
+  const { options } = config
+  const encryptedKeyPath =
+    typeof options.encryptedKeyPath === 'string' ? options.encryptedKeyPath : ''
+
+  if (!encryptedKeyPath) {
+    throw new Error('YubiKey provider requires encryptedKeyPath option')
+  }
+
+  const slot =
+    typeof options.slot === 'number' && (options.slot === 1 || options.slot === 2)
+      ? options.slot
+      : undefined
+  const serial = typeof options.serial === 'string' ? options.serial : undefined
+
+  // Build options object, only including defined properties
+  const providerOptions: { encryptedKeyPath: string; slot?: 1 | 2; serial?: string } = {
+    encryptedKeyPath,
+  }
+  if (slot !== undefined) {
+    providerOptions.slot = slot
+  }
+  if (serial !== undefined) {
+    providerOptions.serial = serial
+  }
+
+  return new YubiKeyProvider(providerOptions)
 })

@@ -616,6 +616,15 @@ function createKeyProviderFromIdentity(
           field: privateKey.field,
         },
       })
+    case 'yubikey':
+      return KeyProviderRegistry.create({
+        type: 'yubikey',
+        options: {
+          encryptedKeyPath: privateKey.encryptedKeyPath,
+          slot: privateKey.slot,
+          serial: privateKey.serial,
+        },
+      })
     default: {
       // This should never happen due to TypeScript's discriminated union
       const _exhaustiveCheck: never = privateKey
@@ -640,6 +649,8 @@ function getKeyRefFromIdentity(identity: Identity): string {
       return `${privateKey.service}:${privateKey.account}`
     case '1password':
       return privateKey.item
+    case 'yubikey':
+      return privateKey.encryptedKeyPath
     default: {
       const _exhaustiveCheck: never = privateKey
       throw new Error(`Unsupported private key type: ${String(_exhaustiveCheck)}`)

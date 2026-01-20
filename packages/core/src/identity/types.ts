@@ -11,6 +11,7 @@ export type PrivateKeyRef =
   | { type: 'file'; path: string }
   | { type: 'keychain'; service: string; account: string; keychain?: string }
   | { type: '1password'; account?: string; vault: string; item: string; field?: string }
+  | { type: 'yubikey'; encryptedKeyPath: string; slot?: 1 | 2; serial?: string }
 
 /**
  * A single identity configuration.

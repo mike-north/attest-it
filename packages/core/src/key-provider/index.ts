@@ -34,6 +34,10 @@ export type {
 export { MacOSKeychainKeyProvider } from './macos-keychain-provider.js'
 export type { MacOSKeychainKeyProviderOptions, MacOSKeychain } from './macos-keychain-provider.js'
 
+// YubiKey provider
+export { YubiKeyProvider } from './yubikey-provider.js'
+export type { YubiKeyProviderOptions, YubiKeyInfo } from './yubikey-provider.js'
+
 // Registry
 export { KeyProviderRegistry } from './registry.js'
 export type { KeyProviderFactory } from './registry.js'

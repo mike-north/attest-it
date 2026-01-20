@@ -740,6 +740,11 @@ export type PrivateKeyRef = {
     type: '1password';
     vault: string;
 } | {
+    encryptedKeyPath: string;
+    serial?: string;
+    slot?: 1 | 2;
+    type: 'yubikey';
+} | {
     path: string;
     type: 'file';
 };
@@ -959,6 +964,47 @@ export interface WriteSignedAttestationsOptions {
     keyProvider?: KeyProvider;
     keyRef?: string;
     privateKeyPath?: string;
+}
+
+// @public
+export interface YubiKeyInfo {
+    firmware: string;
+    serial: string;
+    type: string;
+}
+
+// @public
+export class YubiKeyProvider implements KeyProvider {
+    constructor(options: YubiKeyProviderOptions);
+    // (undocumented)
+    readonly displayName = "YubiKey";
+    static encryptPrivateKey(options: {
+        encryptedKeyPath: string;
+        privateKey: string;
+        serial?: string;
+        slot?: 1 | 2;
+    }): Promise<{
+        encryptedKeyPath: string;
+        storageDescription: string;
+    }>;
+    generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult>;
+    getConfig(): KeyProviderConfig;
+    getPrivateKey(keyRef: string): Promise<KeyRetrievalResult>;
+    isAvailable(): Promise<boolean>;
+    static isChallengeResponseConfigured(slot?: 1 | 2, serial?: string): Promise<boolean>;
+    static isConnected(): Promise<boolean>;
+    static isInstalled(): Promise<boolean>;
+    keyExists(keyRef: string): Promise<boolean>;
+    static listDevices(): Promise<YubiKeyInfo[]>;
+    // (undocumented)
+    readonly type = "yubikey";
+}
+
+// @public
+export interface YubiKeyProviderOptions {
+    encryptedKeyPath: string;
+    serial?: string;
+    slot?: 1 | 2;
 }
 
 // (No @packageDocumentation comment for this package)

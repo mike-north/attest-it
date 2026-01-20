@@ -4068,8 +4068,8 @@ var require_util2 = __commonJS({
     function createDeferredPromise() {
       let res;
       let rej;
-      const promise2 = new Promise((resolve4, reject) => {
-        res = resolve4;
+      const promise2 = new Promise((resolve5, reject) => {
+        res = resolve5;
         rej = reject;
       });
       return { promise: promise2, resolve: res, reject: rej };
@@ -5580,8 +5580,8 @@ Content-Type: ${value.type || "application/octet-stream"}\r
                 });
               }
             });
-            const busboyResolve = new Promise((resolve4, reject) => {
-              busboy.on("finish", resolve4);
+            const busboyResolve = new Promise((resolve5, reject) => {
+              busboy.on("finish", resolve5);
               busboy.on("error", (err) => reject(new TypeError(err)));
             });
             if (this.body !== null) for await (const chunk of consumeBody(this[kState].body)) busboy.write(chunk);
@@ -6118,9 +6118,9 @@ var require_dispatcher_base = __commonJS({
       }
       close(callback2) {
         if (callback2 === void 0) {
-          return new Promise((resolve4, reject) => {
+          return new Promise((resolve5, reject) => {
             this.close((err, data) => {
-              return err ? reject(err) : resolve4(data);
+              return err ? reject(err) : resolve5(data);
             });
           });
         }
@@ -6158,12 +6158,12 @@ var require_dispatcher_base = __commonJS({
           err = null;
         }
         if (callback2 === void 0) {
-          return new Promise((resolve4, reject) => {
+          return new Promise((resolve5, reject) => {
             this.destroy(err, (err2, data) => {
               return err2 ? (
                 /* istanbul ignore next: should never error */
                 reject(err2)
-              ) : resolve4(data);
+              ) : resolve5(data);
             });
           });
         }
@@ -7233,16 +7233,16 @@ var require_client = __commonJS({
         return this[kNeedDrain] < 2;
       }
       async [kClose]() {
-        return new Promise((resolve4) => {
+        return new Promise((resolve5) => {
           if (!this[kSize]) {
-            resolve4(null);
+            resolve5(null);
           } else {
-            this[kClosedResolve] = resolve4;
+            this[kClosedResolve] = resolve5;
           }
         });
       }
       async [kDestroy](err) {
-        return new Promise((resolve4) => {
+        return new Promise((resolve5) => {
           const requests = this[kQueue].splice(this[kPendingIdx]);
           for (let i = 0; i < requests.length; i++) {
             const request2 = requests[i];
@@ -7253,7 +7253,7 @@ var require_client = __commonJS({
               this[kClosedResolve]();
               this[kClosedResolve] = null;
             }
-            resolve4();
+            resolve5();
           };
           if (this[kHTTP2Session] != null) {
             util2.destroy(this[kHTTP2Session], err);
@@ -7833,7 +7833,7 @@ var require_client = __commonJS({
         });
       }
       try {
-        const socket = await new Promise((resolve4, reject) => {
+        const socket = await new Promise((resolve5, reject) => {
           client[kConnector]({
             host,
             hostname,
@@ -7845,7 +7845,7 @@ var require_client = __commonJS({
             if (err) {
               reject(err);
             } else {
-              resolve4(socket2);
+              resolve5(socket2);
             }
           });
         });
@@ -8469,12 +8469,12 @@ upgrade: ${upgrade}\r
           cb();
         }
       }
-      const waitForDrain = () => new Promise((resolve4, reject) => {
+      const waitForDrain = () => new Promise((resolve5, reject) => {
         assert(callback2 === null);
         if (socket[kError]) {
           reject(socket[kError]);
         } else {
-          callback2 = resolve4;
+          callback2 = resolve5;
         }
       });
       if (client[kHTTPConnVersion] === "h2") {
@@ -8823,8 +8823,8 @@ var require_pool_base = __commonJS({
         if (this[kQueue].isEmpty()) {
           return Promise.all(this[kClients].map((c) => c.close()));
         } else {
-          return new Promise((resolve4) => {
-            this[kClosedResolve] = resolve4;
+          return new Promise((resolve5) => {
+            this[kClosedResolve] = resolve5;
           });
         }
       }
@@ -9407,7 +9407,7 @@ var require_readable = __commonJS({
         if (this.closed) {
           return Promise.resolve(null);
         }
-        return new Promise((resolve4, reject) => {
+        return new Promise((resolve5, reject) => {
           const signalListenerCleanup = signal ? util2.addAbortListener(signal, () => {
             this.destroy();
           }) : noop2;
@@ -9416,7 +9416,7 @@ var require_readable = __commonJS({
             if (signal && signal.aborted) {
               reject(signal.reason || Object.assign(new Error("The operation was aborted"), { name: "AbortError" }));
             } else {
-              resolve4(null);
+              resolve5(null);
             }
           }).on("error", noop2).on("data", function(chunk) {
             limit -= chunk.length;
@@ -9438,11 +9438,11 @@ var require_readable = __commonJS({
         throw new TypeError("unusable");
       }
       assert(!stream[kConsume]);
-      return new Promise((resolve4, reject) => {
+      return new Promise((resolve5, reject) => {
         stream[kConsume] = {
           type,
           stream,
-          resolve: resolve4,
+          resolve: resolve5,
           reject,
           length: 0,
           body: []
@@ -9477,12 +9477,12 @@ var require_readable = __commonJS({
       }
     }
     function consumeEnd(consume2) {
-      const { type, body, resolve: resolve4, stream, length } = consume2;
+      const { type, body, resolve: resolve5, stream, length } = consume2;
       try {
         if (type === "text") {
-          resolve4(toUSVString(Buffer.concat(body)));
+          resolve5(toUSVString(Buffer.concat(body)));
         } else if (type === "json") {
-          resolve4(JSON.parse(Buffer.concat(body)));
+          resolve5(JSON.parse(Buffer.concat(body)));
         } else if (type === "arrayBuffer") {
           const dst = new Uint8Array(length);
           let pos = 0;
@@ -9490,12 +9490,12 @@ var require_readable = __commonJS({
             dst.set(buf, pos);
             pos += buf.byteLength;
           }
-          resolve4(dst.buffer);
+          resolve5(dst.buffer);
         } else if (type === "blob") {
           if (!Blob2) {
             Blob2 = __require("buffer").Blob;
           }
-          resolve4(new Blob2(body, { type: stream[kContentType] }));
+          resolve5(new Blob2(body, { type: stream[kContentType] }));
         }
         consumeFinish(consume2);
       } catch (err) {
@@ -9755,9 +9755,9 @@ var require_api_request = __commonJS({
     };
     function request2(opts, callback2) {
       if (callback2 === void 0) {
-        return new Promise((resolve4, reject) => {
+        return new Promise((resolve5, reject) => {
           request2.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve4(data);
+            return err ? reject(err) : resolve5(data);
           });
         });
       }
@@ -9931,9 +9931,9 @@ var require_api_stream = __commonJS({
     };
     function stream(opts, factory, callback2) {
       if (callback2 === void 0) {
-        return new Promise((resolve4, reject) => {
+        return new Promise((resolve5, reject) => {
           stream.call(this, opts, factory, (err, data) => {
-            return err ? reject(err) : resolve4(data);
+            return err ? reject(err) : resolve5(data);
           });
         });
       }
@@ -10216,9 +10216,9 @@ var require_api_upgrade = __commonJS({
     };
     function upgrade(opts, callback2) {
       if (callback2 === void 0) {
-        return new Promise((resolve4, reject) => {
+        return new Promise((resolve5, reject) => {
           upgrade.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve4(data);
+            return err ? reject(err) : resolve5(data);
           });
         });
       }
@@ -10308,9 +10308,9 @@ var require_api_connect = __commonJS({
     };
     function connect(opts, callback2) {
       if (callback2 === void 0) {
-        return new Promise((resolve4, reject) => {
+        return new Promise((resolve5, reject) => {
           connect.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve4(data);
+            return err ? reject(err) : resolve5(data);
           });
         });
       }
@@ -13951,7 +13951,7 @@ var require_fetch = __commonJS({
       async function dispatch({ body }) {
         const url = requestCurrentURL(request2);
         const agent = fetchParams.controller.dispatcher;
-        return new Promise((resolve4, reject) => agent.dispatch(
+        return new Promise((resolve5, reject) => agent.dispatch(
           {
             path: url.pathname + url.search,
             origin: url.origin,
@@ -14027,7 +14027,7 @@ var require_fetch = __commonJS({
                   }
                 }
               }
-              resolve4({
+              resolve5({
                 status,
                 statusText,
                 headersList: headers[kHeadersList],
@@ -14070,7 +14070,7 @@ var require_fetch = __commonJS({
                 const val = headersList[n + 1].toString("latin1");
                 headers[kHeadersList].append(key, val);
               }
-              resolve4({
+              resolve5({
                 status,
                 statusText: STATUS_CODES[status],
                 headersList: headers[kHeadersList],
@@ -17447,11 +17447,11 @@ var require_lib = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve5) {
+          resolve5(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve5, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -17467,7 +17467,7 @@ var require_lib = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -17553,26 +17553,26 @@ var require_lib = __commonJS({
       }
       readBody() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve4) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve5) => __awaiter(this, void 0, void 0, function* () {
             let output = Buffer.alloc(0);
             this.message.on("data", (chunk) => {
               output = Buffer.concat([output, chunk]);
             });
             this.message.on("end", () => {
-              resolve4(output.toString());
+              resolve5(output.toString());
             });
           }));
         });
       }
       readBodyBuffer() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve4) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve5) => __awaiter(this, void 0, void 0, function* () {
             const chunks = [];
             this.message.on("data", (chunk) => {
               chunks.push(chunk);
             });
             this.message.on("end", () => {
-              resolve4(Buffer.concat(chunks));
+              resolve5(Buffer.concat(chunks));
             });
           }));
         });
@@ -17781,14 +17781,14 @@ var require_lib = __commonJS({
        */
       requestRaw(info2, data) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve4, reject) => {
+          return new Promise((resolve5, reject) => {
             function callbackForResult(err, res) {
               if (err) {
                 reject(err);
               } else if (!res) {
                 reject(new Error("Unknown error"));
               } else {
-                resolve4(res);
+                resolve5(res);
               }
             }
             this.requestRawWithCallback(info2, data, callbackForResult);
@@ -17970,12 +17970,12 @@ var require_lib = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           retryNumber = Math.min(ExponentialBackoffCeiling, retryNumber);
           const ms2 = ExponentialBackoffTimeSlice * Math.pow(2, retryNumber);
-          return new Promise((resolve4) => setTimeout(() => resolve4(), ms2));
+          return new Promise((resolve5) => setTimeout(() => resolve5(), ms2));
         });
       }
       _processResponse(res, options) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve4, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve5, reject) => __awaiter(this, void 0, void 0, function* () {
             const statusCode = res.message.statusCode || 0;
             const response = {
               statusCode,
@@ -17983,7 +17983,7 @@ var require_lib = __commonJS({
               headers: {}
             };
             if (statusCode === HttpCodes.NotFound) {
-              resolve4(response);
+              resolve5(response);
             }
             function dateTimeDeserializer(key, value) {
               if (typeof value === "string") {
@@ -18022,7 +18022,7 @@ var require_lib = __commonJS({
               err.result = response.result;
               reject(err);
             } else {
-              resolve4(response);
+              resolve5(response);
             }
           }));
         });
@@ -18040,11 +18040,11 @@ var require_auth = __commonJS({
     init_esm_shims();
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve5) {
+          resolve5(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve5, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18060,7 +18060,7 @@ var require_auth = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18145,11 +18145,11 @@ var require_oidc_utils = __commonJS({
     init_esm_shims();
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve5) {
+          resolve5(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve5, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18165,7 +18165,7 @@ var require_oidc_utils = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18244,11 +18244,11 @@ var require_summary = __commonJS({
     init_esm_shims();
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve5) {
+          resolve5(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve5, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18264,7 +18264,7 @@ var require_summary = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18612,11 +18612,11 @@ var require_io_util = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve5) {
+          resolve5(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve5, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18632,7 +18632,7 @@ var require_io_util = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18786,11 +18786,11 @@ var require_io = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve5) {
+          resolve5(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve5, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18806,7 +18806,7 @@ var require_io = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19035,11 +19035,11 @@ var require_toolrunner = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve5) {
+          resolve5(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve5, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19055,7 +19055,7 @@ var require_toolrunner = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19283,7 +19283,7 @@ var require_toolrunner = __commonJS({
             this.toolPath = path4.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
           }
           this.toolPath = yield io.which(this.toolPath, true);
-          return new Promise((resolve4, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve5, reject) => __awaiter(this, void 0, void 0, function* () {
             this._debug(`exec tool: ${this.toolPath}`);
             this._debug("arguments:");
             for (const arg of this.args) {
@@ -19366,7 +19366,7 @@ var require_toolrunner = __commonJS({
               if (error2) {
                 reject(error2);
               } else {
-                resolve4(exitCode);
+                resolve5(exitCode);
               }
             });
             if (this.options.input) {
@@ -19520,11 +19520,11 @@ var require_exec = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve5) {
+          resolve5(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve5, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19540,7 +19540,7 @@ var require_exec = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19632,11 +19632,11 @@ var require_platform = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve5) {
+          resolve5(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve5, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19652,7 +19652,7 @@ var require_platform = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19752,11 +19752,11 @@ var require_core = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve5) {
+          resolve5(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve5, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19772,7 +19772,7 @@ var require_core = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19954,7 +19954,7 @@ import * as fs from "fs/promises";
 import * as path2 from "path";
 import * as os from "os";
 async function runOpenSSL(args, stdin) {
-  return new Promise((resolve4, reject) => {
+  return new Promise((resolve5, reject) => {
     const child = spawn("openssl", args, {
       stdio: ["pipe", "pipe", "pipe"]
     });
@@ -19970,7 +19970,7 @@ async function runOpenSSL(args, stdin) {
       reject(new Error(`Failed to spawn OpenSSL: ${err.message}`));
     });
     child.on("close", (code) => {
-      resolve4({
+      resolve5({
         exitCode: code ?? 1,
         stdout: Buffer.concat(stdoutChunks),
         stderr
@@ -29423,11 +29423,11 @@ var require_lib2 = __commonJS({
     })();
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve5) {
+          resolve5(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve5, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -29443,7 +29443,7 @@ var require_lib2 = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -29530,26 +29530,26 @@ var require_lib2 = __commonJS({
       }
       readBody() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve4) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve5) => __awaiter(this, void 0, void 0, function* () {
             let output = Buffer.alloc(0);
             this.message.on("data", (chunk) => {
               output = Buffer.concat([output, chunk]);
             });
             this.message.on("end", () => {
-              resolve4(output.toString());
+              resolve5(output.toString());
             });
           }));
         });
       }
       readBodyBuffer() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve4) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve5) => __awaiter(this, void 0, void 0, function* () {
             const chunks = [];
             this.message.on("data", (chunk) => {
               chunks.push(chunk);
             });
             this.message.on("end", () => {
-              resolve4(Buffer.concat(chunks));
+              resolve5(Buffer.concat(chunks));
             });
           }));
         });
@@ -29757,14 +29757,14 @@ var require_lib2 = __commonJS({
        */
       requestRaw(info2, data) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve4, reject) => {
+          return new Promise((resolve5, reject) => {
             function callbackForResult(err, res) {
               if (err) {
                 reject(err);
               } else if (!res) {
                 reject(new Error("Unknown error"));
               } else {
-                resolve4(res);
+                resolve5(res);
               }
             }
             this.requestRawWithCallback(info2, data, callbackForResult);
@@ -30008,12 +30008,12 @@ var require_lib2 = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           retryNumber = Math.min(ExponentialBackoffCeiling, retryNumber);
           const ms2 = ExponentialBackoffTimeSlice * Math.pow(2, retryNumber);
-          return new Promise((resolve4) => setTimeout(() => resolve4(), ms2));
+          return new Promise((resolve5) => setTimeout(() => resolve5(), ms2));
         });
       }
       _processResponse(res, options) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve4, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve5, reject) => __awaiter(this, void 0, void 0, function* () {
             const statusCode = res.message.statusCode || 0;
             const response = {
               statusCode,
@@ -30021,7 +30021,7 @@ var require_lib2 = __commonJS({
               headers: {}
             };
             if (statusCode === HttpCodes.NotFound) {
-              resolve4(response);
+              resolve5(response);
             }
             function dateTimeDeserializer(key, value) {
               if (typeof value === "string") {
@@ -30060,7 +30060,7 @@ var require_lib2 = __commonJS({
               err.result = response.result;
               reject(err);
             } else {
-              resolve4(response);
+              resolve5(response);
             }
           }));
         });
@@ -30115,11 +30115,11 @@ var require_utils4 = __commonJS({
     })();
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve5) {
+          resolve5(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve5, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -30135,7 +30135,7 @@ var require_utils4 = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -34199,17 +34199,18 @@ var require_github = __commonJS({
 init_esm_shims();
 var core = __toESM(require_core(), 1);
 import { readFile as readFile3 } from "fs/promises";
-import { resolve as resolve3 } from "path";
+import { resolve as resolve4 } from "path";
 
 // ../core/dist/index.js
 init_esm_shims();
 init_chunk_VC3BBBBO();
 init_chunk_VC3BBBBO();
 import * as fs2 from "fs";
-import * as fs6 from "fs/promises";
-import * as path6 from "path";
+import * as fs7 from "fs/promises";
 var import_ms = __toESM(require_ms(), 1);
 var import_yaml = __toESM(require_dist(), 1);
+import * as path6 from "path";
+import { join as join3, resolve as resolve3, dirname as dirname4 } from "path";
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/index.js
 init_esm_shims();
@@ -38272,7 +38273,7 @@ var coerce = {
 var NEVER = INVALID;
 
 // ../core/dist/index.js
-import * as crypto2 from "crypto";
+import * as crypto3 from "crypto";
 
 // ../../node_modules/.pnpm/tinyglobby@0.2.15/node_modules/tinyglobby/dist/index.mjs
 init_esm_shims();
@@ -39058,8 +39059,9 @@ async function glob(patternsOrOptions, options) {
 }
 
 // ../core/dist/index.js
-import * as os2 from "os";
 var canonicalizeNamespace = __toESM(require_canonicalize(), 1);
+import * as os2 from "os";
+import { homedir as homedir2 } from "os";
 import { spawn as spawn2 } from "child_process";
 var keyProviderOptionsSchema = external_exports.object({
   privateKeyPath: external_exports.string().optional(),
@@ -39448,13 +39450,13 @@ function computeFinalFingerprint(fileHashes) {
   });
   const hashes = sorted.map((input) => input.hash);
   const concatenated = Buffer.concat(hashes);
-  const finalHash = crypto2.createHash("sha256").update(concatenated).digest();
+  const finalHash = crypto3.createHash("sha256").update(concatenated).digest();
   return `sha256:${finalHash.toString("hex")}`;
 }
 async function hashFileAsync(realPath, normalizedPath, stats) {
   if (stats.size > LARGE_FILE_THRESHOLD) {
-    return new Promise((resolve32, reject) => {
-      const hash2 = crypto2.createHash("sha256");
+    return new Promise((resolve42, reject) => {
+      const hash2 = crypto3.createHash("sha256");
       hash2.update(normalizedPath);
       hash2.update(":");
       const stream = fs2.createReadStream(realPath);
@@ -39462,13 +39464,13 @@ async function hashFileAsync(realPath, normalizedPath, stats) {
         hash2.update(chunk);
       });
       stream.on("end", () => {
-        resolve32(hash2.digest());
+        resolve42(hash2.digest());
       });
       stream.on("error", reject);
     });
   }
   const content = await fs2.promises.readFile(realPath);
-  const hash = crypto2.createHash("sha256");
+  const hash = crypto3.createHash("sha256");
   hash.update(normalizedPath);
   hash.update(":");
   hash.update(content);
@@ -39769,7 +39771,7 @@ var FilesystemKeyProvider = class {
    */
   async keyExists(keyRef) {
     try {
-      await fs6.access(keyRef);
+      await fs7.access(keyRef);
       return true;
     } catch {
       return false;
@@ -39927,7 +39929,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
         `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` + (this.account ? ` (account: ${this.account})` : "")
       );
     }
-    const tempDir = await fs6.mkdtemp(path6.join(os2.tmpdir(), "attest-it-"));
+    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-"));
     const tempKeyPath = path6.join(tempDir, "private.pem");
     try {
       const args = ["document", "get", keyRef, "--vault", this.vault, "--out-file", tempKeyPath];
@@ -39940,8 +39942,8 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
         keyPath: tempKeyPath,
         cleanup: async () => {
           try {
-            await fs6.unlink(tempKeyPath);
-            await fs6.rmdir(tempDir);
+            await fs7.unlink(tempKeyPath);
+            await fs7.rmdir(tempDir);
           } catch (cleanupError) {
             console.warn(
               `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -39951,7 +39953,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
       };
     } catch (error2) {
       try {
-        await fs6.rm(tempDir, { recursive: true, force: true });
+        await fs7.rm(tempDir, { recursive: true, force: true });
       } catch (cleanupError) {
         console.warn(
           `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -39967,7 +39969,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
    */
   async generateKeyPair(options) {
     const { publicKeyPath, force = false } = options;
-    const tempDir = await fs6.mkdtemp(path6.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-keygen-"));
     const tempPrivateKeyPath = path6.join(tempDir, "private.pem");
     try {
       await generateKeyPair({
@@ -39988,8 +39990,8 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
         args.push("--account", this.account);
       }
       await execCommand("op", args);
-      await fs6.unlink(tempPrivateKeyPath);
-      await fs6.rmdir(tempDir);
+      await fs7.unlink(tempPrivateKeyPath);
+      await fs7.rmdir(tempDir);
       return {
         privateKeyRef: this.itemName,
         publicKeyPath,
@@ -39997,7 +39999,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
       };
     } catch (error2) {
       try {
-        await fs6.rm(tempDir, { recursive: true, force: true });
+        await fs7.rm(tempDir, { recursive: true, force: true });
       } catch (cleanupError) {
         console.warn(
           `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -40021,7 +40023,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
   }
 };
 async function execCommand(command, args) {
-  return new Promise((resolve32, reject) => {
+  return new Promise((resolve42, reject) => {
     const proc = spawn2(command, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
@@ -40033,7 +40035,7 @@ async function execCommand(command, args) {
     });
     proc.on("close", (code) => {
       if (code === 0) {
-        resolve32(stdout.trim());
+        resolve42(stdout.trim());
       } else {
         reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
       }
@@ -40126,7 +40128,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
         `Key not found in macOS Keychain: "${keyRef}" (account: ${_MacOSKeychainKeyProvider.ACCOUNT})`
       );
     }
-    const tempDir = await fs6.mkdtemp(path6.join(os2.tmpdir(), "attest-it-"));
+    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-"));
     const tempKeyPath = path6.join(tempDir, "private.pem");
     try {
       const findArgs = [
@@ -40142,14 +40144,14 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
       }
       const base64Key = await execCommand2("security", findArgs);
       const keyContent = Buffer.from(base64Key, "base64").toString("utf8");
-      await fs6.writeFile(tempKeyPath, keyContent, { mode: 384 });
+      await fs7.writeFile(tempKeyPath, keyContent, { mode: 384 });
       await setKeyPermissions(tempKeyPath);
       return {
         keyPath: tempKeyPath,
         cleanup: async () => {
           try {
-            await fs6.unlink(tempKeyPath);
-            await fs6.rmdir(tempDir);
+            await fs7.unlink(tempKeyPath);
+            await fs7.rmdir(tempDir);
           } catch (cleanupError) {
             console.warn(
               `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -40159,7 +40161,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
       };
     } catch (error2) {
       try {
-        await fs6.rm(tempDir, { recursive: true, force: true });
+        await fs7.rm(tempDir, { recursive: true, force: true });
       } catch (cleanupError) {
         console.warn(
           `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -40175,7 +40177,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
    */
   async generateKeyPair(options) {
     const { publicKeyPath, force = false } = options;
-    const tempDir = await fs6.mkdtemp(path6.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-keygen-"));
     const tempPrivateKeyPath = path6.join(tempDir, "private.pem");
     try {
       await generateKeyPair({
@@ -40183,7 +40185,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
         publicPath: publicKeyPath,
         force
       });
-      const privateKeyContent = await fs6.readFile(tempPrivateKeyPath, "utf8");
+      const privateKeyContent = await fs7.readFile(tempPrivateKeyPath, "utf8");
       const base64Key = Buffer.from(privateKeyContent, "utf8").toString("base64");
       const addArgs = [
         "add-generic-password",
@@ -40201,8 +40203,8 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
         addArgs.push(this.keychain);
       }
       await execCommand2("security", addArgs);
-      await fs6.unlink(tempPrivateKeyPath);
-      await fs6.rmdir(tempDir);
+      await fs7.unlink(tempPrivateKeyPath);
+      await fs7.rmdir(tempDir);
       return {
         privateKeyRef: this.itemName,
         publicKeyPath,
@@ -40210,7 +40212,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
       };
     } catch (error2) {
       try {
-        await fs6.rm(tempDir, { recursive: true, force: true });
+        await fs7.rm(tempDir, { recursive: true, force: true });
       } catch (cleanupError) {
         console.warn(
           `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -40232,7 +40234,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
   }
 };
 async function execCommand2(command, args) {
-  return new Promise((resolve32, reject) => {
+  return new Promise((resolve42, reject) => {
     const proc = spawn2(command, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
@@ -40244,7 +40246,7 @@ async function execCommand2(command, args) {
     });
     proc.on("close", (code) => {
       if (code === 0) {
-        resolve32(stdout.trim());
+        resolve42(stdout.trim());
       } else {
         reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
       }
@@ -40253,6 +40255,521 @@ async function execCommand2(command, args) {
       reject(error2);
     });
   });
+}
+var homeDirOverride = null;
+var privateKeyRefSchema = external_exports.discriminatedUnion("type", [
+  external_exports.object({
+    type: external_exports.literal("file"),
+    path: external_exports.string().min(1, "File path cannot be empty")
+  }),
+  external_exports.object({
+    type: external_exports.literal("keychain"),
+    service: external_exports.string().min(1, "Service name cannot be empty"),
+    account: external_exports.string().min(1, "Account name cannot be empty"),
+    keychain: external_exports.string().optional()
+  }),
+  external_exports.object({
+    type: external_exports.literal("1password"),
+    account: external_exports.string().optional(),
+    vault: external_exports.string().min(1, "Vault name cannot be empty"),
+    item: external_exports.string().min(1, "Item name cannot be empty"),
+    field: external_exports.string().optional()
+  })
+]);
+var identitySchema = external_exports.object({
+  name: external_exports.string().min(1, "Identity name cannot be empty"),
+  email: external_exports.string().optional(),
+  github: external_exports.string().optional(),
+  publicKey: external_exports.string().min(1, "Public key cannot be empty"),
+  privateKey: privateKeyRefSchema
+}).strict();
+var localConfigSchema = external_exports.object({
+  activeIdentity: external_exports.string().min(1, "Active identity name cannot be empty"),
+  identities: external_exports.record(external_exports.string(), identitySchema).refine((identities) => Object.keys(identities).length >= 1, {
+    message: "At least one identity must be defined"
+  })
+}).strict();
+function getAttestItConfigDir() {
+  if (homeDirOverride) {
+    return homeDirOverride;
+  }
+  return join3(homedir2(), ".config", "attest-it");
+}
+var EncryptedKeyFileSchema = external_exports.object({
+  version: external_exports.literal(1),
+  iv: external_exports.string().min(1),
+  authTag: external_exports.string().min(1),
+  salt: external_exports.string().min(1),
+  challenge: external_exports.string().min(1),
+  ciphertext: external_exports.string().min(1),
+  slot: external_exports.union([external_exports.literal(1), external_exports.literal(2)]),
+  serial: external_exports.string().optional(),
+  aad: external_exports.string().optional()
+});
+var activeCleanupHandlers = /* @__PURE__ */ new Set();
+var processHandlersInstalled = false;
+function installProcessHandlers() {
+  if (processHandlersInstalled) return;
+  processHandlersInstalled = true;
+  const runCleanup = async () => {
+    const handlers = Array.from(activeCleanupHandlers);
+    await Promise.allSettled(handlers.map((h) => h()));
+  };
+  process.once("beforeExit", () => {
+    void runCleanup();
+  });
+  process.once("SIGINT", () => {
+    void runCleanup().finally(() => process.exit(130));
+  });
+  process.once("SIGTERM", () => {
+    void runCleanup().finally(() => process.exit(143));
+  });
+}
+function validateEncryptedKeyFile(data) {
+  const parsed = EncryptedKeyFileSchema.parse(data);
+  const iv = Buffer.from(parsed.iv, "base64");
+  if (iv.length !== 12) {
+    throw new Error(`Invalid IV size: expected 12 bytes, got ${String(iv.length)}`);
+  }
+  const authTag = Buffer.from(parsed.authTag, "base64");
+  if (authTag.length !== 16) {
+    throw new Error(`Invalid auth tag size: expected 16 bytes, got ${String(authTag.length)}`);
+  }
+  const salt = Buffer.from(parsed.salt, "base64");
+  if (salt.length !== 32) {
+    throw new Error(`Invalid salt size: expected 32 bytes, got ${String(salt.length)}`);
+  }
+  const challenge = Buffer.from(parsed.challenge, "base64");
+  if (challenge.length !== 32) {
+    throw new Error(`Invalid challenge size: expected 32 bytes, got ${String(challenge.length)}`);
+  }
+  return parsed;
+}
+function constructAAD(version2, slot, serial) {
+  const aadObject = {
+    version: version2,
+    slot,
+    serial: serial ?? "unspecified"
+  };
+  return Buffer.from(JSON.stringify(aadObject), "utf8");
+}
+var YubiKeyProvider = class _YubiKeyProvider {
+  type = "yubikey";
+  displayName = "YubiKey";
+  encryptedKeyPath;
+  slot;
+  serial;
+  /**
+   * Create a new YubiKeyProvider.
+   * @param options - Provider options
+   * @throws Error if encryptedKeyPath is outside the attest-it config directory
+   */
+  constructor(options) {
+    const resolvedPath = path6.resolve(options.encryptedKeyPath);
+    const configDir = getAttestItConfigDir();
+    if (!resolvedPath.startsWith(configDir)) {
+      throw new Error(
+        `Encrypted key path must be within attest-it config directory (${configDir}). Got: ${resolvedPath}`
+      );
+    }
+    this.encryptedKeyPath = resolvedPath;
+    this.slot = options.slot ?? 2;
+    if (options.serial !== void 0) {
+      this.serial = options.serial;
+    }
+  }
+  /**
+   * Check if ykman CLI is installed and available.
+   * @returns true if ykman is available
+   */
+  static async isInstalled() {
+    try {
+      await execCommand3("ykman", ["--version"]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Check if any YubiKey is connected.
+   * @returns true if at least one YubiKey is connected
+   */
+  static async isConnected() {
+    try {
+      const output = await execCommand3("ykman", ["list", "--serials"]);
+      return output.trim().length > 0;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Check if HMAC challenge-response is configured on a slot.
+   * @param slot - Slot number (1 or 2)
+   * @param serial - Optional YubiKey serial number
+   * @returns true if challenge-response is configured
+   */
+  static async isChallengeResponseConfigured(slot = 2, serial) {
+    try {
+      const args = ["otp", "info"];
+      if (serial) {
+        args.unshift("--device", serial);
+      }
+      const output = await execCommand3("ykman", args);
+      const slotPattern = new RegExp(`Slot ${String(slot)}:\\s+programmed.*challenge-response`, "i");
+      return slotPattern.test(output);
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * List connected YubiKeys.
+   * @returns Array of YubiKey information
+   */
+  static async listDevices() {
+    if (!await _YubiKeyProvider.isInstalled()) {
+      return [];
+    }
+    try {
+      const output = await execCommand3("ykman", ["list", "--serials"]);
+      const serials = output.trim().split("\n").filter((s) => s.length > 0);
+      const devices = [];
+      for (const serial of serials) {
+        try {
+          const infoOutput = await execCommand3("ykman", ["--device", serial, "info"]);
+          const typeMatch = /Device type:\s+(.+)/i.exec(infoOutput);
+          const fwMatch = /Firmware version:\s+(.+)/i.exec(infoOutput);
+          devices.push({
+            serial,
+            type: typeMatch?.[1]?.trim() ?? "YubiKey",
+            firmware: fwMatch?.[1]?.trim() ?? "Unknown"
+          });
+        } catch {
+          devices.push({
+            serial,
+            type: "YubiKey",
+            firmware: "Unknown"
+          });
+        }
+      }
+      return devices;
+    } catch {
+      return [];
+    }
+  }
+  /**
+   * Check if this provider is available on the current system.
+   * Requires ykman to be installed.
+   */
+  async isAvailable() {
+    return _YubiKeyProvider.isInstalled();
+  }
+  /**
+   * Check if an encrypted key file exists.
+   * @param keyRef - Path to encrypted key file
+   */
+  async keyExists(keyRef) {
+    try {
+      await fs7.access(keyRef);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Get the private key by decrypting with YubiKey.
+   * Downloads to a temporary file and returns a cleanup function.
+   *
+   * **Important**: Always call the cleanup function when done to securely delete
+   * the temporary key file. The cleanup is also registered for process exit handlers.
+   *
+   * @param keyRef - Path to encrypted key file
+   * @throws Error if the key cannot be decrypted
+   */
+  async getPrivateKey(keyRef) {
+    installProcessHandlers();
+    if (!await this.keyExists(keyRef)) {
+      throw new Error(`Encrypted key file not found: ${keyRef}`);
+    }
+    const encryptedData = await fs7.readFile(keyRef, "utf8");
+    let keyFile;
+    try {
+      const parsed = JSON.parse(encryptedData);
+      keyFile = validateEncryptedKeyFile(parsed);
+    } catch (err) {
+      if (err instanceof external_exports.ZodError) {
+        throw new Error(
+          `Invalid encrypted key file format: ${err.errors.map((e) => e.message).join(", ")}`
+        );
+      }
+      throw new Error(`Invalid encrypted key file: malformed JSON or structure`);
+    }
+    const expectedSerial = this.serial ?? keyFile.serial;
+    if (!expectedSerial) {
+      console.warn(
+        "WARNING: No YubiKey serial number specified for key verification. Any YubiKey with the correct HMAC secret could decrypt this key. For better security, re-encrypt the key with a serial number specified."
+      );
+    }
+    if (expectedSerial) {
+      const devices = await _YubiKeyProvider.listDevices();
+      const matchingDevice = devices.find((d) => d.serial === expectedSerial);
+      if (!matchingDevice) {
+        throw new Error(
+          `Required YubiKey not found. Expected serial: ${expectedSerial}. Connected devices: ${devices.map((d) => d.serial).join(", ") || "none"}`
+        );
+      }
+    }
+    const challenge = Buffer.from(keyFile.challenge, "base64");
+    const response = await performChallengeResponse(challenge, keyFile.slot, expectedSerial);
+    const salt = Buffer.from(keyFile.salt, "base64");
+    const aesKey = deriveKey(response, salt);
+    const iv = Buffer.from(keyFile.iv, "base64");
+    const authTag = Buffer.from(keyFile.authTag, "base64");
+    const ciphertext = Buffer.from(keyFile.ciphertext, "base64");
+    let privateKeyContent;
+    try {
+      const decipher = crypto3.createDecipheriv("aes-256-gcm", aesKey, iv);
+      if (keyFile.aad) {
+        decipher.setAAD(Buffer.from(keyFile.aad, "base64"));
+      }
+      decipher.setAuthTag(authTag);
+      const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+      privateKeyContent = decrypted.toString("utf8");
+    } catch {
+      throw new Error(
+        "Failed to decrypt private key. Verify you are using the correct YubiKey and the encrypted key file has not been corrupted or tampered with."
+      );
+    }
+    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-"));
+    const tempKeyPath = path6.join(tempDir, "private.pem");
+    const cleanup = async () => {
+      activeCleanupHandlers.delete(cleanup);
+      try {
+        const keySize = Buffer.byteLength(privateKeyContent);
+        await fs7.writeFile(tempKeyPath, crypto3.randomBytes(keySize));
+        await fs7.unlink(tempKeyPath);
+        await fs7.rmdir(tempDir);
+      } catch {
+      }
+    };
+    try {
+      await fs7.writeFile(tempKeyPath, privateKeyContent, { mode: 384 });
+      await setKeyPermissions(tempKeyPath);
+      activeCleanupHandlers.add(cleanup);
+      return {
+        keyPath: tempKeyPath,
+        cleanup
+      };
+    } catch (error2) {
+      await cleanup();
+      throw error2;
+    }
+  }
+  /**
+   * Generate a new keypair and store encrypted with YubiKey.
+   * Public key is written to filesystem for repository commit.
+   *
+   * **Security Note**: Always specify a serial number to bind the key to a specific YubiKey.
+   *
+   * @param options - Key generation options
+   */
+  async generateKeyPair(options) {
+    const { publicKeyPath, force = false } = options;
+    if (!await _YubiKeyProvider.isChallengeResponseConfigured(this.slot, this.serial)) {
+      throw new Error(
+        `YubiKey slot ${String(this.slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp --generate 2" to configure it.`
+      );
+    }
+    if (!force && await this.keyExists(this.encryptedKeyPath)) {
+      throw new Error(
+        `Encrypted key file already exists: ${this.encryptedKeyPath}. Use force: true to overwrite.`
+      );
+    }
+    let serial;
+    if (this.serial) {
+      serial = this.serial;
+    } else {
+      const devices = await _YubiKeyProvider.listDevices();
+      if (devices.length === 1 && devices[0]) {
+        serial = devices[0].serial;
+      } else if (devices.length > 1) {
+        console.warn(
+          "WARNING: Multiple YubiKeys detected but no serial specified. Key will not be bound to a specific device. For better security, specify a serial number."
+        );
+      }
+    }
+    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempPrivateKeyPath = path6.join(tempDir, "private.pem");
+    try {
+      await generateKeyPair({
+        privatePath: tempPrivateKeyPath,
+        publicPath: publicKeyPath,
+        force
+      });
+      const privateKeyContent = await fs7.readFile(tempPrivateKeyPath, "utf8");
+      const challenge = crypto3.randomBytes(32);
+      const salt = crypto3.randomBytes(32);
+      const iv = crypto3.randomBytes(12);
+      const response = await performChallengeResponse(challenge, this.slot, this.serial);
+      const aesKey = deriveKey(response, salt);
+      const aad = constructAAD(1, this.slot, serial);
+      const cipher = crypto3.createCipheriv("aes-256-gcm", aesKey, iv);
+      cipher.setAAD(aad);
+      const ciphertext = Buffer.concat([
+        cipher.update(Buffer.from(privateKeyContent, "utf8")),
+        cipher.final()
+      ]);
+      const authTag = cipher.getAuthTag();
+      const keyFile = {
+        version: 1,
+        iv: iv.toString("base64"),
+        authTag: authTag.toString("base64"),
+        salt: salt.toString("base64"),
+        challenge: challenge.toString("base64"),
+        ciphertext: ciphertext.toString("base64"),
+        slot: this.slot,
+        aad: aad.toString("base64"),
+        ...serial && { serial }
+      };
+      await fs7.mkdir(path6.dirname(this.encryptedKeyPath), { recursive: true });
+      await fs7.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
+      await setKeyPermissions(this.encryptedKeyPath);
+      const keySize = Buffer.byteLength(privateKeyContent);
+      await fs7.writeFile(tempPrivateKeyPath, crypto3.randomBytes(keySize));
+      await fs7.unlink(tempPrivateKeyPath);
+      await fs7.rmdir(tempDir);
+      return {
+        privateKeyRef: this.encryptedKeyPath,
+        publicKeyPath,
+        storageDescription: `YubiKey-encrypted: ${this.encryptedKeyPath}`
+      };
+    } catch (error2) {
+      try {
+        await fs7.rm(tempDir, { recursive: true, force: true });
+      } catch {
+      }
+      throw error2;
+    }
+  }
+  /**
+   * Encrypt an existing private key with YubiKey challenge-response.
+   *
+   * @remarks
+   * This static method allows encrypting a private key that was generated
+   * elsewhere (e.g., by the CLI) without having to create a provider instance first.
+   *
+   * **Security Note**: Always specify a serial number to bind the key to a specific YubiKey.
+   * The serial provides defense-in-depth by ensuring only the intended YubiKey can decrypt.
+   *
+   * @param options - Encryption options
+   * @returns Path to the encrypted key file and storage description
+   * @public
+   */
+  static async encryptPrivateKey(options) {
+    const { privateKey, encryptedKeyPath, slot = 2, serial } = options;
+    const resolvedPath = path6.resolve(encryptedKeyPath);
+    const configDir = getAttestItConfigDir();
+    if (!resolvedPath.startsWith(configDir)) {
+      throw new Error(
+        `Encrypted key path must be within attest-it config directory (${configDir}). Got: ${resolvedPath}`
+      );
+    }
+    if (!serial) {
+      console.warn(
+        "WARNING: No YubiKey serial number specified. Key will not be bound to a specific device. For better security, specify a serial number."
+      );
+    }
+    if (!await _YubiKeyProvider.isChallengeResponseConfigured(slot, serial)) {
+      throw new Error(
+        `YubiKey slot ${String(slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp --generate 2" to configure it.`
+      );
+    }
+    const challenge = crypto3.randomBytes(32);
+    const salt = crypto3.randomBytes(32);
+    const iv = crypto3.randomBytes(12);
+    const response = await performChallengeResponse(challenge, slot, serial);
+    const aesKey = deriveKey(response, salt);
+    const aad = constructAAD(1, slot, serial);
+    const cipher = crypto3.createCipheriv("aes-256-gcm", aesKey, iv);
+    cipher.setAAD(aad);
+    const ciphertext = Buffer.concat([
+      cipher.update(Buffer.from(privateKey, "utf8")),
+      cipher.final()
+    ]);
+    const authTag = cipher.getAuthTag();
+    const keyFile = {
+      version: 1,
+      iv: iv.toString("base64"),
+      authTag: authTag.toString("base64"),
+      salt: salt.toString("base64"),
+      challenge: challenge.toString("base64"),
+      ciphertext: ciphertext.toString("base64"),
+      slot,
+      aad: aad.toString("base64"),
+      ...serial && { serial }
+    };
+    await fs7.mkdir(path6.dirname(resolvedPath), { recursive: true });
+    await fs7.writeFile(resolvedPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
+    await setKeyPermissions(resolvedPath);
+    return {
+      encryptedKeyPath: resolvedPath,
+      storageDescription: `YubiKey-encrypted: ${resolvedPath}`
+    };
+  }
+  /**
+   * Get the configuration for this provider.
+   */
+  getConfig() {
+    return {
+      type: this.type,
+      options: {
+        encryptedKeyPath: this.encryptedKeyPath,
+        slot: this.slot,
+        ...this.serial && { serial: this.serial }
+      }
+    };
+  }
+};
+async function execCommand3(command, args) {
+  return new Promise((resolve42, reject) => {
+    const proc = spawn2(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolve42(stdout.trim());
+      } else {
+        reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
+      }
+    });
+    proc.on("error", (error2) => {
+      reject(error2);
+    });
+  });
+}
+async function performChallengeResponse(challenge, slot, serial) {
+  const args = ["otp", "chalresp", "--slot", String(slot)];
+  if (serial) {
+    args.unshift("--device", serial);
+  }
+  args.push(challenge.toString("hex"));
+  try {
+    const output = await execCommand3("ykman", args);
+    return Buffer.from(output.trim(), "hex");
+  } catch {
+    throw new Error(
+      "YubiKey challenge-response failed. Verify your YubiKey is inserted and the slot is configured for challenge-response."
+    );
+  }
+}
+function deriveKey(response, salt) {
+  const derived = crypto3.hkdfSync("sha256", response, salt, "attest-it-yubikey-v1", 32);
+  return Buffer.from(derived);
 }
 var KeyProviderRegistry = class {
   static providers = /* @__PURE__ */ new Map();
@@ -40315,38 +40832,25 @@ KeyProviderRegistry.register("macos-keychain", (config) => {
   }
   return new MacOSKeychainKeyProvider({ itemName });
 });
-var privateKeyRefSchema = external_exports.discriminatedUnion("type", [
-  external_exports.object({
-    type: external_exports.literal("file"),
-    path: external_exports.string().min(1, "File path cannot be empty")
-  }),
-  external_exports.object({
-    type: external_exports.literal("keychain"),
-    service: external_exports.string().min(1, "Service name cannot be empty"),
-    account: external_exports.string().min(1, "Account name cannot be empty"),
-    keychain: external_exports.string().optional()
-  }),
-  external_exports.object({
-    type: external_exports.literal("1password"),
-    account: external_exports.string().optional(),
-    vault: external_exports.string().min(1, "Vault name cannot be empty"),
-    item: external_exports.string().min(1, "Item name cannot be empty"),
-    field: external_exports.string().optional()
-  })
-]);
-var identitySchema = external_exports.object({
-  name: external_exports.string().min(1, "Identity name cannot be empty"),
-  email: external_exports.string().optional(),
-  github: external_exports.string().optional(),
-  publicKey: external_exports.string().min(1, "Public key cannot be empty"),
-  privateKey: privateKeyRefSchema
-}).strict();
-var localConfigSchema = external_exports.object({
-  activeIdentity: external_exports.string().min(1, "Active identity name cannot be empty"),
-  identities: external_exports.record(external_exports.string(), identitySchema).refine((identities) => Object.keys(identities).length >= 1, {
-    message: "At least one identity must be defined"
-  })
-}).strict();
+KeyProviderRegistry.register("yubikey", (config) => {
+  const { options } = config;
+  const encryptedKeyPath = typeof options.encryptedKeyPath === "string" ? options.encryptedKeyPath : "";
+  if (!encryptedKeyPath) {
+    throw new Error("YubiKey provider requires encryptedKeyPath option");
+  }
+  const slot = typeof options.slot === "number" && (options.slot === 1 || options.slot === 2) ? options.slot : void 0;
+  const serial = typeof options.serial === "string" ? options.serial : void 0;
+  const providerOptions = {
+    encryptedKeyPath
+  };
+  if (slot !== void 0) {
+    providerOptions.slot = slot;
+  }
+  if (serial !== void 0) {
+    providerOptions.serial = serial;
+  }
+  return new YubiKeyProvider(providerOptions);
+});
 var cliExperienceSchema = external_exports.object({
   declinedCompletionInstall: external_exports.boolean().optional()
 }).strict();
@@ -40458,7 +40962,7 @@ async function run() {
         const policyConfig = parsePolicyContent(policyResult.content, policyFormat);
         const operationalConfigPath = configPath || ".attest-it/config.yaml";
         const operationalContent = await readFile3(
-          resolve3(process.cwd(), operationalConfigPath),
+          resolve4(process.cwd(), operationalConfigPath),
           "utf8"
         );
         const operationalFormat = operationalConfigPath.endsWith(".json") ? "json" : "yaml";
@@ -40488,12 +40992,12 @@ async function run() {
     } else {
       core.info("Loading configuration from filesystem");
       try {
-        const policyContent = await readFile3(resolve3(process.cwd(), policyPath), "utf8");
+        const policyContent = await readFile3(resolve4(process.cwd(), policyPath), "utf8");
         const policyFormat = policyPath.endsWith(".json") ? "json" : "yaml";
         const policyConfig = parsePolicyContent(policyContent, policyFormat);
         const operationalConfigPath = configPath || ".attest-it/config.yaml";
         const operationalContent = await readFile3(
-          resolve3(process.cwd(), operationalConfigPath),
+          resolve4(process.cwd(), operationalConfigPath),
           "utf8"
         );
         const operationalFormat = operationalConfigPath.endsWith(".json") ? "json" : "yaml";
