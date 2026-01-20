@@ -1,5 +1,75 @@
 # @attest-it/core
 
+## 0.6.0
+
+### Minor Changes
+
+- 9c55c10: Add split config model and policy-ref input for GitHub Action
+
+  **Core Package:**
+  - Add split config model separating policy.yaml (trust definitions) from config.yaml (operational settings)
+  - Policy file contains: team members, gates, security settings (maxAgeDays, publicKeyPath, attestationsPath)
+  - Operational file contains: suites, groups, non-security settings
+  - Add `mergeConfigs()` to combine policy and operational configs
+  - Add `validateSuiteGateReferences()` for cross-config validation
+  - Export new functions: `parsePolicyContent`, `parseOperationalContent`, `mergeConfigs`, `validateSuiteGateReferences`
+
+  **GitHub Action:**
+  - Add `policy-ref` input to specify which branch/tag to fetch policy from (e.g., 'production')
+  - Defaults to base branch for PRs, filesystem for pushes
+  - Add `fetch-policy.ts` for fetching policy from GitHub API
+  - Update to use split config model (policy.yaml + config.yaml)
+
+  **CI:**
+  - Add act-based testing for the GitHub Action in CI
+  - Contributors without Docker can still run unit tests locally
+
+### Patch Changes
+
+- 745fedc: Add shell completion support and improve configuration documentation
+
+  **CLI Package:**
+  - Add shell completion for bash, zsh, and fish shells
+  - Auto-detect user's shell from `$SHELL` environment variable
+  - Support both `attest-it` and `attest` command aliases
+  - Offer shell completion installation during `init` and `identity create` commands
+  - Remember user's preference if they decline completion installation
+  - Fix escape sequence corruption in fish shell completions
+
+  **Core Package:**
+  - Add user preferences system for CLI experience settings
+  - Add JSON schema generation from Zod schemas (`pnpm generate:schemas`)
+  - Schemas in `schemas/policy.schema.json` and `schemas/config.schema.json` now stay in sync with validation logic
+
+  **Documentation:**
+  - Simplify README configuration example with clearer gate setup
+  - Rewrite docs/configuration.md as comprehensive reference with:
+    - Complete field reference tables with types, defaults, and required status
+    - Duration string format reference
+    - Glob pattern examples
+    - All key provider options documented
+    - JSON schema integration instructions for VS Code
+    - Troubleshooting section
+  - Add documentation sync reminder comments to Zod schema files
+
+- 4fc9cfa: Security hardening for YubiKey key provider
+
+  **Core Package:**
+  - Add Zod schema validation for encrypted key file structure with runtime type checking
+  - Add Additional Authenticated Data (AAD) to AES-256-GCM encryption, binding metadata to ciphertext
+  - Add path traversal protection - encrypted key paths must be within the config directory
+  - Add serial number verification with security warnings when not specified
+  - Add process exit handlers for temp file cleanup on SIGINT/SIGTERM
+  - Remove TOCTOU (time-of-check/time-of-use) vulnerabilities in file operations
+  - Sanitize error messages to prevent information leakage
+  - Add buffer size validation for IV, auth tag, salt, and challenge
+  - Document memory security limitations for JavaScript string handling in JSDoc
+
+  **CLI Package:**
+  - Integrate YubiKey provider into identity creation flow
+  - Add YubiKey device selection when multiple keys are connected
+  - Add challenge-response slot configuration guidance
+
 ## 0.5.0
 
 ### Minor Changes
