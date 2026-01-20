@@ -1,5 +1,12 @@
 # attest-it
 
+## 0.6.1
+
+### Patch Changes
+
+- Updated dependencies [e885162]
+  - @attest-it/cli@0.6.1
+
 ## 0.6.0
 
 ### Patch Changes
