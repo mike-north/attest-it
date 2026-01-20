@@ -380,7 +380,11 @@ async function runCreate(): Promise<void> {
         }
 
         // Format YubiKey display
-        const formatYubiKeyChoice = (yk: { serial: string; type: string; firmware: string }): string => {
+        const formatYubiKeyChoice = (yk: {
+          serial: string
+          type: string
+          firmware: string
+        }): string => {
           return `${theme.blue.bold()(yk.type)} ${theme.muted(`(Serial: ${yk.serial}, FW: ${yk.firmware})`)}`
         }
 
@@ -401,7 +405,10 @@ async function runCreate(): Promise<void> {
 
         // Check if challenge-response is configured on slot 2
         const slot: 1 | 2 = 2 // Default to slot 2 for challenge-response
-        const isChallengeResponseConfigured = await YubiKeyProvider.isChallengeResponseConfigured(slot, selectedSerial)
+        const isChallengeResponseConfigured = await YubiKeyProvider.isChallengeResponseConfigured(
+          slot,
+          selectedSerial,
+        )
 
         if (!isChallengeResponseConfigured) {
           log('')

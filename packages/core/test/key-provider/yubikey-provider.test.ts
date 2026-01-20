@@ -332,7 +332,10 @@ describe('YubiKeyProvider', () => {
     /**
      * Helper to create a mock spawn process that returns specified output.
      */
-    function createMockProcess(stdout: string, exitCode = 0): {
+    function createMockProcess(
+      stdout: string,
+      exitCode = 0,
+    ): {
       stdout: { on: Mock }
       stderr: { on: Mock }
       on: Mock
@@ -359,17 +362,19 @@ describe('YubiKeyProvider', () => {
             }
           }),
         },
-        on: vi.fn((event: string, callback: ((code: number) => void) | ((error: Error) => void)) => {
-          if (event === 'close') {
-            closeCallbacks.push(callback as (code: number) => void)
-            // Emit close after data
-            process.nextTick(() =>
-              process.nextTick(() => (callback as (code: number) => void)(exitCode)),
-            )
-          } else if (event === 'error') {
-            errorCallbacks.push(callback as (error: Error) => void)
-          }
-        }),
+        on: vi.fn(
+          (event: string, callback: ((code: number) => void) | ((error: Error) => void)) => {
+            if (event === 'close') {
+              closeCallbacks.push(callback as (code: number) => void)
+              // Emit close after data
+              process.nextTick(() =>
+                process.nextTick(() => (callback as (code: number) => void)(exitCode)),
+              )
+            } else if (event === 'error') {
+              errorCallbacks.push(callback as (error: Error) => void)
+            }
+          },
+        ),
       }
 
       return mockProc

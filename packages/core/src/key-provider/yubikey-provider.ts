@@ -670,7 +670,10 @@ export class YubiKeyProvider implements KeyProvider {
     // Encrypt the private key with AES-256-GCM
     const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv)
     cipher.setAAD(aad)
-    const ciphertext = Buffer.concat([cipher.update(Buffer.from(privateKey, 'utf8')), cipher.final()])
+    const ciphertext = Buffer.concat([
+      cipher.update(Buffer.from(privateKey, 'utf8')),
+      cipher.final(),
+    ])
     const authTag = cipher.getAuthTag()
 
     // Create the encrypted key file
