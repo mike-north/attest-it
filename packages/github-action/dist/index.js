@@ -34206,8 +34206,8 @@ init_esm_shims();
 init_chunk_VC3BBBBO();
 init_chunk_VC3BBBBO();
 import * as fs2 from "fs";
-import * as fs6 from "fs/promises";
-import * as path6 from "path";
+import * as fs7 from "fs/promises";
+import * as path7 from "path";
 var import_ms = __toESM(require_ms(), 1);
 var import_yaml = __toESM(require_dist(), 1);
 
@@ -38272,7 +38272,7 @@ var coerce = {
 var NEVER = INVALID;
 
 // ../core/dist/index.js
-import * as crypto2 from "crypto";
+import * as crypto3 from "crypto";
 
 // ../../node_modules/.pnpm/tinyglobby@0.2.15/node_modules/tinyglobby/dist/index.mjs
 init_esm_shims();
@@ -39061,6 +39061,7 @@ async function glob(patternsOrOptions, options) {
 import * as os2 from "os";
 var canonicalizeNamespace = __toESM(require_canonicalize(), 1);
 import { spawn as spawn2 } from "child_process";
+import * as readline from "readline";
 var keyProviderOptionsSchema = external_exports.object({
   privateKeyPath: external_exports.string().optional(),
   account: external_exports.string().optional(),
@@ -39438,7 +39439,7 @@ function sortFiles(files) {
   });
 }
 function normalizePath2(filePath) {
-  return filePath.split(path6.sep).join("/");
+  return filePath.split(path7.sep).join("/");
 }
 function computeFinalFingerprint(fileHashes) {
   const sorted = [...fileHashes].sort((a, b) => {
@@ -39448,13 +39449,13 @@ function computeFinalFingerprint(fileHashes) {
   });
   const hashes = sorted.map((input) => input.hash);
   const concatenated = Buffer.concat(hashes);
-  const finalHash = crypto2.createHash("sha256").update(concatenated).digest();
+  const finalHash = crypto3.createHash("sha256").update(concatenated).digest();
   return `sha256:${finalHash.toString("hex")}`;
 }
 async function hashFileAsync(realPath, normalizedPath, stats) {
   if (stats.size > LARGE_FILE_THRESHOLD) {
     return new Promise((resolve32, reject) => {
-      const hash2 = crypto2.createHash("sha256");
+      const hash2 = crypto3.createHash("sha256");
       hash2.update(normalizedPath);
       hash2.update(":");
       const stream = fs2.createReadStream(realPath);
@@ -39468,7 +39469,7 @@ async function hashFileAsync(realPath, normalizedPath, stats) {
     });
   }
   const content = await fs2.promises.readFile(realPath);
-  const hash = crypto2.createHash("sha256");
+  const hash = crypto3.createHash("sha256");
   hash.update(normalizedPath);
   hash.update(":");
   hash.update(content);
@@ -39480,7 +39481,7 @@ function validateOptions(options) {
   }
   const baseDir = options.baseDir ?? process.cwd();
   for (const pkg of options.packages) {
-    const pkgPath = path6.resolve(baseDir, pkg);
+    const pkgPath = path7.resolve(baseDir, pkg);
     if (!fs2.existsSync(pkgPath)) {
       throw new Error(`Package path does not exist: ${pkgPath}`);
     }
@@ -39494,7 +39495,7 @@ async function computeFingerprint(options) {
   const fileHashCache = /* @__PURE__ */ new Map();
   const fileHashInputs = [];
   for (const file of sortedFiles) {
-    const filePath = path6.resolve(baseDir, file);
+    const filePath = path7.resolve(baseDir, file);
     let realPath = filePath;
     let stats = await fs2.promises.lstat(filePath);
     if (stats.isSymbolicLink()) {
@@ -39740,10 +39741,10 @@ function checkInvalidationChains(config, results) {
   }
 }
 function resolvePath(relativePath, baseDir) {
-  if (path6.isAbsolute(relativePath)) {
+  if (path7.isAbsolute(relativePath)) {
     return relativePath;
   }
-  return path6.join(baseDir, relativePath);
+  return path7.join(baseDir, relativePath);
 }
 var FilesystemKeyProvider = class {
   type = "filesystem";
@@ -39769,7 +39770,7 @@ var FilesystemKeyProvider = class {
    */
   async keyExists(keyRef) {
     try {
-      await fs6.access(keyRef);
+      await fs7.access(keyRef);
       return true;
     } catch {
       return false;
@@ -39927,8 +39928,8 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
         `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` + (this.account ? ` (account: ${this.account})` : "")
       );
     }
-    const tempDir = await fs6.mkdtemp(path6.join(os2.tmpdir(), "attest-it-"));
-    const tempKeyPath = path6.join(tempDir, "private.pem");
+    const tempDir = await fs7.mkdtemp(path7.join(os2.tmpdir(), "attest-it-"));
+    const tempKeyPath = path7.join(tempDir, "private.pem");
     try {
       const args = ["document", "get", keyRef, "--vault", this.vault, "--out-file", tempKeyPath];
       if (this.account) {
@@ -39940,8 +39941,8 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
         keyPath: tempKeyPath,
         cleanup: async () => {
           try {
-            await fs6.unlink(tempKeyPath);
-            await fs6.rmdir(tempDir);
+            await fs7.unlink(tempKeyPath);
+            await fs7.rmdir(tempDir);
           } catch (cleanupError) {
             console.warn(
               `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -39951,7 +39952,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
       };
     } catch (error2) {
       try {
-        await fs6.rm(tempDir, { recursive: true, force: true });
+        await fs7.rm(tempDir, { recursive: true, force: true });
       } catch (cleanupError) {
         console.warn(
           `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -39967,8 +39968,8 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
    */
   async generateKeyPair(options) {
     const { publicKeyPath, force = false } = options;
-    const tempDir = await fs6.mkdtemp(path6.join(os2.tmpdir(), "attest-it-keygen-"));
-    const tempPrivateKeyPath = path6.join(tempDir, "private.pem");
+    const tempDir = await fs7.mkdtemp(path7.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempPrivateKeyPath = path7.join(tempDir, "private.pem");
     try {
       await generateKeyPair({
         privatePath: tempPrivateKeyPath,
@@ -39988,8 +39989,8 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
         args.push("--account", this.account);
       }
       await execCommand("op", args);
-      await fs6.unlink(tempPrivateKeyPath);
-      await fs6.rmdir(tempDir);
+      await fs7.unlink(tempPrivateKeyPath);
+      await fs7.rmdir(tempDir);
       return {
         privateKeyRef: this.itemName,
         publicKeyPath,
@@ -39997,7 +39998,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
       };
     } catch (error2) {
       try {
-        await fs6.rm(tempDir, { recursive: true, force: true });
+        await fs7.rm(tempDir, { recursive: true, force: true });
       } catch (cleanupError) {
         console.warn(
           `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -40126,8 +40127,8 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
         `Key not found in macOS Keychain: "${keyRef}" (account: ${_MacOSKeychainKeyProvider.ACCOUNT})`
       );
     }
-    const tempDir = await fs6.mkdtemp(path6.join(os2.tmpdir(), "attest-it-"));
-    const tempKeyPath = path6.join(tempDir, "private.pem");
+    const tempDir = await fs7.mkdtemp(path7.join(os2.tmpdir(), "attest-it-"));
+    const tempKeyPath = path7.join(tempDir, "private.pem");
     try {
       const findArgs = [
         "find-generic-password",
@@ -40142,14 +40143,14 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
       }
       const base64Key = await execCommand2("security", findArgs);
       const keyContent = Buffer.from(base64Key, "base64").toString("utf8");
-      await fs6.writeFile(tempKeyPath, keyContent, { mode: 384 });
+      await fs7.writeFile(tempKeyPath, keyContent, { mode: 384 });
       await setKeyPermissions(tempKeyPath);
       return {
         keyPath: tempKeyPath,
         cleanup: async () => {
           try {
-            await fs6.unlink(tempKeyPath);
-            await fs6.rmdir(tempDir);
+            await fs7.unlink(tempKeyPath);
+            await fs7.rmdir(tempDir);
           } catch (cleanupError) {
             console.warn(
               `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -40159,7 +40160,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
       };
     } catch (error2) {
       try {
-        await fs6.rm(tempDir, { recursive: true, force: true });
+        await fs7.rm(tempDir, { recursive: true, force: true });
       } catch (cleanupError) {
         console.warn(
           `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -40175,15 +40176,15 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
    */
   async generateKeyPair(options) {
     const { publicKeyPath, force = false } = options;
-    const tempDir = await fs6.mkdtemp(path6.join(os2.tmpdir(), "attest-it-keygen-"));
-    const tempPrivateKeyPath = path6.join(tempDir, "private.pem");
+    const tempDir = await fs7.mkdtemp(path7.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempPrivateKeyPath = path7.join(tempDir, "private.pem");
     try {
       await generateKeyPair({
         privatePath: tempPrivateKeyPath,
         publicPath: publicKeyPath,
         force
       });
-      const privateKeyContent = await fs6.readFile(tempPrivateKeyPath, "utf8");
+      const privateKeyContent = await fs7.readFile(tempPrivateKeyPath, "utf8");
       const base64Key = Buffer.from(privateKeyContent, "utf8").toString("base64");
       const addArgs = [
         "add-generic-password",
@@ -40201,8 +40202,8 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
         addArgs.push(this.keychain);
       }
       await execCommand2("security", addArgs);
-      await fs6.unlink(tempPrivateKeyPath);
-      await fs6.rmdir(tempDir);
+      await fs7.unlink(tempPrivateKeyPath);
+      await fs7.rmdir(tempDir);
       return {
         privateKeyRef: this.itemName,
         publicKeyPath,
@@ -40210,7 +40211,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
       };
     } catch (error2) {
       try {
-        await fs6.rm(tempDir, { recursive: true, force: true });
+        await fs7.rm(tempDir, { recursive: true, force: true });
       } catch (cleanupError) {
         console.warn(
           `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -40252,6 +40253,261 @@ async function execCommand2(command, args) {
     proc.on("error", (error2) => {
       reject(error2);
     });
+  });
+}
+var DEFAULT_PBKDF2_ITERATIONS = 1e5;
+var PassphraseKeyProvider = class _PassphraseKeyProvider {
+  type = "passphrase";
+  displayName = "Passphrase-protected";
+  encryptedKeyPath;
+  promptPassphrase;
+  /**
+   * Create a new PassphraseKeyProvider.
+   * @param options - Provider options
+   */
+  constructor(options) {
+    this.encryptedKeyPath = options.encryptedKeyPath;
+    this.promptPassphrase = options.promptPassphrase ?? defaultPromptPassphrase;
+  }
+  /**
+   * Check if this provider is available.
+   * Always available since it only requires Node.js crypto.
+   */
+  static isAvailable() {
+    return true;
+  }
+  /**
+   * Check if this provider is available on the current system.
+   */
+  isAvailable() {
+    return Promise.resolve(_PassphraseKeyProvider.isAvailable());
+  }
+  /**
+   * Check if an encrypted key file exists.
+   * @param keyRef - Path to encrypted key file
+   */
+  async keyExists(keyRef) {
+    try {
+      await fs7.access(keyRef);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Get the private key by decrypting with user passphrase.
+   * Downloads to a temporary file and returns a cleanup function.
+   * @param keyRef - Path to encrypted key file
+   * @throws Error if the key cannot be decrypted
+   */
+  async getPrivateKey(keyRef) {
+    if (!await this.keyExists(keyRef)) {
+      throw new Error(`Encrypted key file not found: ${keyRef}`);
+    }
+    const encryptedData = await fs7.readFile(keyRef, "utf8");
+    let keyFile;
+    try {
+      keyFile = JSON.parse(encryptedData);
+    } catch {
+      throw new Error(`Invalid encrypted key file format: ${keyRef}`);
+    }
+    if (keyFile.version !== 1) {
+      throw new Error(`Unsupported encrypted key format version: ${String(keyFile.version)}`);
+    }
+    const passphrase = await this.promptPassphrase("Enter passphrase to unlock signing key: ");
+    if (!passphrase) {
+      throw new Error("Passphrase is required to decrypt the key");
+    }
+    const salt = Buffer.from(keyFile.salt, "base64");
+    const iterations = keyFile.iterations;
+    const derivedKey = await deriveKey(passphrase, salt, iterations);
+    const iv = Buffer.from(keyFile.iv, "base64");
+    const authTag = Buffer.from(keyFile.authTag, "base64");
+    const ciphertext = Buffer.from(keyFile.ciphertext, "base64");
+    let privateKeyContent;
+    try {
+      const decipher = crypto3.createDecipheriv("aes-256-gcm", derivedKey, iv);
+      decipher.setAuthTag(authTag);
+      const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+      privateKeyContent = decrypted.toString("utf8");
+    } catch (err) {
+      throw new Error(
+        `Failed to decrypt private key. Incorrect passphrase or corrupted key file. Details: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+    const tempDir = await fs7.mkdtemp(path7.join(os2.tmpdir(), "attest-it-"));
+    const tempKeyPath = path7.join(tempDir, "private.pem");
+    try {
+      await fs7.writeFile(tempKeyPath, privateKeyContent, { mode: 384 });
+      await setKeyPermissions(tempKeyPath);
+      return {
+        keyPath: tempKeyPath,
+        cleanup: async () => {
+          try {
+            const keySize = Buffer.byteLength(privateKeyContent);
+            await fs7.writeFile(tempKeyPath, crypto3.randomBytes(keySize));
+            await fs7.unlink(tempKeyPath);
+            await fs7.rmdir(tempDir);
+          } catch (cleanupError) {
+            console.warn(
+              `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+            );
+          }
+        }
+      };
+    } catch (error2) {
+      try {
+        await fs7.rm(tempDir, { recursive: true, force: true });
+      } catch (cleanupError) {
+        console.warn(
+          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+        );
+      }
+      throw error2;
+    }
+  }
+  /**
+   * Generate a new keypair and store encrypted with passphrase.
+   * Public key is written to filesystem for repository commit.
+   * @param options - Key generation options
+   */
+  async generateKeyPair(options) {
+    const { publicKeyPath, force = false } = options;
+    if (!force && await this.keyExists(this.encryptedKeyPath)) {
+      throw new Error(
+        `Encrypted key file already exists: ${this.encryptedKeyPath}. Use force: true to overwrite.`
+      );
+    }
+    const passphrase = await this.promptPassphrase("Enter passphrase for new signing key: ");
+    if (!passphrase) {
+      throw new Error("Passphrase is required");
+    }
+    if (passphrase.length < 8) {
+      throw new Error("Passphrase must be at least 8 characters long");
+    }
+    const confirmPassphrase = await this.promptPassphrase("Confirm passphrase: ");
+    if (passphrase !== confirmPassphrase) {
+      throw new Error("Passphrases do not match");
+    }
+    const tempDir = await fs7.mkdtemp(path7.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempPrivateKeyPath = path7.join(tempDir, "private.pem");
+    try {
+      await generateKeyPair({
+        privatePath: tempPrivateKeyPath,
+        publicPath: publicKeyPath,
+        force
+      });
+      const privateKeyContent = await fs7.readFile(tempPrivateKeyPath, "utf8");
+      const salt = crypto3.randomBytes(32);
+      const iv = crypto3.randomBytes(12);
+      const iterations = DEFAULT_PBKDF2_ITERATIONS;
+      const derivedKey = await deriveKey(passphrase, salt, iterations);
+      const cipher = crypto3.createCipheriv("aes-256-gcm", derivedKey, iv);
+      const ciphertext = Buffer.concat([
+        cipher.update(Buffer.from(privateKeyContent, "utf8")),
+        cipher.final()
+      ]);
+      const authTag = cipher.getAuthTag();
+      const keyFile = {
+        version: 1,
+        iv: iv.toString("base64"),
+        authTag: authTag.toString("base64"),
+        salt: salt.toString("base64"),
+        ciphertext: ciphertext.toString("base64"),
+        iterations
+      };
+      await fs7.mkdir(path7.dirname(this.encryptedKeyPath), { recursive: true });
+      await fs7.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
+      await setKeyPermissions(this.encryptedKeyPath);
+      const keySize = Buffer.byteLength(privateKeyContent);
+      await fs7.writeFile(tempPrivateKeyPath, crypto3.randomBytes(keySize));
+      await fs7.unlink(tempPrivateKeyPath);
+      await fs7.rmdir(tempDir);
+      return {
+        privateKeyRef: this.encryptedKeyPath,
+        publicKeyPath,
+        storageDescription: `Passphrase-protected: ${this.encryptedKeyPath}`
+      };
+    } catch (error2) {
+      try {
+        await fs7.rm(tempDir, { recursive: true, force: true });
+      } catch (cleanupError) {
+        console.warn(
+          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+        );
+      }
+      throw error2;
+    }
+  }
+  /**
+   * Get the configuration for this provider.
+   */
+  getConfig() {
+    return {
+      type: this.type,
+      options: {
+        encryptedKeyPath: this.encryptedKeyPath
+      }
+    };
+  }
+};
+async function deriveKey(passphrase, salt, iterations) {
+  return new Promise((resolve32, reject) => {
+    crypto3.pbkdf2(passphrase, salt, iterations, 32, "sha256", (err, derivedKey) => {
+      if (err) {
+        reject(new Error(`Key derivation failed: ${err.message}`));
+      } else {
+        resolve32(derivedKey);
+      }
+    });
+  });
+}
+async function defaultPromptPassphrase(message) {
+  if (!process.stdin.isTTY) {
+    throw new Error(
+      "Cannot prompt for passphrase: not running in an interactive terminal. Use a custom promptPassphrase function or run in a terminal."
+    );
+  }
+  return new Promise((resolve32, reject) => {
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      terminal: true
+    });
+    const stdin = process.stdin;
+    const wasRaw = stdin.isRaw;
+    if (stdin.setRawMode) {
+      stdin.setRawMode(true);
+    }
+    let input = "";
+    process.stdout.write(message);
+    const onData = (char) => {
+      const charStr = char.toString("utf8");
+      if (charStr === "\n" || charStr === "\r" || charStr === "") {
+        stdin.removeListener("data", onData);
+        if (stdin.setRawMode) {
+          stdin.setRawMode(wasRaw ?? false);
+        }
+        process.stdout.write("\n");
+        rl.close();
+        resolve32(input);
+      } else if (charStr === "") {
+        stdin.removeListener("data", onData);
+        if (stdin.setRawMode) {
+          stdin.setRawMode(wasRaw ?? false);
+        }
+        process.stdout.write("\n");
+        rl.close();
+        reject(new Error("Passphrase entry cancelled"));
+      } else if (charStr === "\x7F" || charStr === "\b") {
+        if (input.length > 0) {
+          input = input.slice(0, -1);
+        }
+      } else if (charStr.charCodeAt(0) >= 32) {
+        input += charStr;
+      }
+    };
+    stdin.on("data", onData);
   });
 }
 var KeyProviderRegistry = class {
@@ -40314,6 +40570,14 @@ KeyProviderRegistry.register("macos-keychain", (config) => {
     throw new Error("macOS Keychain provider requires itemName option");
   }
   return new MacOSKeychainKeyProvider({ itemName });
+});
+KeyProviderRegistry.register("passphrase", (config) => {
+  const { options } = config;
+  const encryptedKeyPath = typeof options.encryptedKeyPath === "string" ? options.encryptedKeyPath : "";
+  if (!encryptedKeyPath) {
+    throw new Error("Passphrase provider requires encryptedKeyPath option");
+  }
+  return new PassphraseKeyProvider({ encryptedKeyPath });
 });
 var privateKeyRefSchema = external_exports.discriminatedUnion("type", [
   external_exports.object({

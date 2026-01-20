@@ -12,6 +12,7 @@ import type { KeyProvider, KeyProviderConfig } from './types.js'
 import { FilesystemKeyProvider } from './filesystem-provider.js'
 import { OnePasswordKeyProvider } from './one-password-provider.js'
 import { MacOSKeychainKeyProvider } from './macos-keychain-provider.js'
+import { PassphraseKeyProvider } from './passphrase-provider.js'
 
 /**
  * Type for a key provider factory function.
@@ -108,4 +109,17 @@ KeyProviderRegistry.register('macos-keychain', (config) => {
   }
 
   return new MacOSKeychainKeyProvider({ itemName })
+})
+
+// Register the passphrase-protected provider
+KeyProviderRegistry.register('passphrase', (config) => {
+  const { options } = config
+  const encryptedKeyPath =
+    typeof options.encryptedKeyPath === 'string' ? options.encryptedKeyPath : ''
+
+  if (!encryptedKeyPath) {
+    throw new Error('Passphrase provider requires encryptedKeyPath option')
+  }
+
+  return new PassphraseKeyProvider({ encryptedKeyPath })
 })

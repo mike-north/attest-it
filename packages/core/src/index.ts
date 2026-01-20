@@ -116,6 +116,9 @@ export {
   FilesystemKeyProvider,
   OnePasswordKeyProvider,
   MacOSKeychainKeyProvider,
+  PassphraseKeyProvider,
+  encryptPrivateKeyWithPassphrase,
+  decryptPrivateKeyWithPassphrase,
   KeyProviderRegistry,
   type KeyProvider,
   type KeyProviderConfig,
@@ -128,6 +131,7 @@ export {
   type OnePasswordVault,
   type MacOSKeychainKeyProviderOptions,
   type MacOSKeychain,
+  type PassphraseKeyProviderOptions,
   type KeyProviderFactory,
 } from './key-provider/index.js'
 

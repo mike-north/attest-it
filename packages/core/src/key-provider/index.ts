@@ -34,6 +34,14 @@ export type {
 export { MacOSKeychainKeyProvider } from './macos-keychain-provider.js'
 export type { MacOSKeychainKeyProviderOptions, MacOSKeychain } from './macos-keychain-provider.js'
 
+// Passphrase-protected provider
+export {
+  PassphraseKeyProvider,
+  encryptPrivateKeyWithPassphrase,
+  decryptPrivateKeyWithPassphrase,
+} from './passphrase-provider.js'
+export type { PassphraseKeyProviderOptions } from './passphrase-provider.js'
+
 // Registry
 export { KeyProviderRegistry } from './registry.js'
 export type { KeyProviderFactory } from './registry.js'

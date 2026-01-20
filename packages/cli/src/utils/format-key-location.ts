@@ -28,6 +28,8 @@ export function formatKeyLocation(privateKey: PrivateKeyRef): string {
       }
       return `${theme.blue.bold()('1Password')}: ${theme.muted(parts.join('/'))}`
     }
+    case 'passphrase':
+      return `${theme.blue.bold()('Passphrase-protected')}: ${theme.muted(privateKey.encryptedKeyPath)}`
     default:
       return 'Unknown storage'
   }

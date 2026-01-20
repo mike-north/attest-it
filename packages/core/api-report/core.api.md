@@ -103,10 +103,16 @@ export interface CryptoVerifyOptions {
 }
 
 // @public
+export function decryptPrivateKeyWithPassphrase(encryptedKeyContent: string, passphrase: string): Promise<string>;
+
+// @public
 export interface Ed25519KeyPair {
     privateKey: string;
     publicKey: string;
 }
+
+// @public
+export function encryptPrivateKeyWithPassphrase(privateKeyContent: string, passphrase: string): Promise<string>;
 
 // @public
 export class FilesystemKeyProvider implements KeyProvider {
@@ -604,6 +610,27 @@ export function parseOperationalContent(content: string, format: 'json' | 'yaml'
 export function parsePolicyContent(content: string, format: 'json' | 'yaml'): PolicyConfig;
 
 // @public
+export class PassphraseKeyProvider implements KeyProvider {
+    constructor(options: PassphraseKeyProviderOptions);
+    // (undocumented)
+    readonly displayName = "Passphrase-protected";
+    generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult>;
+    getConfig(): KeyProviderConfig;
+    getPrivateKey(keyRef: string): Promise<KeyRetrievalResult>;
+    static isAvailable(): boolean;
+    isAvailable(): Promise<boolean>;
+    keyExists(keyRef: string): Promise<boolean>;
+    // (undocumented)
+    readonly type = "passphrase";
+}
+
+// @public
+export interface PassphraseKeyProviderOptions {
+    encryptedKeyPath: string;
+    promptPassphrase?: (message: string) => Promise<string>;
+}
+
+// @public
 export type PolicyConfig = z.infer<typeof policySchema>;
 
 // @public
@@ -739,6 +766,9 @@ export type PrivateKeyRef = {
     item: string;
     type: '1password';
     vault: string;
+} | {
+    encryptedKeyPath: string;
+    type: 'passphrase';
 } | {
     path: string;
     type: 'file';

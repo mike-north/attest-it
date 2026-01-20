@@ -86,6 +86,9 @@ async function runCreate(): Promise<void> {
       storageChoices.push({ name: '1Password', value: '1password' })
     }
 
+    // Passphrase-protected is always available (only requires Node.js crypto)
+    storageChoices.push({ name: 'Passphrase-protected (enter password each time)', value: 'passphrase' })
+
     // Prompt for key storage type
     const keyStorageType = await select({
       message: 'Where should the private key be stored?',
@@ -353,6 +356,95 @@ async function runCreate(): Promise<void> {
           ...(selectedAccount && { account: selectedAccount }),
         }
         keyStorageDescription = `1Password (${selectedVault}/${item})`
+        break
+      }
+      case 'passphrase': {
+        // Import password prompt module
+        const { password } = await import('@inquirer/prompts')
+
+        // Prompt for passphrase
+        const passphrase = await password({
+          message: 'Enter passphrase for new signing key:',
+          mask: '*',
+          validate: (value) => {
+            if (!value || value.length < 8) {
+              return 'Passphrase must be at least 8 characters long'
+            }
+            return true
+          },
+        })
+
+        // Confirm passphrase
+        const confirmPassphrase = await password({
+          message: 'Confirm passphrase:',
+          mask: '*',
+        })
+
+        if (passphrase !== confirmPassphrase) {
+          throw new Error('Passphrases do not match')
+        }
+
+        // Prompt for encrypted key file name
+        const encryptedKeyName = await input({
+          message: 'Encrypted key file name:',
+          default: `${slug}.enc`,
+          validate: (value) => {
+            if (!value || value.trim().length === 0) {
+              return 'File name cannot be empty'
+            }
+            return true
+          },
+        })
+
+        // Determine encrypted key path
+        const keysDir = join(getAttestItConfigDir(), 'keys')
+        await mkdir(keysDir, { recursive: true })
+        const encryptedKeyPath = join(keysDir, encryptedKeyName)
+
+        // Encrypt the private key using scrypt + AES-256-GCM
+        const crypto = await import('node:crypto')
+
+        // Generate random salt and IV
+        const salt = crypto.randomBytes(32)
+        const iv = crypto.randomBytes(12) // 96 bits for GCM
+
+        // PBKDF2 iterations
+        const iterations = 100000
+
+        // Derive key from passphrase using PBKDF2
+        const derivedKey = await new Promise<Buffer>((resolve, reject) => {
+          crypto.pbkdf2(passphrase, salt, iterations, 32, 'sha256', (err, key) => {
+            if (err) reject(err)
+            else resolve(key)
+          })
+        })
+
+        // Encrypt the private key with AES-256-GCM
+        const cipher = crypto.createCipheriv('aes-256-gcm', derivedKey, iv)
+        const ciphertext = Buffer.concat([
+          cipher.update(Buffer.from(keyPair.privateKey, 'utf8')),
+          cipher.final(),
+        ])
+        const authTag = cipher.getAuthTag()
+
+        // Create the encrypted key file
+        const keyFile = {
+          version: 1,
+          iv: iv.toString('base64'),
+          authTag: authTag.toString('base64'),
+          salt: salt.toString('base64'),
+          ciphertext: ciphertext.toString('base64'),
+          iterations,
+        }
+
+        // Write the encrypted key file
+        await writeFile(encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 0o600 })
+
+        privateKeyRef = {
+          type: 'passphrase',
+          encryptedKeyPath,
+        }
+        keyStorageDescription = `Passphrase-protected: ${encryptedKeyPath}`
         break
       }
       default:
