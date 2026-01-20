@@ -409,3 +409,96 @@ describe('KeygenInteractive - Negative Tests', () => {
     expect(lastFrame()).toBeDefined()
   })
 })
+
+// Regression tests for duplicate React key bug
+// See: https://github.com/mike-north/attest-it/pull/31
+describe('KeygenInteractive - Duplicate Key Regression Tests', () => {
+  let mockIsInstalled: MockInstance
+  let mockListAccounts: MockInstance
+  let mockListVaults: MockInstance
+  let consoleErrorSpy: MockInstance
+
+  beforeEach(() => {
+    mockIsInstalled = vi.mocked(OnePasswordKeyProvider.isInstalled)
+    mockListAccounts = vi.mocked(OnePasswordKeyProvider.listAccounts)
+    mockListVaults = vi.mocked(OnePasswordKeyProvider.listVaults)
+    // Spy on console.error to detect React duplicate key warnings
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.clearAllMocks()
+    consoleErrorSpy.mockRestore()
+  })
+
+  it('should not produce duplicate key warning when accounts share the same email', async () => {
+    // This is the real-world scenario: multiple 1Password accounts (e.g., personal + work)
+    // can be registered with the same email address
+    mockIsInstalled.mockResolvedValue(true)
+    mockListAccounts.mockResolvedValue([
+      {
+        account_uuid: 'account-uuid-1',
+        email: 'shared@example.com', // Same email
+        url: 'https://my.1password.com', // Personal accounts share this URL
+        user_uuid: 'user-uuid-1', // But user_uuid is unique
+      },
+      {
+        account_uuid: 'account-uuid-2',
+        email: 'shared@example.com', // Same email
+        url: 'https://my.1password.com', // Same URL (both personal accounts)
+        user_uuid: 'user-uuid-2', // Different user_uuid
+      },
+    ])
+
+    const { lastFrame } = render(
+      <KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />,
+    )
+
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    // Component should render
+    expect(lastFrame()).toBeDefined()
+
+    // Should NOT have React duplicate key warning
+    const duplicateKeyWarnings = consoleErrorSpy.mock.calls.filter(
+      (call) =>
+        typeof call[0] === 'string' &&
+        call[0].includes('Encountered two children with the same key'),
+    )
+    expect(duplicateKeyWarnings).toHaveLength(0)
+  })
+
+  it('should not produce duplicate key warning when vaults share the same name', async () => {
+    // Vaults in different accounts could theoretically have the same name
+    mockIsInstalled.mockResolvedValue(true)
+    mockListAccounts.mockResolvedValue([
+      {
+        account_uuid: 'account-uuid-1',
+        email: 'user@example.com',
+        url: 'https://company.1password.com',
+        user_uuid: 'user-uuid-1',
+      },
+    ])
+    mockListVaults.mockResolvedValue([
+      { id: 'vault-id-1', name: 'Private' }, // Same name
+      { id: 'vault-id-2', name: 'Private' }, // Same name, different ID
+    ])
+
+    const { lastFrame } = render(
+      <KeygenInteractive onComplete={vi.fn()} onCancel={vi.fn()} onError={vi.fn()} />,
+    )
+
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    // Component should render
+    expect(lastFrame()).toBeDefined()
+
+    // Should NOT have React duplicate key warning
+    const duplicateKeyWarnings = consoleErrorSpy.mock.calls.filter(
+      (call) =>
+        typeof call[0] === 'string' &&
+        call[0].includes('Encountered two children with the same key'),
+    )
+    expect(duplicateKeyWarnings).toHaveLength(0)
+  })
+})

@@ -154,7 +154,7 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
       setSelectedProvider('1password')
       // Move to account selection (or skip if only one)
       if (accounts.length === 1 && accounts[0]) {
-        setSelectedAccount(accounts[0].email)
+        setSelectedAccount(accounts[0].user_uuid)
         setStep('select-vault')
       } else {
         setStep('select-account')
@@ -222,9 +222,15 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
           throw new Error('Vault and item name are required for 1Password')
         }
 
+        // Look up vault name from ID (selectedVault is now a vault ID)
+        const vault = vaults.find((v) => v.id === selectedVault)
+        if (!vault) {
+          throw new Error('Selected vault not found')
+        }
+
         // Build provider options, only including account if defined
         const providerOptions: { vault: string; itemName: string; account?: string } = {
-          vault: selectedVault,
+          vault: vault.name,
           itemName,
         }
         if (selectedAccount !== undefined) {
@@ -247,7 +253,7 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
           publicKeyPath: result.publicKeyPath,
           privateKeyRef: result.privateKeyRef,
           storageDescription: result.storageDescription,
-          vault: selectedVault,
+          vault: vault.name,
           itemName,
         }
         if (selectedAccount !== undefined) {
@@ -334,7 +340,7 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
   if (step === 'select-account') {
     const options = accounts.map((account) => ({
       label: account.email,
-      value: account.email,
+      value: account.user_uuid,
     }))
 
     return (
@@ -360,7 +366,7 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
 
     const options = vaults.map((vault) => ({
       label: vault.name,
-      value: vault.name,
+      value: vault.id,
     }))
 
     return (
