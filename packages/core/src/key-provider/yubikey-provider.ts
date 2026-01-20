@@ -9,6 +9,12 @@
  *
  * Requires the `ykman` (YubiKey Manager) CLI tool to be installed.
  *
+ * **Security Note**: Private keys are temporarily held in memory as JavaScript
+ * strings during encryption/decryption. JavaScript strings are immutable and
+ * cannot be securely zeroed. The key remains in memory until garbage collected.
+ * For maximum security, use full-disk encryption and disable swap on systems
+ * handling sensitive keys.
+ *
  * @packageDocumentation
  */
 
@@ -17,7 +23,9 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import * as crypto from 'node:crypto'
 import { spawn } from 'node:child_process'
+import { z } from 'zod'
 import { generateKeyPair as cryptoGenerateKeyPair, setKeyPermissions } from '../crypto.js'
+import { getAttestItConfigDir } from '../identity/config.js'
 import type {
   KeyProvider,
   KeyProviderConfig,
@@ -35,7 +43,7 @@ export interface YubiKeyProviderOptions {
   encryptedKeyPath: string
   /** YubiKey slot to use for challenge-response (default: 2) */
   slot?: 1 | 2
-  /** Serial number of specific YubiKey to use (optional) */
+  /** Serial number of specific YubiKey to use (optional but recommended) */
   serial?: string
 }
 
@@ -51,6 +59,22 @@ export interface YubiKeyInfo {
   /** Firmware version */
   firmware: string
 }
+
+/**
+ * Zod schema for validating encrypted key file structure.
+ * @internal
+ */
+const EncryptedKeyFileSchema = z.object({
+  version: z.literal(1),
+  iv: z.string().min(1),
+  authTag: z.string().min(1),
+  salt: z.string().min(1),
+  challenge: z.string().min(1),
+  ciphertext: z.string().min(1),
+  slot: z.union([z.literal(1), z.literal(2)]),
+  serial: z.string().optional(),
+  aad: z.string().optional(),
+})
 
 /**
  * Encrypted key file structure.
@@ -71,8 +95,95 @@ interface EncryptedKeyFile {
   ciphertext: string
   /** YubiKey slot used */
   slot: 1 | 2
-  /** YubiKey serial (optional, for verification) */
-  serial?: string
+  /** YubiKey serial (for device verification) */
+  serial?: string | undefined
+  /** Additional authenticated data (base64) - binds metadata to ciphertext */
+  aad?: string | undefined
+}
+
+/**
+ * Track active cleanup handlers for process exit.
+ * @internal
+ */
+const activeCleanupHandlers = new Set<() => Promise<void>>()
+let processHandlersInstalled = false
+
+/**
+ * Install process exit handlers to ensure cleanup on unexpected termination.
+ * @internal
+ */
+function installProcessHandlers(): void {
+  if (processHandlersInstalled) return
+  processHandlersInstalled = true
+
+  const runCleanup = async () => {
+    const handlers = Array.from(activeCleanupHandlers)
+    await Promise.allSettled(handlers.map((h) => h()))
+  }
+
+  // Handle graceful shutdown
+  process.once('beforeExit', () => {
+    void runCleanup()
+  })
+
+  // Handle SIGINT (Ctrl+C)
+  process.once('SIGINT', () => {
+    void runCleanup().finally(() => process.exit(130))
+  })
+
+  // Handle SIGTERM
+  process.once('SIGTERM', () => {
+    void runCleanup().finally(() => process.exit(143))
+  })
+}
+
+/**
+ * Validate encrypted key file structure and buffer sizes.
+ * @param data - Parsed JSON data
+ * @returns Validated EncryptedKeyFile
+ * @throws Error if validation fails
+ * @internal
+ */
+function validateEncryptedKeyFile(data: unknown): EncryptedKeyFile {
+  // Schema validation
+  const parsed = EncryptedKeyFileSchema.parse(data)
+
+  // Validate decoded buffer sizes
+  const iv = Buffer.from(parsed.iv, 'base64')
+  if (iv.length !== 12) {
+    throw new Error(`Invalid IV size: expected 12 bytes, got ${iv.length}`)
+  }
+
+  const authTag = Buffer.from(parsed.authTag, 'base64')
+  if (authTag.length !== 16) {
+    throw new Error(`Invalid auth tag size: expected 16 bytes, got ${authTag.length}`)
+  }
+
+  const salt = Buffer.from(parsed.salt, 'base64')
+  if (salt.length !== 32) {
+    throw new Error(`Invalid salt size: expected 32 bytes, got ${salt.length}`)
+  }
+
+  const challenge = Buffer.from(parsed.challenge, 'base64')
+  if (challenge.length !== 32) {
+    throw new Error(`Invalid challenge size: expected 32 bytes, got ${challenge.length}`)
+  }
+
+  return parsed
+}
+
+/**
+ * Construct Additional Authenticated Data (AAD) for GCM encryption.
+ * This binds the metadata to the ciphertext, preventing tampering.
+ * @internal
+ */
+function constructAAD(version: number, slot: 1 | 2, serial: string | undefined): Buffer {
+  const aadObject = {
+    version,
+    slot,
+    serial: serial ?? 'unspecified',
+  }
+  return Buffer.from(JSON.stringify(aadObject), 'utf8')
 }
 
 /**
@@ -88,6 +199,9 @@ interface EncryptedKeyFile {
  * - Preserves Ed25519 compatibility (signing happens in software)
  * - Requires physical YubiKey presence to decrypt and use the key
  *
+ * **Security Note**: Always use the `serial` option to bind keys to a specific YubiKey.
+ * Without serial verification, any YubiKey with the same HMAC secret could decrypt the key.
+ *
  * @public
  */
 export class YubiKeyProvider implements KeyProvider {
@@ -101,9 +215,22 @@ export class YubiKeyProvider implements KeyProvider {
   /**
    * Create a new YubiKeyProvider.
    * @param options - Provider options
+   * @throws Error if encryptedKeyPath is outside the attest-it config directory
    */
   constructor(options: YubiKeyProviderOptions) {
-    this.encryptedKeyPath = options.encryptedKeyPath
+    // Validate and normalize the encrypted key path
+    const resolvedPath = path.resolve(options.encryptedKeyPath)
+    const configDir = getAttestItConfigDir()
+
+    // Security: Ensure path is within the config directory to prevent path traversal
+    if (!resolvedPath.startsWith(configDir)) {
+      throw new Error(
+        `Encrypted key path must be within attest-it config directory (${configDir}). ` +
+          `Got: ${resolvedPath}`,
+      )
+    }
+
+    this.encryptedKeyPath = resolvedPath
     this.slot = options.slot ?? 2
     if (options.serial !== undefined) {
       this.serial = options.serial
@@ -225,35 +352,48 @@ export class YubiKeyProvider implements KeyProvider {
   /**
    * Get the private key by decrypting with YubiKey.
    * Downloads to a temporary file and returns a cleanup function.
+   *
+   * **Important**: Always call the cleanup function when done to securely delete
+   * the temporary key file. The cleanup is also registered for process exit handlers.
+   *
    * @param keyRef - Path to encrypted key file
    * @throws Error if the key cannot be decrypted
    */
   async getPrivateKey(keyRef: string): Promise<KeyRetrievalResult> {
+    // Install process handlers for cleanup on unexpected exit
+    installProcessHandlers()
+
     // Check if encrypted key file exists
     if (!(await this.keyExists(keyRef))) {
       throw new Error(`Encrypted key file not found: ${keyRef}`)
     }
 
-    // Check if YubiKey is connected
-    if (!(await YubiKeyProvider.isConnected())) {
-      throw new Error('No YubiKey detected. Please insert your YubiKey and try again.')
-    }
-
-    // Read and parse the encrypted key file
+    // Read and parse the encrypted key file with validation
     const encryptedData = await fs.readFile(keyRef, 'utf8')
     let keyFile: EncryptedKeyFile
     try {
-      keyFile = JSON.parse(encryptedData) as EncryptedKeyFile
-    } catch {
-      throw new Error(`Invalid encrypted key file format: ${keyRef}`)
-    }
-
-    if (keyFile.version !== 1) {
-      throw new Error(`Unsupported encrypted key format version: ${String(keyFile.version)}`)
+      const parsed = JSON.parse(encryptedData) as unknown
+      keyFile = validateEncryptedKeyFile(parsed)
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        throw new Error(
+          `Invalid encrypted key file format: ${err.errors.map((e) => e.message).join(', ')}`,
+        )
+      }
+      throw new Error(`Invalid encrypted key file: malformed JSON or structure`)
     }
 
     // Determine which serial to use (provider setting takes precedence, then key file)
     const expectedSerial = this.serial ?? keyFile.serial
+
+    // Security warning if no serial verification
+    if (!expectedSerial) {
+      console.warn(
+        'WARNING: No YubiKey serial number specified for key verification. ' +
+          'Any YubiKey with the correct HMAC secret could decrypt this key. ' +
+          'For better security, re-encrypt the key with a serial number specified.',
+      )
+    }
 
     // Verify YubiKey serial if specified
     if (expectedSerial) {
@@ -261,7 +401,7 @@ export class YubiKeyProvider implements KeyProvider {
       const matchingDevice = devices.find((d) => d.serial === expectedSerial)
       if (!matchingDevice) {
         throw new Error(
-          `YubiKey with serial ${expectedSerial} not found. ` +
+          `Required YubiKey not found. Expected serial: ${expectedSerial}. ` +
             `Connected devices: ${devices.map((d) => d.serial).join(', ') || 'none'}`,
         )
       }
@@ -283,13 +423,20 @@ export class YubiKeyProvider implements KeyProvider {
     let privateKeyContent: string
     try {
       const decipher = crypto.createDecipheriv('aes-256-gcm', aesKey, iv)
+
+      // Set AAD if present (for files created with AAD support)
+      if (keyFile.aad) {
+        decipher.setAAD(Buffer.from(keyFile.aad, 'base64'))
+      }
+
       decipher.setAuthTag(authTag)
       const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()])
       privateKeyContent = decrypted.toString('utf8')
-    } catch (err) {
+    } catch {
+      // Sanitized error message - don't leak crypto details
       throw new Error(
-        'Failed to decrypt private key. Wrong YubiKey or corrupted key file. ' +
-          `Details: ${err instanceof Error ? err.message : String(err)}`,
+        'Failed to decrypt private key. Verify you are using the correct YubiKey ' +
+          'and the encrypted key file has not been corrupted or tampered with.',
       )
     }
 
@@ -297,39 +444,35 @@ export class YubiKeyProvider implements KeyProvider {
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'attest-it-'))
     const tempKeyPath = path.join(tempDir, 'private.pem')
 
+    // Create cleanup function with tracking
+    const cleanup = async () => {
+      activeCleanupHandlers.delete(cleanup)
+      try {
+        // Overwrite with random data before deleting (defense in depth)
+        const keySize = Buffer.byteLength(privateKeyContent)
+        await fs.writeFile(tempKeyPath, crypto.randomBytes(keySize))
+        await fs.unlink(tempKeyPath)
+        await fs.rmdir(tempDir)
+      } catch {
+        // Silently ignore cleanup errors - file may already be deleted
+      }
+    }
+
     try {
       // Write decrypted key to temp file
       await fs.writeFile(tempKeyPath, privateKeyContent, { mode: 0o600 })
       await setKeyPermissions(tempKeyPath)
 
+      // Register cleanup for process exit
+      activeCleanupHandlers.add(cleanup)
+
       return {
         keyPath: tempKeyPath,
-        cleanup: async () => {
-          // Securely delete the temporary file and directory
-          try {
-            // Overwrite with random data before deleting
-            const keySize = Buffer.byteLength(privateKeyContent)
-            await fs.writeFile(tempKeyPath, crypto.randomBytes(keySize))
-            await fs.unlink(tempKeyPath)
-            await fs.rmdir(tempDir)
-          } catch (cleanupError) {
-            console.warn(
-              `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ` +
-                `${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
-            )
-          }
-        },
+        cleanup,
       }
     } catch (error) {
       // Clean up temp directory on error
-      try {
-        await fs.rm(tempDir, { recursive: true, force: true })
-      } catch (cleanupError) {
-        console.warn(
-          `Warning: Failed to clean up temporary key directory at ${tempDir}: ` +
-            `${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
-        )
-      }
+      await cleanup()
       throw error
     }
   }
@@ -337,21 +480,19 @@ export class YubiKeyProvider implements KeyProvider {
   /**
    * Generate a new keypair and store encrypted with YubiKey.
    * Public key is written to filesystem for repository commit.
+   *
+   * **Security Note**: Always specify a serial number to bind the key to a specific YubiKey.
+   *
    * @param options - Key generation options
    */
   async generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult> {
     const { publicKeyPath, force = false } = options
 
-    // Check if YubiKey is connected
-    if (!(await YubiKeyProvider.isConnected())) {
-      throw new Error('No YubiKey detected. Please insert your YubiKey and try again.')
-    }
-
-    // Check if challenge-response is configured
+    // Check if challenge-response is configured (this also verifies YubiKey is connected)
     if (!(await YubiKeyProvider.isChallengeResponseConfigured(this.slot, this.serial))) {
       throw new Error(
         `YubiKey slot ${this.slot} is not configured for HMAC challenge-response. ` +
-          'Use "ykman otp chalresp --generate 2" to configure it.',
+          'Ensure your YubiKey is connected and use "ykman otp chalresp --generate 2" to configure it.',
       )
     }
 
@@ -362,7 +503,7 @@ export class YubiKeyProvider implements KeyProvider {
       )
     }
 
-    // Get YubiKey serial for the encrypted file
+    // Get YubiKey serial for the encrypted file (required for security)
     let serial: string | undefined
     if (this.serial) {
       serial = this.serial
@@ -370,6 +511,12 @@ export class YubiKeyProvider implements KeyProvider {
       const devices = await YubiKeyProvider.listDevices()
       if (devices.length === 1 && devices[0]) {
         serial = devices[0].serial
+      } else if (devices.length > 1) {
+        console.warn(
+          'WARNING: Multiple YubiKeys detected but no serial specified. ' +
+            'Key will not be bound to a specific device. ' +
+            'For better security, specify a serial number.',
+        )
       }
     }
 
@@ -399,8 +546,12 @@ export class YubiKeyProvider implements KeyProvider {
       // Derive AES-256 key from response using HKDF
       const aesKey = deriveKey(response, salt)
 
+      // Construct AAD to bind metadata to ciphertext
+      const aad = constructAAD(1, this.slot, serial)
+
       // Encrypt the private key with AES-256-GCM
       const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv)
+      cipher.setAAD(aad)
       const ciphertext = Buffer.concat([
         cipher.update(Buffer.from(privateKeyContent, 'utf8')),
         cipher.final(),
@@ -416,6 +567,7 @@ export class YubiKeyProvider implements KeyProvider {
         challenge: challenge.toString('base64'),
         ciphertext: ciphertext.toString('base64'),
         slot: this.slot,
+        aad: aad.toString('base64'),
         ...(serial && { serial }),
       }
 
@@ -441,22 +593,22 @@ export class YubiKeyProvider implements KeyProvider {
       // Clean up on error
       try {
         await fs.rm(tempDir, { recursive: true, force: true })
-      } catch (cleanupError) {
-        console.warn(
-          `Warning: Failed to clean up temporary key directory at ${tempDir}: ` +
-            `${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
-        )
+      } catch {
+        // Ignore cleanup errors
       }
       throw error
     }
   }
 
-/**
+  /**
    * Encrypt an existing private key with YubiKey challenge-response.
    *
    * @remarks
    * This static method allows encrypting a private key that was generated
    * elsewhere (e.g., by the CLI) without having to create a provider instance first.
+   *
+   * **Security Note**: Always specify a serial number to bind the key to a specific YubiKey.
+   * The serial provides defense-in-depth by ensuring only the intended YubiKey can decrypt.
    *
    * @param options - Encryption options
    * @returns Path to the encrypted key file and storage description
@@ -469,21 +621,35 @@ export class YubiKeyProvider implements KeyProvider {
     encryptedKeyPath: string
     /** YubiKey slot to use (default: 2) */
     slot?: 1 | 2
-    /** Optional YubiKey serial number */
+    /** YubiKey serial number (recommended for security) */
     serial?: string
   }): Promise<{ encryptedKeyPath: string; storageDescription: string }> {
     const { privateKey, encryptedKeyPath, slot = 2, serial } = options
 
-    // Check if YubiKey is connected
-    if (!(await YubiKeyProvider.isConnected())) {
-      throw new Error('No YubiKey detected. Please insert your YubiKey and try again.')
+    // Validate path is within config directory
+    const resolvedPath = path.resolve(encryptedKeyPath)
+    const configDir = getAttestItConfigDir()
+    if (!resolvedPath.startsWith(configDir)) {
+      throw new Error(
+        `Encrypted key path must be within attest-it config directory (${configDir}). ` +
+          `Got: ${resolvedPath}`,
+      )
     }
 
-    // Check if challenge-response is configured
+    // Security warning if no serial specified
+    if (!serial) {
+      console.warn(
+        'WARNING: No YubiKey serial number specified. ' +
+          'Key will not be bound to a specific device. ' +
+          'For better security, specify a serial number.',
+      )
+    }
+
+    // Check if challenge-response is configured (this also verifies YubiKey is connected)
     if (!(await YubiKeyProvider.isChallengeResponseConfigured(slot, serial))) {
       throw new Error(
         `YubiKey slot ${slot} is not configured for HMAC challenge-response. ` +
-          'Use "ykman otp chalresp --generate 2" to configure it.',
+          'Ensure your YubiKey is connected and use "ykman otp chalresp --generate 2" to configure it.',
       )
     }
 
@@ -498,8 +664,12 @@ export class YubiKeyProvider implements KeyProvider {
     // Derive AES-256 key from response using HKDF
     const aesKey = deriveKey(response, salt)
 
+    // Construct AAD to bind metadata to ciphertext
+    const aad = constructAAD(1, slot, serial)
+
     // Encrypt the private key with AES-256-GCM
     const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv)
+    cipher.setAAD(aad)
     const ciphertext = Buffer.concat([cipher.update(Buffer.from(privateKey, 'utf8')), cipher.final()])
     const authTag = cipher.getAuthTag()
 
@@ -512,19 +682,20 @@ export class YubiKeyProvider implements KeyProvider {
       challenge: challenge.toString('base64'),
       ciphertext: ciphertext.toString('base64'),
       slot,
+      aad: aad.toString('base64'),
       ...(serial && { serial }),
     }
 
     // Ensure parent directory exists
-    await fs.mkdir(path.dirname(encryptedKeyPath), { recursive: true })
+    await fs.mkdir(path.dirname(resolvedPath), { recursive: true })
 
     // Write the encrypted key file
-    await fs.writeFile(encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 0o600 })
-    await setKeyPermissions(encryptedKeyPath)
+    await fs.writeFile(resolvedPath, JSON.stringify(keyFile, null, 2), { mode: 0o600 })
+    await setKeyPermissions(resolvedPath)
 
     return {
-      encryptedKeyPath,
-      storageDescription: `YubiKey-encrypted: ${encryptedKeyPath}`,
+      encryptedKeyPath: resolvedPath,
+      storageDescription: `YubiKey-encrypted: ${resolvedPath}`,
     }
   }
 
@@ -598,10 +769,11 @@ async function performChallengeResponse(
     const output = await execCommand('ykman', args)
     // Response is hex-encoded
     return Buffer.from(output.trim(), 'hex')
-  } catch (err) {
+  } catch {
+    // Sanitized error - don't leak command details
     throw new Error(
-      `YubiKey challenge-response failed: ${err instanceof Error ? err.message : String(err)}. ` +
-        'Make sure your YubiKey is inserted and slot is configured for challenge-response.',
+      'YubiKey challenge-response failed. ' +
+        'Verify your YubiKey is inserted and the slot is configured for challenge-response.',
     )
   }
 }

@@ -1,9 +1,32 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import * as os from 'node:os'
 import * as crypto from 'node:crypto'
+
+// Mock the identity config module to return our test directory as the config dir
+let mockConfigDir = '/tmp/attest-it-test'
+vi.mock('../../src/identity/config.js', () => ({
+  getAttestItConfigDir: () => mockConfigDir,
+}))
+
+// Import after mocking
 import { YubiKeyProvider } from '../../src/key-provider/yubikey-provider.js'
+
+// Mock child_process.spawn for YubiKey CLI interactions
+vi.mock('node:child_process', async (importOriginal) => {
+  const original = (await importOriginal()) as typeof import('node:child_process')
+  return {
+    ...original,
+    spawn: vi.fn(),
+  }
+})
+
+// Helper to get mocked spawn
+async function getMockedSpawn(): Promise<Mock> {
+  const { spawn } = await import('node:child_process')
+  return spawn as unknown as Mock
+}
 
 describe('YubiKeyProvider', () => {
   let tmpDir: string
@@ -11,6 +34,8 @@ describe('YubiKeyProvider', () => {
 
   beforeEach(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'attest-it-yubikey-provider-'))
+    // Update the mock config dir to match our temp directory
+    mockConfigDir = tmpDir
     const encryptedKeyPath = path.join(tmpDir, 'test.enc')
     provider = new YubiKeyProvider({ encryptedKeyPath })
   })
@@ -25,7 +50,7 @@ describe('YubiKeyProvider', () => {
 
   describe('constructor', () => {
     it('should use provided encryptedKeyPath', () => {
-      const customPath = '/custom/path/key.enc'
+      const customPath = path.join(tmpDir, 'custom', 'key.enc')
       const customProvider = new YubiKeyProvider({ encryptedKeyPath: customPath })
       const config = customProvider.getConfig()
       expect(config.options.encryptedKeyPath).toBe(customPath)
@@ -38,7 +63,7 @@ describe('YubiKeyProvider', () => {
 
     it('should use custom slot if provided', () => {
       const customProvider = new YubiKeyProvider({
-        encryptedKeyPath: '/path/key.enc',
+        encryptedKeyPath: path.join(tmpDir, 'key.enc'),
         slot: 1,
       })
       const config = customProvider.getConfig()
@@ -47,7 +72,7 @@ describe('YubiKeyProvider', () => {
 
     it('should store serial if provided', () => {
       const customProvider = new YubiKeyProvider({
-        encryptedKeyPath: '/path/key.enc',
+        encryptedKeyPath: path.join(tmpDir, 'key.enc'),
         serial: '12345678',
       })
       const config = customProvider.getConfig()
@@ -131,8 +156,9 @@ describe('YubiKeyProvider', () => {
 
   describe('getConfig', () => {
     it('should return correct configuration with all options', () => {
+      const testKeyPath = path.join(tmpDir, 'key.enc')
       const customProvider = new YubiKeyProvider({
-        encryptedKeyPath: '/path/key.enc',
+        encryptedKeyPath: testKeyPath,
         slot: 1,
         serial: '12345678',
       })
@@ -140,7 +166,7 @@ describe('YubiKeyProvider', () => {
       const config = customProvider.getConfig()
 
       expect(config.type).toBe('yubikey')
-      expect(config.options.encryptedKeyPath).toBe('/path/key.enc')
+      expect(config.options.encryptedKeyPath).toBe(testKeyPath)
       expect(config.options.slot).toBe(1)
       expect(config.options.serial).toBe('12345678')
     })
@@ -239,11 +265,12 @@ describe('YubiKeyProvider', () => {
 
     it('should create provider from registry with config', async () => {
       const { KeyProviderRegistry } = await import('../../src/key-provider/registry.js')
+      const testKeyPath = path.join(tmpDir, 'key.enc')
 
       const createdProvider = KeyProviderRegistry.create({
         type: 'yubikey',
         options: {
-          encryptedKeyPath: '/test/path/key.enc',
+          encryptedKeyPath: testKeyPath,
           slot: 1,
           serial: '12345678',
         },
@@ -253,7 +280,7 @@ describe('YubiKeyProvider', () => {
       expect(createdProvider.displayName).toBe('YubiKey')
 
       const config = createdProvider.getConfig()
-      expect(config.options.encryptedKeyPath).toBe('/test/path/key.enc')
+      expect(config.options.encryptedKeyPath).toBe(testKeyPath)
       expect(config.options.slot).toBe(1)
       expect(config.options.serial).toBe('12345678')
     })
@@ -267,6 +294,493 @@ describe('YubiKeyProvider', () => {
           options: {},
         }),
       ).toThrow(/encryptedKeyPath/)
+    })
+
+    it('should throw if encryptedKeyPath is outside config directory', async () => {
+      const { KeyProviderRegistry } = await import('../../src/key-provider/registry.js')
+
+      expect(() =>
+        KeyProviderRegistry.create({
+          type: 'yubikey',
+          options: {
+            encryptedKeyPath: '/outside/config/dir/key.enc',
+          },
+        }),
+      ).toThrow(/must be within attest-it config directory/)
+    })
+  })
+
+  describe('mock-based crypto tests', () => {
+    let mockTmpDir: string
+
+    beforeEach(async () => {
+      mockTmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'attest-it-yubikey-mock-'))
+      // Update the mock config dir to match our temp directory for mock tests
+      mockConfigDir = mockTmpDir
+      vi.clearAllMocks()
+    })
+
+    afterEach(async () => {
+      vi.restoreAllMocks()
+      try {
+        await fs.rm(mockTmpDir, { recursive: true, force: true })
+      } catch {
+        // Ignore cleanup errors
+      }
+    })
+
+    /**
+     * Helper to create a mock spawn process that returns specified output.
+     */
+    function createMockProcess(stdout: string, exitCode = 0): {
+      stdout: { on: Mock }
+      stderr: { on: Mock }
+      on: Mock
+    } {
+      const stdoutCallbacks: Array<(data: Buffer) => void> = []
+      const stderrCallbacks: Array<(data: Buffer) => void> = []
+      const closeCallbacks: Array<(code: number) => void> = []
+      const errorCallbacks: Array<(error: Error) => void> = []
+
+      const mockProc = {
+        stdout: {
+          on: vi.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              stdoutCallbacks.push(callback)
+              // Emit the data immediately
+              process.nextTick(() => callback(Buffer.from(stdout)))
+            }
+          }),
+        },
+        stderr: {
+          on: vi.fn((event: string, callback: (data: Buffer) => void) => {
+            if (event === 'data') {
+              stderrCallbacks.push(callback)
+            }
+          }),
+        },
+        on: vi.fn((event: string, callback: ((code: number) => void) | ((error: Error) => void)) => {
+          if (event === 'close') {
+            closeCallbacks.push(callback as (code: number) => void)
+            // Emit close after data
+            process.nextTick(() =>
+              process.nextTick(() => (callback as (code: number) => void)(exitCode)),
+            )
+          } else if (event === 'error') {
+            errorCallbacks.push(callback as (error: Error) => void)
+          }
+        }),
+      }
+
+      return mockProc
+    }
+
+    /**
+     * Helper to set up spawn mock for multiple sequential calls.
+     */
+    async function setupSpawnMock(
+      responses: Array<{ stdout: string; exitCode?: number }>,
+    ): Promise<void> {
+      const mockedSpawn = await getMockedSpawn()
+      let callIndex = 0
+
+      mockedSpawn.mockImplementation(() => {
+        const response = responses[callIndex] ?? { stdout: '', exitCode: 1 }
+        callIndex++
+        return createMockProcess(response.stdout, response.exitCode ?? 0)
+      })
+    }
+
+    describe('encryption/decryption roundtrip', () => {
+      it('should successfully encrypt and decrypt a private key with mocked YubiKey', async () => {
+        // This test verifies the crypto flow works correctly
+        // by using a deterministic challenge-response
+
+        // Create a deterministic HMAC-SHA1 response (20 bytes)
+        const fixedResponse = crypto.randomBytes(20)
+        const fixedResponseHex = fixedResponse.toString('hex')
+
+        // Set up spawn mock to return our fixed response for challenge-response
+        // The sequence of calls will be:
+        // 1. isChallengeResponseConfigured -> otp info
+        // 2. performChallengeResponse -> otp chalresp
+        await setupSpawnMock([
+          { stdout: 'Slot 2: programmed (challenge-response)', exitCode: 0 },
+          { stdout: fixedResponseHex, exitCode: 0 },
+        ])
+
+        const testPrivateKey = `-----BEGIN PRIVATE KEY-----
+MC4CAQAwBQYDK2VwBCIEIKgHJ1234567890abcdefghijklmnopqrstuvwxyz
+-----END PRIVATE KEY-----`
+
+        const encryptedKeyPath = path.join(mockTmpDir, 'test-roundtrip.enc')
+
+        // Encrypt the key
+        const result = await YubiKeyProvider.encryptPrivateKey({
+          privateKey: testPrivateKey,
+          encryptedKeyPath,
+          slot: 2,
+          serial: '12345678',
+        })
+
+        expect(result.encryptedKeyPath).toBe(encryptedKeyPath)
+
+        // Verify encrypted file was created
+        const encryptedContent = await fs.readFile(encryptedKeyPath, 'utf8')
+        const encryptedData = JSON.parse(encryptedContent) as Record<string, unknown>
+
+        expect(encryptedData.version).toBe(1)
+        expect(encryptedData.slot).toBe(2)
+        expect(encryptedData.serial).toBe('12345678')
+        expect(typeof encryptedData.iv).toBe('string')
+        expect(typeof encryptedData.authTag).toBe('string')
+        expect(typeof encryptedData.ciphertext).toBe('string')
+        expect(typeof encryptedData.aad).toBe('string')
+      })
+
+      it('should include AAD that binds metadata to ciphertext', async () => {
+        const fixedResponse = crypto.randomBytes(20)
+        const fixedResponseHex = fixedResponse.toString('hex')
+
+        await setupSpawnMock([
+          { stdout: 'Slot 2: programmed (challenge-response)', exitCode: 0 },
+          { stdout: fixedResponseHex, exitCode: 0 },
+        ])
+
+        const testPrivateKey = '-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----'
+        const encryptedKeyPath = path.join(mockTmpDir, 'test-aad.enc')
+
+        await YubiKeyProvider.encryptPrivateKey({
+          privateKey: testPrivateKey,
+          encryptedKeyPath,
+          slot: 2,
+          serial: '99887766',
+        })
+
+        const encryptedContent = await fs.readFile(encryptedKeyPath, 'utf8')
+        const encryptedData = JSON.parse(encryptedContent) as Record<string, unknown>
+
+        // Verify AAD is present and contains expected metadata
+        expect(encryptedData.aad).toBeDefined()
+        const aadBuffer = Buffer.from(encryptedData.aad as string, 'base64')
+        const aadObject = JSON.parse(aadBuffer.toString('utf8')) as Record<string, unknown>
+
+        expect(aadObject.version).toBe(1)
+        expect(aadObject.slot).toBe(2)
+        expect(aadObject.serial).toBe('99887766')
+      })
+
+      it('should use "unspecified" in AAD when no serial provided', async () => {
+        const fixedResponse = crypto.randomBytes(20)
+        const fixedResponseHex = fixedResponse.toString('hex')
+
+        // Suppress console.warn for this test
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+        await setupSpawnMock([
+          { stdout: 'Slot 2: programmed (challenge-response)', exitCode: 0 },
+          { stdout: fixedResponseHex, exitCode: 0 },
+        ])
+
+        const testPrivateKey = '-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----'
+        const encryptedKeyPath = path.join(mockTmpDir, 'test-no-serial.enc')
+
+        await YubiKeyProvider.encryptPrivateKey({
+          privateKey: testPrivateKey,
+          encryptedKeyPath,
+          slot: 2,
+          // No serial specified
+        })
+
+        const encryptedContent = await fs.readFile(encryptedKeyPath, 'utf8')
+        const encryptedData = JSON.parse(encryptedContent) as Record<string, unknown>
+
+        const aadBuffer = Buffer.from(encryptedData.aad as string, 'base64')
+        const aadObject = JSON.parse(aadBuffer.toString('utf8')) as Record<string, unknown>
+
+        expect(aadObject.serial).toBe('unspecified')
+
+        // Verify warning was issued
+        expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('No YubiKey serial'))
+
+        warnSpy.mockRestore()
+      })
+    })
+
+    describe('decryption failure scenarios', () => {
+      it('should fail when key file not found during decryption', async () => {
+        // Test that decryption fails when the encrypted key file doesn't exist
+        const nonexistentPath = path.join(mockTmpDir, 'nonexistent.enc')
+
+        const testProvider = new YubiKeyProvider({
+          encryptedKeyPath: nonexistentPath,
+          slot: 2,
+          serial: '12345678',
+        })
+
+        await expect(testProvider.getPrivateKey(nonexistentPath)).rejects.toThrow(/not found/)
+      })
+
+      it('should fail when YubiKey serial does not match', async () => {
+        // Create an encrypted file with one serial
+        const fixedResponse = crypto.randomBytes(20)
+        const fixedResponseHex = fixedResponse.toString('hex')
+
+        await setupSpawnMock([
+          { stdout: 'Slot 2: programmed (challenge-response)', exitCode: 0 },
+          { stdout: fixedResponseHex, exitCode: 0 },
+        ])
+
+        const encryptedKeyPath = path.join(mockTmpDir, 'test-serial-mismatch.enc')
+
+        await YubiKeyProvider.encryptPrivateKey({
+          privateKey: '-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----',
+          encryptedKeyPath,
+          slot: 2,
+          serial: '11111111', // Encrypted with this serial
+        })
+
+        // Try to decrypt with provider configured for different serial
+        await setupSpawnMock([
+          { stdout: '22222222', exitCode: 0 }, // list --serials - different device connected
+          { stdout: 'Device type: YubiKey 5\nFirmware version: 5.4.3', exitCode: 0 },
+        ])
+
+        const testProvider = new YubiKeyProvider({
+          encryptedKeyPath,
+          slot: 2,
+          serial: '11111111', // Looking for original serial
+        })
+
+        // Should fail because the required YubiKey is not connected
+        await expect(testProvider.getPrivateKey(encryptedKeyPath)).rejects.toThrow(
+          /Required YubiKey not found.*Expected serial: 11111111/,
+        )
+      })
+
+      it('should fail when challenge-response is not configured', async () => {
+        // Test that encryption fails when slot is not configured for challenge-response
+        const encryptedKeyPath = path.join(mockTmpDir, 'test-not-configured.enc')
+
+        // Mock: isChallengeResponseConfigured returns false (slot not programmed)
+        await setupSpawnMock([
+          { stdout: 'Slot 2: empty', exitCode: 0 }, // otp info shows slot is empty
+        ])
+
+        await expect(
+          YubiKeyProvider.encryptPrivateKey({
+            privateKey: '-----BEGIN PRIVATE KEY-----\ntest\n-----END PRIVATE KEY-----',
+            encryptedKeyPath,
+            slot: 2,
+            serial: '12345678',
+          }),
+        ).rejects.toThrow(/not configured for HMAC challenge-response/)
+      })
+    })
+
+    describe('Zod validation', () => {
+      it('should reject encrypted key file with invalid version', async () => {
+        const keyPath = path.join(mockTmpDir, 'invalid-version.enc')
+
+        const invalidKeyFile = {
+          version: 2, // Invalid - only version 1 is supported
+          iv: crypto.randomBytes(12).toString('base64'),
+          authTag: crypto.randomBytes(16).toString('base64'),
+          salt: crypto.randomBytes(32).toString('base64'),
+          challenge: crypto.randomBytes(32).toString('base64'),
+          ciphertext: crypto.randomBytes(100).toString('base64'),
+          slot: 2,
+        }
+
+        await fs.writeFile(keyPath, JSON.stringify(invalidKeyFile))
+
+        // Mock device list to pass the serial check
+        await setupSpawnMock([
+          { stdout: '12345678', exitCode: 0 },
+          { stdout: 'Device type: YubiKey 5\nFirmware version: 5.4.3', exitCode: 0 },
+        ])
+
+        const testProvider = new YubiKeyProvider({
+          encryptedKeyPath: keyPath,
+          serial: '12345678',
+        })
+
+        await expect(testProvider.getPrivateKey(keyPath)).rejects.toThrow(/Invalid encrypted key/)
+      })
+
+      it('should reject encrypted key file with missing required fields', async () => {
+        const keyPath = path.join(mockTmpDir, 'missing-fields.enc')
+
+        const invalidKeyFile = {
+          version: 1,
+          iv: crypto.randomBytes(12).toString('base64'),
+          // Missing: authTag, salt, challenge, ciphertext, slot
+        }
+
+        await fs.writeFile(keyPath, JSON.stringify(invalidKeyFile))
+
+        await setupSpawnMock([
+          { stdout: '12345678', exitCode: 0 },
+          { stdout: 'Device type: YubiKey 5\nFirmware version: 5.4.3', exitCode: 0 },
+        ])
+
+        const testProvider = new YubiKeyProvider({
+          encryptedKeyPath: keyPath,
+          serial: '12345678',
+        })
+
+        await expect(testProvider.getPrivateKey(keyPath)).rejects.toThrow(/Invalid encrypted key/)
+      })
+
+      it('should reject encrypted key file with invalid slot', async () => {
+        const keyPath = path.join(mockTmpDir, 'invalid-slot.enc')
+
+        const invalidKeyFile = {
+          version: 1,
+          iv: crypto.randomBytes(12).toString('base64'),
+          authTag: crypto.randomBytes(16).toString('base64'),
+          salt: crypto.randomBytes(32).toString('base64'),
+          challenge: crypto.randomBytes(32).toString('base64'),
+          ciphertext: crypto.randomBytes(100).toString('base64'),
+          slot: 3, // Invalid - only 1 or 2 allowed
+        }
+
+        await fs.writeFile(keyPath, JSON.stringify(invalidKeyFile))
+
+        await setupSpawnMock([
+          { stdout: '12345678', exitCode: 0 },
+          { stdout: 'Device type: YubiKey 5\nFirmware version: 5.4.3', exitCode: 0 },
+        ])
+
+        const testProvider = new YubiKeyProvider({
+          encryptedKeyPath: keyPath,
+          serial: '12345678',
+        })
+
+        await expect(testProvider.getPrivateKey(keyPath)).rejects.toThrow(/Invalid encrypted key/)
+      })
+    })
+
+    describe('buffer size validation', () => {
+      // Note: Buffer size validation errors are sanitized to prevent information leakage
+      // The specific error messages (Invalid IV size, etc.) are internal and not exposed
+      // to callers for security reasons.
+
+      it('should reject encrypted key file with wrong IV size', async () => {
+        const keyPath = path.join(mockTmpDir, 'wrong-iv-size.enc')
+
+        const invalidKeyFile = {
+          version: 1,
+          iv: crypto.randomBytes(8).toString('base64'), // Wrong size: should be 12
+          authTag: crypto.randomBytes(16).toString('base64'),
+          salt: crypto.randomBytes(32).toString('base64'),
+          challenge: crypto.randomBytes(32).toString('base64'),
+          ciphertext: crypto.randomBytes(100).toString('base64'),
+          slot: 2,
+        }
+
+        await fs.writeFile(keyPath, JSON.stringify(invalidKeyFile))
+
+        await setupSpawnMock([
+          { stdout: '12345678\n', exitCode: 0 },
+          { stdout: 'Device type: YubiKey 5\nFirmware version: 5.4.3', exitCode: 0 },
+        ])
+
+        const testProvider = new YubiKeyProvider({
+          encryptedKeyPath: keyPath,
+          serial: '12345678',
+        })
+
+        // Error is sanitized for security
+        await expect(testProvider.getPrivateKey(keyPath)).rejects.toThrow(/Invalid encrypted key/)
+      })
+
+      it('should reject encrypted key file with wrong auth tag size', async () => {
+        const keyPath = path.join(mockTmpDir, 'wrong-authtag-size.enc')
+
+        const invalidKeyFile = {
+          version: 1,
+          iv: crypto.randomBytes(12).toString('base64'),
+          authTag: crypto.randomBytes(8).toString('base64'), // Wrong size: should be 16
+          salt: crypto.randomBytes(32).toString('base64'),
+          challenge: crypto.randomBytes(32).toString('base64'),
+          ciphertext: crypto.randomBytes(100).toString('base64'),
+          slot: 2,
+        }
+
+        await fs.writeFile(keyPath, JSON.stringify(invalidKeyFile))
+
+        await setupSpawnMock([
+          { stdout: '12345678\n', exitCode: 0 },
+          { stdout: 'Device type: YubiKey 5\nFirmware version: 5.4.3', exitCode: 0 },
+        ])
+
+        const testProvider = new YubiKeyProvider({
+          encryptedKeyPath: keyPath,
+          serial: '12345678',
+        })
+
+        // Error is sanitized for security
+        await expect(testProvider.getPrivateKey(keyPath)).rejects.toThrow(/Invalid encrypted key/)
+      })
+
+      it('should reject encrypted key file with wrong salt size', async () => {
+        const keyPath = path.join(mockTmpDir, 'wrong-salt-size.enc')
+
+        const invalidKeyFile = {
+          version: 1,
+          iv: crypto.randomBytes(12).toString('base64'),
+          authTag: crypto.randomBytes(16).toString('base64'),
+          salt: crypto.randomBytes(16).toString('base64'), // Wrong size: should be 32
+          challenge: crypto.randomBytes(32).toString('base64'),
+          ciphertext: crypto.randomBytes(100).toString('base64'),
+          slot: 2,
+        }
+
+        await fs.writeFile(keyPath, JSON.stringify(invalidKeyFile))
+
+        await setupSpawnMock([
+          { stdout: '12345678\n', exitCode: 0 },
+          { stdout: 'Device type: YubiKey 5\nFirmware version: 5.4.3', exitCode: 0 },
+        ])
+
+        const testProvider = new YubiKeyProvider({
+          encryptedKeyPath: keyPath,
+          serial: '12345678',
+        })
+
+        // Error is sanitized for security
+        await expect(testProvider.getPrivateKey(keyPath)).rejects.toThrow(/Invalid encrypted key/)
+      })
+
+      it('should reject encrypted key file with wrong challenge size', async () => {
+        const keyPath = path.join(mockTmpDir, 'wrong-challenge-size.enc')
+
+        const invalidKeyFile = {
+          version: 1,
+          iv: crypto.randomBytes(12).toString('base64'),
+          authTag: crypto.randomBytes(16).toString('base64'),
+          salt: crypto.randomBytes(32).toString('base64'),
+          challenge: crypto.randomBytes(16).toString('base64'), // Wrong size: should be 32
+          ciphertext: crypto.randomBytes(100).toString('base64'),
+          slot: 2,
+        }
+
+        await fs.writeFile(keyPath, JSON.stringify(invalidKeyFile))
+
+        await setupSpawnMock([
+          { stdout: '12345678\n', exitCode: 0 },
+          { stdout: 'Device type: YubiKey 5\nFirmware version: 5.4.3', exitCode: 0 },
+        ])
+
+        const testProvider = new YubiKeyProvider({
+          encryptedKeyPath: keyPath,
+          serial: '12345678',
+        })
+
+        // Error is sanitized for security
+        await expect(testProvider.getPrivateKey(keyPath)).rejects.toThrow(/Invalid encrypted key/)
+      })
     })
   })
 })
