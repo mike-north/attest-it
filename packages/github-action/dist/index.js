@@ -34206,7 +34206,7 @@ init_esm_shims();
 init_chunk_VC3BBBBO();
 init_chunk_VC3BBBBO();
 import * as fs2 from "fs";
-import * as fs6 from "fs/promises";
+import * as fs7 from "fs/promises";
 import * as path6 from "path";
 var import_ms = __toESM(require_ms(), 1);
 var import_yaml = __toESM(require_dist(), 1);
@@ -38272,7 +38272,7 @@ var coerce = {
 var NEVER = INVALID;
 
 // ../core/dist/index.js
-import * as crypto2 from "crypto";
+import * as crypto3 from "crypto";
 
 // ../../node_modules/.pnpm/tinyglobby@0.2.15/node_modules/tinyglobby/dist/index.mjs
 init_esm_shims();
@@ -39448,13 +39448,13 @@ function computeFinalFingerprint(fileHashes) {
   });
   const hashes = sorted.map((input) => input.hash);
   const concatenated = Buffer.concat(hashes);
-  const finalHash = crypto2.createHash("sha256").update(concatenated).digest();
+  const finalHash = crypto3.createHash("sha256").update(concatenated).digest();
   return `sha256:${finalHash.toString("hex")}`;
 }
 async function hashFileAsync(realPath, normalizedPath, stats) {
   if (stats.size > LARGE_FILE_THRESHOLD) {
     return new Promise((resolve32, reject) => {
-      const hash2 = crypto2.createHash("sha256");
+      const hash2 = crypto3.createHash("sha256");
       hash2.update(normalizedPath);
       hash2.update(":");
       const stream = fs2.createReadStream(realPath);
@@ -39468,7 +39468,7 @@ async function hashFileAsync(realPath, normalizedPath, stats) {
     });
   }
   const content = await fs2.promises.readFile(realPath);
-  const hash = crypto2.createHash("sha256");
+  const hash = crypto3.createHash("sha256");
   hash.update(normalizedPath);
   hash.update(":");
   hash.update(content);
@@ -39769,7 +39769,7 @@ var FilesystemKeyProvider = class {
    */
   async keyExists(keyRef) {
     try {
-      await fs6.access(keyRef);
+      await fs7.access(keyRef);
       return true;
     } catch {
       return false;
@@ -39927,7 +39927,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
         `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` + (this.account ? ` (account: ${this.account})` : "")
       );
     }
-    const tempDir = await fs6.mkdtemp(path6.join(os2.tmpdir(), "attest-it-"));
+    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-"));
     const tempKeyPath = path6.join(tempDir, "private.pem");
     try {
       const args = ["document", "get", keyRef, "--vault", this.vault, "--out-file", tempKeyPath];
@@ -39940,8 +39940,8 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
         keyPath: tempKeyPath,
         cleanup: async () => {
           try {
-            await fs6.unlink(tempKeyPath);
-            await fs6.rmdir(tempDir);
+            await fs7.unlink(tempKeyPath);
+            await fs7.rmdir(tempDir);
           } catch (cleanupError) {
             console.warn(
               `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -39951,7 +39951,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
       };
     } catch (error2) {
       try {
-        await fs6.rm(tempDir, { recursive: true, force: true });
+        await fs7.rm(tempDir, { recursive: true, force: true });
       } catch (cleanupError) {
         console.warn(
           `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -39967,7 +39967,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
    */
   async generateKeyPair(options) {
     const { publicKeyPath, force = false } = options;
-    const tempDir = await fs6.mkdtemp(path6.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-keygen-"));
     const tempPrivateKeyPath = path6.join(tempDir, "private.pem");
     try {
       await generateKeyPair({
@@ -39988,8 +39988,8 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
         args.push("--account", this.account);
       }
       await execCommand("op", args);
-      await fs6.unlink(tempPrivateKeyPath);
-      await fs6.rmdir(tempDir);
+      await fs7.unlink(tempPrivateKeyPath);
+      await fs7.rmdir(tempDir);
       return {
         privateKeyRef: this.itemName,
         publicKeyPath,
@@ -39997,7 +39997,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
       };
     } catch (error2) {
       try {
-        await fs6.rm(tempDir, { recursive: true, force: true });
+        await fs7.rm(tempDir, { recursive: true, force: true });
       } catch (cleanupError) {
         console.warn(
           `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -40126,7 +40126,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
         `Key not found in macOS Keychain: "${keyRef}" (account: ${_MacOSKeychainKeyProvider.ACCOUNT})`
       );
     }
-    const tempDir = await fs6.mkdtemp(path6.join(os2.tmpdir(), "attest-it-"));
+    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-"));
     const tempKeyPath = path6.join(tempDir, "private.pem");
     try {
       const findArgs = [
@@ -40142,14 +40142,14 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
       }
       const base64Key = await execCommand2("security", findArgs);
       const keyContent = Buffer.from(base64Key, "base64").toString("utf8");
-      await fs6.writeFile(tempKeyPath, keyContent, { mode: 384 });
+      await fs7.writeFile(tempKeyPath, keyContent, { mode: 384 });
       await setKeyPermissions(tempKeyPath);
       return {
         keyPath: tempKeyPath,
         cleanup: async () => {
           try {
-            await fs6.unlink(tempKeyPath);
-            await fs6.rmdir(tempDir);
+            await fs7.unlink(tempKeyPath);
+            await fs7.rmdir(tempDir);
           } catch (cleanupError) {
             console.warn(
               `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -40159,7 +40159,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
       };
     } catch (error2) {
       try {
-        await fs6.rm(tempDir, { recursive: true, force: true });
+        await fs7.rm(tempDir, { recursive: true, force: true });
       } catch (cleanupError) {
         console.warn(
           `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -40175,7 +40175,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
    */
   async generateKeyPair(options) {
     const { publicKeyPath, force = false } = options;
-    const tempDir = await fs6.mkdtemp(path6.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-keygen-"));
     const tempPrivateKeyPath = path6.join(tempDir, "private.pem");
     try {
       await generateKeyPair({
@@ -40183,7 +40183,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
         publicPath: publicKeyPath,
         force
       });
-      const privateKeyContent = await fs6.readFile(tempPrivateKeyPath, "utf8");
+      const privateKeyContent = await fs7.readFile(tempPrivateKeyPath, "utf8");
       const base64Key = Buffer.from(privateKeyContent, "utf8").toString("base64");
       const addArgs = [
         "add-generic-password",
@@ -40201,8 +40201,8 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
         addArgs.push(this.keychain);
       }
       await execCommand2("security", addArgs);
-      await fs6.unlink(tempPrivateKeyPath);
-      await fs6.rmdir(tempDir);
+      await fs7.unlink(tempPrivateKeyPath);
+      await fs7.rmdir(tempDir);
       return {
         privateKeyRef: this.itemName,
         publicKeyPath,
@@ -40210,7 +40210,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
       };
     } catch (error2) {
       try {
-        await fs6.rm(tempDir, { recursive: true, force: true });
+        await fs7.rm(tempDir, { recursive: true, force: true });
       } catch (cleanupError) {
         console.warn(
           `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -40253,6 +40253,387 @@ async function execCommand2(command, args) {
       reject(error2);
     });
   });
+}
+var YubiKeyProvider = class _YubiKeyProvider {
+  type = "yubikey";
+  displayName = "YubiKey";
+  encryptedKeyPath;
+  slot;
+  serial;
+  /**
+   * Create a new YubiKeyProvider.
+   * @param options - Provider options
+   */
+  constructor(options) {
+    this.encryptedKeyPath = options.encryptedKeyPath;
+    this.slot = options.slot ?? 2;
+    if (options.serial !== void 0) {
+      this.serial = options.serial;
+    }
+  }
+  /**
+   * Check if ykman CLI is installed and available.
+   * @returns true if ykman is available
+   */
+  static async isInstalled() {
+    try {
+      await execCommand3("ykman", ["--version"]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Check if any YubiKey is connected.
+   * @returns true if at least one YubiKey is connected
+   */
+  static async isConnected() {
+    try {
+      const output = await execCommand3("ykman", ["list", "--serials"]);
+      return output.trim().length > 0;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Check if HMAC challenge-response is configured on a slot.
+   * @param slot - Slot number (1 or 2)
+   * @param serial - Optional YubiKey serial number
+   * @returns true if challenge-response is configured
+   */
+  static async isChallengeResponseConfigured(slot = 2, serial) {
+    try {
+      const args = ["otp", "info"];
+      if (serial) {
+        args.unshift("--device", serial);
+      }
+      const output = await execCommand3("ykman", args);
+      const slotPattern = new RegExp(`Slot ${slot}:\\s+programmed.*challenge-response`, "i");
+      return slotPattern.test(output);
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * List connected YubiKeys.
+   * @returns Array of YubiKey information
+   */
+  static async listDevices() {
+    if (!await _YubiKeyProvider.isInstalled()) {
+      return [];
+    }
+    try {
+      const output = await execCommand3("ykman", ["list", "--serials"]);
+      const serials = output.trim().split("\n").filter((s) => s.length > 0);
+      const devices = [];
+      for (const serial of serials) {
+        try {
+          const infoOutput = await execCommand3("ykman", ["--device", serial, "info"]);
+          const typeMatch = /Device type:\s+(.+)/i.exec(infoOutput);
+          const fwMatch = /Firmware version:\s+(.+)/i.exec(infoOutput);
+          devices.push({
+            serial,
+            type: typeMatch?.[1]?.trim() ?? "YubiKey",
+            firmware: fwMatch?.[1]?.trim() ?? "Unknown"
+          });
+        } catch {
+          devices.push({
+            serial,
+            type: "YubiKey",
+            firmware: "Unknown"
+          });
+        }
+      }
+      return devices;
+    } catch {
+      return [];
+    }
+  }
+  /**
+   * Check if this provider is available on the current system.
+   * Requires ykman to be installed.
+   */
+  async isAvailable() {
+    return _YubiKeyProvider.isInstalled();
+  }
+  /**
+   * Check if an encrypted key file exists.
+   * @param keyRef - Path to encrypted key file
+   */
+  async keyExists(keyRef) {
+    try {
+      await fs7.access(keyRef);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Get the private key by decrypting with YubiKey.
+   * Downloads to a temporary file and returns a cleanup function.
+   * @param keyRef - Path to encrypted key file
+   * @throws Error if the key cannot be decrypted
+   */
+  async getPrivateKey(keyRef) {
+    if (!await this.keyExists(keyRef)) {
+      throw new Error(`Encrypted key file not found: ${keyRef}`);
+    }
+    if (!await _YubiKeyProvider.isConnected()) {
+      throw new Error("No YubiKey detected. Please insert your YubiKey and try again.");
+    }
+    const encryptedData = await fs7.readFile(keyRef, "utf8");
+    let keyFile;
+    try {
+      keyFile = JSON.parse(encryptedData);
+    } catch {
+      throw new Error(`Invalid encrypted key file format: ${keyRef}`);
+    }
+    if (keyFile.version !== 1) {
+      throw new Error(`Unsupported encrypted key format version: ${String(keyFile.version)}`);
+    }
+    const expectedSerial = this.serial ?? keyFile.serial;
+    if (expectedSerial) {
+      const devices = await _YubiKeyProvider.listDevices();
+      const matchingDevice = devices.find((d) => d.serial === expectedSerial);
+      if (!matchingDevice) {
+        throw new Error(
+          `YubiKey with serial ${expectedSerial} not found. Connected devices: ${devices.map((d) => d.serial).join(", ") || "none"}`
+        );
+      }
+    }
+    const challenge = Buffer.from(keyFile.challenge, "base64");
+    const response = await performChallengeResponse(challenge, keyFile.slot, expectedSerial);
+    const salt = Buffer.from(keyFile.salt, "base64");
+    const aesKey = deriveKey(response, salt);
+    const iv = Buffer.from(keyFile.iv, "base64");
+    const authTag = Buffer.from(keyFile.authTag, "base64");
+    const ciphertext = Buffer.from(keyFile.ciphertext, "base64");
+    let privateKeyContent;
+    try {
+      const decipher = crypto3.createDecipheriv("aes-256-gcm", aesKey, iv);
+      decipher.setAuthTag(authTag);
+      const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+      privateKeyContent = decrypted.toString("utf8");
+    } catch (err) {
+      throw new Error(
+        `Failed to decrypt private key. Wrong YubiKey or corrupted key file. Details: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-"));
+    const tempKeyPath = path6.join(tempDir, "private.pem");
+    try {
+      await fs7.writeFile(tempKeyPath, privateKeyContent, { mode: 384 });
+      await setKeyPermissions(tempKeyPath);
+      return {
+        keyPath: tempKeyPath,
+        cleanup: async () => {
+          try {
+            const keySize = Buffer.byteLength(privateKeyContent);
+            await fs7.writeFile(tempKeyPath, crypto3.randomBytes(keySize));
+            await fs7.unlink(tempKeyPath);
+            await fs7.rmdir(tempDir);
+          } catch (cleanupError) {
+            console.warn(
+              `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+            );
+          }
+        }
+      };
+    } catch (error2) {
+      try {
+        await fs7.rm(tempDir, { recursive: true, force: true });
+      } catch (cleanupError) {
+        console.warn(
+          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+        );
+      }
+      throw error2;
+    }
+  }
+  /**
+   * Generate a new keypair and store encrypted with YubiKey.
+   * Public key is written to filesystem for repository commit.
+   * @param options - Key generation options
+   */
+  async generateKeyPair(options) {
+    const { publicKeyPath, force = false } = options;
+    if (!await _YubiKeyProvider.isConnected()) {
+      throw new Error("No YubiKey detected. Please insert your YubiKey and try again.");
+    }
+    if (!await _YubiKeyProvider.isChallengeResponseConfigured(this.slot, this.serial)) {
+      throw new Error(
+        `YubiKey slot ${this.slot} is not configured for HMAC challenge-response. Use "ykman otp chalresp --generate 2" to configure it.`
+      );
+    }
+    if (!force && await this.keyExists(this.encryptedKeyPath)) {
+      throw new Error(
+        `Encrypted key file already exists: ${this.encryptedKeyPath}. Use force: true to overwrite.`
+      );
+    }
+    let serial;
+    if (this.serial) {
+      serial = this.serial;
+    } else {
+      const devices = await _YubiKeyProvider.listDevices();
+      if (devices.length === 1 && devices[0]) {
+        serial = devices[0].serial;
+      }
+    }
+    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempPrivateKeyPath = path6.join(tempDir, "private.pem");
+    try {
+      await generateKeyPair({
+        privatePath: tempPrivateKeyPath,
+        publicPath: publicKeyPath,
+        force
+      });
+      const privateKeyContent = await fs7.readFile(tempPrivateKeyPath, "utf8");
+      const challenge = crypto3.randomBytes(32);
+      const salt = crypto3.randomBytes(32);
+      const iv = crypto3.randomBytes(12);
+      const response = await performChallengeResponse(challenge, this.slot, this.serial);
+      const aesKey = deriveKey(response, salt);
+      const cipher = crypto3.createCipheriv("aes-256-gcm", aesKey, iv);
+      const ciphertext = Buffer.concat([
+        cipher.update(Buffer.from(privateKeyContent, "utf8")),
+        cipher.final()
+      ]);
+      const authTag = cipher.getAuthTag();
+      const keyFile = {
+        version: 1,
+        iv: iv.toString("base64"),
+        authTag: authTag.toString("base64"),
+        salt: salt.toString("base64"),
+        challenge: challenge.toString("base64"),
+        ciphertext: ciphertext.toString("base64"),
+        slot: this.slot,
+        ...serial && { serial }
+      };
+      await fs7.mkdir(path6.dirname(this.encryptedKeyPath), { recursive: true });
+      await fs7.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
+      await setKeyPermissions(this.encryptedKeyPath);
+      const keySize = Buffer.byteLength(privateKeyContent);
+      await fs7.writeFile(tempPrivateKeyPath, crypto3.randomBytes(keySize));
+      await fs7.unlink(tempPrivateKeyPath);
+      await fs7.rmdir(tempDir);
+      return {
+        privateKeyRef: this.encryptedKeyPath,
+        publicKeyPath,
+        storageDescription: `YubiKey-encrypted: ${this.encryptedKeyPath}`
+      };
+    } catch (error2) {
+      try {
+        await fs7.rm(tempDir, { recursive: true, force: true });
+      } catch (cleanupError) {
+        console.warn(
+          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+        );
+      }
+      throw error2;
+    }
+  }
+  /**
+     * Encrypt an existing private key with YubiKey challenge-response.
+     *
+     * @remarks
+     * This static method allows encrypting a private key that was generated
+     * elsewhere (e.g., by the CLI) without having to create a provider instance first.
+     *
+     * @param options - Encryption options
+     * @returns Path to the encrypted key file and storage description
+     * @public
+     */
+  static async encryptPrivateKey(options) {
+    const { privateKey, encryptedKeyPath, slot = 2, serial } = options;
+    if (!await _YubiKeyProvider.isConnected()) {
+      throw new Error("No YubiKey detected. Please insert your YubiKey and try again.");
+    }
+    if (!await _YubiKeyProvider.isChallengeResponseConfigured(slot, serial)) {
+      throw new Error(
+        `YubiKey slot ${slot} is not configured for HMAC challenge-response. Use "ykman otp chalresp --generate 2" to configure it.`
+      );
+    }
+    const challenge = crypto3.randomBytes(32);
+    const salt = crypto3.randomBytes(32);
+    const iv = crypto3.randomBytes(12);
+    const response = await performChallengeResponse(challenge, slot, serial);
+    const aesKey = deriveKey(response, salt);
+    const cipher = crypto3.createCipheriv("aes-256-gcm", aesKey, iv);
+    const ciphertext = Buffer.concat([cipher.update(Buffer.from(privateKey, "utf8")), cipher.final()]);
+    const authTag = cipher.getAuthTag();
+    const keyFile = {
+      version: 1,
+      iv: iv.toString("base64"),
+      authTag: authTag.toString("base64"),
+      salt: salt.toString("base64"),
+      challenge: challenge.toString("base64"),
+      ciphertext: ciphertext.toString("base64"),
+      slot,
+      ...serial && { serial }
+    };
+    await fs7.mkdir(path6.dirname(encryptedKeyPath), { recursive: true });
+    await fs7.writeFile(encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
+    await setKeyPermissions(encryptedKeyPath);
+    return {
+      encryptedKeyPath,
+      storageDescription: `YubiKey-encrypted: ${encryptedKeyPath}`
+    };
+  }
+  /**
+   * Get the configuration for this provider.
+   */
+  getConfig() {
+    return {
+      type: this.type,
+      options: {
+        encryptedKeyPath: this.encryptedKeyPath,
+        slot: this.slot,
+        ...this.serial && { serial: this.serial }
+      }
+    };
+  }
+};
+async function execCommand3(command, args) {
+  return new Promise((resolve32, reject) => {
+    const proc = spawn2(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolve32(stdout.trim());
+      } else {
+        reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
+      }
+    });
+    proc.on("error", (error2) => {
+      reject(error2);
+    });
+  });
+}
+async function performChallengeResponse(challenge, slot, serial) {
+  const args = ["otp", "chalresp", "--slot", String(slot)];
+  if (serial) {
+    args.unshift("--device", serial);
+  }
+  args.push(challenge.toString("hex"));
+  try {
+    const output = await execCommand3("ykman", args);
+    return Buffer.from(output.trim(), "hex");
+  } catch (err) {
+    throw new Error(
+      `YubiKey challenge-response failed: ${err instanceof Error ? err.message : String(err)}. Make sure your YubiKey is inserted and slot is configured for challenge-response.`
+    );
+  }
+}
+function deriveKey(response, salt) {
+  const derived = crypto3.hkdfSync("sha256", response, salt, "attest-it-yubikey-v1", 32);
+  return Buffer.from(derived);
 }
 var KeyProviderRegistry = class {
   static providers = /* @__PURE__ */ new Map();
@@ -40314,6 +40695,25 @@ KeyProviderRegistry.register("macos-keychain", (config) => {
     throw new Error("macOS Keychain provider requires itemName option");
   }
   return new MacOSKeychainKeyProvider({ itemName });
+});
+KeyProviderRegistry.register("yubikey", (config) => {
+  const { options } = config;
+  const encryptedKeyPath = typeof options.encryptedKeyPath === "string" ? options.encryptedKeyPath : "";
+  if (!encryptedKeyPath) {
+    throw new Error("YubiKey provider requires encryptedKeyPath option");
+  }
+  const slot = typeof options.slot === "number" && (options.slot === 1 || options.slot === 2) ? options.slot : void 0;
+  const serial = typeof options.serial === "string" ? options.serial : void 0;
+  const providerOptions = {
+    encryptedKeyPath
+  };
+  if (slot !== void 0) {
+    providerOptions.slot = slot;
+  }
+  if (serial !== void 0) {
+    providerOptions.serial = serial;
+  }
+  return new YubiKeyProvider(providerOptions);
 });
 var privateKeyRefSchema = external_exports.discriminatedUnion("type", [
   external_exports.object({

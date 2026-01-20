@@ -7,6 +7,7 @@ import {
   getAttestItConfigDir,
   OnePasswordKeyProvider,
   MacOSKeychainKeyProvider,
+  YubiKeyProvider,
 } from '@attest-it/core'
 import type { Identity, LocalConfig, PrivateKeyRef } from '@attest-it/core'
 import { log, success, error, info, getTheme } from '../../utils/output.js'
@@ -71,6 +72,8 @@ async function runCreate(): Promise<void> {
     info('Checking available key storage providers...')
     const opAvailable = await OnePasswordKeyProvider.isInstalled()
     const keychainAvailable = MacOSKeychainKeyProvider.isAvailable()
+    const yubikeyInstalled = await YubiKeyProvider.isInstalled()
+    const yubikeyConnected = yubikeyInstalled ? await YubiKeyProvider.isConnected() : false
 
     // Build choices based on availability
     const configDir = getAttestItConfigDir()
@@ -84,6 +87,13 @@ async function runCreate(): Promise<void> {
 
     if (opAvailable) {
       storageChoices.push({ name: '1Password', value: '1password' })
+    }
+
+    if (yubikeyInstalled) {
+      const yubikeyLabel = yubikeyConnected
+        ? 'YubiKey (encrypted with challenge-response)'
+        : 'YubiKey (not connected - insert YubiKey first)'
+      storageChoices.push({ name: yubikeyLabel, value: 'yubikey' })
     }
 
     // Prompt for key storage type
@@ -353,6 +363,90 @@ async function runCreate(): Promise<void> {
           ...(selectedAccount && { account: selectedAccount }),
         }
         keyStorageDescription = `1Password (${selectedVault}/${item})`
+        break
+      }
+      case 'yubikey': {
+        // Check if YubiKey is connected
+        if (!(await YubiKeyProvider.isConnected())) {
+          error('No YubiKey detected. Please insert your YubiKey and try again.')
+          process.exit(ExitCode.CONFIG_ERROR)
+        }
+
+        // List connected YubiKeys
+        const yubikeys = await YubiKeyProvider.listDevices()
+
+        if (yubikeys.length === 0) {
+          throw new Error('No YubiKeys detected. Please insert a YubiKey and try again.')
+        }
+
+        // Format YubiKey display
+        const formatYubiKeyChoice = (yk: { serial: string; type: string; firmware: string }): string => {
+          return `${theme.blue.bold()(yk.type)} ${theme.muted(`(Serial: ${yk.serial}, FW: ${yk.firmware})`)}`
+        }
+
+        // Select YubiKey (auto-select if only one)
+        let selectedSerial: string | undefined
+        if (yubikeys.length === 1 && yubikeys[0]) {
+          selectedSerial = yubikeys[0].serial
+          info(`Using YubiKey: ${formatYubiKeyChoice(yubikeys[0])}`)
+        } else {
+          selectedSerial = await select({
+            message: 'Select YubiKey:',
+            choices: yubikeys.map((yk) => ({
+              name: formatYubiKeyChoice(yk),
+              value: yk.serial,
+            })),
+          })
+        }
+
+        // Check if challenge-response is configured on slot 2
+        const slot: 1 | 2 = 2 // Default to slot 2 for challenge-response
+        const isChallengeResponseConfigured = await YubiKeyProvider.isChallengeResponseConfigured(slot, selectedSerial)
+
+        if (!isChallengeResponseConfigured) {
+          log('')
+          error(`YubiKey slot ${slot} is not configured for HMAC challenge-response.`)
+          log('')
+          log('To configure it, run:')
+          log(theme.blue()(`  ykman otp chalresp --generate ${slot}`))
+          log('')
+          log('This will configure slot 2 with a randomly generated secret.')
+          log(theme.muted('Note: Make sure to back up the secret if needed for recovery.'))
+          process.exit(ExitCode.CONFIG_ERROR)
+        }
+
+        // Prompt for encrypted key file name
+        const encryptedKeyName = await input({
+          message: 'Encrypted key file name:',
+          default: `${slug}.enc`,
+          validate: (value) => {
+            if (!value || value.trim().length === 0) {
+              return 'File name cannot be empty'
+            }
+            return true
+          },
+        })
+
+        // Determine encrypted key path
+        const keysDir = join(getAttestItConfigDir(), 'keys')
+        await mkdir(keysDir, { recursive: true })
+        const encryptedKeyPath = join(keysDir, encryptedKeyName)
+
+        // Encrypt the private key with YubiKey challenge-response
+        const result = await YubiKeyProvider.encryptPrivateKey({
+          privateKey: keyPair.privateKey,
+          encryptedKeyPath,
+          slot,
+          serial: selectedSerial,
+        })
+
+        privateKeyRef = {
+          type: 'yubikey',
+          encryptedKeyPath: result.encryptedKeyPath,
+          slot,
+          serial: selectedSerial,
+        }
+        keyStorageDescription = result.storageDescription
         break
       }
       default:

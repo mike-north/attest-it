@@ -28,6 +28,11 @@ export function formatKeyLocation(privateKey: PrivateKeyRef): string {
       }
       return `${theme.blue.bold()('1Password')}: ${theme.muted(parts.join('/'))}`
     }
+    case 'yubikey': {
+      const slotInfo = privateKey.slot ? ` (slot ${privateKey.slot})` : ''
+      const serialInfo = privateKey.serial ? ` [${privateKey.serial}]` : ''
+      return `${theme.blue.bold()('YubiKey')}${serialInfo}${slotInfo}: ${theme.muted(privateKey.encryptedKeyPath)}`
+    }
     default:
       return 'Unknown storage'
   }
