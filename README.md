@@ -26,7 +26,7 @@ npx attest-it verify
 
 ## How It Works
 
-1. **Identity** - Your Ed25519 keypair (stored in 1Password, Keychain, or filesystem)
+1. **Identity** - Your Ed25519 keypair (stored in 1Password, Keychain, YubiKey, or filesystem)
 2. **Gates** - Define what code needs attestation and who can sign
 3. **Seals** - Run tests, confirm they passed, create cryptographic signature
 4. **Verify** - CI checks signatures against team member public keys
@@ -36,7 +36,7 @@ npx attest-it verify
 The primary threat is an AI assistant creating a fake attestation. attest-it prevents this with:
 
 - **Asymmetric crypto**: Private keys never enter the repo
-- **Secure storage**: Keys stored in 1Password, macOS Keychain, or encrypted files
+- **Secure storage**: Keys stored in 1Password, macOS Keychain, YubiKey, or encrypted files
 - **Team authorization**: Each gate specifies who can sign
 - **Fingerprinting**: Code changes invalidate seals
 
@@ -215,6 +215,46 @@ Seals become invalid when:
 - Signer is removed from team configuration
 - Signer is removed from gate's authorizedSigners
 
+## Key Storage Options
+
+When you run `attest-it identity create`, you can choose where to store your private key:
+
+### File System (Default)
+
+Keys are stored as PEM files in `~/.attest-it/keys/`. Simple but requires you to protect the file.
+
+### macOS Keychain
+
+Keys are stored in your login keychain, protected by your system password. Available only on macOS.
+
+### 1Password
+
+Keys are stored as secure documents in your 1Password vault. Requires the 1Password CLI (`op`) to be installed and signed in.
+
+### YubiKey (Hardware Security)
+
+**Most secure option.** Your private key is encrypted using your YubiKey's HMAC-SHA1 challenge-response feature. The encrypted key is stored on disk, but can only be decrypted when your physical YubiKey is present.
+
+**Setup requirements:**
+
+1. Install YubiKey Manager: `brew install ykman`
+2. Configure slot 2 for challenge-response: `ykman otp chalresp --generate 2`
+3. Run `attest-it identity create` and select "YubiKey"
+
+**How it works:**
+
+- A random challenge is generated and sent to the YubiKey
+- The YubiKey returns an HMAC-SHA1 response using its internal secret
+- This response is used to derive an AES-256 encryption key
+- Your Ed25519 private key is encrypted with AES-256-GCM
+- The encrypted key file includes the challenge, so only your specific YubiKey can decrypt it
+
+**Security benefits:**
+
+- Private key cannot be extracted without physical possession of the YubiKey
+- Even if your computer is compromised, attackers cannot sign attestations
+- Optional serial number binding prevents use with different YubiKeys
+
 ## Requirements
 
 - Node.js 20+
@@ -224,6 +264,7 @@ Seals become invalid when:
 
 - 1Password CLI (`op`) for 1Password key storage
 - macOS for Keychain key storage
+- YubiKey with `ykman` CLI for hardware-protected key storage
 
 ## Contributing
 
