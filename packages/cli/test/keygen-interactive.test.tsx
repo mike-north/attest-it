@@ -462,7 +462,8 @@ describe('KeygenInteractive - Duplicate Key Regression Tests', () => {
     // Should NOT have React duplicate key warning
     const duplicateKeyWarnings = consoleErrorSpy.mock.calls.filter(
       (call) =>
-        typeof call[0] === 'string' && call[0].includes('Encountered two children with the same key'),
+        typeof call[0] === 'string' &&
+        call[0].includes('Encountered two children with the same key'),
     )
     expect(duplicateKeyWarnings).toHaveLength(0)
   })
@@ -495,7 +496,8 @@ describe('KeygenInteractive - Duplicate Key Regression Tests', () => {
     // Should NOT have React duplicate key warning
     const duplicateKeyWarnings = consoleErrorSpy.mock.calls.filter(
       (call) =>
-        typeof call[0] === 'string' && call[0].includes('Encountered two children with the same key'),
+        typeof call[0] === 'string' &&
+        call[0].includes('Encountered two children with the same key'),
     )
     expect(duplicateKeyWarnings).toHaveLength(0)
   })
