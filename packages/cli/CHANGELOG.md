@@ -1,5 +1,11 @@
 # @attest-it/cli
 
+## 0.6.1
+
+### Patch Changes
+
+- e885162: Fix React "duplicate key" warning when multiple 1Password accounts share the same email address. The Select component now uses unique identifiers (user_uuid for accounts, vault ID for vaults) instead of potentially duplicate values (email, vault name).
+
 ## 0.6.0
 
 ### Minor Changes
