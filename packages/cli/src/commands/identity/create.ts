@@ -412,10 +412,10 @@ async function runCreate(): Promise<void> {
 
         if (!isChallengeResponseConfigured) {
           log('')
-          error(`YubiKey slot ${slot} is not configured for HMAC challenge-response.`)
+          error(`YubiKey slot ${String(slot)} is not configured for HMAC challenge-response.`)
           log('')
           log('To configure it, run:')
-          log(theme.blue()(`  ykman otp chalresp --generate ${slot}`))
+          log(theme.blue(`  ykman otp chalresp --generate ${String(slot)}`))
           log('')
           log('This will configure slot 2 with a randomly generated secret.')
           log(theme.muted('Note: Make sure to back up the secret if needed for recovery.'))

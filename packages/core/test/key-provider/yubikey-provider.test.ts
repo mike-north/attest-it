@@ -15,7 +15,7 @@ import { YubiKeyProvider } from '../../src/key-provider/yubikey-provider.js'
 
 // Mock child_process.spawn for YubiKey CLI interactions
 vi.mock('node:child_process', async (importOriginal) => {
-  const original = (await importOriginal()) as typeof import('node:child_process')
+  const original = await importOriginal<typeof import('node:child_process')>()
   return {
     ...original,
     spawn: vi.fn(),
@@ -24,8 +24,9 @@ vi.mock('node:child_process', async (importOriginal) => {
 
 // Helper to get mocked spawn
 async function getMockedSpawn(): Promise<Mock> {
-  const { spawn } = await import('node:child_process')
-  return spawn as unknown as Mock
+  const childProcess = await import('node:child_process')
+  // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+  return childProcess.spawn as unknown as Mock
 }
 
 describe('YubiKeyProvider', () => {
@@ -242,7 +243,8 @@ describe('YubiKeyProvider', () => {
 
       // Verify the file was written correctly
       const content = await fs.readFile(keyPath, 'utf8')
-      const parsed = JSON.parse(content)
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+      const parsed = JSON.parse(content) as Record<string, unknown>
 
       expect(parsed.version).toBe(1)
       expect(parsed.slot).toBe(2)
@@ -340,10 +342,10 @@ describe('YubiKeyProvider', () => {
       stderr: { on: Mock }
       on: Mock
     } {
-      const stdoutCallbacks: Array<(data: Buffer) => void> = []
-      const stderrCallbacks: Array<(data: Buffer) => void> = []
-      const closeCallbacks: Array<(code: number) => void> = []
-      const errorCallbacks: Array<(error: Error) => void> = []
+      const stdoutCallbacks: ((data: Buffer) => void)[] = []
+      const stderrCallbacks: ((data: Buffer) => void)[] = []
+      const closeCallbacks: ((code: number) => void)[] = []
+      const errorCallbacks: ((error: Error) => void)[] = []
 
       const mockProc = {
         stdout: {
@@ -351,7 +353,9 @@ describe('YubiKeyProvider', () => {
             if (event === 'data') {
               stdoutCallbacks.push(callback)
               // Emit the data immediately
-              process.nextTick(() => callback(Buffer.from(stdout)))
+              process.nextTick(() => {
+                callback(Buffer.from(stdout))
+              })
             }
           }),
         },
@@ -365,12 +369,17 @@ describe('YubiKeyProvider', () => {
         on: vi.fn(
           (event: string, callback: ((code: number) => void) | ((error: Error) => void)) => {
             if (event === 'close') {
-              closeCallbacks.push(callback as (code: number) => void)
+              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+              const closeCallback = callback as (code: number) => void
+              closeCallbacks.push(closeCallback)
               // Emit close after data
-              process.nextTick(() =>
-                process.nextTick(() => (callback as (code: number) => void)(exitCode)),
-              )
+              process.nextTick(() => {
+                process.nextTick(() => {
+                  closeCallback(exitCode)
+                })
+              })
             } else if (event === 'error') {
+              // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
               errorCallbacks.push(callback as (error: Error) => void)
             }
           },
@@ -384,7 +393,7 @@ describe('YubiKeyProvider', () => {
      * Helper to set up spawn mock for multiple sequential calls.
      */
     async function setupSpawnMock(
-      responses: Array<{ stdout: string; exitCode?: number }>,
+      responses: { stdout: string; exitCode?: number }[],
     ): Promise<void> {
       const mockedSpawn = await getMockedSpawn()
       let callIndex = 0
@@ -432,6 +441,7 @@ MC4CAQAwBQYDK2VwBCIEIKgHJ1234567890abcdefghijklmnopqrstuvwxyz
 
         // Verify encrypted file was created
         const encryptedContent = await fs.readFile(encryptedKeyPath, 'utf8')
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
         const encryptedData = JSON.parse(encryptedContent) as Record<string, unknown>
 
         expect(encryptedData.version).toBe(1)
@@ -463,11 +473,14 @@ MC4CAQAwBQYDK2VwBCIEIKgHJ1234567890abcdefghijklmnopqrstuvwxyz
         })
 
         const encryptedContent = await fs.readFile(encryptedKeyPath, 'utf8')
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
         const encryptedData = JSON.parse(encryptedContent) as Record<string, unknown>
 
         // Verify AAD is present and contains expected metadata
         expect(encryptedData.aad).toBeDefined()
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
         const aadBuffer = Buffer.from(encryptedData.aad as string, 'base64')
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
         const aadObject = JSON.parse(aadBuffer.toString('utf8')) as Record<string, unknown>
 
         expect(aadObject.version).toBe(1)
@@ -480,6 +493,7 @@ MC4CAQAwBQYDK2VwBCIEIKgHJ1234567890abcdefghijklmnopqrstuvwxyz
         const fixedResponseHex = fixedResponse.toString('hex')
 
         // Suppress console.warn for this test
+        // eslint-disable-next-line @typescript-eslint/no-empty-function
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
         await setupSpawnMock([
@@ -498,9 +512,12 @@ MC4CAQAwBQYDK2VwBCIEIKgHJ1234567890abcdefghijklmnopqrstuvwxyz
         })
 
         const encryptedContent = await fs.readFile(encryptedKeyPath, 'utf8')
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
         const encryptedData = JSON.parse(encryptedContent) as Record<string, unknown>
 
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
         const aadBuffer = Buffer.from(encryptedData.aad as string, 'base64')
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
         const aadObject = JSON.parse(aadBuffer.toString('utf8')) as Record<string, unknown>
 
         expect(aadObject.serial).toBe('unspecified')

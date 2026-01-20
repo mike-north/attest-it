@@ -151,22 +151,22 @@ function validateEncryptedKeyFile(data: unknown): EncryptedKeyFile {
   // Validate decoded buffer sizes
   const iv = Buffer.from(parsed.iv, 'base64')
   if (iv.length !== 12) {
-    throw new Error(`Invalid IV size: expected 12 bytes, got ${iv.length}`)
+    throw new Error(`Invalid IV size: expected 12 bytes, got ${String(iv.length)}`)
   }
 
   const authTag = Buffer.from(parsed.authTag, 'base64')
   if (authTag.length !== 16) {
-    throw new Error(`Invalid auth tag size: expected 16 bytes, got ${authTag.length}`)
+    throw new Error(`Invalid auth tag size: expected 16 bytes, got ${String(authTag.length)}`)
   }
 
   const salt = Buffer.from(parsed.salt, 'base64')
   if (salt.length !== 32) {
-    throw new Error(`Invalid salt size: expected 32 bytes, got ${salt.length}`)
+    throw new Error(`Invalid salt size: expected 32 bytes, got ${String(salt.length)}`)
   }
 
   const challenge = Buffer.from(parsed.challenge, 'base64')
   if (challenge.length !== 32) {
-    throw new Error(`Invalid challenge size: expected 32 bytes, got ${challenge.length}`)
+    throw new Error(`Invalid challenge size: expected 32 bytes, got ${String(challenge.length)}`)
   }
 
   return parsed
@@ -277,7 +277,7 @@ export class YubiKeyProvider implements KeyProvider {
       }
       const output = await execCommand('ykman', args)
       // Look for "Slot X: programmed (challenge-response)" pattern
-      const slotPattern = new RegExp(`Slot ${slot}:\\s+programmed.*challenge-response`, 'i')
+      const slotPattern = new RegExp(`Slot ${String(slot)}:\\s+programmed.*challenge-response`, 'i')
       return slotPattern.test(output)
     } catch {
       return false
@@ -372,7 +372,7 @@ export class YubiKeyProvider implements KeyProvider {
     const encryptedData = await fs.readFile(keyRef, 'utf8')
     let keyFile: EncryptedKeyFile
     try {
-      const parsed = JSON.parse(encryptedData) as unknown
+      const parsed: unknown = JSON.parse(encryptedData)
       keyFile = validateEncryptedKeyFile(parsed)
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -491,7 +491,7 @@ export class YubiKeyProvider implements KeyProvider {
     // Check if challenge-response is configured (this also verifies YubiKey is connected)
     if (!(await YubiKeyProvider.isChallengeResponseConfigured(this.slot, this.serial))) {
       throw new Error(
-        `YubiKey slot ${this.slot} is not configured for HMAC challenge-response. ` +
+        `YubiKey slot ${String(this.slot)} is not configured for HMAC challenge-response. ` +
           'Ensure your YubiKey is connected and use "ykman otp chalresp --generate 2" to configure it.',
       )
     }
@@ -648,7 +648,7 @@ export class YubiKeyProvider implements KeyProvider {
     // Check if challenge-response is configured (this also verifies YubiKey is connected)
     if (!(await YubiKeyProvider.isChallengeResponseConfigured(slot, serial))) {
       throw new Error(
-        `YubiKey slot ${slot} is not configured for HMAC challenge-response. ` +
+        `YubiKey slot ${String(slot)} is not configured for HMAC challenge-response. ` +
           'Ensure your YubiKey is connected and use "ykman otp chalresp --generate 2" to configure it.',
       )
     }

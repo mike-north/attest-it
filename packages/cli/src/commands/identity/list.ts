@@ -51,6 +51,9 @@ async function runList(): Promise<void> {
         case '1password':
           keyType = '1password'
           break
+        case 'yubikey':
+          keyType = 'yubikey'
+          break
       }
 
       log(`${marker} ${theme.blue(slug)}`)
