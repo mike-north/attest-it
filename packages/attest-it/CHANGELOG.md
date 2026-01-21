@@ -1,5 +1,14 @@
 # attest-it
 
+## 0.8.0
+
+### Patch Changes
+
+- Updated dependencies [16ede3f]
+- Updated dependencies [16ede3f]
+  - @attest-it/cli@0.8.0
+  - @attest-it/core@0.8.0
+
 ## 0.7.0
 
 ### Patch Changes
