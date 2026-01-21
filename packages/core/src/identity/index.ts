@@ -19,7 +19,16 @@ export {
   saveLocalConfigSync,
   getActiveIdentity,
   LocalConfigValidationError,
+  // Public key storage
+  getHomePublicKeysDir,
+  getProjectPublicKeysDir,
+  hasProjectConfig,
+  savePublicKey,
+  savePublicKeySync,
 } from './config.js'
+
+// Types for public key storage
+export type { SavePublicKeyResult } from './config.js'
 
 // Preferences functions
 export {

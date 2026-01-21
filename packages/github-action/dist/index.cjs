@@ -19944,7 +19944,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
-// ../core/dist/chunk-VC3BBBBO.js
+// ../core/dist/chunk-T3NLSO5B.js
 async function runOpenSSL(args, stdin) {
   return new Promise((resolve5, reject) => {
     const child = (0, import_child_process.spawn)("openssl", args, {
@@ -20001,6 +20001,14 @@ function getDefaultPrivateKeyPath() {
 }
 function getDefaultPublicKeyPath() {
   return path.join(process.cwd(), "attest-it-public.pem");
+}
+function getDefaultYubiKeyEncryptedKeyPath() {
+  const homeDir = os.homedir();
+  if (process.platform === "win32") {
+    const appData = process.env.APPDATA ?? path.join(homeDir, "AppData", "Roaming");
+    return path.join(appData, "attest-it", "yubikey-private.enc");
+  }
+  return path.join(homeDir, ".config", "attest-it", "yubikey-private.enc");
 }
 async function ensureDir(dirPath) {
   try {
@@ -20161,8 +20169,8 @@ async function setKeyPermissions(keyPath) {
   }
 }
 var import_child_process, fs, path, os, openSSLChecked;
-var init_chunk_VC3BBBBO = __esm({
-  "../core/dist/chunk-VC3BBBBO.js"() {
+var init_chunk_T3NLSO5B = __esm({
+  "../core/dist/chunk-T3NLSO5B.js"() {
     "use strict";
     init_cjs_shims();
     import_child_process = require("child_process");
@@ -29214,22 +29222,23 @@ var require_canonicalize = __commonJS({
   }
 });
 
-// ../core/dist/crypto-CE2YISRD.js
-var crypto_CE2YISRD_exports = {};
-__export(crypto_CE2YISRD_exports, {
+// ../core/dist/crypto-VT6YNHUE.js
+var crypto_VT6YNHUE_exports = {};
+__export(crypto_VT6YNHUE_exports, {
   checkOpenSSL: () => checkOpenSSL,
   generateKeyPair: () => generateKeyPair,
   getDefaultPrivateKeyPath: () => getDefaultPrivateKeyPath,
   getDefaultPublicKeyPath: () => getDefaultPublicKeyPath,
+  getDefaultYubiKeyEncryptedKeyPath: () => getDefaultYubiKeyEncryptedKeyPath,
   setKeyPermissions: () => setKeyPermissions,
   sign: () => sign,
   verify: () => verify
 });
-var init_crypto_CE2YISRD = __esm({
-  "../core/dist/crypto-CE2YISRD.js"() {
+var init_crypto_VT6YNHUE = __esm({
+  "../core/dist/crypto-VT6YNHUE.js"() {
     "use strict";
     init_cjs_shims();
-    init_chunk_VC3BBBBO();
+    init_chunk_T3NLSO5B();
   }
 });
 
@@ -34204,8 +34213,8 @@ var import_node_path = require("path");
 
 // ../core/dist/index.js
 init_cjs_shims();
-init_chunk_VC3BBBBO();
-init_chunk_VC3BBBBO();
+init_chunk_T3NLSO5B();
+init_chunk_T3NLSO5B();
 var fs2 = __toESM(require("fs"), 1);
 var fs7 = __toESM(require("fs/promises"), 1);
 var path6 = __toESM(require("path"), 1);
@@ -39596,7 +39605,7 @@ function canonicalizeAttestations(attestations) {
   return canonical;
 }
 async function readAndVerifyAttestations(options) {
-  const { verify: verify4 } = await Promise.resolve().then(() => (init_crypto_CE2YISRD(), crypto_CE2YISRD_exports));
+  const { verify: verify4 } = await Promise.resolve().then(() => (init_crypto_VT6YNHUE(), crypto_VT6YNHUE_exports));
   const file = await readAttestations(options.filePath);
   if (!file) {
     throw new Error(`Attestations file not found: ${options.filePath}`);
@@ -39854,7 +39863,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
   }
   /**
    * List all 1Password accounts.
-   * @returns Array of account information
+   * @returns Array of account information including human-readable names
    */
   static async listAccounts() {
     try {
@@ -39863,7 +39872,27 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
       if (!Array.isArray(parsed)) {
         return [];
       }
-      return parsed;
+      const basicAccounts = parsed;
+      const accountsWithNames = await Promise.all(
+        basicAccounts.map(async (account) => {
+          try {
+            const detailOutput = await execCommand("op", [
+              "account",
+              "get",
+              "--account",
+              account.email,
+              "--format=json"
+            ]);
+            const details = JSON.parse(detailOutput);
+            if (details !== null && typeof details === "object" && "name" in details && typeof details.name === "string") {
+              return { ...account, name: details.name };
+            }
+          } catch {
+          }
+          return account;
+        })
+      );
+      return accountsWithNames;
     } catch (error2) {
       if (process.env.NODE_ENV !== "production") {
         console.error("Failed to list 1Password accounts:", error2);

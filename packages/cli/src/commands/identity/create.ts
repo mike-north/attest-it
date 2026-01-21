@@ -8,6 +8,7 @@ import {
   OnePasswordKeyProvider,
   MacOSKeychainKeyProvider,
   YubiKeyProvider,
+  savePublicKey,
 } from '@attest-it/core'
 import type { Identity, LocalConfig, PrivateKeyRef } from '@attest-it/core'
 import { log, success, error, info, getTheme } from '../../utils/output.js'
@@ -493,6 +494,9 @@ async function runCreate(): Promise<void> {
     // Save config
     await saveLocalConfig(newConfig)
 
+    // Save public key to home and project directories
+    const publicKeyResult = await savePublicKey(slug, keyPair.publicKey)
+
     log('')
     success('Identity created successfully')
     log('')
@@ -506,6 +510,12 @@ async function runCreate(): Promise<void> {
     }
     log(`  Public Key:  ${keyPair.publicKey.slice(0, 32)}...`)
     log(`  Private Key: ${keyStorageDescription}`)
+    log('')
+    log(theme.blue.bold()('Public key saved to:'))
+    log(`  ${publicKeyResult.homePath}`)
+    if (publicKeyResult.projectPath) {
+      log(`  ${publicKeyResult.projectPath}`)
+    }
     log('')
 
     if (!existingConfig) {
