@@ -9,5 +9,5 @@ Configuration schema version
 **Signature:**
 
 ```typescript
-version: 1;
+version: 1
 ```

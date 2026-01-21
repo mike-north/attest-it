@@ -9,8 +9,9 @@ Check if OpenSSL is available and get version info.
 **Signature:**
 
 ```typescript
-declare function checkOpenSSL(): Promise<string>;
+declare function checkOpenSSL(): Promise<string>
 ```
+
 **Returns:**
 
 Promise&lt;string&gt;
@@ -20,4 +21,3 @@ OpenSSL version string
 ## Exceptions
 
 Error if OpenSSL is not available
-

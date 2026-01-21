@@ -9,5 +9,5 @@ Path to read the attestations file from
 **Signature:**
 
 ```typescript
-filePath: string;
+filePath: string
 ```

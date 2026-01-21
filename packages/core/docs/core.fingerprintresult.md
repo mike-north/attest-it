@@ -9,7 +9,7 @@ Result of computing a package fingerprint.
 **Signature:**
 
 ```typescript
-interface FingerprintResult 
+interface FingerprintResult
 ```
 
 ## Properties
@@ -18,79 +18,62 @@ interface FingerprintResult
 
 Property
 
-
 </th><th>
 
 Modifiers
-
 
 </th><th>
 
 Type
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [fileCount](./core.fingerprintresult.filecount.md)
 
-
 </td><td>
-
 
 </td><td>
 
 number
 
-
 </td><td>
 
 Number of files processed
-
 
 </td></tr>
 <tr><td>
 
 [files](./core.fingerprintresult.files.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string\[\]
 
-
 </td><td>
 
 List of files included in fingerprint calculation
-
 
 </td></tr>
 <tr><td>
 
 [fingerprint](./core.fingerprintresult.fingerprint.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string
 
-
 </td><td>
 
 The fingerprint in "sha256:..." format
 
-
 </td></tr>
 </tbody></table>
-

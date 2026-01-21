@@ -9,5 +9,5 @@ Base64-encoded signature to verify
 **Signature:**
 
 ```typescript
-signature: string;
+signature: string
 ```

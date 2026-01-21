@@ -9,5 +9,5 @@ Path to the public key file
 **Signature:**
 
 ```typescript
-publicPath: string;
+publicPath: string
 ```

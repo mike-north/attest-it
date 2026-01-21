@@ -9,5 +9,11 @@ Verification status codes for suite attestations.
 **Signature:**
 
 ```typescript
-type VerificationStatus = 'VALID' | 'NEEDS_ATTESTATION' | 'FINGERPRINT_CHANGED' | 'EXPIRED' | 'INVALIDATED_BY_PARENT' | 'SIGNATURE_INVALID';
+type VerificationStatus =
+  | 'VALID'
+  | 'NEEDS_ATTESTATION'
+  | 'FINGERPRINT_CHANGED'
+  | 'EXPIRED'
+  | 'INVALIDATED_BY_PARENT'
+  | 'SIGNATURE_INVALID'
 ```

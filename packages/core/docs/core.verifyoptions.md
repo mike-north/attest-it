@@ -9,7 +9,7 @@ Options for verifying attestations.
 **Signature:**
 
 ```typescript
-interface VerifyOptions 
+interface VerifyOptions
 ```
 
 ## Properties
@@ -18,60 +18,47 @@ interface VerifyOptions
 
 Property
 
-
 </th><th>
 
 Modifiers
-
 
 </th><th>
 
 Type
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [config](./core.verifyoptions.config.md)
 
-
 </td><td>
-
 
 </td><td>
 
 [AttestItConfig](./core.attestitconfig.md)
 
-
 </td><td>
 
 Configuration object
-
 
 </td></tr>
 <tr><td>
 
 [repoRoot?](./core.verifyoptions.reporoot.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string
 
-
 </td><td>
 
 _(Optional)_ Repository root directory (defaults to process.cwd())
 
-
 </td></tr>
 </tbody></table>
-

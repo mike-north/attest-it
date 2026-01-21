@@ -9,5 +9,5 @@ Path to the private key file
 **Signature:**
 
 ```typescript
-privateKeyPath: string;
+privateKeyPath: string
 ```

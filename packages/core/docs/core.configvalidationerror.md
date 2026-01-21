@@ -9,8 +9,9 @@ Error thrown when configuration is invalid.
 **Signature:**
 
 ```typescript
-declare class ConfigValidationError extends Error 
+declare class ConfigValidationError extends Error
 ```
+
 **Extends:** Error
 
 ## Constructors
@@ -19,30 +20,24 @@ declare class ConfigValidationError extends Error
 
 Constructor
 
-
 </th><th>
 
 Modifiers
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [(constructor)(message, issues)](./core.configvalidationerror._constructor_.md)
 
-
 </td><td>
-
 
 </td><td>
 
 Constructs a new instance of the `ConfigValidationError` class
-
 
 </td></tr>
 </tbody></table>
@@ -53,41 +48,32 @@ Constructs a new instance of the `ConfigValidationError` class
 
 Property
 
-
 </th><th>
 
 Modifiers
-
 
 </th><th>
 
 Type
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [issues](./core.configvalidationerror.issues.md)
 
-
 </td><td>
 
 `readonly`
-
 
 </td><td>
 
 z.ZodIssue\[\]
 
-
 </td><td>
-
 
 </td></tr>
 </tbody></table>
-

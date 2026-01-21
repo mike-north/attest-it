@@ -9,7 +9,7 @@ Options for signing data.
 **Signature:**
 
 ```typescript
-interface SignOptions 
+interface SignOptions
 ```
 
 ## Properties
@@ -18,60 +18,47 @@ interface SignOptions
 
 Property
 
-
 </th><th>
 
 Modifiers
-
 
 </th><th>
 
 Type
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [data](./core.signoptions.data.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string \| Buffer
 
-
 </td><td>
 
 Data to sign (string or Buffer)
-
 
 </td></tr>
 <tr><td>
 
 [privateKeyPath](./core.signoptions.privatekeypath.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string
 
-
 </td><td>
 
 Path to the private key file
 
-
 </td></tr>
 </tbody></table>
-

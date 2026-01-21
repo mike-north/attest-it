@@ -13,7 +13,7 @@ This adapter removes any undefined values to match the AttestItConfig interface 
 **Signature:**
 
 ```typescript
-declare function toAttestItConfig(config: Config): AttestItConfig;
+declare function toAttestItConfig(config: Config): AttestItConfig
 ```
 
 ## Parameters
@@ -22,32 +22,26 @@ declare function toAttestItConfig(config: Config): AttestItConfig;
 
 Parameter
 
-
 </th><th>
 
 Type
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 config
 
-
 </td><td>
 
 [Config](./core.config.md)
 
-
 </td><td>
 
 The Zod-validated configuration from loadConfig()
-
 
 </td></tr>
 </tbody></table>
@@ -57,4 +51,3 @@ The Zod-validated configuration from loadConfig()
 [AttestItConfig](./core.attestitconfig.md)
 
 Configuration compatible with AttestItConfig
-
