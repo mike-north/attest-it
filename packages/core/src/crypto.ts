@@ -193,6 +193,23 @@ export function getDefaultPublicKeyPath(): string {
 }
 
 /**
+ * Get the default YubiKey encrypted key path based on OS.
+ * - macOS/Linux: ~/.config/attest-it/yubikey-private.enc
+ * - Windows: %APPDATA%\attest-it\yubikey-private.enc
+ * @public
+ */
+export function getDefaultYubiKeyEncryptedKeyPath(): string {
+  const homeDir = os.homedir()
+
+  if (process.platform === 'win32') {
+    const appData = process.env.APPDATA ?? path.join(homeDir, 'AppData', 'Roaming')
+    return path.join(appData, 'attest-it', 'yubikey-private.enc')
+  }
+
+  return path.join(homeDir, '.config', 'attest-it', 'yubikey-private.enc')
+}
+
+/**
  * Ensure a directory exists, creating it and parent directories if needed.
  * @param dirPath - Directory path to create
  * @internal

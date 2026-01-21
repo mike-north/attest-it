@@ -190,6 +190,9 @@ export function getDefaultPrivateKeyPath(): string;
 export function getDefaultPublicKeyPath(): string;
 
 // @public
+export function getDefaultYubiKeyEncryptedKeyPath(): string;
+
+// @public
 export function getGate(config: AttestItConfig, gateId: string): GateConfig | undefined;
 
 // @public
