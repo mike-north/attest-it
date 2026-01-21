@@ -482,7 +482,7 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
       })
     }
 
-    if (yubiKeyAvailable && yubiKeyDevices.length > 0) {
+    if (yubiKeyAvailable) {
       options.push({
         label: 'YubiKey (hardware security key)',
         value: 'yubikey',

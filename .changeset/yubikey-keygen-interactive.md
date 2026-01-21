@@ -1,5 +1,6 @@
 ---
 '@attest-it/cli': minor
+'@attest-it/core': minor
 ---
 
 Add YubiKey as a key storage option in interactive keygen flow
