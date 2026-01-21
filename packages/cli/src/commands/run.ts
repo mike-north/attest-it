@@ -550,27 +550,28 @@ async function promptForSeal(suiteName: string, gateId: string, config: Config):
     // Clean up after reading
     await keyResult.cleanup()
 
-    // Create seal
+    // Create seal using identity slug (not display name) for verification lookup
+    const identitySlug = localConfig.activeIdentity
     const seal = createSeal({
       gateId,
       fingerprint: gateFingerprint.fingerprint,
-      sealedBy: identity.name,
+      sealedBy: identitySlug,
       privateKey: privateKeyPem,
     })
 
     // Read existing seals
     const projectRoot = process.cwd()
-    const sealsFile = readSealsSync(projectRoot)
+    const sealsFile = readSealsSync(projectRoot, attestItConfig.settings.sealsPath)
 
     // Add seal to seals file
     // eslint-disable-next-line security/detect-object-injection
     sealsFile.seals[gateId] = seal
 
     // Write seals file
-    writeSealsSync(projectRoot, sealsFile)
+    writeSealsSync(projectRoot, sealsFile, attestItConfig.settings.sealsPath)
 
     success(`Seal created for gate '${gateId}'`)
-    log(`  Sealed by: ${identity.name}`)
+    log(`  Sealed by: ${identitySlug} (${identity.name})`)
     log(`  Timestamp: ${seal.timestamp}`)
   } catch (err) {
     if (err instanceof Error) {

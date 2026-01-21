@@ -86,15 +86,33 @@ export async function getAllSuiteStatuses(config: Config): Promise<SuiteStatus[]
   const results: SuiteStatus[] = []
 
   for (const [suiteName, suiteConfig] of Object.entries(config.suites)) {
-    // Skip suites without packages
-    if (!suiteConfig.packages) {
+    // Determine fingerprint paths - either from suite's packages or from referenced gate
+    let packages: string[] | undefined
+    let ignore: string[] | undefined
+
+    if (suiteConfig.gate && config.gates) {
+      // Suite references a gate - use gate's fingerprint config
+      // eslint-disable-next-line security/detect-object-injection
+      const gateConfig = config.gates[suiteConfig.gate]
+      if (gateConfig) {
+        packages = gateConfig.fingerprint.paths
+        ignore = gateConfig.fingerprint.exclude
+      }
+    } else if (suiteConfig.packages) {
+      // Legacy: suite defines packages directly
+      packages = suiteConfig.packages
+      ignore = suiteConfig.ignore
+    }
+
+    // Skip if we couldn't resolve fingerprint paths
+    if (!packages || packages.length === 0) {
       continue
     }
 
     // Compute current fingerprint
     const fingerprintResult = await computeFingerprint({
-      packages: suiteConfig.packages,
-      ...(suiteConfig.ignore && { ignore: suiteConfig.ignore }),
+      packages,
+      ...(ignore && { ignore }),
     })
 
     // Find existing attestation

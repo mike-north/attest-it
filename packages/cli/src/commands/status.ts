@@ -68,7 +68,7 @@ async function runStatus(gates: string[], options: StatusOptions): Promise<void>
 
     // Read seals
     const projectRoot = process.cwd()
-    const sealsFile = readSealsSync(projectRoot)
+    const sealsFile = readSealsSync(projectRoot, attestItConfig.settings.sealsPath)
 
     // Determine which gates to check
     const gatesToCheck = gates.length > 0 ? gates : Object.keys(attestItConfig.gates)

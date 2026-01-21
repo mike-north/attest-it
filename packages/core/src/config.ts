@@ -96,6 +96,7 @@ const settingsSchema = z
     maxAgeDays: z.number().int().positive().default(30),
     publicKeyPath: z.string().default('.attest-it/pubkey.pem'),
     attestationsPath: z.string().default('.attest-it/attestations.json'),
+    sealsPath: z.string().default('.attest-it/seals.json'),
     defaultCommand: z.string().optional(),
     keyProvider: keyProviderSchema.optional(),
     // Note: algorithm field was removed - RSA is the only supported algorithm
@@ -378,6 +379,7 @@ export function toAttestItConfig(config: Config): import('./types.js').AttestItC
       maxAgeDays: config.settings.maxAgeDays,
       publicKeyPath: config.settings.publicKeyPath,
       attestationsPath: config.settings.attestationsPath,
+      sealsPath: config.settings.sealsPath,
     },
     suites: {},
   }

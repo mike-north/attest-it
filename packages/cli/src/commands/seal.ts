@@ -85,7 +85,7 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
 
     // Read existing seals
     const projectRoot = process.cwd()
-    const sealsFile = readSealsSync(projectRoot)
+    const sealsFile = readSealsSync(projectRoot, attestItConfig.settings.sealsPath)
 
     // Determine which gates to seal
     const gatesToSeal = gates.length > 0 ? gates : getAllGateIds(attestItConfig)
@@ -105,9 +105,12 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
       failed: [],
     }
 
+    // Get the identity slug for sealedBy field
+    const identitySlug = localConfig.activeIdentity
+
     for (const gateId of gatesToSeal) {
       try {
-        const result = await processSingleGate(gateId, attestItConfig, identity, sealsFile, options)
+        const result = await processSingleGate(gateId, attestItConfig, identity, identitySlug, sealsFile, options)
 
         if (result.sealed) {
           summary.sealed.push(gateId)
@@ -122,7 +125,7 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
 
     // Write seals file if not dry run and we sealed anything
     if (!options.dryRun && summary.sealed.length > 0) {
-      writeSealsSync(projectRoot, sealsFile)
+      writeSealsSync(projectRoot, sealsFile, attestItConfig.settings.sealsPath)
     }
 
     // Display summary
@@ -158,6 +161,7 @@ interface ProcessGateResult {
  * @param gateId - Gate identifier
  * @param config - The attest-it configuration
  * @param identity - Active identity for signing
+ * @param identitySlug - The identity slug (used for sealedBy field)
  * @param sealsFile - The seals file to update
  * @param options - Command options
  * @returns Result indicating whether gate was sealed or skipped
@@ -166,6 +170,7 @@ async function processSingleGate(
   gateId: string,
   config: AttestItConfig,
   identity: Identity,
+  identitySlug: string,
   sealsFile: SealsFile,
   options: SealOptions,
 ): Promise<ProcessGateResult> {
@@ -225,11 +230,11 @@ async function processSingleGate(
   // Clean up after reading
   await keyResult.cleanup()
 
-  // Create seal
+  // Create seal using identity slug (not display name) for verification lookup
   const seal = createSeal({
     gateId,
     fingerprint: fingerprintResult.fingerprint,
-    sealedBy: identity.name,
+    sealedBy: identitySlug,
     privateKey: privateKeyPem,
   })
 
@@ -238,7 +243,7 @@ async function processSingleGate(
   sealsFile.seals[gateId] = seal
 
   log(`  Sealed gate: ${gateId}`)
-  verbose(`    Sealed by: ${identity.name}`)
+  verbose(`    Sealed by: ${identitySlug} (${identity.name})`)
   verbose(`    Timestamp: ${seal.timestamp}`)
 
   return { sealed: true, skipped: false }

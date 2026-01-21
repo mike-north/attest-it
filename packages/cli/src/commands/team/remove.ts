@@ -51,7 +51,7 @@ async function runRemove(slug: string, options: { force?: boolean }): Promise<vo
     const projectRoot = process.cwd()
     let sealsFile
     try {
-      sealsFile = readSealsSync(projectRoot)
+      sealsFile = readSealsSync(projectRoot, attestItConfig.settings.sealsPath)
     } catch {
       // No seals file exists yet
       sealsFile = { version: 1, seals: {} }

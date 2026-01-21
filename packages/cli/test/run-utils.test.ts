@@ -30,20 +30,24 @@ describe('run-utils', () => {
 
   // Test helpers
   function createMockConfig(overrides?: Partial<Config>): Config {
+    // If custom suites are provided, use them exclusively (don't merge with defaults)
+    const suites = overrides?.suites ?? {
+      'test-suite': {
+        packages: ['pkg1'],
+      },
+    }
+
     return {
       version: 1,
       settings: {
         attestationsPath: '.attestations.json',
+        sealsPath: '.attest-it/seals.json',
         maxAgeDays: 30,
         publicKeyPath: 'test.pub',
         ...overrides?.settings,
       },
-      suites: {
-        'test-suite': {
-          packages: ['pkg1'],
-        },
-        ...overrides?.suites,
-      },
+      suites,
+      gates: overrides?.gates,
       groups: overrides?.groups,
     }
   }
@@ -550,6 +554,169 @@ describe('run-utils', () => {
         expect(computeFingerprint).toHaveBeenCalledWith({
           packages: ['pkg1'],
         })
+      })
+    })
+
+    // Regression tests for Bug 1: gate-based suites were being skipped
+    describe('gate-based suites', () => {
+      it('should handle suites that reference gates via gate property', async () => {
+        const config = createMockConfig({
+          gates: {
+            'my-gate': {
+              name: 'My Gate',
+              description: 'A test gate',
+              authorizedSigners: ['test-user'],
+              fingerprint: {
+                paths: ['src/**/*.ts'],
+                exclude: ['**/*.test.ts'],
+              },
+              maxAge: '30d',
+            },
+          },
+          suites: {
+            'gate-based-suite': {
+              gate: 'my-gate',
+              command: 'npm test',
+            },
+          },
+        })
+
+        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([]))
+        vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult('gate-fp'))
+        vi.mocked(findAttestation).mockReturnValue(undefined)
+
+        const result = await getAllSuiteStatuses(config)
+
+        // Should NOT skip the gate-based suite
+        expect(result).toHaveLength(1)
+        expect(result[0]?.name).toBe('gate-based-suite')
+        expect(result[0]?.status).toBe('NEEDS_ATTESTATION')
+
+        // Should use gate's fingerprint.paths and fingerprint.exclude
+        expect(computeFingerprint).toHaveBeenCalledWith({
+          packages: ['src/**/*.ts'],
+          ignore: ['**/*.test.ts'],
+        })
+      })
+
+      it('should handle gate-based suite without exclude patterns', async () => {
+        const config = createMockConfig({
+          gates: {
+            'simple-gate': {
+              name: 'Simple Gate',
+              description: 'A gate without excludes',
+              authorizedSigners: ['test-user'],
+              fingerprint: {
+                paths: ['lib/**/*.js'],
+              },
+              maxAge: '30d',
+            },
+          },
+          suites: {
+            'simple-suite': {
+              gate: 'simple-gate',
+            },
+          },
+        })
+
+        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([]))
+        vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
+        vi.mocked(findAttestation).mockReturnValue(undefined)
+
+        const result = await getAllSuiteStatuses(config)
+
+        expect(result).toHaveLength(1)
+        expect(computeFingerprint).toHaveBeenCalledWith({
+          packages: ['lib/**/*.js'],
+        })
+      })
+
+      it('should skip suites referencing non-existent gates', async () => {
+        const config = createMockConfig({
+          gates: {
+            'existing-gate': {
+              name: 'Existing Gate',
+              description: 'This gate exists',
+              authorizedSigners: ['test-user'],
+              fingerprint: { paths: ['src/**'] },
+              maxAge: '30d',
+            },
+          },
+          suites: {
+            'orphan-suite': {
+              gate: 'non-existent-gate', // References gate that doesn't exist
+            },
+          },
+        })
+
+        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([]))
+        vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
+        vi.mocked(findAttestation).mockReturnValue(undefined)
+
+        const result = await getAllSuiteStatuses(config)
+
+        // Suite with non-existent gate should be skipped
+        expect(result).toHaveLength(0)
+        expect(computeFingerprint).not.toHaveBeenCalled()
+      })
+
+      it('should handle mix of gate-based and legacy package-based suites', async () => {
+        const config = createMockConfig({
+          gates: {
+            'ui-gate': {
+              name: 'UI Gate',
+              description: 'UI components',
+              authorizedSigners: ['test-user'],
+              fingerprint: { paths: ['src/ui/**'] },
+              maxAge: '30d',
+            },
+          },
+          suites: {
+            'ui-suite': {
+              gate: 'ui-gate',
+              command: 'npm run test:ui',
+            },
+            'api-suite': {
+              packages: ['src/api/**'],
+              command: 'npm run test:api',
+            },
+          },
+        })
+
+        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([]))
+        vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
+        vi.mocked(findAttestation).mockReturnValue(undefined)
+
+        const result = await getAllSuiteStatuses(config)
+
+        // Both suites should be included
+        expect(result).toHaveLength(2)
+        expect(result.map((r) => r.name).sort()).toEqual(['api-suite', 'ui-suite'])
+
+        // Both should have correct fingerprint calls
+        expect(computeFingerprint).toHaveBeenCalledTimes(2)
+        expect(computeFingerprint).toHaveBeenCalledWith({ packages: ['src/ui/**'] })
+        expect(computeFingerprint).toHaveBeenCalledWith({ packages: ['src/api/**'] })
+      })
+
+      it('should skip suites with gate property when gates config is undefined', async () => {
+        const config = createMockConfig({
+          // No gates defined
+          suites: {
+            'gate-suite': {
+              gate: 'some-gate',
+            },
+          },
+        })
+
+        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([]))
+        vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
+        vi.mocked(findAttestation).mockReturnValue(undefined)
+
+        const result = await getAllSuiteStatuses(config)
+
+        // Should skip when gates config is missing
+        expect(result).toHaveLength(0)
       })
     })
   })

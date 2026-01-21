@@ -466,6 +466,251 @@ describe('readSealsSync and writeSealsSync', () => {
   })
 })
 
+/**
+ * Regression test for Bug 2: sealedBy must use team member slug, not display name.
+ *
+ * The bug was that the seal command was using `identity.name` (e.g., "Alice Developer")
+ * instead of the identity slug (e.g., "alice") for the sealedBy field. Since verifySeal
+ * looks up the team member by the sealedBy value as a key in config.team, using the
+ * display name would cause verification to fail because "Alice Developer" is not a
+ * valid key in the team record.
+ *
+ * @see https://github.com/mike-north/attest-it-workspace/issues/XX
+ */
+describe('sealedBy slug lookup (Bug 2 regression)', () => {
+  it('should verify seal when sealedBy contains slug (the correct key)', () => {
+    const { publicKey, privateKey } = generateKeyPair()
+    const config = createTestConfig()
+    config.team = {
+      // Key is the slug, name is the display name
+      alice: {
+        name: 'Alice Developer',
+        publicKey,
+      },
+    }
+
+    // Create seal with slug (correct behavior)
+    const seal = createSeal({
+      gateId: 'unit-tests',
+      fingerprint: 'sha256:abc123',
+      sealedBy: 'alice', // Using slug
+      privateKey,
+    })
+
+    const result = verifySeal(seal, config)
+    expect(result.valid).toBe(true)
+    expect(result.error).toBeUndefined()
+  })
+
+  it('should fail verification when sealedBy contains display name instead of slug', () => {
+    const { publicKey, privateKey } = generateKeyPair()
+    const config = createTestConfig()
+    config.team = {
+      // Key is the slug "alice", not the name "Alice Developer"
+      alice: {
+        name: 'Alice Developer',
+        publicKey,
+      },
+    }
+
+    // Create seal with display name (the bug behavior)
+    const seal = createSeal({
+      gateId: 'unit-tests',
+      fingerprint: 'sha256:abc123',
+      sealedBy: 'Alice Developer', // BUG: Using display name instead of slug
+      privateKey,
+    })
+
+    const result = verifySeal(seal, config)
+    expect(result.valid).toBe(false)
+    // Verification fails because "Alice Developer" is not a key in config.team
+    expect(result.error).toContain('not found')
+  })
+
+  it('should look up team member by exact slug match', () => {
+    const { publicKey, privateKey } = generateKeyPair()
+    const config = createTestConfig()
+    config.team = {
+      'mike-north': {
+        name: 'Mike North',
+        email: 'mike@example.com',
+        publicKey,
+      },
+    }
+
+    // Seal with correct slug
+    const validSeal = createSeal({
+      gateId: 'unit-tests',
+      fingerprint: 'sha256:abc123',
+      sealedBy: 'mike-north',
+      privateKey,
+    })
+
+    expect(verifySeal(validSeal, config).valid).toBe(true)
+
+    // Seal with display name fails
+    const invalidSeal = createSeal({
+      gateId: 'unit-tests',
+      fingerprint: 'sha256:abc123',
+      sealedBy: 'Mike North',
+      privateKey,
+    })
+
+    expect(verifySeal(invalidSeal, config).valid).toBe(false)
+  })
+})
+
+/**
+ * Regression test for Bug 3: sealsPath config option should be respected.
+ *
+ * The bug was that seal read/write operations were hardcoded to use
+ * ".attest-it/seals.json" instead of respecting the sealsPath setting
+ * from the configuration file.
+ *
+ * @see https://github.com/mike-north/attest-it-workspace/issues/XX
+ */
+describe('sealsPath config option (Bug 3 regression)', () => {
+  let tmpDir: string
+
+  beforeEach(() => {
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'attest-it-sealspath-test-'))
+  })
+
+  afterEach(() => {
+    if (tmpDir) {
+      fs.rmSync(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  it('should write seals to custom path when sealsPathOverride is provided', async () => {
+    const { privateKey } = generateKeyPair()
+    const seal = createSeal({
+      gateId: 'unit-tests',
+      fingerprint: 'sha256:abc123',
+      sealedBy: 'alice',
+      privateKey,
+    })
+
+    const sealsFile: SealsFile = {
+      version: 1,
+      seals: { 'unit-tests': seal },
+    }
+
+    // Write to custom path
+    const customPath = 'custom/path/to/seals.json'
+    await writeSeals(tmpDir, sealsFile, customPath)
+
+    // Verify file was created at custom path
+    const expectedPath = path.join(tmpDir, customPath)
+    expect(fs.existsSync(expectedPath)).toBe(true)
+
+    // Verify default path was NOT created
+    const defaultPath = path.join(tmpDir, '.attest-it', 'seals.json')
+    expect(fs.existsSync(defaultPath)).toBe(false)
+  })
+
+  it('should read seals from custom path when sealsPathOverride is provided', async () => {
+    const { privateKey } = generateKeyPair()
+    const seal = createSeal({
+      gateId: 'unit-tests',
+      fingerprint: 'sha256:abc123',
+      sealedBy: 'alice',
+      privateKey,
+    })
+
+    const sealsFile: SealsFile = {
+      version: 1,
+      seals: { 'unit-tests': seal },
+    }
+
+    // Write to custom path
+    const customPath = 'custom/path/to/seals.json'
+    await writeSeals(tmpDir, sealsFile, customPath)
+
+    // Read from custom path
+    const readBack = await readSeals(tmpDir, customPath)
+    expect(readBack).toEqual(sealsFile)
+  })
+
+  it('should use default path when sealsPathOverride is not provided', async () => {
+    const { privateKey } = generateKeyPair()
+    const seal = createSeal({
+      gateId: 'unit-tests',
+      fingerprint: 'sha256:abc123',
+      sealedBy: 'alice',
+      privateKey,
+    })
+
+    const sealsFile: SealsFile = {
+      version: 1,
+      seals: { 'unit-tests': seal },
+    }
+
+    // Write without custom path (uses default)
+    await writeSeals(tmpDir, sealsFile)
+
+    // Verify file was created at default path
+    const defaultPath = path.join(tmpDir, '.attest-it', 'seals.json')
+    expect(fs.existsSync(defaultPath)).toBe(true)
+  })
+
+  it('should write seals sync to custom path when sealsPathOverride is provided', () => {
+    const { privateKey } = generateKeyPair()
+    const seal = createSeal({
+      gateId: 'unit-tests',
+      fingerprint: 'sha256:abc123',
+      sealedBy: 'alice',
+      privateKey,
+    })
+
+    const sealsFile: SealsFile = {
+      version: 1,
+      seals: { 'unit-tests': seal },
+    }
+
+    // Write to custom path
+    const customPath = '.config/seals.json'
+    writeSealsSync(tmpDir, sealsFile, customPath)
+
+    // Verify file was created at custom path
+    const expectedPath = path.join(tmpDir, customPath)
+    expect(fs.existsSync(expectedPath)).toBe(true)
+  })
+
+  it('should read seals sync from custom path when sealsPathOverride is provided', () => {
+    const { privateKey } = generateKeyPair()
+    const seal = createSeal({
+      gateId: 'unit-tests',
+      fingerprint: 'sha256:abc123',
+      sealedBy: 'alice',
+      privateKey,
+    })
+
+    const sealsFile: SealsFile = {
+      version: 1,
+      seals: { 'unit-tests': seal },
+    }
+
+    // Write to custom path
+    const customPath = '.config/seals.json'
+    writeSealsSync(tmpDir, sealsFile, customPath)
+
+    // Read from custom path
+    const readBack = readSealsSync(tmpDir, customPath)
+    expect(readBack).toEqual(sealsFile)
+  })
+
+  it('should return empty seals when custom path file does not exist', async () => {
+    const customPath = 'nonexistent/seals.json'
+    const seals = await readSeals(tmpDir, customPath)
+
+    expect(seals).toEqual({
+      version: 1,
+      seals: {},
+    })
+  })
+})
+
 describe('seal operations edge cases', () => {
   it('should handle empty seals object', () => {
     const sealsFile: SealsFile = {

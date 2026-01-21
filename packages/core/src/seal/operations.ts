@@ -172,12 +172,15 @@ function parseSealsContent(content: string): SealsFile {
  * Read seals from the seals.json file (async).
  *
  * @param dir - Directory containing .attest-it/seals.json
+ * @param sealsPathOverride - Optional explicit path to seals file (from config.settings.sealsPath)
  * @returns The seals file contents, or an empty seals file if the file doesn't exist
  * @throws Error if file exists but cannot be read or parsed
  * @public
  */
-export async function readSeals(dir: string): Promise<SealsFile> {
-  const sealsPath = path.join(dir, '.attest-it', 'seals.json')
+export async function readSeals(dir: string, sealsPathOverride?: string): Promise<SealsFile> {
+  const sealsPath = sealsPathOverride
+    ? path.resolve(dir, sealsPathOverride)
+    : path.join(dir, '.attest-it', 'seals.json')
 
   try {
     const content = await fs.promises.readFile(sealsPath, 'utf8')
@@ -202,12 +205,15 @@ export async function readSeals(dir: string): Promise<SealsFile> {
  * Read seals from the seals.json file (sync).
  *
  * @param dir - Directory containing .attest-it/seals.json
+ * @param sealsPathOverride - Optional explicit path to seals file (from config.settings.sealsPath)
  * @returns The seals file contents, or an empty seals file if the file doesn't exist
  * @throws Error if file exists but cannot be read or parsed
  * @public
  */
-export function readSealsSync(dir: string): SealsFile {
-  const sealsPath = path.join(dir, '.attest-it', 'seals.json')
+export function readSealsSync(dir: string, sealsPathOverride?: string): SealsFile {
+  const sealsPath = sealsPathOverride
+    ? path.resolve(dir, sealsPathOverride)
+    : path.join(dir, '.attest-it', 'seals.json')
 
   try {
     const content = fs.readFileSync(sealsPath, 'utf8')
@@ -233,16 +239,19 @@ export function readSealsSync(dir: string): SealsFile {
  *
  * @param dir - Directory containing .attest-it/seals.json
  * @param sealsFile - The seals file to write
+ * @param sealsPathOverride - Optional explicit path to seals file (from config.settings.sealsPath)
  * @throws Error if file cannot be written
  * @public
  */
-export async function writeSeals(dir: string, sealsFile: SealsFile): Promise<void> {
-  const attestItDir = path.join(dir, '.attest-it')
-  const sealsPath = path.join(attestItDir, 'seals.json')
+export async function writeSeals(dir: string, sealsFile: SealsFile, sealsPathOverride?: string): Promise<void> {
+  const sealsPath = sealsPathOverride
+    ? path.resolve(dir, sealsPathOverride)
+    : path.join(dir, '.attest-it', 'seals.json')
+  const sealsDir = path.dirname(sealsPath)
 
   try {
-    // Ensure .attest-it directory exists
-    await fs.promises.mkdir(attestItDir, { recursive: true })
+    // Ensure seals directory exists
+    await fs.promises.mkdir(sealsDir, { recursive: true })
 
     // Write seals file with pretty formatting
     const content = JSON.stringify(sealsFile, null, 2) + '\n'
@@ -259,16 +268,19 @@ export async function writeSeals(dir: string, sealsFile: SealsFile): Promise<voi
  *
  * @param dir - Directory containing .attest-it/seals.json
  * @param sealsFile - The seals file to write
+ * @param sealsPathOverride - Optional explicit path to seals file (from config.settings.sealsPath)
  * @throws Error if file cannot be written
  * @public
  */
-export function writeSealsSync(dir: string, sealsFile: SealsFile): void {
-  const attestItDir = path.join(dir, '.attest-it')
-  const sealsPath = path.join(attestItDir, 'seals.json')
+export function writeSealsSync(dir: string, sealsFile: SealsFile, sealsPathOverride?: string): void {
+  const sealsPath = sealsPathOverride
+    ? path.resolve(dir, sealsPathOverride)
+    : path.join(dir, '.attest-it', 'seals.json')
+  const sealsDir = path.dirname(sealsPath)
 
   try {
-    // Ensure .attest-it directory exists
-    fs.mkdirSync(attestItDir, { recursive: true })
+    // Ensure seals directory exists
+    fs.mkdirSync(sealsDir, { recursive: true })
 
     // Write seals file with pretty formatting
     const content = JSON.stringify(sealsFile, null, 2) + '\n'
