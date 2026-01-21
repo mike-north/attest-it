@@ -10,6 +10,7 @@ challenge-response feature, requiring physical touch of the YubiKey to sign
 attestations.
 
 Features:
+
 - Auto-detects connected YubiKeys when ykman CLI is installed
 - Supports multiple YubiKey devices (prompts user to select)
 - Auto-selects slot if only one is configured for challenge-response
