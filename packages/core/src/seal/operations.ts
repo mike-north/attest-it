@@ -243,7 +243,11 @@ export function readSealsSync(dir: string, sealsPathOverride?: string): SealsFil
  * @throws Error if file cannot be written
  * @public
  */
-export async function writeSeals(dir: string, sealsFile: SealsFile, sealsPathOverride?: string): Promise<void> {
+export async function writeSeals(
+  dir: string,
+  sealsFile: SealsFile,
+  sealsPathOverride?: string,
+): Promise<void> {
   const sealsPath = sealsPathOverride
     ? path.resolve(dir, sealsPathOverride)
     : path.join(dir, '.attest-it', 'seals.json')
@@ -272,7 +276,11 @@ export async function writeSeals(dir: string, sealsFile: SealsFile, sealsPathOve
  * @throws Error if file cannot be written
  * @public
  */
-export function writeSealsSync(dir: string, sealsFile: SealsFile, sealsPathOverride?: string): void {
+export function writeSealsSync(
+  dir: string,
+  sealsFile: SealsFile,
+  sealsPathOverride?: string,
+): void {
   const sealsPath = sealsPathOverride
     ? path.resolve(dir, sealsPathOverride)
     : path.join(dir, '.attest-it', 'seals.json')

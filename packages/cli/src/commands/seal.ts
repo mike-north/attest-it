@@ -110,7 +110,14 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
 
     for (const gateId of gatesToSeal) {
       try {
-        const result = await processSingleGate(gateId, attestItConfig, identity, identitySlug, sealsFile, options)
+        const result = await processSingleGate(
+          gateId,
+          attestItConfig,
+          identity,
+          identitySlug,
+          sealsFile,
+          options,
+        )
 
         if (result.sealed) {
           summary.sealed.push(gateId)
