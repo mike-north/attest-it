@@ -1,5 +1,18 @@
 # attest-it
 
+## 0.7.0
+
+### Patch Changes
+
+- e8f00c3: Add `attest` as a shorter CLI command alias
+
+  Users can now run `attest` instead of `attest-it` for convenience. Both commands point to the same binary.
+
+- Updated dependencies [fca2467]
+- Updated dependencies [1f8f8cd]
+  - @attest-it/core@0.7.0
+  - @attest-it/cli@0.7.0
+
 ## 0.6.1
 
 ### Patch Changes

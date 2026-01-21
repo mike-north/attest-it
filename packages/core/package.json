@@ -1,7 +1,7 @@
 {
   "name": "@attest-it/core",
   "description": "Core functionality for attest-it",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "author": "Mike North <michael.l.north@gmail.com>",
   "dependencies": {
     "canonicalize": "^2.0.0",

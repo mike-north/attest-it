@@ -1,5 +1,34 @@
 # @attest-it/cli
 
+## 0.7.0
+
+### Minor Changes
+
+- 1f8f8cd: Add YubiKey as a key storage option in interactive keygen flow
+
+  Users can now select YubiKey as a private key storage provider when running
+  `attest-it keygen`. The private key is encrypted using YubiKey's HMAC-SHA1
+  challenge-response feature, requiring physical touch of the YubiKey to sign
+  attestations.
+
+  Features:
+  - Auto-detects connected YubiKeys when ykman CLI is installed
+  - Supports multiple YubiKey devices (prompts user to select)
+  - Auto-selects slot if only one is configured for challenge-response
+  - Offers to automatically configure HMAC-SHA1 on slot 2 if not set up
+
+### Patch Changes
+
+- fca2467: Fix 1Password account selection to show human-readable account names
+  - Updated `listAccounts()` to fetch account details and include the human-readable name (e.g., "North Family")
+  - Account selection now shows "Account Name (email)" format when available
+  - Fixed crash when pressing Escape during account selection
+  - Added test coverage for Escape key handling
+
+- Updated dependencies [fca2467]
+- Updated dependencies [1f8f8cd]
+  - @attest-it/core@0.7.0
+
 ## 0.6.1
 
 ### Patch Changes
