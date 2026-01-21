@@ -13,7 +13,7 @@
  */
 
 import React, { useState, useEffect } from 'react'
-import { render, Box, Text } from 'ink'
+import { render, Box, Text, useInput } from 'ink'
 import { Select, TextInput, Spinner } from '@inkjs/ui'
 import {
   OnePasswordKeyProvider,
@@ -102,7 +102,7 @@ type Step =
  * @public
  */
 export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactElement {
-  const { onComplete, onError } = props
+  const { onComplete, onCancel, onError } = props
 
   // State management
   const [step, setStep] = useState<Step>('checking-providers')
@@ -123,6 +123,13 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
   const [selectedYubiKeySlot, setSelectedYubiKeySlot] = useState<1 | 2>(2)
   const [slot1Configured, setSlot1Configured] = useState(false)
   const [slot2Configured, setSlot2Configured] = useState(false)
+
+  // Handle escape key to cancel the flow
+  useInput((_input, key) => {
+    if (key.escape) {
+      onCancel()
+    }
+  })
 
   // Check provider availability on mount
   useEffect(() => {
@@ -513,7 +520,7 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
 
   if (step === 'select-account') {
     const options = accounts.map((account) => ({
-      label: account.email,
+      label: account.name ? `${account.name} (${account.email})` : account.email,
       value: account.user_uuid,
     }))
 

@@ -48,6 +48,8 @@ export interface OnePasswordAccount {
   url: string
   /** User UUID */
   user_uuid: string
+  /** Human-readable account name (e.g., "North Family") */
+  name?: string
 }
 
 /**
@@ -107,7 +109,7 @@ export class OnePasswordKeyProvider implements KeyProvider {
 
   /**
    * List all 1Password accounts.
-   * @returns Array of account information
+   * @returns Array of account information including human-readable names
    */
   static async listAccounts(): Promise<OnePasswordAccount[]> {
     try {
@@ -119,7 +121,37 @@ export class OnePasswordKeyProvider implements KeyProvider {
       // Type assertion needed: We validate it's an array, but can't validate structure
       // at runtime without a full validation library. The op CLI output format is trusted.
       // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-      return parsed as OnePasswordAccount[]
+      const basicAccounts = parsed as OnePasswordAccount[]
+
+      // Fetch account details to get human-readable names
+      const accountsWithNames = await Promise.all(
+        basicAccounts.map(async (account) => {
+          try {
+            const detailOutput = await execCommand('op', [
+              'account',
+              'get',
+              '--account',
+              account.email,
+              '--format=json',
+            ])
+            const details: unknown = JSON.parse(detailOutput)
+            // Extract the name from account details if available
+            if (
+              details !== null &&
+              typeof details === 'object' &&
+              'name' in details &&
+              typeof details.name === 'string'
+            ) {
+              return { ...account, name: details.name }
+            }
+          } catch {
+            // If we fail to get details, just return the account without a name
+          }
+          return account
+        }),
+      )
+
+      return accountsWithNames
     } catch (error) {
       // Log in development for debugging, but don't fail
       if (process.env.NODE_ENV !== 'production') {

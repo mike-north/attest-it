@@ -414,6 +414,43 @@ describe('KeygenInteractive - Negative Tests', () => {
     // Should not crash
     expect(lastFrame()).toBeDefined()
   })
+
+  it('should call onCancel when escape key is pressed', async () => {
+    mockIsInstalled.mockResolvedValue(true)
+    mockListAccounts.mockResolvedValue([
+      {
+        account_uuid: 'uuid-1',
+        email: 'user@example.com',
+        url: 'https://example.1password.com',
+        user_uuid: 'user-1',
+        name: 'Test Account',
+      },
+      {
+        account_uuid: 'uuid-2',
+        email: 'user2@example.com',
+        url: 'https://example2.1password.com',
+        user_uuid: 'user-2',
+        name: 'Another Account',
+      },
+    ])
+
+    const onCancel = vi.fn()
+
+    const { stdin } = render(
+      <KeygenInteractive onComplete={vi.fn()} onCancel={onCancel} onError={vi.fn()} />,
+    )
+
+    // Wait for component to load and show account selection
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    // Send escape key
+    stdin.write('\u001B') // ESC character
+
+    // Wait for event to be processed
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
+    expect(onCancel).toHaveBeenCalledTimes(1)
+  })
 })
 
 // Regression tests for duplicate React key bug

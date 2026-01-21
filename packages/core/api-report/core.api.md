@@ -355,6 +355,7 @@ export function mergeConfigs(policy: PolicyConfig, operational: OperationalConfi
 export interface OnePasswordAccount {
     account_uuid: string;
     email: string;
+    name?: string;
     url: string;
     user_uuid: string;
 }

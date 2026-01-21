@@ -511,7 +511,7 @@ describe('OnePasswordKeyProvider', () => {
     })
 
     describe('listAccounts', () => {
-      it('should return parsed account list', async () => {
+      it('should return parsed account list with names from account details', async () => {
         const mockSpawnFn = vi.mocked(spawn)
         const mockAccounts = [
           {
@@ -521,16 +521,62 @@ describe('OnePasswordKeyProvider', () => {
             user_uuid: 'user123',
           },
         ]
-        mockSpawnFn.mockReturnValue(mockSpawnSuccess(JSON.stringify(mockAccounts)))
+        const mockAccountDetails = {
+          id: 'abc123',
+          name: 'Test Family',
+          domain: 'my',
+          type: 'FAMILY',
+          state: 'ACTIVE',
+        }
+
+        // Mock spawn to return different results based on arguments
+        mockSpawnFn.mockImplementation((_cmd, args) => {
+          if (args[0] === 'account' && args[1] === 'list') {
+            return mockSpawnSuccess(JSON.stringify(mockAccounts))
+          } else if (args[0] === 'account' && args[1] === 'get') {
+            return mockSpawnSuccess(JSON.stringify(mockAccountDetails))
+          }
+          return mockSpawnFailure('unknown command')
+        })
 
         const result = await OnePasswordKeyProvider.listAccounts()
 
-        expect(result).toEqual(mockAccounts)
+        expect(result).toEqual([{ ...mockAccounts[0], name: 'Test Family' }])
         expect(mockSpawnFn).toHaveBeenCalledWith(
           'op',
           ['account', 'list', '--format=json'],
           expect.any(Object),
         )
+        expect(mockSpawnFn).toHaveBeenCalledWith(
+          'op',
+          ['account', 'get', '--account', 'test@example.com', '--format=json'],
+          expect.any(Object),
+        )
+      })
+
+      it('should return accounts without names when account get fails', async () => {
+        const mockSpawnFn = vi.mocked(spawn)
+        const mockAccounts = [
+          {
+            account_uuid: 'abc123',
+            email: 'test@example.com',
+            url: 'https://my.1password.com',
+            user_uuid: 'user123',
+          },
+        ]
+
+        // Mock spawn to return account list but fail on account get
+        mockSpawnFn.mockImplementation((_cmd, args) => {
+          if (args[0] === 'account' && args[1] === 'list') {
+            return mockSpawnSuccess(JSON.stringify(mockAccounts))
+          }
+          return mockSpawnFailure('error getting account details')
+        })
+
+        const result = await OnePasswordKeyProvider.listAccounts()
+
+        // Should return the account without the name field
+        expect(result).toEqual(mockAccounts)
       })
 
       it('should return empty array on failure', async () => {
