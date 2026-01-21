@@ -36,6 +36,8 @@ export interface KeygenOptions {
   publicPath?: string
   /** Overwrite existing keys (default: false) */
   force?: boolean
+  /** Passphrase to encrypt the private key with AES-256 (optional) */
+  passphrase?: string
 }
 
 /**
@@ -51,6 +53,8 @@ export interface SignOptions {
   keyRef?: string
   /** Data to sign (string or Buffer) */
   data: string | Buffer
+  /** Passphrase for encrypted private keys (optional) */
+  passphrase?: string
 }
 
 /**
@@ -273,6 +277,7 @@ export async function generateKeyPair(options: KeygenOptions = {}): Promise<KeyP
     privatePath = getDefaultPrivateKeyPath(),
     publicPath = getDefaultPublicKeyPath(),
     force = false,
+    passphrase,
   } = options
 
   // Check if keys already exist
@@ -304,7 +309,18 @@ export async function generateKeyPair(options: KeygenOptions = {}): Promise<KeyP
       privatePath,
     ]
 
-    const genResult = await runOpenSSL(genArgs)
+    // Add encryption if passphrase is provided
+    if (passphrase) {
+      genArgs.push('-aes256', '-pass', 'stdin')
+    }
+
+    // Note: OpenSSL reads passphrase from stdin. While OpenSSL accepts passphrases
+    // with or without trailing newlines, we consistently use newline terminators
+    // across all operations for predictable behavior.
+    const genResult = await runOpenSSL(
+      genArgs,
+      passphrase ? Buffer.from(passphrase + '\n') : undefined,
+    )
     if (genResult.exitCode !== 0) {
       throw new Error(`Failed to generate private key: ${genResult.stderr}`)
     }
@@ -312,8 +328,15 @@ export async function generateKeyPair(options: KeygenOptions = {}): Promise<KeyP
     // Set restrictive permissions on private key
     await setKeyPermissions(privatePath)
 
-    // Extract public key
-    const pubResult = await runOpenSSL(['pkey', '-in', privatePath, '-pubout', '-out', publicPath])
+    // Extract public key (need passphrase if key is encrypted)
+    const pubArgs = ['pkey', '-in', privatePath, '-pubout', '-out', publicPath]
+    if (passphrase) {
+      pubArgs.push('-passin', 'stdin')
+    }
+    const pubResult = await runOpenSSL(
+      pubArgs,
+      passphrase ? Buffer.from(passphrase + '\n') : undefined,
+    )
 
     if (pubResult.exitCode !== 0) {
       throw new Error(`Failed to extract public key: ${pubResult.stderr}`)
@@ -345,7 +368,7 @@ export async function sign(options: SignOptions): Promise<string> {
   // Ensure OpenSSL is available before proceeding
   await ensureOpenSSLAvailable()
 
-  const { privateKeyPath, keyProvider, keyRef, data } = options
+  const { privateKeyPath, keyProvider, keyRef, data, passphrase } = options
 
   // Determine which key path to use
   let effectiveKeyPath: string
@@ -389,10 +412,35 @@ export async function sign(options: SignOptions): Promise<string> {
       await fs.writeFile(dataFile, processBuffer)
 
       // Sign using openssl dgst -sha256 (cross-platform compatible)
-      const signArgs = ['dgst', '-sha256', '-sign', effectiveKeyPath, '-out', sigFile, dataFile]
-      const result = await runOpenSSL(signArgs)
+      // Note: -passin must come before -sign for encrypted keys
+      const signArgs = ['dgst', '-sha256']
+
+      // Add passphrase support for encrypted keys
+      if (passphrase) {
+        signArgs.push('-passin', 'stdin')
+      }
+
+      signArgs.push('-sign', effectiveKeyPath, '-out', sigFile, dataFile)
+
+      // Note: We consistently use newline terminators for passphrases passed via stdin
+      const result = await runOpenSSL(
+        signArgs,
+        passphrase ? Buffer.from(passphrase + '\n') : undefined,
+      )
 
       if (result.exitCode !== 0) {
+        // Detect passphrase-related errors and provide a clearer message
+        const stderr = result.stderr.toLowerCase()
+        if (
+          stderr.includes('bad decrypt') ||
+          stderr.includes('bad password') ||
+          stderr.includes('unable to load key') ||
+          stderr.includes('wrong password')
+        ) {
+          throw new Error(
+            'Failed to decrypt private key. Please check that the passphrase is correct.',
+          )
+        }
         throw new Error(`Failed to sign data: ${result.stderr}`)
       }
 

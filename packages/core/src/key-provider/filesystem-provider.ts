@@ -99,19 +99,29 @@ export class FilesystemKeyProvider implements KeyProvider {
    * @param options - Key generation options
    */
   async generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult> {
-    const { publicKeyPath, force = false } = options
+    const { publicKeyPath, force = false, passphrase } = options
 
-    // Delegate to existing crypto module function
-    const result = await cryptoGenerateKeyPair({
+    // Build crypto options, only including passphrase if provided
+    const cryptoOptions: Parameters<typeof cryptoGenerateKeyPair>[0] = {
       privatePath: this.privateKeyPath,
       publicPath: publicKeyPath,
       force,
-    })
+    }
+    if (passphrase !== undefined) {
+      cryptoOptions.passphrase = passphrase
+    }
+
+    // Delegate to existing crypto module function
+    const result = await cryptoGenerateKeyPair(cryptoOptions)
+
+    const encrypted = passphrase !== undefined && passphrase.length > 0
+    const encryptionStatus = encrypted ? ' (passphrase-encrypted)' : ''
 
     return {
       privateKeyRef: result.privatePath,
       publicKeyPath: result.publicPath,
-      storageDescription: `Filesystem: ${result.privatePath}`,
+      storageDescription: `Filesystem: ${result.privatePath}${encryptionStatus}`,
+      encrypted,
     }
   }
 

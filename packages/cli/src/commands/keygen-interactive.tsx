@@ -29,6 +29,12 @@ import {
 } from '@attest-it/core'
 
 /**
+ * Minimum length required for encryption passphrase.
+ * @internal
+ */
+const MIN_PASSPHRASE_LENGTH = 8
+
+/**
  * Result of the interactive keygen flow.
  * @public
  */
@@ -53,6 +59,8 @@ export interface KeygenResult {
   serial?: string
   /** For YubiKey: path to encrypted key file */
   encryptedKeyPath?: string
+  /** Whether the private key is passphrase-encrypted (filesystem provider) */
+  encrypted?: boolean
 }
 
 /**
@@ -79,6 +87,9 @@ export interface KeygenInteractiveProps {
 type Step =
   | 'checking-providers'
   | 'select-provider'
+  | 'select-filesystem-encryption'
+  | 'enter-encryption-passphrase'
+  | 'confirm-encryption-passphrase'
   | 'select-account'
   | 'select-vault'
   | 'enter-item-name'
@@ -123,6 +134,7 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
   const [selectedYubiKeySlot, setSelectedYubiKeySlot] = useState<1 | 2>(2)
   const [slot1Configured, setSlot1Configured] = useState(false)
   const [slot2Configured, setSlot2Configured] = useState(false)
+  const [encryptionPassphrase, setEncryptionPassphrase] = useState<string | undefined>()
 
   // Handle escape key to cancel the flow
   useInput((_input, key) => {
@@ -223,8 +235,8 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
   const handleProviderSelect = (value: string): void => {
     if (value === 'filesystem') {
       setSelectedProvider('filesystem')
-      // Skip to generation for filesystem
-      void generateKeys('filesystem')
+      // Ask about passphrase encryption for filesystem
+      setStep('select-filesystem-encryption')
     } else if (value === '1password') {
       setSelectedProvider('1password')
       // Move to account selection (or skip if only one)
@@ -297,6 +309,39 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
     }
   }
 
+  // Handle filesystem encryption method selection
+  const handleEncryptionMethodSelect = (value: string): void => {
+    if (value === 'passphrase') {
+      setStep('enter-encryption-passphrase')
+    } else {
+      // No encryption - proceed to generate keys
+      setEncryptionPassphrase(undefined)
+      void generateKeys('filesystem')
+    }
+  }
+
+  // Handle passphrase input for encrypted keys
+  const handleEncryptionPassphrase = (value: string): void => {
+    if (value.length < MIN_PASSPHRASE_LENGTH) {
+      onError(new Error(`Passphrase must be at least ${String(MIN_PASSPHRASE_LENGTH)} characters`))
+      return
+    }
+    setEncryptionPassphrase(value)
+    setStep('confirm-encryption-passphrase')
+  }
+
+  // Handle passphrase confirmation
+  const handleConfirmPassphrase = (value: string): void => {
+    if (value !== encryptionPassphrase) {
+      onError(new Error('Passphrases do not match. Please try again.'))
+      // Reset to re-enter passphrase
+      setEncryptionPassphrase(undefined)
+      setStep('enter-encryption-passphrase')
+      return
+    }
+    void generateKeys('filesystem')
+  }
+
   // Setup YubiKey slot for challenge-response
   const setupYubiKeySlot = async (): Promise<void> => {
     setStep('yubikey-configuring')
@@ -339,20 +384,31 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
       if (provider === 'filesystem') {
         const fsProvider = new FilesystemKeyProvider()
 
-        // Build options, only including force if defined
-        const genOptions: { publicKeyPath: string; force?: boolean } = { publicKeyPath }
+        // Build options, only including force and passphrase if defined
+        const genOptions: { publicKeyPath: string; force?: boolean; passphrase?: string } = {
+          publicKeyPath,
+        }
         if (props.force !== undefined) {
           genOptions.force = props.force
+        }
+        if (encryptionPassphrase !== undefined) {
+          genOptions.passphrase = encryptionPassphrase
         }
 
         const result = await fsProvider.generateKeyPair(genOptions)
 
-        onComplete({
+        // Build completion result, including encrypted status if applicable
+        const completionResult: KeygenResult = {
           provider: 'filesystem',
           publicKeyPath: result.publicKeyPath,
           privateKeyRef: result.privateKeyRef,
           storageDescription: result.storageDescription,
-        })
+        }
+        if (result.encrypted) {
+          completionResult.encrypted = result.encrypted
+        }
+
+        onComplete(completionResult)
       } else if (provider === '1password') {
         // 1Password provider
         if (!selectedVault || !itemName) {
@@ -465,6 +521,9 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
       setStep('done')
     } catch (err) {
       onError(err instanceof Error ? err : new Error('Key generation failed'))
+    } finally {
+      // Clear sensitive passphrase from state after use
+      setEncryptionPassphrase(undefined)
     }
   }
 
@@ -514,6 +573,49 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
         <Text bold>Where would you like to store your private key?</Text>
         <Text dimColor>{''}</Text>
         <Select options={options} onChange={handleProviderSelect} />
+      </Box>
+    )
+  }
+
+  if (step === 'select-filesystem-encryption') {
+    return (
+      <Box flexDirection="column">
+        <Text bold>Would you like to encrypt your private key with a passphrase?</Text>
+        <Text dimColor>
+          A passphrase adds extra security but must be entered each time you sign.
+        </Text>
+        <Text dimColor>{''}</Text>
+        <Select
+          options={[
+            { label: 'No encryption (key protected by file permissions only)', value: 'none' },
+            { label: 'Passphrase protection (AES-256 encryption)', value: 'passphrase' },
+          ]}
+          onChange={handleEncryptionMethodSelect}
+        />
+      </Box>
+    )
+  }
+
+  if (step === 'enter-encryption-passphrase') {
+    return (
+      <Box flexDirection="column">
+        <Text bold>Enter a passphrase to encrypt your private key:</Text>
+        <Text dimColor>
+          {`(Minimum ${String(MIN_PASSPHRASE_LENGTH)} characters. You will need this passphrase each time you sign.)`}
+        </Text>
+        <Text dimColor>{''}</Text>
+        <TextInput mask="*" onSubmit={handleEncryptionPassphrase} />
+      </Box>
+    )
+  }
+
+  if (step === 'confirm-encryption-passphrase') {
+    return (
+      <Box flexDirection="column">
+        <Text bold>Confirm your passphrase:</Text>
+        <Text dimColor>(Enter the same passphrase again to confirm.)</Text>
+        <Text dimColor>{''}</Text>
+        <TextInput mask="*" onSubmit={handleConfirmPassphrase} />
       </Box>
     )
   }
