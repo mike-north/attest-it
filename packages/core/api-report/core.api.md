@@ -196,6 +196,9 @@ export function getDefaultYubiKeyEncryptedKeyPath(): string;
 export function getGate(config: AttestItConfig, gateId: string): GateConfig | undefined;
 
 // @public
+export function getHomePublicKeysDir(): string;
+
+// @public
 export function getLocalConfigPath(): string;
 
 // @public
@@ -205,7 +208,13 @@ export function getPreference<K extends keyof UserPreferences>(key: K): Promise<
 export function getPreferencesPath(): string;
 
 // @public
+export function getProjectPublicKeysDir(projectRoot?: string): string;
+
+// @public
 export function getPublicKeyFromPrivate(privateKeyPem: string): string;
+
+// @public
+export function hasProjectConfig(projectRoot?: string): boolean;
 
 // @public
 export interface Identity {
@@ -788,6 +797,18 @@ export function saveLocalConfigSync(config: LocalConfig, configPath?: string): v
 
 // @public
 export function savePreferences(preferences: UserPreferences): Promise<void>;
+
+// @public
+export function savePublicKey(slug: string, publicKey: string, projectRoot?: string): Promise<SavePublicKeyResult>;
+
+// @public
+export interface SavePublicKeyResult {
+    homePath: string;
+    projectPath?: string;
+}
+
+// @public
+export function savePublicKeySync(slug: string, publicKey: string, projectRoot?: string): SavePublicKeyResult;
 
 // @public
 export interface Seal {
