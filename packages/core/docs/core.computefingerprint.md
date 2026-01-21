@@ -11,7 +11,7 @@ Algorithm: 1. List all files in packages (respecting ignore globs) 2. Sort files
 **Signature:**
 
 ```typescript
-declare function computeFingerprint(options: FingerprintOptions): Promise<FingerprintResult>;
+declare function computeFingerprint(options: FingerprintOptions): Promise<FingerprintResult>
 ```
 
 ## Parameters
@@ -20,32 +20,26 @@ declare function computeFingerprint(options: FingerprintOptions): Promise<Finger
 
 Parameter
 
-
 </th><th>
 
 Type
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 options
 
-
 </td><td>
 
 [FingerprintOptions](./core.fingerprintoptions.md)
 
-
 </td><td>
 
 Configuration for fingerprint computation
-
 
 </td></tr>
 </tbody></table>
@@ -59,4 +53,3 @@ Result containing the fingerprint hash and list of files processed
 ## Exceptions
 
 Error if packages array is empty or if package paths don't exist
-

@@ -9,5 +9,5 @@ Base64-encoded signature over canonical attestations array
 **Signature:**
 
 ```typescript
-signature: string;
+signature: string
 ```

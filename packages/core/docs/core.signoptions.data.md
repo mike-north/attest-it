@@ -9,5 +9,5 @@ Data to sign (string or Buffer)
 **Signature:**
 
 ```typescript
-data: string | Buffer;
+data: string | Buffer
 ```

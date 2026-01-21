@@ -9,7 +9,7 @@ Options for key generation.
 **Signature:**
 
 ```typescript
-interface KeygenOptions 
+interface KeygenOptions
 ```
 
 ## Properties
@@ -18,98 +18,77 @@ interface KeygenOptions
 
 Property
 
-
 </th><th>
 
 Modifiers
-
 
 </th><th>
 
 Type
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [algorithm?](./core.keygenoptions.algorithm.md)
 
-
 </td><td>
-
 
 </td><td>
 
 [Algorithm](./core.algorithm.md)
 
-
 </td><td>
 
 _(Optional)_ Algorithm to use (default: ed25519)
-
 
 </td></tr>
 <tr><td>
 
 [force?](./core.keygenoptions.force.md)
 
-
 </td><td>
-
 
 </td><td>
 
 boolean
 
-
 </td><td>
 
 _(Optional)_ Overwrite existing keys (default: false)
-
 
 </td></tr>
 <tr><td>
 
 [privatePath?](./core.keygenoptions.privatepath.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string
 
-
 </td><td>
 
 _(Optional)_ Path for private key (default: OS-specific config dir)
-
 
 </td></tr>
 <tr><td>
 
 [publicPath?](./core.keygenoptions.publicpath.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string
 
-
 </td><td>
 
 _(Optional)_ Path for public key (default: repo root)
 
-
 </td></tr>
 </tbody></table>
-

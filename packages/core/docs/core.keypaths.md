@@ -9,7 +9,7 @@ Paths to a generated keypair.
 **Signature:**
 
 ```typescript
-interface KeyPaths 
+interface KeyPaths
 ```
 
 ## Properties
@@ -18,60 +18,47 @@ interface KeyPaths
 
 Property
 
-
 </th><th>
 
 Modifiers
-
 
 </th><th>
 
 Type
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [privatePath](./core.keypaths.privatepath.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string
 
-
 </td><td>
 
 Path to the private key file
-
 
 </td></tr>
 <tr><td>
 
 [publicPath](./core.keypaths.publicpath.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string
 
-
 </td><td>
 
 Path to the public key file
 
-
 </td></tr>
 </tbody></table>
-

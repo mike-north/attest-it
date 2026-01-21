@@ -9,5 +9,5 @@ Current verification status
 **Signature:**
 
 ```typescript
-status: VerificationStatus;
+status: VerificationStatus
 ```

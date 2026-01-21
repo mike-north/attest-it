@@ -11,7 +11,7 @@ This function canonicalizes the attestations, signs them with the private key, a
 **Signature:**
 
 ```typescript
-declare function writeSignedAttestations(options: WriteSignedAttestationsOptions): Promise<void>;
+declare function writeSignedAttestations(options: WriteSignedAttestationsOptions): Promise<void>
 ```
 
 ## Parameters
@@ -20,32 +20,26 @@ declare function writeSignedAttestations(options: WriteSignedAttestationsOptions
 
 Parameter
 
-
 </th><th>
 
 Type
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 options
 
-
 </td><td>
 
 [WriteSignedAttestationsOptions](./core.writesignedattestationsoptions.md)
 
-
 </td><td>
 
 Options for writing signed attestations
-
 
 </td></tr>
 </tbody></table>
@@ -57,4 +51,3 @@ Promise&lt;void&gt;
 ## Exceptions
 
 Error if signing or writing fails
-

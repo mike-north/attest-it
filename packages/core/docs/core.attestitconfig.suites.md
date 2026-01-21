@@ -9,5 +9,5 @@ Named test suites with their configurations
 **Signature:**
 
 ```typescript
-suites: Record<string, SuiteConfig>;
+suites: Record<string, SuiteConfig>
 ```

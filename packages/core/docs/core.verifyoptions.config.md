@@ -9,5 +9,5 @@ Configuration object
 **Signature:**
 
 ```typescript
-config: AttestItConfig;
+config: AttestItConfig
 ```

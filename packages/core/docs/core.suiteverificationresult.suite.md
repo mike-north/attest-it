@@ -9,5 +9,5 @@ Name of the suite being verified
 **Signature:**
 
 ```typescript
-suite: string;
+suite: string
 ```

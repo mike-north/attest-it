@@ -11,7 +11,7 @@ Implements RFC 8785 JSON Canonicalization Scheme. The canonicalize package provi
 **Signature:**
 
 ```typescript
-declare function canonicalizeAttestations(attestations: Attestation[]): string;
+declare function canonicalizeAttestations(attestations: Attestation[]): string
 ```
 
 ## Parameters
@@ -20,32 +20,26 @@ declare function canonicalizeAttestations(attestations: Attestation[]): string;
 
 Parameter
 
-
 </th><th>
 
 Type
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 attestations
 
-
 </td><td>
 
 [Attestation](./core.attestation.md)<!-- -->\[\]
 
-
 </td><td>
 
 Array of attestations to canonicalize
-
 
 </td></tr>
 </tbody></table>
@@ -59,4 +53,3 @@ Canonical JSON string representation
 ## Exceptions
 
 Error if canonicalization fails
-

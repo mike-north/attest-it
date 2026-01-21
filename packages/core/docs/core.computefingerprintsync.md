@@ -9,7 +9,7 @@ Compute a deterministic fingerprint for a set of packages (sync).
 **Signature:**
 
 ```typescript
-declare function computeFingerprintSync(options: FingerprintOptions): FingerprintResult;
+declare function computeFingerprintSync(options: FingerprintOptions): FingerprintResult
 ```
 
 ## Parameters
@@ -18,32 +18,26 @@ declare function computeFingerprintSync(options: FingerprintOptions): Fingerprin
 
 Parameter
 
-
 </th><th>
 
 Type
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 options
 
-
 </td><td>
 
 [FingerprintOptions](./core.fingerprintoptions.md)
 
-
 </td><td>
 
 Configuration for fingerprint computation
-
 
 </td></tr>
 </tbody></table>
@@ -57,4 +51,3 @@ Result containing the fingerprint hash and list of files processed
 ## Exceptions
 
 Error if packages array is empty or if package paths don't exist
-
