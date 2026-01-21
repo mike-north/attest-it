@@ -3,7 +3,11 @@
  *
  * @remarks
  * This module provides an interactive CLI interface for generating keypairs
- * with the option to store private keys in either the filesystem or 1Password.
+ * with multiple storage options for private keys:
+ * - Local filesystem
+ * - macOS Keychain
+ * - 1Password
+ * - YubiKey (hardware security key with HMAC challenge-response)
  *
  * @packageDocumentation
  */
@@ -15,10 +19,13 @@ import {
   OnePasswordKeyProvider,
   FilesystemKeyProvider,
   MacOSKeychainKeyProvider,
+  YubiKeyProvider,
   getDefaultPrivateKeyPath,
   getDefaultPublicKeyPath,
+  getDefaultYubiKeyEncryptedKeyPath,
   type OnePasswordAccount,
   type OnePasswordVault,
+  type YubiKeyInfo,
 } from '@attest-it/core'
 
 /**
@@ -27,7 +34,7 @@ import {
  */
 export interface KeygenResult {
   /** Provider type used */
-  provider: 'filesystem' | '1password' | 'macos-keychain'
+  provider: 'filesystem' | '1password' | 'macos-keychain' | 'yubikey'
   /** Path to the public key file */
   publicKeyPath: string
   /** Reference to the private key (path or 1Password item name) */
@@ -40,6 +47,12 @@ export interface KeygenResult {
   vault?: string
   /** For 1Password/macOS Keychain: item name */
   itemName?: string
+  /** For YubiKey: slot number */
+  slot?: 1 | 2
+  /** For YubiKey: device serial number */
+  serial?: string
+  /** For YubiKey: path to encrypted key file */
+  encryptedKeyPath?: string
 }
 
 /**
@@ -70,6 +83,10 @@ type Step =
   | 'select-vault'
   | 'enter-item-name'
   | 'enter-keychain-item-name'
+  | 'select-yubikey-device'
+  | 'select-yubikey-slot'
+  | 'yubikey-offer-setup'
+  | 'yubikey-configuring'
   | 'generating'
   | 'done'
 
@@ -91,15 +108,21 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
   const [step, setStep] = useState<Step>('checking-providers')
   const [opAvailable, setOpAvailable] = useState(false)
   const [keychainAvailable, setKeychainAvailable] = useState(false)
+  const [yubiKeyAvailable, setYubiKeyAvailable] = useState(false)
   const [accounts, setAccounts] = useState<OnePasswordAccount[]>([])
   const [vaults, setVaults] = useState<OnePasswordVault[]>([])
+  const [yubiKeyDevices, setYubiKeyDevices] = useState<YubiKeyInfo[]>([])
   const [_selectedProvider, setSelectedProvider] = useState<
-    'filesystem' | '1password' | 'macos-keychain' | undefined
+    'filesystem' | '1password' | 'macos-keychain' | 'yubikey' | undefined
   >()
   const [selectedAccount, setSelectedAccount] = useState<string | undefined>()
   const [selectedVault, setSelectedVault] = useState<string | undefined>()
   const [itemName, setItemName] = useState('attest-it-private-key')
   const [keychainItemName, setKeychainItemName] = useState('attest-it-private-key')
+  const [selectedYubiKeySerial, setSelectedYubiKeySerial] = useState<string | undefined>()
+  const [selectedYubiKeySlot, setSelectedYubiKeySlot] = useState<1 | 2>(2)
+  const [slot1Configured, setSlot1Configured] = useState(false)
+  const [slot2Configured, setSlot2Configured] = useState(false)
 
   // Check provider availability on mount
   useEffect(() => {
@@ -121,6 +144,22 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
       // Check macOS Keychain (synchronous check)
       const isKeychainAvailable = MacOSKeychainKeyProvider.isAvailable()
       setKeychainAvailable(isKeychainAvailable)
+
+      // Check YubiKey
+      try {
+        const isInstalled = await YubiKeyProvider.isInstalled()
+        if (isInstalled) {
+          const isConnected = await YubiKeyProvider.isConnected()
+          if (isConnected) {
+            const devices = await YubiKeyProvider.listDevices()
+            setYubiKeyDevices(devices)
+            setYubiKeyAvailable(devices.length > 0)
+          }
+        }
+      } catch {
+        // YubiKey not available
+        setYubiKeyAvailable(false)
+      }
 
       setStep('select-provider')
     }
@@ -144,6 +183,35 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
     }
   }, [step, selectedAccount, onError])
 
+  // Helper to check YubiKey slot configuration
+  const checkYubiKeySlots = async (serial?: string): Promise<void> => {
+    try {
+      const slot1 = await YubiKeyProvider.isChallengeResponseConfigured(1, serial)
+      const slot2 = await YubiKeyProvider.isChallengeResponseConfigured(2, serial)
+
+      setSlot1Configured(slot1)
+      setSlot2Configured(slot2)
+
+      if (slot1 && slot2) {
+        // Both configured - prompt user to choose
+        setStep('select-yubikey-slot')
+      } else if (slot2) {
+        // Only slot 2 - auto-select
+        setSelectedYubiKeySlot(2)
+        void generateKeys('yubikey')
+      } else if (slot1) {
+        // Only slot 1 - auto-select
+        setSelectedYubiKeySlot(1)
+        void generateKeys('yubikey')
+      } else {
+        // Neither configured - offer to set up slot 2
+        setStep('yubikey-offer-setup')
+      }
+    } catch (err) {
+      onError(err instanceof Error ? err : new Error('Failed to check YubiKey slots'))
+    }
+  }
+
   // Handle provider selection
   const handleProviderSelect = (value: string): void => {
     if (value === 'filesystem') {
@@ -163,6 +231,16 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
       setSelectedProvider('macos-keychain')
       // Move to item name entry for keychain
       setStep('enter-keychain-item-name')
+    } else if (value === 'yubikey') {
+      setSelectedProvider('yubikey')
+      // If multiple devices, show device selection
+      if (yubiKeyDevices.length > 1) {
+        setStep('select-yubikey-device')
+      } else if (yubiKeyDevices.length === 1 && yubiKeyDevices[0]) {
+        // Single device - auto-select and check slots
+        setSelectedYubiKeySerial(yubiKeyDevices[0].serial)
+        void checkYubiKeySlots(yubiKeyDevices[0].serial)
+      }
     }
   }
 
@@ -190,9 +268,61 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
     void generateKeys('macos-keychain')
   }
 
+  // Handle YubiKey device selection
+  const handleYubiKeyDeviceSelect = (value: string): void => {
+    setSelectedYubiKeySerial(value)
+    void checkYubiKeySlots(value)
+  }
+
+  // Handle YubiKey slot selection
+  const handleYubiKeySlotSelect = (value: string): void => {
+    const slot = value === '1' ? 1 : 2
+    setSelectedYubiKeySlot(slot)
+    void generateKeys('yubikey')
+  }
+
+  // Handle YubiKey setup confirmation
+  const handleYubiKeySetupConfirm = (value: string): void => {
+    if (value === 'yes') {
+      void setupYubiKeySlot()
+    } else {
+      onError(new Error('YubiKey setup cancelled'))
+    }
+  }
+
+  // Setup YubiKey slot for challenge-response
+  const setupYubiKeySlot = async (): Promise<void> => {
+    setStep('yubikey-configuring')
+    try {
+      const { spawn } = await import('node:child_process')
+      const args = ['otp', 'chalresp', '--touch', '--generate', '2']
+      if (selectedYubiKeySerial) {
+        args.unshift('--device', selectedYubiKeySerial)
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        const proc = spawn('ykman', args, { stdio: 'inherit' })
+        proc.on('close', (code) => {
+          if (code === 0) {
+            resolve()
+          } else {
+            reject(new Error(`ykman exited with code ${String(code)}`))
+          }
+        })
+        proc.on('error', reject)
+      })
+
+      // After successful setup, use slot 2
+      setSelectedYubiKeySlot(2)
+      void generateKeys('yubikey')
+    } catch (err) {
+      onError(err instanceof Error ? err : new Error('Failed to configure YubiKey'))
+    }
+  }
+
   // Generate the keypair
   const generateKeys = async (
-    provider: 'filesystem' | '1password' | 'macos-keychain',
+    provider: 'filesystem' | '1password' | 'macos-keychain' | 'yubikey',
   ): Promise<void> => {
     setStep('generating')
 
@@ -255,8 +385,8 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
         }
 
         onComplete(completionResult)
-      } else {
-        // macOS Keychain provider (provider === 'macos-keychain')
+      } else if (provider === 'macos-keychain') {
+        // macOS Keychain provider
         if (!keychainItemName) {
           throw new Error('Item name is required for macOS Keychain')
         }
@@ -280,6 +410,43 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
           storageDescription: result.storageDescription,
           itemName: keychainItemName,
         })
+      } else {
+        // YubiKey provider (provider === 'yubikey')
+        const encryptedKeyPath = getDefaultYubiKeyEncryptedKeyPath()
+
+        // Build provider options, only including serial if defined
+        const providerOptions: { encryptedKeyPath: string; slot: 1 | 2; serial?: string } = {
+          encryptedKeyPath,
+          slot: selectedYubiKeySlot,
+        }
+        if (selectedYubiKeySerial !== undefined) {
+          providerOptions.serial = selectedYubiKeySerial
+        }
+
+        const ykProvider = new YubiKeyProvider(providerOptions)
+
+        // Build generation options, only including force if defined
+        const genOptions: { publicKeyPath: string; force?: boolean } = { publicKeyPath }
+        if (props.force !== undefined) {
+          genOptions.force = props.force
+        }
+
+        const result = await ykProvider.generateKeyPair(genOptions)
+
+        // Build completion result, only including serial if defined
+        const completionResult: KeygenResult = {
+          provider: 'yubikey',
+          publicKeyPath: result.publicKeyPath,
+          privateKeyRef: result.privateKeyRef,
+          storageDescription: result.storageDescription,
+          slot: selectedYubiKeySlot,
+          encryptedKeyPath,
+        }
+        if (selectedYubiKeySerial !== undefined) {
+          completionResult.serial = selectedYubiKeySerial
+        }
+
+        onComplete(completionResult)
       }
 
       setStep('done')
@@ -312,6 +479,13 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
       options.push({
         label: 'macOS Keychain',
         value: 'macos-keychain',
+      })
+    }
+
+    if (yubiKeyAvailable && yubiKeyDevices.length > 0) {
+      options.push({
+        label: 'YubiKey (hardware security key)',
+        value: 'yubikey',
       })
     }
 
@@ -390,6 +564,78 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
         <Text dimColor>(This will be the service name in your macOS Keychain)</Text>
         <Text dimColor>{''}</Text>
         <TextInput defaultValue={keychainItemName} onSubmit={handleKeychainItemNameSubmit} />
+      </Box>
+    )
+  }
+
+  if (step === 'select-yubikey-device') {
+    const options = yubiKeyDevices.map((device) => ({
+      label: `${device.type} (Serial: ${device.serial})`,
+      value: device.serial,
+    }))
+
+    return (
+      <Box flexDirection="column">
+        <Text bold>Select YubiKey device:</Text>
+        <Text dimColor>{''}</Text>
+        <Select options={options} onChange={handleYubiKeyDeviceSelect} />
+      </Box>
+    )
+  }
+
+  if (step === 'select-yubikey-slot') {
+    const options = []
+
+    if (slot2Configured) {
+      options.push({
+        label: 'Slot 2 (recommended)',
+        value: '2',
+      })
+    }
+
+    if (slot1Configured) {
+      options.push({
+        label: 'Slot 1',
+        value: '1',
+      })
+    }
+
+    return (
+      <Box flexDirection="column">
+        <Text bold>Select YubiKey slot for challenge-response:</Text>
+        <Text dimColor>{''}</Text>
+        <Select options={options} onChange={handleYubiKeySlotSelect} />
+      </Box>
+    )
+  }
+
+  if (step === 'yubikey-offer-setup') {
+    return (
+      <Box flexDirection="column">
+        <Text bold>Your YubiKey is not configured for challenge-response.</Text>
+        <Text dimColor>{''}</Text>
+        <Text>Would you like to configure slot 2 for challenge-response now?</Text>
+        <Text dimColor>This will enable touch-to-sign functionality.</Text>
+        <Text dimColor>{''}</Text>
+        <Select
+          options={[
+            { label: 'Yes, configure my YubiKey', value: 'yes' },
+            { label: 'No, cancel', value: 'no' },
+          ]}
+          onChange={handleYubiKeySetupConfirm}
+        />
+      </Box>
+    )
+  }
+
+  if (step === 'yubikey-configuring') {
+    return (
+      <Box flexDirection="column">
+        <Box flexDirection="row" gap={1}>
+          <Spinner />
+          <Text>Configuring YubiKey slot 2 for challenge-response...</Text>
+        </Box>
+        <Text dimColor>Touch your YubiKey when it flashes.</Text>
       </Box>
     )
   }

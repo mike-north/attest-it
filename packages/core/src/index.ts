@@ -86,6 +86,7 @@ export {
   checkOpenSSL,
   getDefaultPrivateKeyPath,
   getDefaultPublicKeyPath,
+  getDefaultYubiKeyEncryptedKeyPath,
   generateKeyPair,
   sign,
   verify,

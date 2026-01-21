@@ -7,6 +7,7 @@ import {
   checkOpenSSL,
   getDefaultPrivateKeyPath,
   getDefaultPublicKeyPath,
+  getDefaultYubiKeyEncryptedKeyPath,
   generateKeyPair,
   sign,
   verify,
@@ -54,6 +55,43 @@ describe('crypto', () => {
     it('should return absolute path', () => {
       const keyPath = getDefaultPublicKeyPath()
       expect(path.isAbsolute(keyPath)).toBe(true)
+    })
+  })
+
+  describe('getDefaultYubiKeyEncryptedKeyPath', () => {
+    it('should return correct path for current OS', () => {
+      const keyPath = getDefaultYubiKeyEncryptedKeyPath()
+      expect(keyPath).toBeTruthy()
+
+      if (process.platform === 'win32') {
+        expect(keyPath).toMatch(/attest-it[\\]yubikey-private\.enc$/)
+      } else {
+        expect(keyPath).toMatch(/\.config\/attest-it\/yubikey-private\.enc$/)
+      }
+    })
+
+    it('should return absolute path', () => {
+      const keyPath = getDefaultYubiKeyEncryptedKeyPath()
+      expect(path.isAbsolute(keyPath)).toBe(true)
+    })
+
+    it('should use same config directory as private key', () => {
+      const privateKeyPath = getDefaultPrivateKeyPath()
+      const yubiKeyPath = getDefaultYubiKeyEncryptedKeyPath()
+
+      // Both should be in the same directory
+      expect(path.dirname(privateKeyPath)).toBe(path.dirname(yubiKeyPath))
+    })
+
+    it('should have .enc extension', () => {
+      const keyPath = getDefaultYubiKeyEncryptedKeyPath()
+      expect(path.extname(keyPath)).toBe('.enc')
+    })
+
+    it('should contain "yubikey" in filename', () => {
+      const keyPath = getDefaultYubiKeyEncryptedKeyPath()
+      const basename = path.basename(keyPath)
+      expect(basename).toContain('yubikey')
     })
   })
 

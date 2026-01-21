@@ -25,6 +25,12 @@ vi.mock('@attest-it/core', async () => {
     MacOSKeychainKeyProvider: {
       isAvailable: vi.fn().mockResolvedValue(false),
     },
+    YubiKeyProvider: {
+      isInstalled: vi.fn().mockResolvedValue(false),
+      isConnected: vi.fn().mockResolvedValue(false),
+      listDevices: vi.fn().mockResolvedValue([]),
+      isChallengeResponseConfigured: vi.fn().mockResolvedValue(false),
+    },
     FilesystemKeyProvider: vi.fn(),
   }
 })
