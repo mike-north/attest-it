@@ -4,7 +4,8 @@
   "version": "0.5.0",
   "author": "Mike North <michael.l.north@gmail.com>",
   "bin": {
-    "attest-it": "./dist/bin/attest-it.js"
+    "attest-it": "./dist/bin/attest-it.js",
+    "attest": "./dist/bin/attest-it.js"
   },
   "dependencies": {
     "@attest-it/cli": "workspace:*",
