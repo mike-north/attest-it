@@ -9,5 +9,5 @@ The fingerprint in "sha256:..." format
 **Signature:**
 
 ```typescript
-fingerprint: string
+fingerprint: string;
 ```

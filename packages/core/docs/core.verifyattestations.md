@@ -11,7 +11,7 @@ Verification algorithm: 1. Load and verify attestations file signature 2. For ea
 **Signature:**
 
 ```typescript
-declare function verifyAttestations(options: VerifyOptions): Promise<VerifyResult>
+declare function verifyAttestations(options: VerifyOptions): Promise<VerifyResult>;
 ```
 
 ## Parameters
@@ -20,26 +20,32 @@ declare function verifyAttestations(options: VerifyOptions): Promise<VerifyResul
 
 Parameter
 
+
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 options
 
+
 </td><td>
 
 [VerifyOptions](./core.verifyoptions.md)
 
+
 </td><td>
 
 Verification options
+
 
 </td></tr>
 </tbody></table>
@@ -49,3 +55,4 @@ Verification options
 Promise&lt;[VerifyResult](./core.verifyresult.md)<!-- -->&gt;
 
 Verification result with status for each suite
+

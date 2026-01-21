@@ -9,9 +9,8 @@ Error thrown when signature verification fails.
 **Signature:**
 
 ```typescript
-declare class SignatureInvalidError extends Error
+declare class SignatureInvalidError extends Error 
 ```
-
 **Extends:** Error
 
 ## Constructors
@@ -20,24 +19,31 @@ declare class SignatureInvalidError extends Error
 
 Constructor
 
+
 </th><th>
 
 Modifiers
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [(constructor)(filePath)](./core.signatureinvaliderror._constructor_.md)
 
+
 </td><td>
+
 
 </td><td>
 
 Create a new SignatureInvalidError.
 
+
 </td></tr>
 </tbody></table>
+

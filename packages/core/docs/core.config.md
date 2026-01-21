@@ -9,5 +9,5 @@ Type inference from Zod schema (should match AttestItConfig). This is the same a
 **Signature:**
 
 ```typescript
-type Config = z.infer<typeof configSchema>
+type Config = z.infer<typeof configSchema>;
 ```

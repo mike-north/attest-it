@@ -9,5 +9,5 @@ User who created the attestation
 **Signature:**
 
 ```typescript
-attestedBy: string
+attestedBy: string;
 ```

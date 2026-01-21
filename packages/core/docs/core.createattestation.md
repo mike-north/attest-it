@@ -10,11 +10,11 @@ Create a new attestation entry.
 
 ```typescript
 declare function createAttestation(params: {
-  suite: string
-  fingerprint: string
-  command: string
-  attestedBy?: string
-}): Attestation
+    suite: string;
+    fingerprint: string;
+    command: string;
+    attestedBy?: string;
+}): Attestation;
 ```
 
 ## Parameters
@@ -23,26 +23,32 @@ declare function createAttestation(params: {
 
 Parameter
 
+
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 params
 
+
 </td><td>
 
 { suite: string; fingerprint: string; command: string; attestedBy?: string; }
 
+
 </td><td>
 
 Parameters for creating the attestation
+
 
 </td></tr>
 </tbody></table>
@@ -56,3 +62,4 @@ Validated attestation object
 ## Exceptions
 
 Error if attestation validation fails
+

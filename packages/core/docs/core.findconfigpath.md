@@ -11,7 +11,7 @@ Searches in this order: 1. .attest-it/config.yaml 2. .attest-it/config.yml 3. .a
 **Signature:**
 
 ```typescript
-declare function findConfigPath(startDir?: string): string | null
+declare function findConfigPath(startDir?: string): string | null;
 ```
 
 ## Parameters
@@ -20,26 +20,32 @@ declare function findConfigPath(startDir?: string): string | null
 
 Parameter
 
+
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 startDir
 
+
 </td><td>
 
 string
 
+
 </td><td>
 
 _(Optional)_ Directory to start searching from (defaults to cwd)
+
 
 </td></tr>
 </tbody></table>
@@ -49,3 +55,4 @@ _(Optional)_ Directory to start searching from (defaults to cwd)
 string \| null
 
 Absolute path to the config file, or null if not found
+

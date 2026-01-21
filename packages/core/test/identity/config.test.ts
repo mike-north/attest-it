@@ -783,7 +783,10 @@ identities:
           path.join(tempDir, '.attest-it', 'public-keys', 'my-identity.pem'),
         )
         expect(fs.existsSync(result.homePath)).toBe(true)
-        expect(fs.existsSync(result.projectPath!)).toBe(true)
+        expect(result.projectPath).toBeDefined()
+        if (result.projectPath) {
+          expect(fs.existsSync(result.projectPath)).toBe(true)
+        }
       })
 
       it('should not save to project directory when project has no config', async () => {
@@ -830,7 +833,9 @@ identities:
         const result = savePublicKeySync('sync-project', 'c3luYy1wcm9qZWN0', tempDir)
 
         expect(result.projectPath).toBeDefined()
-        expect(fs.existsSync(result.projectPath!)).toBe(true)
+        if (result.projectPath) {
+          expect(fs.existsSync(result.projectPath)).toBe(true)
+        }
       })
     })
   })

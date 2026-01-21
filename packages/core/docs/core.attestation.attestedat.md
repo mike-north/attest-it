@@ -9,5 +9,5 @@ ISO 8601 timestamp when attestation was created
 **Signature:**
 
 ```typescript
-attestedAt: string
+attestedAt: string;
 ```

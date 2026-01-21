@@ -9,5 +9,5 @@ Test suite name (e.g., "unit", "integration")
 **Signature:**
 
 ```typescript
-suite: string
+suite: string;
 ```

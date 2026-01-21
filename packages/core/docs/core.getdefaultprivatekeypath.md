@@ -9,9 +9,9 @@ Get the default private key path based on OS. - macOS/Linux: \~/.config/attest-i
 **Signature:**
 
 ```typescript
-declare function getDefaultPrivateKeyPath(): string
+declare function getDefaultPrivateKeyPath(): string;
 ```
-
 **Returns:**
 
 string
+

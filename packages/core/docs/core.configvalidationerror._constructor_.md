@@ -18,35 +18,45 @@ constructor(message: string, issues: z.ZodIssue[]);
 
 Parameter
 
+
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 message
 
+
 </td><td>
 
 string
 
+
 </td><td>
+
 
 </td></tr>
 <tr><td>
 
 issues
 
+
 </td><td>
 
 z.ZodIssue\[\]
 
+
 </td><td>
+
 
 </td></tr>
 </tbody></table>
+

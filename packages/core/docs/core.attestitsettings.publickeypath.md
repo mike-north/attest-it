@@ -9,5 +9,5 @@ Path to the public key file used for signature verification
 **Signature:**
 
 ```typescript
-publicKeyPath: string
+publicKeyPath: string;
 ```

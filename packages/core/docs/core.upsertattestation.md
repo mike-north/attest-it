@@ -11,10 +11,7 @@ This is an immutable operation that returns a new array.
 **Signature:**
 
 ```typescript
-declare function upsertAttestation(
-  attestations: Attestation[],
-  newAttestation: Attestation,
-): Attestation[]
+declare function upsertAttestation(attestations: Attestation[], newAttestation: Attestation): Attestation[];
 ```
 
 ## Parameters
@@ -23,39 +20,48 @@ declare function upsertAttestation(
 
 Parameter
 
+
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 attestations
 
+
 </td><td>
 
 [Attestation](./core.attestation.md)<!-- -->\[\]
 
+
 </td><td>
 
 Current array of attestations
+
 
 </td></tr>
 <tr><td>
 
 newAttestation
 
+
 </td><td>
 
 [Attestation](./core.attestation.md)
 
+
 </td><td>
 
 Attestation to add or update
+
 
 </td></tr>
 </tbody></table>
@@ -69,3 +75,4 @@ New attestations array with the upserted attestation
 ## Exceptions
 
 Error if the new attestation fails validation
+

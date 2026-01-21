@@ -9,5 +9,5 @@ Number of files processed
 **Signature:**
 
 ```typescript
-fileCount: number
+fileCount: number;
 ```

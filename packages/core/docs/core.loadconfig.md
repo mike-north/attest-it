@@ -9,7 +9,7 @@ Load and validate configuration from a file (async).
 **Signature:**
 
 ```typescript
-declare function loadConfig(configPath?: string): Promise<Config>
+declare function loadConfig(configPath?: string): Promise<Config>;
 ```
 
 ## Parameters
@@ -18,26 +18,32 @@ declare function loadConfig(configPath?: string): Promise<Config>
 
 Parameter
 
+
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 configPath
 
+
 </td><td>
 
 string
 
+
 </td><td>
 
 _(Optional)_ Optional path to config file. If not provided, searches default locations.
+
 
 </td></tr>
 </tbody></table>
@@ -53,3 +59,4 @@ Validated configuration object
 [ConfigNotFoundError](./core.confignotfounderror.md) If config file cannot be found
 
 [ConfigValidationError](./core.configvalidationerror.md) If validation fails
+

@@ -9,5 +9,5 @@ SHA-256 fingerprint of test files in format "sha256:<hex>"
 **Signature:**
 
 ```typescript
-fingerprint: string
+fingerprint: string;
 ```

@@ -9,5 +9,5 @@ Package version
 **Signature:**
 
 ```typescript
-version = '0.0.0'
+version = "0.0.0"
 ```

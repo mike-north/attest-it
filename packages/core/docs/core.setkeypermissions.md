@@ -9,7 +9,7 @@ Set restrictive permissions on a private key file.
 **Signature:**
 
 ```typescript
-declare function setKeyPermissions(keyPath: string): Promise<void>
+declare function setKeyPermissions(keyPath: string): Promise<void>;
 ```
 
 ## Parameters
@@ -18,26 +18,32 @@ declare function setKeyPermissions(keyPath: string): Promise<void>
 
 Parameter
 
+
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 keyPath
 
+
 </td><td>
 
 string
 
+
 </td><td>
 
 Path to the private key
+
 
 </td></tr>
 </tbody></table>
@@ -45,3 +51,4 @@ Path to the private key
 **Returns:**
 
 Promise&lt;void&gt;
+

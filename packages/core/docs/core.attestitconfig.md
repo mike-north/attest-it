@@ -9,7 +9,7 @@ Full configuration file structure.
 **Signature:**
 
 ```typescript
-interface AttestItConfig
+interface AttestItConfig 
 ```
 
 ## Properties
@@ -18,62 +18,79 @@ interface AttestItConfig
 
 Property
 
+
 </th><th>
 
 Modifiers
+
 
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [settings](./core.attestitconfig.settings.md)
 
+
 </td><td>
+
 
 </td><td>
 
 [AttestItSettings](./core.attestitsettings.md)
 
+
 </td><td>
 
 Global settings for attestation behavior
+
 
 </td></tr>
 <tr><td>
 
 [suites](./core.attestitconfig.suites.md)
 
+
 </td><td>
+
 
 </td><td>
 
 Record&lt;string, [SuiteConfig](./core.suiteconfig.md)<!-- -->&gt;
 
+
 </td><td>
 
 Named test suites with their configurations
+
 
 </td></tr>
 <tr><td>
 
 [version](./core.attestitconfig.version.md)
 
+
 </td><td>
+
 
 </td><td>
 
 1
 
+
 </td><td>
 
 Configuration schema version
 
+
 </td></tr>
 </tbody></table>
+

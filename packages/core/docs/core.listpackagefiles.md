@@ -9,11 +9,7 @@ List files in packages, respecting ignore patterns (async).
 **Signature:**
 
 ```typescript
-declare function listPackageFiles(
-  packages: string[],
-  ignore?: string[],
-  baseDir?: string,
-): Promise<string[]>
+declare function listPackageFiles(packages: string[], ignore?: string[], baseDir?: string): Promise<string[]>;
 ```
 
 ## Parameters
@@ -22,52 +18,64 @@ declare function listPackageFiles(
 
 Parameter
 
+
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 packages
 
+
 </td><td>
 
 string\[\]
 
+
 </td><td>
 
 Array of package directory paths
+
 
 </td></tr>
 <tr><td>
 
 ignore
 
+
 </td><td>
 
 string\[\]
 
+
 </td><td>
 
 _(Optional)_ Optional glob patterns to exclude
+
 
 </td></tr>
 <tr><td>
 
 baseDir
 
+
 </td><td>
 
 string
 
+
 </td><td>
 
 _(Optional)_ Base directory for resolving paths (defaults to cwd)
+
 
 </td></tr>
 </tbody></table>
@@ -77,3 +85,4 @@ _(Optional)_ Base directory for resolving paths (defaults to cwd)
 Promise&lt;string\[\]&gt;
 
 Array of relative file paths
+

@@ -11,7 +11,7 @@ This converts relative paths in settings.publicKeyPath and settings.attestations
 **Signature:**
 
 ```typescript
-declare function resolveConfigPaths(config: Config, repoRoot: string): Config
+declare function resolveConfigPaths(config: Config, repoRoot: string): Config;
 ```
 
 ## Parameters
@@ -20,39 +20,48 @@ declare function resolveConfigPaths(config: Config, repoRoot: string): Config
 
 Parameter
 
+
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 config
 
+
 </td><td>
 
 [Config](./core.config.md)
 
+
 </td><td>
 
 The configuration object
+
 
 </td></tr>
 <tr><td>
 
 repoRoot
 
+
 </td><td>
 
 string
 
+
 </td><td>
 
 Absolute path to the repository root
+
 
 </td></tr>
 </tbody></table>
@@ -62,3 +71,4 @@ Absolute path to the repository root
 [Config](./core.config.md)
 
 Configuration with resolved absolute paths
+

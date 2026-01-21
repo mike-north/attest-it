@@ -18,26 +18,33 @@ constructor(filePath: string);
 
 Parameter
 
+
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 filePath
 
+
 </td><td>
 
 string
+
 
 </td><td>
 
 Path to the file that failed verification
 
+
 </td></tr>
 </tbody></table>
+

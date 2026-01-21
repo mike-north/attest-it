@@ -9,5 +9,5 @@ Maximum age in days before an attestation expires
 **Signature:**
 
 ```typescript
-maxAgeDays: number
+maxAgeDays: number;
 ```

@@ -9,9 +9,8 @@ Error thrown when configuration file cannot be found.
 **Signature:**
 
 ```typescript
-declare class ConfigNotFoundError extends Error
+declare class ConfigNotFoundError extends Error 
 ```
-
 **Extends:** Error
 
 ## Constructors
@@ -20,24 +19,31 @@ declare class ConfigNotFoundError extends Error
 
 Constructor
 
+
 </th><th>
 
 Modifiers
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [(constructor)(message)](./core.confignotfounderror._constructor_.md)
 
+
 </td><td>
+
 
 </td><td>
 
 Constructs a new instance of the `ConfigNotFoundError` class
 
+
 </td></tr>
 </tbody></table>
+

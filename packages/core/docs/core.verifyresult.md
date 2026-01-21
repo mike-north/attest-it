@@ -9,7 +9,7 @@ Result of verifying all attestations.
 **Signature:**
 
 ```typescript
-interface VerifyResult
+interface VerifyResult 
 ```
 
 ## Properties
@@ -18,77 +18,98 @@ interface VerifyResult
 
 Property
 
+
 </th><th>
 
 Modifiers
+
 
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [errors](./core.verifyresult.errors.md)
 
+
 </td><td>
+
 
 </td><td>
 
 string\[\]
 
+
 </td><td>
 
 Error messages encountered during verification
+
 
 </td></tr>
 <tr><td>
 
 [signatureValid](./core.verifyresult.signaturevalid.md)
 
+
 </td><td>
+
 
 </td><td>
 
 boolean
 
+
 </td><td>
 
 Whether the attestations file signature is valid
+
 
 </td></tr>
 <tr><td>
 
 [success](./core.verifyresult.success.md)
 
+
 </td><td>
+
 
 </td><td>
 
 boolean
 
+
 </td><td>
 
 Overall success - true if all attestations are valid
+
 
 </td></tr>
 <tr><td>
 
 [suites](./core.verifyresult.suites.md)
 
+
 </td><td>
+
 
 </td><td>
 
 [SuiteVerificationResult](./core.suiteverificationresult.md)<!-- -->\[\]
 
+
 </td><td>
 
 Verification results for each suite
 
+
 </td></tr>
 </tbody></table>
+

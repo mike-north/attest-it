@@ -9,5 +9,5 @@ Path to the attestations file
 **Signature:**
 
 ```typescript
-attestationsPath: string
+attestationsPath: string;
 ```

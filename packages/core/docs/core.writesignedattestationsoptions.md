@@ -9,7 +9,7 @@ Options for writing signed attestations.
 **Signature:**
 
 ```typescript
-interface WriteSignedAttestationsOptions
+interface WriteSignedAttestationsOptions 
 ```
 
 ## Properties
@@ -18,62 +18,79 @@ interface WriteSignedAttestationsOptions
 
 Property
 
+
 </th><th>
 
 Modifiers
+
 
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [attestations](./core.writesignedattestationsoptions.attestations.md)
 
+
 </td><td>
+
 
 </td><td>
 
 [Attestation](./core.attestation.md)<!-- -->\[\]
 
+
 </td><td>
 
 Array of attestations to write
+
 
 </td></tr>
 <tr><td>
 
 [filePath](./core.writesignedattestationsoptions.filepath.md)
 
+
 </td><td>
+
 
 </td><td>
 
 string
 
+
 </td><td>
 
 Path to write the attestations file
+
 
 </td></tr>
 <tr><td>
 
 [privateKeyPath](./core.writesignedattestationsoptions.privatekeypath.md)
 
+
 </td><td>
+
 
 </td><td>
 
 string
 
+
 </td><td>
 
 Path to the private key for signing
 
+
 </td></tr>
 </tbody></table>
+

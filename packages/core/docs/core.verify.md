@@ -9,7 +9,7 @@ Verify a signature using a public key.
 **Signature:**
 
 ```typescript
-declare function verify(options: VerifyOptions$1): Promise<boolean>
+declare function verify(options: VerifyOptions$1): Promise<boolean>;
 ```
 
 ## Parameters
@@ -18,26 +18,32 @@ declare function verify(options: VerifyOptions$1): Promise<boolean>
 
 Parameter
 
+
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 options
 
+
 </td><td>
 
 [VerifyOptions$1](./core.cryptoverifyoptions.md)
 
+
 </td><td>
 
 Verification options
+
 
 </td></tr>
 </tbody></table>
@@ -51,3 +57,4 @@ true if signature is valid
 ## Exceptions
 
 Error if verification fails (not just invalid signature)
+

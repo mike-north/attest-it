@@ -9,5 +9,5 @@ Command that was executed
 **Signature:**
 
 ```typescript
-command: string
+command: string;
 ```

@@ -9,7 +9,7 @@ Attestations file structure.
 **Signature:**
 
 ```typescript
-interface AttestationsFile
+interface AttestationsFile 
 ```
 
 ## Properties
@@ -18,62 +18,79 @@ interface AttestationsFile
 
 Property
 
+
 </th><th>
 
 Modifiers
+
 
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [attestations](./core.attestationsfile.attestations.md)
 
+
 </td><td>
+
 
 </td><td>
 
 [Attestation](./core.attestation.md)<!-- -->\[\]
 
+
 </td><td>
 
 Array of attestations
+
 
 </td></tr>
 <tr><td>
 
 [schemaVersion](./core.attestationsfile.schemaversion.md)
 
+
 </td><td>
+
 
 </td><td>
 
 '1'
 
+
 </td><td>
 
 Schema version for forward compatibility
+
 
 </td></tr>
 <tr><td>
 
 [signature](./core.attestationsfile.signature.md)
 
+
 </td><td>
+
 
 </td><td>
 
 string
 
+
 </td><td>
 
 Base64-encoded signature over canonical attestations array
 
+
 </td></tr>
 </tbody></table>
+
