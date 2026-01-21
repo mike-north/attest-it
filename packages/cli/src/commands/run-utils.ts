@@ -92,7 +92,6 @@ export async function getAllSuiteStatuses(config: Config): Promise<SuiteStatus[]
 
     if (suiteConfig.gate && config.gates) {
       // Suite references a gate - use gate's fingerprint config
-      // eslint-disable-next-line security/detect-object-injection
       const gateConfig = config.gates[suiteConfig.gate]
       if (gateConfig) {
         packages = gateConfig.fingerprint.paths

@@ -14,7 +14,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { render, Box, Text, useInput } from 'ink'
-import { Select, TextInput, Spinner } from '@inkjs/ui'
+import { Select, TextInput, PasswordInput, Spinner } from '@inkjs/ui'
 import {
   OnePasswordKeyProvider,
   FilesystemKeyProvider,
@@ -604,7 +604,7 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
           {`(Minimum ${String(MIN_PASSPHRASE_LENGTH)} characters. You will need this passphrase each time you sign.)`}
         </Text>
         <Text dimColor>{''}</Text>
-        <TextInput mask="*" onSubmit={handleEncryptionPassphrase} />
+        <PasswordInput onSubmit={handleEncryptionPassphrase} />
       </Box>
     )
   }
@@ -615,7 +615,7 @@ export function KeygenInteractive(props: KeygenInteractiveProps): React.ReactEle
         <Text bold>Confirm your passphrase:</Text>
         <Text dimColor>(Enter the same passphrase again to confirm.)</Text>
         <Text dimColor>{''}</Text>
-        <TextInput mask="*" onSubmit={handleConfirmPassphrase} />
+        <PasswordInput onSubmit={handleConfirmPassphrase} />
       </Box>
     )
   }
