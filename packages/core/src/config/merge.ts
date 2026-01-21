@@ -124,7 +124,7 @@ function toKeyProvider(
  * The merge strategy prioritizes security-critical fields from the policy
  * configuration while combining operational fields from both sources:
  *
- * - **Policy settings** (maxAgeDays, publicKeyPath, attestationsPath) are used as-is
+ * - **Policy settings** (maxAgeDays, publicKeyPath, attestationsPath, sealsPath) are used as-is
  * - **Operational settings** (defaultCommand, keyProvider) are added from operational config
  * - **Team and gates** come exclusively from policy config
  * - **Suites and groups** come exclusively from operational config
@@ -148,6 +148,7 @@ export function mergeConfigs(policy: PolicyConfig, operational: OperationalConfi
     maxAgeDays: policy.settings.maxAgeDays,
     publicKeyPath: policy.settings.publicKeyPath,
     attestationsPath: policy.settings.attestationsPath,
+    sealsPath: policy.settings.sealsPath,
   }
 
   // Add operational settings only if defined

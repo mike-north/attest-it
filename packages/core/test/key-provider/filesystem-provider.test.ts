@@ -175,6 +175,62 @@ describe('FilesystemKeyProvider', () => {
     })
   })
 
+  describe('generateKeyPair with passphrase', () => {
+    it('should generate encrypted keypair and return encrypted flag', async () => {
+      const privatePath = path.join(tmpDir, 'encrypted-private.pem')
+      const publicKeyPath = path.join(tmpDir, 'encrypted-public.pem')
+      const passphrase = 'test-passphrase-12345'
+
+      const customProvider = new FilesystemKeyProvider({ privateKeyPath: privatePath })
+
+      const result = await customProvider.generateKeyPair({
+        publicKeyPath,
+        passphrase,
+      })
+
+      expect(result.privateKeyRef).toBe(privatePath)
+      expect(result.publicKeyPath).toBe(publicKeyPath)
+      expect(result.encrypted).toBe(true)
+      expect(result.storageDescription).toContain('passphrase-encrypted')
+
+      // Verify private key is encrypted
+      const privateContent = await fs.readFile(privatePath, 'utf8')
+      expect(privateContent).toMatch(/ENCRYPTED/)
+    })
+
+    it('should return encrypted=false when no passphrase provided', async () => {
+      const privatePath = path.join(tmpDir, 'unencrypted-private.pem')
+      const publicKeyPath = path.join(tmpDir, 'unencrypted-public.pem')
+
+      const customProvider = new FilesystemKeyProvider({ privateKeyPath: privatePath })
+
+      const result = await customProvider.generateKeyPair({
+        publicKeyPath,
+      })
+
+      expect(result.encrypted).toBe(false)
+      expect(result.storageDescription).not.toContain('passphrase-encrypted')
+
+      // Verify private key is not encrypted
+      const privateContent = await fs.readFile(privatePath, 'utf8')
+      expect(privateContent).not.toMatch(/ENCRYPTED/)
+    })
+
+    it('should return encrypted=false for empty passphrase', async () => {
+      const privatePath = path.join(tmpDir, 'empty-pass-private.pem')
+      const publicKeyPath = path.join(tmpDir, 'empty-pass-public.pem')
+
+      const customProvider = new FilesystemKeyProvider({ privateKeyPath: privatePath })
+
+      const result = await customProvider.generateKeyPair({
+        publicKeyPath,
+        passphrase: '',
+      })
+
+      expect(result.encrypted).toBe(false)
+    })
+  })
+
   describe('integration: sign with FilesystemKeyProvider', () => {
     it('should successfully sign data using provider', async () => {
       const privatePath = path.join(tmpDir, 'sign-private.pem')

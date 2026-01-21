@@ -509,4 +509,201 @@ describe('crypto', () => {
       expect(isValid).toBe(false)
     })
   })
+
+  describe('passphrase-encrypted keys', () => {
+    let tmpDir: string
+    let privatePath: string
+    let publicPath: string
+    const testPassphrase = 'test-passphrase-12345'
+
+    beforeEach(async () => {
+      tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'attest-it-passphrase-'))
+      privatePath = path.join(tmpDir, 'encrypted-private.pem')
+      publicPath = path.join(tmpDir, 'encrypted-public.pem')
+    })
+
+    afterEach(async () => {
+      try {
+        await fs.rm(tmpDir, { recursive: true, force: true })
+      } catch {
+        // Ignore cleanup errors
+      }
+    })
+
+    describe('generateKeyPair with passphrase', () => {
+      it('should generate an encrypted keypair', async () => {
+        const result = await generateKeyPair({
+          privatePath,
+          publicPath,
+          passphrase: testPassphrase,
+        })
+
+        expect(result.privatePath).toBe(privatePath)
+        expect(result.publicPath).toBe(publicPath)
+
+        // Verify files exist
+        expect(fsSync.existsSync(privatePath)).toBe(true)
+        expect(fsSync.existsSync(publicPath)).toBe(true)
+
+        // Verify private key is encrypted (contains ENCRYPTED marker)
+        const privateKeyContent = await fs.readFile(privatePath, 'utf8')
+        expect(privateKeyContent).toMatch(/ENCRYPTED/)
+      })
+
+      it('should generate a public key that is not encrypted', async () => {
+        await generateKeyPair({
+          privatePath,
+          publicPath,
+          passphrase: testPassphrase,
+        })
+
+        const publicKeyContent = await fs.readFile(publicPath, 'utf8')
+        expect(publicKeyContent).not.toMatch(/ENCRYPTED/)
+        expect(publicKeyContent).toMatch(/PUBLIC KEY/)
+      })
+
+      it('should overwrite existing encrypted keys when force is true', async () => {
+        // Create first encrypted keypair
+        await generateKeyPair({
+          privatePath,
+          publicPath,
+          passphrase: testPassphrase,
+        })
+        const firstPrivate = await fs.readFile(privatePath, 'utf8')
+
+        // Overwrite with force
+        await generateKeyPair({
+          privatePath,
+          publicPath,
+          passphrase: 'different-passphrase-67890',
+          force: true,
+        })
+        const secondPrivate = await fs.readFile(privatePath, 'utf8')
+
+        // Keys should be different
+        expect(secondPrivate).not.toBe(firstPrivate)
+      })
+    })
+
+    describe('sign with encrypted key', () => {
+      beforeEach(async () => {
+        // Generate an encrypted keypair for each test
+        await generateKeyPair({
+          privatePath,
+          publicPath,
+          passphrase: testPassphrase,
+        })
+      })
+
+      it('should sign data with correct passphrase', async () => {
+        const signature = await sign({
+          privateKeyPath: privatePath,
+          data: 'test data for encrypted key',
+          passphrase: testPassphrase,
+        })
+
+        expect(signature).toBeTruthy()
+        expect(typeof signature).toBe('string')
+        // Base64 signature should be valid
+        expect(() => Buffer.from(signature, 'base64')).not.toThrow()
+      })
+
+      it('should fail to sign with wrong passphrase with clear error message', async () => {
+        await expect(
+          sign({
+            privateKeyPath: privatePath,
+            data: 'test data',
+            passphrase: 'wrong-passphrase',
+          }),
+        ).rejects.toThrow(/Failed to decrypt private key|passphrase/)
+      })
+
+      it('should fail to sign without passphrase for encrypted key', async () => {
+        await expect(
+          sign({
+            privateKeyPath: privatePath,
+            data: 'test data',
+            // No passphrase provided
+          }),
+        ).rejects.toThrow()
+      })
+    })
+
+    describe('full workflow with encrypted keys', () => {
+      it('should complete sign/verify workflow with encrypted key', async () => {
+        // Generate encrypted keypair
+        await generateKeyPair({
+          privatePath,
+          publicPath,
+          passphrase: testPassphrase,
+        })
+
+        // Sign data with passphrase
+        const testData = 'encrypted key integration test'
+        const signature = await sign({
+          privateKeyPath: privatePath,
+          data: testData,
+          passphrase: testPassphrase,
+        })
+
+        // Verify signature (public key is not encrypted)
+        const isValid = await verify({
+          publicKeyPath: publicPath,
+          data: testData,
+          signature,
+        })
+
+        expect(isValid).toBe(true)
+      })
+
+      it('should detect tampering with encrypted key signature', async () => {
+        // Generate encrypted keypair
+        await generateKeyPair({
+          privatePath,
+          publicPath,
+          passphrase: testPassphrase,
+        })
+
+        // Sign original data
+        const originalData = 'original encrypted message'
+        const signature = await sign({
+          privateKeyPath: privatePath,
+          data: originalData,
+          passphrase: testPassphrase,
+        })
+
+        // Try to verify with tampered data
+        const isValid = await verify({
+          publicKeyPath: publicPath,
+          data: 'tampered message',
+          signature,
+        })
+
+        expect(isValid).toBe(false)
+      })
+
+      it('should produce consistent signatures for same data', async () => {
+        // Generate encrypted keypair
+        await generateKeyPair({
+          privatePath,
+          publicPath,
+          passphrase: testPassphrase,
+        })
+
+        const data = 'consistent test data'
+        const sig1 = await sign({
+          privateKeyPath: privatePath,
+          data,
+          passphrase: testPassphrase,
+        })
+        const sig2 = await sign({
+          privateKeyPath: privatePath,
+          data,
+          passphrase: testPassphrase,
+        })
+
+        expect(sig1).toBe(sig2)
+      })
+    })
+  })
 })

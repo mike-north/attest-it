@@ -58,7 +58,7 @@ async function runVerify(gates: string[], options: VerifyOptions): Promise<void>
 
     // Read seals
     const projectRoot = process.cwd()
-    const sealsFile = readSealsSync(projectRoot)
+    const sealsFile = readSealsSync(projectRoot, attestItConfig.settings.sealsPath)
 
     // Determine which gates to verify
     const gatesToVerify = gates.length > 0 ? gates : Object.keys(attestItConfig.gates)

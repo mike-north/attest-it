@@ -230,6 +230,7 @@ export function isAuthorizedSigner(config: AttestItConfig, gateId: string, publi
 
 // @public
 export interface KeyGenerationResult {
+    encrypted?: boolean;
     privateKeyRef: string;
     publicKeyPath: string;
     storageDescription: string;
@@ -238,6 +239,7 @@ export interface KeyGenerationResult {
 // @public
 export interface KeygenOptions {
     force?: boolean;
+    passphrase?: string;
     privatePath?: string;
     publicPath?: string;
 }
@@ -245,6 +247,7 @@ export interface KeygenOptions {
 // @public
 export interface KeygenProviderOptions {
     force?: boolean;
+    passphrase?: string;
     publicKeyPath: string;
 }
 
@@ -864,6 +867,7 @@ export interface SignOptions {
     data: Buffer | string;
     keyProvider?: KeyProvider;
     keyRef?: string;
+    passphrase?: string;
     privateKeyPath?: string;
 }
 

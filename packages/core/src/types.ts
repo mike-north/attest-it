@@ -36,6 +36,8 @@ export interface AttestItSettings {
   publicKeyPath: string
   /** Path to the attestations file */
   attestationsPath: string
+  /** Path to the seals file */
+  sealsPath: string
   /** Default command to execute for attestation (can be overridden per suite) */
   defaultCommand?: string
   /** Key provider configuration for signing attestations */

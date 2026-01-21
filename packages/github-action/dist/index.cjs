@@ -19944,7 +19944,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
-// ../core/dist/chunk-T3NLSO5B.js
+// ../core/dist/chunk-GQPQLZJ3.js
 async function runOpenSSL(args, stdin) {
   return new Promise((resolve5, reject) => {
     const child = (0, import_child_process.spawn)("openssl", args, {
@@ -19968,6 +19968,9 @@ async function runOpenSSL(args, stdin) {
         stderr
       });
     });
+    if (stdin) {
+      child.stdin.write(stdin);
+    }
     child.stdin.end();
   });
 }
@@ -20040,7 +20043,8 @@ async function generateKeyPair(options = {}) {
   const {
     privatePath = getDefaultPrivateKeyPath(),
     publicPath = getDefaultPublicKeyPath(),
-    force = false
+    force = false,
+    passphrase
   } = options;
   const privateExists = await fileExists(privatePath);
   const publicExists = await fileExists(publicPath);
@@ -20064,12 +20068,19 @@ async function generateKeyPair(options = {}) {
       "-out",
       privatePath
     ];
-    const genResult = await runOpenSSL(genArgs);
+    if (passphrase) {
+      genArgs.push("-aes256", "-pass", "stdin");
+    }
+    const genResult = await runOpenSSL(genArgs, passphrase ? Buffer.from(passphrase) : void 0);
     if (genResult.exitCode !== 0) {
       throw new Error(`Failed to generate private key: ${genResult.stderr}`);
     }
     await setKeyPermissions(privatePath);
-    const pubResult = await runOpenSSL(["pkey", "-in", privatePath, "-pubout", "-out", publicPath]);
+    const pubArgs = ["pkey", "-in", privatePath, "-pubout", "-out", publicPath];
+    if (passphrase) {
+      pubArgs.push("-passin", "stdin");
+    }
+    const pubResult = await runOpenSSL(pubArgs, passphrase ? Buffer.from(passphrase) : void 0);
     if (pubResult.exitCode !== 0) {
       throw new Error(`Failed to extract public key: ${pubResult.stderr}`);
     }
@@ -20084,7 +20095,7 @@ async function generateKeyPair(options = {}) {
 }
 async function sign(options) {
   await ensureOpenSSLAvailable();
-  const { privateKeyPath, keyProvider, keyRef, data } = options;
+  const { privateKeyPath, keyProvider, keyRef, data, passphrase } = options;
   let effectiveKeyPath;
   let cleanup;
   if (keyProvider && keyRef) {
@@ -20109,8 +20120,15 @@ async function sign(options) {
     const sigFile = path.join(tmpDir, "sig.bin");
     try {
       await fs.writeFile(dataFile, processBuffer);
-      const signArgs = ["dgst", "-sha256", "-sign", effectiveKeyPath, "-out", sigFile, dataFile];
-      const result = await runOpenSSL(signArgs);
+      const signArgs = ["dgst", "-sha256"];
+      if (passphrase) {
+        signArgs.push("-passin", "stdin");
+      }
+      signArgs.push("-sign", effectiveKeyPath, "-out", sigFile, dataFile);
+      const result = await runOpenSSL(
+        signArgs,
+        passphrase ? Buffer.from(passphrase + "\n") : void 0
+      );
       if (result.exitCode !== 0) {
         throw new Error(`Failed to sign data: ${result.stderr}`);
       }
@@ -20169,8 +20187,8 @@ async function setKeyPermissions(keyPath) {
   }
 }
 var import_child_process, fs, path, os, openSSLChecked;
-var init_chunk_T3NLSO5B = __esm({
-  "../core/dist/chunk-T3NLSO5B.js"() {
+var init_chunk_GQPQLZJ3 = __esm({
+  "../core/dist/chunk-GQPQLZJ3.js"() {
     "use strict";
     init_cjs_shims();
     import_child_process = require("child_process");
@@ -29222,9 +29240,9 @@ var require_canonicalize = __commonJS({
   }
 });
 
-// ../core/dist/crypto-VT6YNHUE.js
-var crypto_VT6YNHUE_exports = {};
-__export(crypto_VT6YNHUE_exports, {
+// ../core/dist/crypto-ZW76NUPI.js
+var crypto_ZW76NUPI_exports = {};
+__export(crypto_ZW76NUPI_exports, {
   checkOpenSSL: () => checkOpenSSL,
   generateKeyPair: () => generateKeyPair,
   getDefaultPrivateKeyPath: () => getDefaultPrivateKeyPath,
@@ -29234,11 +29252,11 @@ __export(crypto_VT6YNHUE_exports, {
   sign: () => sign,
   verify: () => verify
 });
-var init_crypto_VT6YNHUE = __esm({
-  "../core/dist/crypto-VT6YNHUE.js"() {
+var init_crypto_ZW76NUPI = __esm({
+  "../core/dist/crypto-ZW76NUPI.js"() {
     "use strict";
     init_cjs_shims();
-    init_chunk_T3NLSO5B();
+    init_chunk_GQPQLZJ3();
   }
 });
 
@@ -34213,8 +34231,8 @@ var import_node_path = require("path");
 
 // ../core/dist/index.js
 init_cjs_shims();
-init_chunk_T3NLSO5B();
-init_chunk_T3NLSO5B();
+init_chunk_GQPQLZJ3();
+init_chunk_GQPQLZJ3();
 var fs2 = __toESM(require("fs"), 1);
 var fs7 = __toESM(require("fs/promises"), 1);
 var path6 = __toESM(require("path"), 1);
@@ -39605,7 +39623,7 @@ function canonicalizeAttestations(attestations) {
   return canonical;
 }
 async function readAndVerifyAttestations(options) {
-  const { verify: verify4 } = await Promise.resolve().then(() => (init_crypto_VT6YNHUE(), crypto_VT6YNHUE_exports));
+  const { verify: verify4 } = await Promise.resolve().then(() => (init_crypto_ZW76NUPI(), crypto_ZW76NUPI_exports));
   const file = await readAttestations(options.filePath);
   if (!file) {
     throw new Error(`Attestations file not found: ${options.filePath}`);
@@ -39808,16 +39826,23 @@ var FilesystemKeyProvider = class {
    * @param options - Key generation options
    */
   async generateKeyPair(options) {
-    const { publicKeyPath, force = false } = options;
-    const result = await generateKeyPair({
+    const { publicKeyPath, force = false, passphrase } = options;
+    const cryptoOptions = {
       privatePath: this.privateKeyPath,
       publicPath: publicKeyPath,
       force
-    });
+    };
+    if (passphrase !== void 0) {
+      cryptoOptions.passphrase = passphrase;
+    }
+    const result = await generateKeyPair(cryptoOptions);
+    const encrypted = passphrase !== void 0 && passphrase.length > 0;
+    const encryptionStatus = encrypted ? " (passphrase-encrypted)" : "";
     return {
       privateKeyRef: result.privatePath,
       publicKeyPath: result.publicPath,
-      storageDescription: `Filesystem: ${result.privatePath}`
+      storageDescription: `Filesystem: ${result.privatePath}${encryptionStatus}`,
+      encrypted
     };
   }
   /**

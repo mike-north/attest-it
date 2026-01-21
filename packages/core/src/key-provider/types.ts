@@ -49,6 +49,8 @@ export interface KeyGenerationResult {
   publicKeyPath: string
   /** Human-readable storage location description */
   storageDescription: string
+  /** Whether the private key is encrypted with a passphrase */
+  encrypted?: boolean
 }
 
 /**
@@ -60,6 +62,8 @@ export interface KeygenProviderOptions {
   publicKeyPath: string
   /** Overwrite existing keys */
   force?: boolean
+  /** Passphrase to encrypt the private key (filesystem provider only) */
+  passphrase?: string
 }
 
 /**
