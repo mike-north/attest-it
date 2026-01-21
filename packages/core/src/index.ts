@@ -147,9 +147,16 @@ export {
   saveLocalConfigSync,
   getActiveIdentity,
   LocalConfigValidationError,
+  // Public key storage
+  getHomePublicKeysDir,
+  getProjectPublicKeysDir,
+  hasProjectConfig,
+  savePublicKey,
+  savePublicKeySync,
   type PrivateKeyRef,
   type Identity,
   type LocalConfig,
+  type SavePublicKeyResult,
 } from './identity/index.js'
 
 // User Preferences
