@@ -4,6 +4,7 @@
   "version": "0.6.1",
   "author": "Mike North <michael.l.north@gmail.com>",
   "bin": {
+    "attest": "./dist/bin/attest-it.js",
     "attest-it": "./dist/bin/attest-it.js"
   },
   "dependencies": {

@@ -27,8 +27,8 @@ describe('TestRunner component', () => {
         />,
       )
 
-      // Wait for effect to run
-      await new Promise((resolve) => setTimeout(resolve, 0))
+      // Wait for effect to run (increased for CI stability)
+      await new Promise((resolve) => setTimeout(resolve, 50))
 
       const output = lastFrame() ?? ''
       expect(output).toContain('Running test-suite-1')
