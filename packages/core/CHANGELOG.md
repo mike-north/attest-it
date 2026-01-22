@@ -1,5 +1,42 @@
 # @attest-it/core
 
+## 0.8.0
+
+### Minor Changes
+
+- 16ede3f: Add passphrase encryption option for filesystem-stored private keys
+
+  Users can now optionally encrypt their private key with a passphrase when
+  selecting "Local Filesystem" storage in `attest-it keygen`. This provides an
+  additional layer of security for users who don't have access to macOS Keychain,
+  1Password, or YubiKey.
+
+  Features:
+  - New encryption prompt after selecting filesystem storage
+  - Passphrase confirmation step to prevent typos
+  - AES-256 encryption via OpenSSL
+  - Clear error message when wrong passphrase is provided during signing
+  - Passphrase passed via stdin (not command line) for security
+  - Minimum 8 character passphrase requirement
+
+### Patch Changes
+
+- 16ede3f: Fix three bugs discovered during dogfooding:
+
+  **Bug 1: Gate-based suites skipped by run command**
+  - The `run` command was skipping suites that reference gates via the `gate` property
+  - Fixed `getAllSuiteStatuses` to look up gate config and use `fingerprint.paths` and `fingerprint.exclude`
+
+  **Bug 2: Seal uses display name instead of identity slug**
+  - The `seal` and `run` commands were using `identity.name` (display name) for `sealedBy`
+  - Fixed to use `localConfig.activeIdentity` (the slug) which is the key used for team member lookup during verification
+
+  **Bug 3: sealsPath config option not respected**
+  - Seal read/write operations were hardcoded to `.attest-it/seals.json`
+  - Added `sealsPath` to config schemas and updated all seal operations to accept an optional path override
+
+  Also adds comprehensive regression tests for all three bugs to prevent future regressions.
+
 ## 0.7.0
 
 ### Minor Changes
