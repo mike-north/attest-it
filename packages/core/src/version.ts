@@ -112,26 +112,21 @@ export class VersionIncompatibleError extends Error {
 }
 
 /**
- * Check if the current version of attest-it satisfies a minimum version requirement.
+ * Check if the current package version satisfies the minimum version requirement.
  *
- * This function uses semantic versioning (semver) to compare versions.
- * If the current version is less than the required minimum, it throws
- * a {@link VersionIncompatibleError} with helpful upgrade instructions.
+ * This function is called automatically when loading configuration files that
+ * specify a `minVersion` field. You typically don't need to call it directly.
  *
- * @param minVersion - The minimum required version (e.g., "1.2.0")
- * @throws {VersionIncompatibleError} If current version is less than minVersion
- * @throws {Error} If either version string is invalid
+ * @param minVersion - The minimum required version from config (semver string)
+ * @throws {VersionIncompatibleError} If current version is older than minVersion
+ * @throws {Error} If minVersion is not a valid semver string
+ * @public
  *
  * @example
  * ```typescript
- * // In a config loader
- * const config = loadConfig();
- * if (config.minVersion) {
- *   checkVersionCompatibility(config.minVersion);
- * }
+ * // Manual usage (automatic during config load)
+ * checkVersionCompatibility('1.0.0')
  * ```
- *
- * @public
  */
 export function checkVersionCompatibility(minVersion: string): void {
   const currentVersion = getPackageVersion()

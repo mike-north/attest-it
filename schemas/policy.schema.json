@@ -14,7 +14,8 @@
         },
         "minVersion": {
           "type": "string",
-          "pattern": "^\\d+\\.\\d+\\.\\d+(-[\\w.]+)?(\\+[\\w.]+)?$"
+          "pattern": "^\\d+\\.\\d+\\.\\d+(-[\\w.]+)?(\\+[\\w.]+)?$",
+          "description": "Minimum required version of attest-it to use this configuration. Prevents older CLI versions from running with incompatible config formats. Example: \"0.9.0\""
         },
         "settings": {
           "type": "object",

@@ -1,3 +1,21 @@
+/**
+ * Local CLI resolution for attest-it.
+ *
+ * When a global installation of attest-it is invoked, this module
+ * searches for a local (project-specific) installation and delegates
+ * execution to it. This ensures projects use their pinned version,
+ * which is critical for configs with `minVersion` requirements.
+ *
+ * The resolution process:
+ * 1. Search upward from cwd for `node_modules/.bin/attest-it`
+ * 2. If found and different from current CLI, spawn the local version
+ * 3. If not found or same as current, continue with current CLI
+ *
+ * Set `ATTEST_IT_SKIP_LOCAL_RESOLUTION=1` to disable this behavior.
+ *
+ * @packageDocumentation
+ */
+
 import { existsSync, realpathSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
@@ -63,7 +81,11 @@ function isSameAsCurrentCli(localCliPath: string): boolean {
 
     // If both are from the same package installation, they're the same
     return localPkgRoot !== null && localPkgRoot === currentPkgRoot
-  } catch {
+  } catch (err) {
+    // Log the error to help with debugging filesystem issues
+    console.warn(
+      `Warning: Could not resolve CLI paths for comparison: ${err instanceof Error ? err.message : String(err)}`,
+    )
     // If we can't resolve paths, assume they're different
     return false
   }
@@ -80,10 +102,11 @@ function isSameAsCurrentCli(localCliPath: string): boolean {
  * 4. Spawns the local CLI with the same arguments and environment
  * 5. Exits with the same status code as the delegated process
  *
- * @returns true if delegation occurred (this function won't return in that case),
- *          false if no delegation was needed or possible
+ * @returns false if no delegation was needed or possible. If delegation occurs,
+ *          this function does not return - it exits the process.
+ * @public
  */
-export function tryDelegateToLocal(): boolean {
+export function tryDelegateToLocal(): false {
   // Prevent infinite loops if a local CLI tries to delegate to itself
   if (process.env.ATTEST_IT_SKIP_LOCAL_RESOLUTION === '1') {
     return false
@@ -103,6 +126,4 @@ export function tryDelegateToLocal(): boolean {
 
   // Exit with the same status code as the delegated process
   process.exit(result.status ?? 1)
-  // Never returns - the above line exits the process
-  return true
 }

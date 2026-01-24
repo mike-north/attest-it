@@ -46,6 +46,7 @@ Create `.attest-it/config.yaml` in your repository. Here's a minimal example:
 
 ```yaml
 version: 1
+minVersion: '0.9.0' # Optional: minimum attest-it version required
 
 # Team members authorized to create seals
 team:
@@ -79,6 +80,7 @@ suites:
 - **Gates** - Define which files require attestation and who can sign
 - **Fingerprint** - Files to hash; any change invalidates the seal
 - **Suites** - Optional; add `command` to run tests before sealing
+- **minVersion** - Optional; minimum attest-it version required for this configuration
 
 See [Configuration Reference](docs/configuration.md) for all options.
 
