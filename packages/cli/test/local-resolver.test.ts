@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import * as fs from 'node:fs'
-import * as path from 'node:path'
 import * as child_process from 'node:child_process'
 
 // Mock all the Node.js modules we use
@@ -246,7 +245,7 @@ describe('tryDelegateToLocal', () => {
 
     it('should preserve all environment variables', () => {
       const localPath = '/project/node_modules/.bin/attest-it'
-      const originalEnv = { ...process.env }
+      const originalCustomVar = process.env.CUSTOM_VAR
       process.env.CUSTOM_VAR = 'test-value'
 
       mockCwd.mockReturnValue('/project')
@@ -266,19 +265,26 @@ describe('tryDelegateToLocal', () => {
         stderr: null,
       })
 
-      expect(() => tryDelegateToLocal()).toThrow('process.exit called')
-      expect(mockSpawnSync).toHaveBeenCalledWith(
-        localPath,
-        expect.any(Array),
-        expect.objectContaining({
-          env: expect.objectContaining({
-            CUSTOM_VAR: 'test-value',
-            ATTEST_IT_SKIP_LOCAL_RESOLUTION: '1',
+      try {
+        expect(() => tryDelegateToLocal()).toThrow('process.exit called')
+        expect(mockSpawnSync).toHaveBeenCalledWith(
+          localPath,
+          expect.any(Array),
+          expect.objectContaining({
+            env: expect.objectContaining({
+              CUSTOM_VAR: 'test-value',
+              ATTEST_IT_SKIP_LOCAL_RESOLUTION: '1',
+            }),
           }),
-        }),
-      )
-
-      process.env = originalEnv
+        )
+      } finally {
+        // Restore individual environment variable instead of reassigning process.env
+        if (originalCustomVar === undefined) {
+          delete process.env.CUSTOM_VAR
+        } else {
+          process.env.CUSTOM_VAR = originalCustomVar
+        }
+      }
     })
 
     it('should exit with the same status code as delegated process', () => {

@@ -994,6 +994,9 @@ export interface VerifyResult {
 export function verifySeal(seal: Seal, config: AttestItConfig): SignatureVerificationResult;
 
 // @public
+export const version: string;
+
+// @public
 export class VersionIncompatibleError extends Error {
     constructor(requiredVersion: string, currentVersion: string);
     readonly currentVersion: string;

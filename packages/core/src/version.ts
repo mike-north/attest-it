@@ -9,6 +9,13 @@ import * as path from 'node:path'
 import semver from 'semver'
 
 /**
+ * Build-time version constant injected by tsup.
+ * This is replaced with a string literal during bundling.
+ * When not bundled (development mode), this will be undefined.
+ */
+declare const __ATTEST_IT_VERSION__: string | undefined
+
+/**
  * Cached package version to avoid repeated file reads
  */
 let cachedVersion: string | undefined
@@ -16,12 +23,12 @@ let cachedVersion: string | undefined
 /**
  * Get the current version of the @attest-it/core package.
  *
- * This function reads the version from package.json and caches the result
- * for subsequent calls. It handles both development (src/) and production (dist/)
- * environments.
+ * This function uses a build-time injected version when available (for bundled
+ * contexts like github-action), falling back to reading package.json at runtime
+ * for development and standard library usage.
  *
  * @returns The semantic version string (e.g., "1.2.3")
- * @throws Error if package.json cannot be found or parsed
+ * @throws Error if package.json cannot be found or parsed (only in fallback mode)
  * @public
  */
 export function getPackageVersion(): string {
@@ -29,6 +36,24 @@ export function getPackageVersion(): string {
     return cachedVersion
   }
 
+  // Use build-time version if available (bundled contexts like github-action)
+  // The typeof check prevents ReferenceError when the constant isn't defined
+  if (typeof __ATTEST_IT_VERSION__ !== 'undefined') {
+    cachedVersion = __ATTEST_IT_VERSION__
+    return cachedVersion
+  }
+
+  // Fallback to runtime resolution (development and standard library usage)
+  return getVersionFromPackageJson()
+}
+
+/**
+ * Reads the version from package.json at runtime.
+ * This is used as a fallback when the build-time version constant is not available.
+ *
+ * @internal
+ */
+function getVersionFromPackageJson(): string {
   // Get the directory containing this source file
   const currentFileUrl = import.meta.url
   const currentFilePath = fileURLToPath(currentFileUrl)

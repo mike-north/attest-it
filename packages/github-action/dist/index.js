@@ -19665,7 +19665,7 @@ var require_platform = __commonJS({
     var os_1 = __importDefault(__require("os"));
     var exec = __importStar(require_exec());
     var getWindowsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
-      const { stdout: version } = yield exec.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', void 0, {
+      const { stdout: version2 } = yield exec.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Version"', void 0, {
         silent: true
       });
       const { stdout: name } = yield exec.getExecOutput('powershell -command "(Get-CimInstance -ClassName Win32_OperatingSystem).Caption"', void 0, {
@@ -19673,7 +19673,7 @@ var require_platform = __commonJS({
       });
       return {
         name: name.trim(),
-        version: version.trim()
+        version: version2.trim()
       };
     });
     var getMacOsInfo = () => __awaiter(void 0, void 0, void 0, function* () {
@@ -19681,21 +19681,21 @@ var require_platform = __commonJS({
       const { stdout } = yield exec.getExecOutput("sw_vers", void 0, {
         silent: true
       });
-      const version = (_b = (_a = stdout.match(/ProductVersion:\s*(.+)/)) === null || _a === void 0 ? void 0 : _a[1]) !== null && _b !== void 0 ? _b : "";
+      const version2 = (_b = (_a = stdout.match(/ProductVersion:\s*(.+)/)) === null || _a === void 0 ? void 0 : _a[1]) !== null && _b !== void 0 ? _b : "";
       const name = (_d = (_c = stdout.match(/ProductName:\s*(.+)/)) === null || _c === void 0 ? void 0 : _c[1]) !== null && _d !== void 0 ? _d : "";
       return {
         name,
-        version
+        version: version2
       };
     });
     var getLinuxInfo = () => __awaiter(void 0, void 0, void 0, function* () {
       const { stdout } = yield exec.getExecOutput("lsb_release", ["-i", "-r", "-s"], {
         silent: true
       });
-      const [name, version] = stdout.trim().split("\n");
+      const [name, version2] = stdout.trim().split("\n");
       return {
         name,
-        version
+        version: version2
       };
     });
     exports.platform = os_1.default.platform();
@@ -20628,13 +20628,13 @@ var require_directives = __commonJS({
               onError(0, "%YAML directive should contain exactly one part");
               return false;
             }
-            const [version] = parts;
-            if (version === "1.1" || version === "1.2") {
-              this.yaml.version = version;
+            const [version2] = parts;
+            if (version2 === "1.1" || version2 === "1.2") {
+              this.yaml.version = version2;
               return true;
             } else {
-              const isValid2 = /^\d+\.\d+$/.test(version);
-              onError(6, `Unsupported YAML version ${version}`, isValid2);
+              const isValid2 = /^\d+\.\d+$/.test(version2);
+              onError(6, `Unsupported YAML version ${version2}`, isValid2);
               return false;
             }
           }
@@ -23764,14 +23764,14 @@ var require_Document = __commonJS({
           version: "1.2"
         }, options);
         this.options = opt;
-        let { version } = opt;
+        let { version: version2 } = opt;
         if (options?._directives) {
           this.directives = options._directives.atDocument();
           if (this.directives.yaml.explicit)
-            version = this.directives.yaml.version;
+            version2 = this.directives.yaml.version;
         } else
-          this.directives = new directives.Directives({ version });
-        this.setSchema(version, options);
+          this.directives = new directives.Directives({ version: version2 });
+        this.setSchema(version2, options);
         this.contents = value === void 0 ? null : this.createNode(value, _replacer, options);
       }
       /**
@@ -23951,11 +23951,11 @@ var require_Document = __commonJS({
        *
        * Overrides all previously set schema options.
        */
-      setSchema(version, options = {}) {
-        if (typeof version === "number")
-          version = String(version);
+      setSchema(version2, options = {}) {
+        if (typeof version2 === "number")
+          version2 = String(version2);
         let opt;
-        switch (version) {
+        switch (version2) {
           case "1.1":
             if (this.directives)
               this.directives.yaml.version = "1.1";
@@ -23966,9 +23966,9 @@ var require_Document = __commonJS({
           case "1.2":
           case "next":
             if (this.directives)
-              this.directives.yaml.version = version;
+              this.directives.yaml.version = version2;
             else
-              this.directives = new directives.Directives({ version });
+              this.directives = new directives.Directives({ version: version2 });
             opt = { resolveKnownTags: true, schema: "core" };
             break;
           case null:
@@ -23977,7 +23977,7 @@ var require_Document = __commonJS({
             opt = null;
             break;
           default: {
-            const sv = JSON.stringify(version);
+            const sv = JSON.stringify(version2);
             throw new Error(`Expected '1.1', '1.2' or null as first argument, but found: ${sv}`);
           }
         }
@@ -27884,31 +27884,31 @@ var require_semver = __commonJS({
     var parseOptions = require_parse_options();
     var { compareIdentifiers } = require_identifiers();
     var SemVer = class _SemVer {
-      constructor(version, options) {
+      constructor(version2, options) {
         options = parseOptions(options);
-        if (version instanceof _SemVer) {
-          if (version.loose === !!options.loose && version.includePrerelease === !!options.includePrerelease) {
-            return version;
+        if (version2 instanceof _SemVer) {
+          if (version2.loose === !!options.loose && version2.includePrerelease === !!options.includePrerelease) {
+            return version2;
           } else {
-            version = version.version;
+            version2 = version2.version;
           }
-        } else if (typeof version !== "string") {
-          throw new TypeError(`Invalid version. Must be a string. Got type "${typeof version}".`);
+        } else if (typeof version2 !== "string") {
+          throw new TypeError(`Invalid version. Must be a string. Got type "${typeof version2}".`);
         }
-        if (version.length > MAX_LENGTH) {
+        if (version2.length > MAX_LENGTH) {
           throw new TypeError(
             `version is longer than ${MAX_LENGTH} characters`
           );
         }
-        debug("SemVer", version, options);
+        debug("SemVer", version2, options);
         this.options = options;
         this.loose = !!options.loose;
         this.includePrerelease = !!options.includePrerelease;
-        const m = version.trim().match(options.loose ? re[t.LOOSE] : re[t.FULL]);
+        const m = version2.trim().match(options.loose ? re[t.LOOSE] : re[t.FULL]);
         if (!m) {
-          throw new TypeError(`Invalid Version: ${version}`);
+          throw new TypeError(`Invalid Version: ${version2}`);
         }
-        this.raw = version;
+        this.raw = version2;
         this.major = +m[1];
         this.minor = +m[2];
         this.patch = +m[3];
@@ -28159,12 +28159,12 @@ var require_parse2 = __commonJS({
     "use strict";
     init_esm_shims();
     var SemVer = require_semver();
-    var parse3 = (version, options, throwErrors = false) => {
-      if (version instanceof SemVer) {
-        return version;
+    var parse3 = (version2, options, throwErrors = false) => {
+      if (version2 instanceof SemVer) {
+        return version2;
       }
       try {
-        return new SemVer(version, options);
+        return new SemVer(version2, options);
       } catch (er) {
         if (!throwErrors) {
           return null;
@@ -28182,8 +28182,8 @@ var require_valid = __commonJS({
     "use strict";
     init_esm_shims();
     var parse3 = require_parse2();
-    var valid = (version, options) => {
-      const v = parse3(version, options);
+    var valid = (version2, options) => {
+      const v = parse3(version2, options);
       return v ? v.version : null;
     };
     module.exports = valid;
@@ -28196,8 +28196,8 @@ var require_clean = __commonJS({
     "use strict";
     init_esm_shims();
     var parse3 = require_parse2();
-    var clean = (version, options) => {
-      const s = parse3(version.trim().replace(/^[=v]+/, ""), options);
+    var clean = (version2, options) => {
+      const s = parse3(version2.trim().replace(/^[=v]+/, ""), options);
       return s ? s.version : null;
     };
     module.exports = clean;
@@ -28210,7 +28210,7 @@ var require_inc = __commonJS({
     "use strict";
     init_esm_shims();
     var SemVer = require_semver();
-    var inc = (version, release, options, identifier, identifierBase) => {
+    var inc = (version2, release, options, identifier, identifierBase) => {
       if (typeof options === "string") {
         identifierBase = identifier;
         identifier = options;
@@ -28218,7 +28218,7 @@ var require_inc = __commonJS({
       }
       try {
         return new SemVer(
-          version instanceof SemVer ? version.version : version,
+          version2 instanceof SemVer ? version2.version : version2,
           options
         ).inc(release, identifier, identifierBase).version;
       } catch (er) {
@@ -28313,8 +28313,8 @@ var require_prerelease = __commonJS({
     "use strict";
     init_esm_shims();
     var parse3 = require_parse2();
-    var prerelease = (version, options) => {
-      const parsed = parse3(version, options);
+    var prerelease = (version2, options) => {
+      const parsed = parse3(version2, options);
       return parsed && parsed.prerelease.length ? parsed.prerelease : null;
     };
     module.exports = prerelease;
@@ -28516,24 +28516,24 @@ var require_coerce = __commonJS({
     var SemVer = require_semver();
     var parse3 = require_parse2();
     var { safeRe: re, t } = require_re();
-    var coerce2 = (version, options) => {
-      if (version instanceof SemVer) {
-        return version;
+    var coerce2 = (version2, options) => {
+      if (version2 instanceof SemVer) {
+        return version2;
       }
-      if (typeof version === "number") {
-        version = String(version);
+      if (typeof version2 === "number") {
+        version2 = String(version2);
       }
-      if (typeof version !== "string") {
+      if (typeof version2 !== "string") {
         return null;
       }
       options = options || {};
       let match = null;
       if (!options.rtl) {
-        match = version.match(options.includePrerelease ? re[t.COERCEFULL] : re[t.COERCE]);
+        match = version2.match(options.includePrerelease ? re[t.COERCEFULL] : re[t.COERCE]);
       } else {
         const coerceRtlRegex = options.includePrerelease ? re[t.COERCERTLFULL] : re[t.COERCERTL];
         let next;
-        while ((next = coerceRtlRegex.exec(version)) && (!match || match.index + match[0].length !== version.length)) {
+        while ((next = coerceRtlRegex.exec(version2)) && (!match || match.index + match[0].length !== version2.length)) {
           if (!match || next.index + next[0].length !== match.index + match[0].length) {
             match = next;
           }
@@ -28719,19 +28719,19 @@ var require_range = __commonJS({
         });
       }
       // if ANY of the sets match ALL of its comparators, then pass
-      test(version) {
-        if (!version) {
+      test(version2) {
+        if (!version2) {
           return false;
         }
-        if (typeof version === "string") {
+        if (typeof version2 === "string") {
           try {
-            version = new SemVer(version, this.options);
+            version2 = new SemVer(version2, this.options);
           } catch (er) {
             return false;
           }
         }
         for (let i = 0; i < this.set.length; i++) {
-          if (testSet(this.set[i], version, this.options)) {
+          if (testSet(this.set[i], version2, this.options)) {
             return true;
           }
         }
@@ -28946,13 +28946,13 @@ var require_range = __commonJS({
       }
       return `${from} ${to}`.trim();
     };
-    var testSet = (set, version, options) => {
+    var testSet = (set, version2, options) => {
       for (let i = 0; i < set.length; i++) {
-        if (!set[i].test(version)) {
+        if (!set[i].test(version2)) {
           return false;
         }
       }
-      if (version.prerelease.length && !options.includePrerelease) {
+      if (version2.prerelease.length && !options.includePrerelease) {
         for (let i = 0; i < set.length; i++) {
           debug(set[i].semver);
           if (set[i].semver === Comparator.ANY) {
@@ -28960,7 +28960,7 @@ var require_range = __commonJS({
           }
           if (set[i].semver.prerelease.length > 0) {
             const allowed = set[i].semver;
-            if (allowed.major === version.major && allowed.minor === version.minor && allowed.patch === version.patch) {
+            if (allowed.major === version2.major && allowed.minor === version2.minor && allowed.patch === version2.patch) {
               return true;
             }
           }
@@ -29022,19 +29022,19 @@ var require_comparator = __commonJS({
       toString() {
         return this.value;
       }
-      test(version) {
-        debug("Comparator.test", version, this.options.loose);
-        if (this.semver === ANY || version === ANY) {
+      test(version2) {
+        debug("Comparator.test", version2, this.options.loose);
+        if (this.semver === ANY || version2 === ANY) {
           return true;
         }
-        if (typeof version === "string") {
+        if (typeof version2 === "string") {
           try {
-            version = new SemVer(version, this.options);
+            version2 = new SemVer(version2, this.options);
           } catch (er) {
             return false;
           }
         }
-        return cmp(version, this.operator, this.semver, this.options);
+        return cmp(version2, this.operator, this.semver, this.options);
       }
       intersects(comp, options) {
         if (!(comp instanceof _Comparator)) {
@@ -29092,13 +29092,13 @@ var require_satisfies = __commonJS({
     "use strict";
     init_esm_shims();
     var Range = require_range();
-    var satisfies = (version, range, options) => {
+    var satisfies = (version2, range, options) => {
       try {
         range = new Range(range, options);
       } catch (er) {
         return false;
       }
-      return range.test(version);
+      return range.test(version2);
     };
     module.exports = satisfies;
   }
@@ -29266,8 +29266,8 @@ var require_outside = __commonJS({
     var lt = require_lt();
     var lte = require_lte();
     var gte = require_gte();
-    var outside = (version, range, hilo, options) => {
-      version = new SemVer(version, options);
+    var outside = (version2, range, hilo, options) => {
+      version2 = new SemVer(version2, options);
       range = new Range(range, options);
       let gtfn, ltefn, ltfn, comp, ecomp;
       switch (hilo) {
@@ -29288,7 +29288,7 @@ var require_outside = __commonJS({
         default:
           throw new TypeError('Must provide a hilo val of "<" or ">"');
       }
-      if (satisfies(version, range, options)) {
+      if (satisfies(version2, range, options)) {
         return false;
       }
       for (let i = 0; i < range.set.length; ++i) {
@@ -29310,9 +29310,9 @@ var require_outside = __commonJS({
         if (high.operator === comp || high.operator === ecomp) {
           return false;
         }
-        if ((!low.operator || low.operator === comp) && ltefn(version, low.semver)) {
+        if ((!low.operator || low.operator === comp) && ltefn(version2, low.semver)) {
           return false;
-        } else if (low.operator === ecomp && ltfn(version, low.semver)) {
+        } else if (low.operator === ecomp && ltfn(version2, low.semver)) {
           return false;
         }
       }
@@ -29328,7 +29328,7 @@ var require_gtr = __commonJS({
     "use strict";
     init_esm_shims();
     var outside = require_outside();
-    var gtr = (version, range, options) => outside(version, range, ">", options);
+    var gtr = (version2, range, options) => outside(version2, range, ">", options);
     module.exports = gtr;
   }
 });
@@ -29339,7 +29339,7 @@ var require_ltr = __commonJS({
     "use strict";
     init_esm_shims();
     var outside = require_outside();
-    var ltr = (version, range, options) => outside(version, range, "<", options);
+    var ltr = (version2, range, options) => outside(version2, range, "<", options);
     module.exports = ltr;
   }
 });
@@ -29371,12 +29371,12 @@ var require_simplify = __commonJS({
       let first = null;
       let prev = null;
       const v = versions.sort((a, b) => compare(a, b, options));
-      for (const version of v) {
-        const included = satisfies(version, range, options);
+      for (const version2 of v) {
+        const included = satisfies(version2, range, options);
         if (included) {
-          prev = version;
+          prev = version2;
           if (!first) {
-            first = version;
+            first = version2;
           }
         } else {
           if (prev) {
@@ -36220,7 +36220,6 @@ init_esm_shims();
 init_chunk_FGYLU2HL();
 init_chunk_FGYLU2HL();
 import * as fs2 from "fs";
-import { readFileSync as readFileSync2, mkdirSync as mkdirSync2, writeFileSync as writeFileSync2, existsSync as existsSync2 } from "fs";
 import * as fs7 from "fs/promises";
 var import_ms = __toESM(require_ms(), 1);
 var import_yaml = __toESM(require_dist(), 1);
@@ -37224,11 +37223,11 @@ function datetimeRegex(args) {
   regex = `${regex}(${opts.join("|")})`;
   return new RegExp(`^${regex}$`);
 }
-function isValidIP(ip, version) {
-  if ((version === "v4" || !version) && ipv4Regex.test(ip)) {
+function isValidIP(ip, version2) {
+  if ((version2 === "v4" || !version2) && ipv4Regex.test(ip)) {
     return true;
   }
-  if ((version === "v6" || !version) && ipv6Regex.test(ip)) {
+  if ((version2 === "v6" || !version2) && ipv6Regex.test(ip)) {
     return true;
   }
   return false;
@@ -37255,11 +37254,11 @@ function isValidJWT(jwt, alg) {
     return false;
   }
 }
-function isValidCidr(ip, version) {
-  if ((version === "v4" || !version) && ipv4CidrRegex.test(ip)) {
+function isValidCidr(ip, version2) {
+  if ((version2 === "v4" || !version2) && ipv4CidrRegex.test(ip)) {
     return true;
   }
-  if ((version === "v6" || !version) && ipv6CidrRegex.test(ip)) {
+  if ((version2 === "v6" || !version2) && ipv6CidrRegex.test(ip)) {
     return true;
   }
   return false;
@@ -40289,7 +40288,6 @@ var NEVER = INVALID;
 
 // ../core/dist/index.js
 var import_semver = __toESM(require_semver2(), 1);
-import { fileURLToPath as fileURLToPath3 } from "url";
 import * as crypto3 from "crypto";
 
 // ../../node_modules/.pnpm/tinyglobby@0.2.15/node_modules/tinyglobby/dist/index.mjs
@@ -41130,32 +41128,10 @@ function getPackageVersion() {
   if (cachedVersion !== void 0) {
     return cachedVersion;
   }
-  const currentFileUrl = import.meta.url;
-  const currentFilePath = fileURLToPath3(currentFileUrl);
-  const currentDir = path8.dirname(currentFilePath);
-  const distPath = path8.join(currentDir, "..", "package.json");
-  let packageJsonContent;
-  let packageJsonPath;
-  try {
-    packageJsonContent = readFileSync2(distPath, "utf-8");
-    packageJsonPath = distPath;
-  } catch {
-    const srcPath = path8.join(currentDir, "..", "..", "package.json");
-    try {
-      packageJsonContent = readFileSync2(srcPath, "utf-8");
-      packageJsonPath = srcPath;
-    } catch {
-      throw new Error(
-        `Could not find package.json from ${currentDir}. Tried ${distPath} and ${srcPath}`
-      );
-    }
+  {
+    cachedVersion = "0.9.0";
+    return cachedVersion;
   }
-  const packageJson = JSON.parse(packageJsonContent);
-  if (typeof packageJson !== "object" || packageJson === null || !("version" in packageJson) || typeof packageJson.version !== "string") {
-    throw new Error(`Invalid or missing version in package.json at ${packageJsonPath}`);
-  }
-  cachedVersion = packageJson.version;
-  return cachedVersion;
 }
 var VersionIncompatibleError = class _VersionIncompatibleError extends Error {
   /**
@@ -42479,9 +42455,9 @@ function validateEncryptedKeyFile(data) {
   }
   return parsed;
 }
-function constructAAD(version, slot, serial) {
+function constructAAD(version2, slot, serial) {
   const aadObject = {
-    version,
+    version: version2,
     slot,
     serial: serial ?? "unspecified"
   };
@@ -43004,6 +42980,7 @@ var sealsFileSchema = external_exports.object({
   version: external_exports.literal(1, { errorMap: () => ({ message: "Unsupported seals file version" }) }),
   seals: external_exports.record(external_exports.string(), sealSchema)
 });
+var version = getPackageVersion();
 
 // src/fetch-policy.ts
 init_esm_shims();

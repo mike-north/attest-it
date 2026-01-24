@@ -39,6 +39,18 @@ export {
   VersionIncompatibleError,
 } from './version.js'
 
+// Re-export version as a lazy-evaluated getter for backward compatibility
+// This allows `import { version } from '@attest-it/core'` to work
+import { getPackageVersion as _getPackageVersion } from './version.js'
+
+/**
+ * The current version of the @attest-it/core package.
+ * This is a convenience export for consumers who want to access the version directly.
+ *
+ * @public
+ */
+export const version: string = _getPackageVersion()
+
 // Split config support
 export {
   // Policy config
