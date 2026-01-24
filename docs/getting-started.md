@@ -103,7 +103,7 @@ Welcome to attest-it!
 ✓ Configuration created at .attest-it/config.yaml
 
 Next steps:
-  1. Add yourself to the team: npx attest-it team add
+  1. Add yourself to the team: npx attest-it team join
   2. Run tests and seal: npx attest-it run --suite desktop-tests
 ```
 
@@ -150,10 +150,15 @@ Key concepts:
 Add your identity to the project's team:
 
 ```bash
-npx attest-it team add
+npx attest-it team join
 ```
 
-Or add manually by editing `.attest-it/config.yaml`:
+This will:
+1. Load your active identity
+2. Add your public key to `.attest-it/config.yaml` under the team section
+3. Prompt you to authorize yourself for gates
+
+You can also add yourself manually by editing `.attest-it/config.yaml`:
 
 ```yaml
 team:
@@ -163,7 +168,7 @@ team:
     publicKey: MCowBQYDK2VwAyEAabc123... # From identity export
 ```
 
-Get your public key with:
+To get your public key for manual addition:
 
 ```bash
 npx attest-it identity export
@@ -308,6 +313,14 @@ When you modify code in a gate's fingerprint paths:
 
 ### Adding Team Members
 
+**Quick method:**
+
+1. Team member creates identity: `npx attest-it identity create`
+2. They join the team: `npx attest-it team join`
+3. They follow the prompts to authorize themselves for gates
+
+**Manual method:**
+
 1. Team member creates identity: `npx attest-it identity create`
 2. They export public key: `npx attest-it identity export`
 3. Add them to project config:
@@ -342,7 +355,8 @@ npx attest-it identity create
 
 Your public key isn't in the gate's `authorizedSigners`. Either:
 
-- Add yourself to the team and gate configuration
+- Run `npx attest-it team join` to add yourself to the team and gates
+- Manually add yourself to the team and gate configuration
 - Have an authorized team member seal
 
 ### "Configuration file not found"
@@ -351,10 +365,11 @@ Run `npx attest-it init` to create the configuration.
 
 ### "Key provider not available"
 
-The configured key storage isn't available on this platform. Use a different provider:
+The configured key storage isn't available on this platform. Create a new identity with a different provider:
 
 ```bash
-npx attest-it identity edit <slug>
+npx attest-it identity create
+npx attest-it identity use <new-slug>
 ```
 
 ### Verification Fails in CI

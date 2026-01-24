@@ -161,7 +161,7 @@ This prevents AI assistants from faking attestations. Only a human with the priv
 ### Attestation Workflow
 
 1. **Configure** (\`attest-it init\`): Define test suites in \`.attest-it/config.yaml\`
-2. **Generate Keys** (\`attest-it keygen\`): Create keypair (once per developer)
+2. **Create Identity** (\`attest-it identity create\`): Create keypair (once per developer)
 3. **Run & Attest** (\`attest-it run --suite <name>\`): Execute tests, create signed attestation
 4. **Verify** (CI: \`attest-it verify\`): Confirm attestations are valid and current
 

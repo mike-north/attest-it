@@ -200,11 +200,14 @@ cd attest-it
 # Install dependencies
 npm install
 
+# Create your signing identity
+npx attest-it identity create
+
 # Initialize configuration
 npx attest-it init
 
-# Generate keys
-npx attest-it keygen
+# Add yourself to the project team
+npx attest-it team join
 ```
 
 ### 2. Run a Specific Example

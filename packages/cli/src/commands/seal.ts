@@ -72,7 +72,7 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
     const localConfig = loadLocalConfigSync()
     if (!localConfig) {
       error('No local identity configuration found')
-      error('Run "attest-it keygen" first to set up your identity')
+      error('Run "attest-it identity create" first to set up your identity')
       process.exit(ExitCode.CONFIG_ERROR)
     }
 

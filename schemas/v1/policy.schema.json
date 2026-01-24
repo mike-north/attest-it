@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/policy.schema.json",
+  "$id": "https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/policy.schema.json",
   "title": "attest-it Policy Configuration",
   "description": "Policy configuration schema for attest-it. Contains security-critical settings like team members, gates, and authorization rules.",
   "$ref": "#/definitions/policy",

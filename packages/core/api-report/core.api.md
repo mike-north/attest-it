@@ -40,6 +40,7 @@ export interface AttestItSettings {
     keyProvider?: KeyProviderSettings;
     maxAgeDays: number;
     publicKeyPath: string;
+    sealsPath: string;
 }
 
 // @public
@@ -207,13 +208,13 @@ export function getPreference<K extends keyof UserPreferences>(key: K): Promise<
 // @public
 export function getPreferencesPath(): string;
 
-// @public
+// @public @deprecated
 export function getProjectPublicKeysDir(projectRoot?: string): string;
 
 // @public
 export function getPublicKeyFromPrivate(privateKeyPem: string): string;
 
-// @public
+// @public @deprecated
 export function hasProjectConfig(projectRoot?: string): boolean;
 
 // @public
@@ -662,14 +663,17 @@ export const policySchema: z.ZodObject<{
         attestationsPath: z.ZodDefault<z.ZodString>;
         maxAgeDays: z.ZodDefault<z.ZodNumber>;
         publicKeyPath: z.ZodDefault<z.ZodString>;
+        sealsPath: z.ZodDefault<z.ZodString>;
     }, "strict", z.ZodTypeAny, {
         attestationsPath: string;
         maxAgeDays: number;
         publicKeyPath: string;
+        sealsPath: string;
     }, {
         attestationsPath?: string | undefined;
         maxAgeDays?: number | undefined;
         publicKeyPath?: string | undefined;
+        sealsPath?: string | undefined;
     }>>;
     team: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodObject<{
         email: z.ZodOptional<z.ZodString>;
@@ -703,6 +707,7 @@ export const policySchema: z.ZodObject<{
         attestationsPath: string;
         maxAgeDays: number;
         publicKeyPath: string;
+        sealsPath: string;
     };
     team?: Record<string, {
         email?: string | undefined;
@@ -726,6 +731,7 @@ export const policySchema: z.ZodObject<{
         attestationsPath?: string | undefined;
         maxAgeDays?: number | undefined;
         publicKeyPath?: string | undefined;
+        sealsPath?: string | undefined;
     } | undefined;
     team?: Record<string, {
         email?: string | undefined;
@@ -775,10 +781,10 @@ export function readAttestations(filePath: string): Promise<AttestationsFile | n
 export function readAttestationsSync(filePath: string): AttestationsFile | null;
 
 // @public
-export function readSeals(dir: string): Promise<SealsFile>;
+export function readSeals(dir: string, sealsPathOverride?: string): Promise<SealsFile>;
 
 // @public
-export function readSealsSync(dir: string): SealsFile;
+export function readSealsSync(dir: string, sealsPathOverride?: string): SealsFile;
 
 // @public
 export interface ReadSignedAttestationsOptions {
@@ -978,10 +984,10 @@ export function writeAttestations(filePath: string, attestations: Attestation[],
 export function writeAttestationsSync(filePath: string, attestations: Attestation[], signature: string): void;
 
 // @public
-export function writeSeals(dir: string, sealsFile: SealsFile): Promise<void>;
+export function writeSeals(dir: string, sealsFile: SealsFile, sealsPathOverride?: string): Promise<void>;
 
 // @public
-export function writeSealsSync(dir: string, sealsFile: SealsFile): void;
+export function writeSealsSync(dir: string, sealsFile: SealsFile, sealsPathOverride?: string): void;
 
 // @public
 export function writeSignedAttestations(options: WriteSignedAttestationsOptions): Promise<void>;

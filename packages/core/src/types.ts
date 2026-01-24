@@ -57,6 +57,8 @@ export interface TeamMember {
   github?: string | undefined
   /** Base64-encoded Ed25519 public key */
   publicKey: string
+  /** Public key algorithm (optional, for future-proofing format changes) */
+  publicKeyAlgorithm?: 'ed25519' | undefined
 }
 
 /**

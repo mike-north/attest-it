@@ -115,7 +115,7 @@ describe('Shell Completion', () => {
         expect(completions).toContain('verify')
         expect(completions).toContain('seal')
         expect(completions).toContain('init')
-        expect(completions).toContain('keygen')
+        // keygen command has been removed - use 'identity create' instead
         expect(completions).toContain('identity')
         expect(completions).toContain('team')
         expect(completions).toContain('whoami')

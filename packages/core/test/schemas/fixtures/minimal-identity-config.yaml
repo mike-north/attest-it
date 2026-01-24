@@ -1,0 +1,12 @@
+# Minimal valid identity configuration.
+# Tests that only required fields are needed.
+
+activeIdentity: default
+
+identities:
+  default:
+    name: Default User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+    privateKey:
+      type: file
+      path: /path/to/key.pem

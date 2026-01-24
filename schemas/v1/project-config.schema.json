@@ -1,0 +1,247 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/project-config.schema.json",
+  "title": "attest-it Project Configuration",
+  "description": "Complete project configuration schema for attest-it. Stored at .attest-it/config.yaml in your project root.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "number",
+      "const": 1,
+      "description": "Configuration schema version"
+    },
+    "settings": {
+      "type": "object",
+      "description": "Global settings for this project",
+      "properties": {
+        "maxAgeDays": {
+          "type": "integer",
+          "exclusiveMinimum": 0,
+          "default": 30,
+          "description": "Default maximum age in days for attestations before they become stale"
+        },
+        "attestationsPath": {
+          "type": "string",
+          "default": ".attest-it/attestations.json",
+          "description": "Path to the attestations file relative to project root"
+        },
+        "defaultCommand": {
+          "type": "string",
+          "description": "Default command to run for suites that don't specify one"
+        },
+        "keyProvider": {
+          "type": "object",
+          "description": "Default key provider configuration",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["filesystem", "1password", "keychain"],
+              "description": "Type of key provider to use"
+            },
+            "options": {
+              "type": "object",
+              "description": "Provider-specific options",
+              "additionalProperties": true
+            }
+          },
+          "required": ["type"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "team": {
+      "type": "object",
+      "description": "Team members who can sign attestations. Keys are member slugs (kebab-case identifiers).",
+      "additionalProperties": {
+        "$ref": "#/definitions/teamMember"
+      }
+    },
+    "gates": {
+      "type": "object",
+      "description": "Gates define code areas requiring attestation and who can sign. Keys are gate slugs.",
+      "additionalProperties": {
+        "$ref": "#/definitions/gate"
+      }
+    },
+    "suites": {
+      "type": "object",
+      "description": "Suites define test commands that produce attestations. Keys are suite slugs.",
+      "additionalProperties": {
+        "$ref": "#/definitions/suite"
+      }
+    },
+    "groups": {
+      "type": "object",
+      "description": "Named groups of suites for batch operations",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": "List of suite slugs in this group"
+      }
+    }
+  },
+  "required": ["version"],
+  "additionalProperties": false,
+  "definitions": {
+    "teamMember": {
+      "type": "object",
+      "description": "A team member authorized to sign attestations",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable name (e.g., 'Mike North')"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email address"
+        },
+        "github": {
+          "type": "string",
+          "minLength": 1,
+          "description": "GitHub username"
+        },
+        "publicKey": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Base64-encoded Ed25519 public key (~44 characters)"
+        },
+        "publicKeyAlgorithm": {
+          "type": "string",
+          "enum": ["ed25519"],
+          "description": "Algorithm used for the public key (currently only ed25519 supported)"
+        }
+      },
+      "required": ["name", "publicKey"],
+      "additionalProperties": false
+    },
+    "gate": {
+      "type": "object",
+      "description": "A gate defines a code area requiring attestation",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable name for this gate"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Description of what this gate covers"
+        },
+        "authorizedSigners": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "description": "List of team member slugs authorized to sign for this gate"
+        },
+        "fingerprint": {
+          "type": "object",
+          "description": "Files used to compute the gate's fingerprint",
+          "properties": {
+            "paths": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1,
+              "description": "Glob patterns for files to include in fingerprint"
+            },
+            "exclude": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "description": "Glob patterns for files to exclude from fingerprint"
+            }
+          },
+          "required": ["paths"],
+          "additionalProperties": false
+        },
+        "maxAge": {
+          "type": "string",
+          "pattern": "^\\d+[dhms]$",
+          "description": "Maximum age for attestations (e.g., '30d', '24h', '90d')"
+        }
+      },
+      "required": ["name", "description", "authorizedSigners", "fingerprint", "maxAge"],
+      "additionalProperties": false
+    },
+    "suite": {
+      "type": "object",
+      "description": "A test suite that produces attestations",
+      "properties": {
+        "gate": {
+          "type": "string",
+          "description": "The gate this suite belongs to"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of this suite"
+        },
+        "command": {
+          "type": "string",
+          "description": "Command to execute for this suite"
+        },
+        "packages": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Package paths to include in fingerprint calculation"
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Additional file patterns to include in fingerprint"
+        },
+        "ignore": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "File patterns to exclude from fingerprint"
+        },
+        "timeout": {
+          "type": "string",
+          "description": "Maximum execution time (e.g., '5m', '30s')"
+        },
+        "interactive": {
+          "type": "boolean",
+          "description": "Whether this suite requires interactive terminal"
+        },
+        "invalidates": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Other suites invalidated when this suite's files change"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Suites that must pass before this one can run"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,12 +1,12 @@
 import { Command } from 'commander'
-import { input, checkbox } from '@inquirer/prompts'
+import { input } from '@inquirer/prompts'
 import { loadConfig, toAttestItConfig, findConfigPath } from '@attest-it/core'
-import type { Config, TeamMember } from '@attest-it/core'
 import { log, success, error } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
 import { getTheme } from '../../components/theme.js'
 import { writeFile } from 'node:fs/promises'
 import { stringify as stringifyYaml } from 'yaml'
+import { promptForGateAuthorization, addTeamMemberToConfig } from './utils.js'
 
 export const addCommand = new Command('add')
   .description('Add a new team member')
@@ -109,56 +109,22 @@ async function runAdd(): Promise<void> {
     })
 
     // Prompt for gate authorizations
-    let authorizedGates: string[] = []
-    if (attestItConfig.gates && Object.keys(attestItConfig.gates).length > 0) {
-      log('')
-      const gateChoices = Object.entries(attestItConfig.gates).map(([gateId, gate]) => ({
-        name: `${gateId} - ${gate.name}`,
-        value: gateId,
-      }))
+    log('')
+    const authorizedGates = await promptForGateAuthorization(attestItConfig.gates)
 
-      authorizedGates = await checkbox({
-        message: 'Select gates to authorize (use space to select):',
-        choices: gateChoices,
-      })
-    }
-
-    // Build team member object
-    const teamMember: TeamMember = {
-      name,
-      publicKey: publicKey.trim(),
-    }
-
-    if (email && email.trim().length > 0) {
-      teamMember.email = email.trim()
-    }
-
-    if (github && github.trim().length > 0) {
-      teamMember.github = github.trim()
-    }
-
-    // Update config
-    const updatedConfig: Config = {
-      ...config,
-      team: {
-        ...existingTeam,
-        [slug]: teamMember,
+    // Update config with new team member
+    const updatedConfig = addTeamMemberToConfig(
+      config,
+      slug,
+      {
+        name,
+        email: email && email.trim().length > 0 ? email.trim() : undefined,
+        github: github && github.trim().length > 0 ? github.trim() : undefined,
+        publicKey: publicKey.trim(),
+        publicKeyAlgorithm: 'ed25519',
       },
-    }
-
-    // Update gate authorizations
-    if (authorizedGates.length > 0 && updatedConfig.gates) {
-      for (const gateId of authorizedGates) {
-        // eslint-disable-next-line security/detect-object-injection
-        const gate = updatedConfig.gates[gateId]
-        if (gate) {
-          // Add to authorizedSigners if not already present
-          if (!gate.authorizedSigners.includes(slug)) {
-            gate.authorizedSigners.push(slug)
-          }
-        }
-      }
-    }
+      authorizedGates,
+    )
 
     // Write config back to file
     const configPath = findConfigPath()

@@ -309,7 +309,7 @@ describe('CLI Integration Tests', () => {
       expect(result.stdout).toContain('attest-it')
       expect(result.stdout).toContain('status')
       expect(result.stdout).toContain('run')
-      expect(result.stdout).toContain('keygen')
+      expect(result.stdout).toContain('identity')
     })
 
     it('shows version', async () => {
@@ -670,57 +670,7 @@ describe('CLI Integration Tests', () => {
     })
   })
 
-  describe('attest-it keygen', () => {
-    it('shows help for keygen command', async () => {
-      const result = await runCli(['keygen', '--help'], tempDir)
-      expect(result.exitCode).toBe(0)
-      expect(result.stdout).toContain('keygen')
-    })
-
-    it('generates keypair with --force', async () => {
-      const result = await runCli(['keygen', '--force', '--no-interactive'], tempDir)
-      expect(result.exitCode).toBe(0)
-      expect(result.stdout).toContain('Keypair generated successfully')
-      expect(result.stdout).toContain('Private key')
-      expect(result.stdout).toContain('Public key')
-    })
-
-    it('uses custom output paths', async () => {
-      const privateKeyPath = path.join(tempDir, 'custom-private.pem')
-      const publicKeyPath = path.join(tempDir, 'custom-public.pem')
-
-      const result = await runCli(
-        [
-          'keygen',
-          '--private',
-          privateKeyPath,
-          '--output',
-          publicKeyPath,
-          '--force',
-          '--no-interactive',
-        ],
-        tempDir,
-      )
-
-      expect(result.exitCode).toBe(0)
-      expect(fs.existsSync(privateKeyPath)).toBe(true)
-      expect(fs.existsSync(publicKeyPath)).toBe(true)
-    })
-
-    it('displays next steps after key generation', async () => {
-      const result = await runCli(['keygen', '--force', '--no-interactive'], tempDir)
-      expect(result.exitCode).toBe(0)
-      expect(result.stdout).toContain('Next steps')
-      expect(result.stdout).toContain('git add')
-    })
-
-    it('warns about backing up private key', async () => {
-      const result = await runCli(['keygen', '--force', '--no-interactive'], tempDir)
-      expect(result.exitCode).toBe(0)
-      expect(result.stdout).toContain('Back up your private key')
-      expect(result.stdout).toContain('KEEP SECRET')
-    })
-  })
+  // Note: keygen command has been removed - use 'identity create' instead
 
   describe('attest-it init', () => {
     it('shows help for init command', async () => {

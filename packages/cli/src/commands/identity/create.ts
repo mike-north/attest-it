@@ -513,9 +513,9 @@ async function runCreate(): Promise<void> {
     log('')
     log(theme.blue.bold()('Public key saved to:'))
     log(`  ${publicKeyResult.homePath}`)
-    if (publicKeyResult.projectPath) {
-      log(`  ${publicKeyResult.projectPath}`)
-    }
+    log('')
+    log('To add yourself to a project, run:')
+    log(theme.blue('  attest-it team join'))
     log('')
 
     if (!existingConfig) {

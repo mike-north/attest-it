@@ -19948,7 +19948,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
-// ../core/dist/chunk-GQPQLZJ3.js
+// ../core/dist/chunk-FGYLU2HL.js
 import { spawn } from "child_process";
 import * as fs from "fs/promises";
 import * as path2 from "path";
@@ -20079,7 +20079,10 @@ async function generateKeyPair(options = {}) {
     if (passphrase) {
       genArgs.push("-aes256", "-pass", "stdin");
     }
-    const genResult = await runOpenSSL(genArgs, passphrase ? Buffer.from(passphrase) : void 0);
+    const genResult = await runOpenSSL(
+      genArgs,
+      passphrase ? Buffer.from(passphrase + "\n") : void 0
+    );
     if (genResult.exitCode !== 0) {
       throw new Error(`Failed to generate private key: ${genResult.stderr}`);
     }
@@ -20088,7 +20091,10 @@ async function generateKeyPair(options = {}) {
     if (passphrase) {
       pubArgs.push("-passin", "stdin");
     }
-    const pubResult = await runOpenSSL(pubArgs, passphrase ? Buffer.from(passphrase) : void 0);
+    const pubResult = await runOpenSSL(
+      pubArgs,
+      passphrase ? Buffer.from(passphrase + "\n") : void 0
+    );
     if (pubResult.exitCode !== 0) {
       throw new Error(`Failed to extract public key: ${pubResult.stderr}`);
     }
@@ -20138,6 +20144,12 @@ async function sign(options) {
         passphrase ? Buffer.from(passphrase + "\n") : void 0
       );
       if (result.exitCode !== 0) {
+        const stderr = result.stderr.toLowerCase();
+        if (stderr.includes("bad decrypt") || stderr.includes("bad password") || stderr.includes("unable to load key") || stderr.includes("wrong password")) {
+          throw new Error(
+            "Failed to decrypt private key. Please check that the passphrase is correct."
+          );
+        }
         throw new Error(`Failed to sign data: ${result.stderr}`);
       }
       const sigBuffer = await fs.readFile(sigFile);
@@ -20195,8 +20207,8 @@ async function setKeyPermissions(keyPath) {
   }
 }
 var openSSLChecked;
-var init_chunk_GQPQLZJ3 = __esm({
-  "../core/dist/chunk-GQPQLZJ3.js"() {
+var init_chunk_FGYLU2HL = __esm({
+  "../core/dist/chunk-FGYLU2HL.js"() {
     "use strict";
     init_esm_shims();
     openSSLChecked = false;
@@ -29244,9 +29256,9 @@ var require_canonicalize = __commonJS({
   }
 });
 
-// ../core/dist/crypto-ZW76NUPI.js
-var crypto_ZW76NUPI_exports = {};
-__export(crypto_ZW76NUPI_exports, {
+// ../core/dist/crypto-SSL7OBY2.js
+var crypto_SSL7OBY2_exports = {};
+__export(crypto_SSL7OBY2_exports, {
   checkOpenSSL: () => checkOpenSSL,
   generateKeyPair: () => generateKeyPair,
   getDefaultPrivateKeyPath: () => getDefaultPrivateKeyPath,
@@ -29256,11 +29268,11 @@ __export(crypto_ZW76NUPI_exports, {
   sign: () => sign,
   verify: () => verify
 });
-var init_crypto_ZW76NUPI = __esm({
-  "../core/dist/crypto-ZW76NUPI.js"() {
+var init_crypto_SSL7OBY2 = __esm({
+  "../core/dist/crypto-SSL7OBY2.js"() {
     "use strict";
     init_esm_shims();
-    init_chunk_GQPQLZJ3();
+    init_chunk_FGYLU2HL();
   }
 });
 
@@ -34230,13 +34242,13 @@ import { resolve as resolve4 } from "path";
 
 // ../core/dist/index.js
 init_esm_shims();
-init_chunk_GQPQLZJ3();
-init_chunk_GQPQLZJ3();
+init_chunk_FGYLU2HL();
+init_chunk_FGYLU2HL();
 import * as fs2 from "fs";
 import * as fs7 from "fs/promises";
 var import_ms = __toESM(require_ms(), 1);
 var import_yaml = __toESM(require_dist(), 1);
-import * as path6 from "path";
+import * as path7 from "path";
 import { join as join3, resolve as resolve3, dirname as dirname4 } from "path";
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/index.js
@@ -39134,6 +39146,7 @@ var settingsSchema = external_exports.object({
   maxAgeDays: external_exports.number().int().positive().default(30),
   publicKeyPath: external_exports.string().default(".attest-it/pubkey.pem"),
   attestationsPath: external_exports.string().default(".attest-it/attestations.json"),
+  sealsPath: external_exports.string().default(".attest-it/seals.json"),
   defaultCommand: external_exports.string().optional(),
   keyProvider: keyProviderSchema.optional()
   // Note: algorithm field was removed - RSA is the only supported algorithm
@@ -39214,7 +39227,8 @@ var keyProviderSchema2 = external_exports.object({
 var policySettingsSchema = external_exports.object({
   maxAgeDays: external_exports.number().int().positive().default(30),
   publicKeyPath: external_exports.string().default(".attest-it/pubkey.pem"),
-  attestationsPath: external_exports.string().default(".attest-it/attestations.json")
+  attestationsPath: external_exports.string().default(".attest-it/attestations.json"),
+  sealsPath: external_exports.string().default(".attest-it/seals.json")
 }).strict();
 var policySchema = external_exports.object({
   version: external_exports.literal(1),
@@ -39389,7 +39403,8 @@ function mergeConfigs(policy, operational) {
     // Security settings from policy (these are trust-critical)
     maxAgeDays: policy.settings.maxAgeDays,
     publicKeyPath: policy.settings.publicKeyPath,
-    attestationsPath: policy.settings.attestationsPath
+    attestationsPath: policy.settings.attestationsPath,
+    sealsPath: policy.settings.sealsPath
   };
   if (operational.settings.defaultCommand !== void 0) {
     settings.defaultCommand = operational.settings.defaultCommand;
@@ -39467,7 +39482,7 @@ function sortFiles(files) {
   });
 }
 function normalizePath2(filePath) {
-  return filePath.split(path6.sep).join("/");
+  return filePath.split(path7.sep).join("/");
 }
 function computeFinalFingerprint(fileHashes) {
   const sorted = [...fileHashes].sort((a, b) => {
@@ -39482,7 +39497,7 @@ function computeFinalFingerprint(fileHashes) {
 }
 async function hashFileAsync(realPath, normalizedPath, stats) {
   if (stats.size > LARGE_FILE_THRESHOLD) {
-    return new Promise((resolve42, reject) => {
+    return new Promise((resolve5, reject) => {
       const hash2 = crypto3.createHash("sha256");
       hash2.update(normalizedPath);
       hash2.update(":");
@@ -39491,7 +39506,7 @@ async function hashFileAsync(realPath, normalizedPath, stats) {
         hash2.update(chunk);
       });
       stream.on("end", () => {
-        resolve42(hash2.digest());
+        resolve5(hash2.digest());
       });
       stream.on("error", reject);
     });
@@ -39509,7 +39524,7 @@ function validateOptions(options) {
   }
   const baseDir = options.baseDir ?? process.cwd();
   for (const pkg of options.packages) {
-    const pkgPath = path6.resolve(baseDir, pkg);
+    const pkgPath = path7.resolve(baseDir, pkg);
     if (!fs2.existsSync(pkgPath)) {
       throw new Error(`Package path does not exist: ${pkgPath}`);
     }
@@ -39523,7 +39538,7 @@ async function computeFingerprint(options) {
   const fileHashCache = /* @__PURE__ */ new Map();
   const fileHashInputs = [];
   for (const file of sortedFiles) {
-    const filePath = path6.resolve(baseDir, file);
+    const filePath = path7.resolve(baseDir, file);
     let realPath = filePath;
     let stats = await fs2.promises.lstat(filePath);
     if (stats.isSymbolicLink()) {
@@ -39622,7 +39637,7 @@ function canonicalizeAttestations(attestations) {
   return canonical;
 }
 async function readAndVerifyAttestations(options) {
-  const { verify: verify4 } = await Promise.resolve().then(() => (init_crypto_ZW76NUPI(), crypto_ZW76NUPI_exports));
+  const { verify: verify4 } = await Promise.resolve().then(() => (init_crypto_SSL7OBY2(), crypto_SSL7OBY2_exports));
   const file = await readAttestations(options.filePath);
   if (!file) {
     throw new Error(`Attestations file not found: ${options.filePath}`);
@@ -39769,10 +39784,10 @@ function checkInvalidationChains(config, results) {
   }
 }
 function resolvePath(relativePath, baseDir) {
-  if (path6.isAbsolute(relativePath)) {
+  if (path7.isAbsolute(relativePath)) {
     return relativePath;
   }
-  return path6.join(baseDir, relativePath);
+  return path7.join(baseDir, relativePath);
 }
 var FilesystemKeyProvider = class {
   type = "filesystem";
@@ -39983,8 +39998,8 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
         `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` + (this.account ? ` (account: ${this.account})` : "")
       );
     }
-    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-"));
-    const tempKeyPath = path6.join(tempDir, "private.pem");
+    const tempDir = await fs7.mkdtemp(path7.join(os2.tmpdir(), "attest-it-"));
+    const tempKeyPath = path7.join(tempDir, "private.pem");
     try {
       const args = ["document", "get", keyRef, "--vault", this.vault, "--out-file", tempKeyPath];
       if (this.account) {
@@ -40023,8 +40038,8 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
    */
   async generateKeyPair(options) {
     const { publicKeyPath, force = false } = options;
-    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-keygen-"));
-    const tempPrivateKeyPath = path6.join(tempDir, "private.pem");
+    const tempDir = await fs7.mkdtemp(path7.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempPrivateKeyPath = path7.join(tempDir, "private.pem");
     try {
       await generateKeyPair({
         privatePath: tempPrivateKeyPath,
@@ -40077,7 +40092,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
   }
 };
 async function execCommand(command, args) {
-  return new Promise((resolve42, reject) => {
+  return new Promise((resolve5, reject) => {
     const proc = spawn2(command, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
@@ -40089,7 +40104,7 @@ async function execCommand(command, args) {
     });
     proc.on("close", (code) => {
       if (code === 0) {
-        resolve42(stdout.trim());
+        resolve5(stdout.trim());
       } else {
         reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
       }
@@ -40182,8 +40197,8 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
         `Key not found in macOS Keychain: "${keyRef}" (account: ${_MacOSKeychainKeyProvider.ACCOUNT})`
       );
     }
-    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-"));
-    const tempKeyPath = path6.join(tempDir, "private.pem");
+    const tempDir = await fs7.mkdtemp(path7.join(os2.tmpdir(), "attest-it-"));
+    const tempKeyPath = path7.join(tempDir, "private.pem");
     try {
       const findArgs = [
         "find-generic-password",
@@ -40231,8 +40246,8 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
    */
   async generateKeyPair(options) {
     const { publicKeyPath, force = false } = options;
-    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-keygen-"));
-    const tempPrivateKeyPath = path6.join(tempDir, "private.pem");
+    const tempDir = await fs7.mkdtemp(path7.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempPrivateKeyPath = path7.join(tempDir, "private.pem");
     try {
       await generateKeyPair({
         privatePath: tempPrivateKeyPath,
@@ -40288,7 +40303,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
   }
 };
 async function execCommand2(command, args) {
-  return new Promise((resolve42, reject) => {
+  return new Promise((resolve5, reject) => {
     const proc = spawn2(command, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
@@ -40300,7 +40315,7 @@ async function execCommand2(command, args) {
     });
     proc.on("close", (code) => {
       if (code === 0) {
-        resolve42(stdout.trim());
+        resolve5(stdout.trim());
       } else {
         reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
       }
@@ -40419,7 +40434,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
    * @throws Error if encryptedKeyPath is outside the attest-it config directory
    */
   constructor(options) {
-    const resolvedPath = path6.resolve(options.encryptedKeyPath);
+    const resolvedPath = path7.resolve(options.encryptedKeyPath);
     const configDir = getAttestItConfigDir();
     if (!resolvedPath.startsWith(configDir)) {
       throw new Error(
@@ -40593,8 +40608,8 @@ var YubiKeyProvider = class _YubiKeyProvider {
         "Failed to decrypt private key. Verify you are using the correct YubiKey and the encrypted key file has not been corrupted or tampered with."
       );
     }
-    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-"));
-    const tempKeyPath = path6.join(tempDir, "private.pem");
+    const tempDir = await fs7.mkdtemp(path7.join(os2.tmpdir(), "attest-it-"));
+    const tempKeyPath = path7.join(tempDir, "private.pem");
     const cleanup = async () => {
       activeCleanupHandlers.delete(cleanup);
       try {
@@ -40651,8 +40666,8 @@ var YubiKeyProvider = class _YubiKeyProvider {
         );
       }
     }
-    const tempDir = await fs7.mkdtemp(path6.join(os2.tmpdir(), "attest-it-keygen-"));
-    const tempPrivateKeyPath = path6.join(tempDir, "private.pem");
+    const tempDir = await fs7.mkdtemp(path7.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempPrivateKeyPath = path7.join(tempDir, "private.pem");
     try {
       await generateKeyPair({
         privatePath: tempPrivateKeyPath,
@@ -40684,7 +40699,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
         aad: aad.toString("base64"),
         ...serial && { serial }
       };
-      await fs7.mkdir(path6.dirname(this.encryptedKeyPath), { recursive: true });
+      await fs7.mkdir(path7.dirname(this.encryptedKeyPath), { recursive: true });
       await fs7.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
       await setKeyPermissions(this.encryptedKeyPath);
       const keySize = Buffer.byteLength(privateKeyContent);
@@ -40720,7 +40735,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
    */
   static async encryptPrivateKey(options) {
     const { privateKey, encryptedKeyPath, slot = 2, serial } = options;
-    const resolvedPath = path6.resolve(encryptedKeyPath);
+    const resolvedPath = path7.resolve(encryptedKeyPath);
     const configDir = getAttestItConfigDir();
     if (!resolvedPath.startsWith(configDir)) {
       throw new Error(
@@ -40761,7 +40776,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
       aad: aad.toString("base64"),
       ...serial && { serial }
     };
-    await fs7.mkdir(path6.dirname(resolvedPath), { recursive: true });
+    await fs7.mkdir(path7.dirname(resolvedPath), { recursive: true });
     await fs7.writeFile(resolvedPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
     await setKeyPermissions(resolvedPath);
     return {
@@ -40784,7 +40799,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
   }
 };
 async function execCommand3(command, args) {
-  return new Promise((resolve42, reject) => {
+  return new Promise((resolve5, reject) => {
     const proc = spawn2(command, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
@@ -40796,7 +40811,7 @@ async function execCommand3(command, args) {
     });
     proc.on("close", (code) => {
       if (code === 0) {
-        resolve42(stdout.trim());
+        resolve5(stdout.trim());
       } else {
         reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
       }

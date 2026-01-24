@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/config.schema.json",
+  "$id": "https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/config.schema.json",
   "title": "attest-it Operational Configuration",
   "description": "Operational configuration schema for attest-it. Contains suite definitions and command execution settings.",
   "$ref": "#/definitions/config",

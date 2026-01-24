@@ -1,0 +1,55 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/project-config.schema.json
+# attest-it configuration
+# See https://github.com/attest-it/attest-it for documentation
+
+version: 1
+
+settings:
+  # How long attestations remain valid (in days)
+  maxAgeDays: 30
+  # Path to the attestations file
+  attestationsPath: .attest-it/attestations.json
+
+# Team members who can sign attestations.
+# Add members with: attest-it team join (for yourself) or team add (for others)
+#
+# team:
+#   mike-north:
+#     name: Mike North
+#     email: mike@example.com
+#     github: mike-north
+#     publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+#     publicKeyAlgorithm: ed25519
+
+team: {}
+
+# Gates define what code areas require attestation and who can sign.
+#
+# Example:
+#
+# gates:
+#   cli-interactive:
+#     name: CLI Interactive Tests
+#     description: Manual verification of interactive CLI experiences
+#     authorizedSigners:
+#       - mike-north
+#     fingerprint:
+#       paths:
+#         - packages/cli/src/commands
+#       exclude:
+#         - '**/*.spec.ts'
+#     maxAge: 90d
+
+gates: {}
+
+# Suites define test commands that produce attestations.
+#
+# Example:
+#
+# suites:
+#   visual-tests:
+#     description: Visual regression tests requiring human review
+#     gate: cli-interactive
+#     command: pnpm vitest packages/ui
+
+suites: {}
