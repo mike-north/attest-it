@@ -97,6 +97,16 @@ The user's public key isn't in the gate's `authorizedSigners` list.
 
 **Solution:**
 
+If the user has an active identity:
+
+```bash
+npx attest-it team join
+```
+
+This will add them to the project config and prompt to authorize them for gates.
+
+Alternatively, the manual process:
+
 1. User exports their public key: `npx attest-it identity export`
 2. Team lead adds them to project config under `team` section
 3. Team lead adds their slug to the gate's `authorizedSigners`
@@ -173,7 +183,7 @@ The configured key storage backend isn't available.
 - **1password**: Install 1Password CLI (`op`)
 - **file**: Check file path and permissions
 
-User can change provider: `npx attest-it identity edit <slug>`
+User can rotate keys to a new provider: `npx attest-it identity create` (create new identity with different provider)
 
 ## Exit Codes
 
@@ -211,12 +221,10 @@ User can change provider: `npx attest-it identity edit <slug>`
 # 1. Create identity
 npx attest-it identity create
 
-# 2. Export public key for team
-npx attest-it identity export
+# 2. Join the project team
+npx attest-it team join
 
-# 3. (Team lead adds to project config)
-
-# 4. Seal a gate
+# 3. Seal a gate
 npx attest-it seal <gate-name>
 ```
 

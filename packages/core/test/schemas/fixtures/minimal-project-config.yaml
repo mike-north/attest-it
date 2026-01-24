@@ -1,0 +1,4 @@
+# Minimal valid project configuration.
+# Tests that only required fields are needed.
+
+version: 1

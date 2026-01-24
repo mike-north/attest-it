@@ -26,16 +26,19 @@ yarn add attest-it
 ## Quick Start
 
 ```bash
-# Initialize configuration
+# Create your signing identity
+npx attest-it identity create
+
+# Initialize project configuration
 npx attest-it init
 
-# Generate signing keys
-npx attest-it keygen
+# Add yourself to the project team
+npx attest-it team join
 
-# Run tests and create attestation
+# Run tests and create seal
 npx attest-it run --suite my-suite
 
-# Verify attestations (in CI)
+# Verify seals (in CI)
 npx attest-it verify
 ```
 
@@ -48,14 +51,15 @@ This umbrella package includes:
 
 ### CLI Commands
 
-| Command  | Description                      |
-| -------- | -------------------------------- |
-| `init`   | Initialize configuration         |
-| `keygen` | Generate signing keypair         |
-| `status` | Show attestation status          |
-| `run`    | Run tests and create attestation |
-| `verify` | Verify attestations (for CI)     |
-| `prune`  | Remove stale attestations        |
+| Command  | Description               |
+| -------- | ------------------------- |
+| `init`   | Initialize configuration  |
+| `status` | Show seal status          |
+| `run`    | Run tests and create seal |
+| `verify` | Verify seals (for CI)     |
+| `prune`  | Remove stale seals        |
+
+For identity and team management commands, see the [main README](../../README.md#cli-commands).
 
 ### Programmatic API
 

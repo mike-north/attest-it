@@ -93,18 +93,17 @@ See [Configuration Reference](docs/configuration.md) for all options.
 | `identity use <slug>`    | Switch active identity                |
 | `identity show [slug]`   | Show identity details                 |
 | `identity export [slug]` | Export public key for team onboarding |
-| `identity edit <slug>`   | Edit identity or rotate keys          |
 | `identity remove <slug>` | Delete identity and associated key    |
 | `whoami`                 | Show current active identity          |
 
 ### Team Management
 
-| Command              | Description                 |
-| -------------------- | --------------------------- |
-| `team list`          | List team members and gates |
-| `team add`           | Add a team member           |
-| `team edit <slug>`   | Edit team member            |
-| `team remove <slug>` | Remove team member          |
+| Command              | Description                                           |
+| -------------------- | ----------------------------------------------------- |
+| `team list`          | List team members and gates                           |
+| `team add`           | Add a team member                                     |
+| `team join`          | Add yourself to the project team with active identity |
+| `team remove <slug>` | Remove team member                                    |
 
 ### Sealing and Verification
 
@@ -117,11 +116,10 @@ See [Configuration Reference](docs/configuration.md) for all options.
 
 ### Project Setup
 
-| Command  | Description                      |
-| -------- | -------------------------------- |
-| `init`   | Initialize project configuration |
-| `keygen` | Generate signing keypair         |
-| `prune`  | Remove stale seals               |
+| Command | Description                      |
+| ------- | -------------------------------- |
+| `init`  | Initialize project configuration |
+| `prune` | Remove stale seals               |
 
 Run `npx attest-it <command> --help` for detailed usage.
 

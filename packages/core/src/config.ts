@@ -37,6 +37,7 @@ const teamMemberSchema = z
     email: z.string().email().optional(),
     github: z.string().min(1).optional(),
     publicKey: z.string().min(1, 'Public key is required'),
+    publicKeyAlgorithm: z.enum(['ed25519']).optional(),
   })
   .strict()
 

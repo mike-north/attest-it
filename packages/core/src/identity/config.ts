@@ -279,6 +279,13 @@ export function loadLocalConfigSync(configPath?: string): LocalConfig | null {
 }
 
 /**
+ * Schema reference header for identity config files.
+ * This enables editor support (autocomplete, validation) in VS Code and other YAML-aware editors.
+ */
+const IDENTITY_SCHEMA_HEADER =
+  '# yaml-language-server: $schema=https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/identity.schema.json\n'
+
+/**
  * Save local config to file (async).
  *
  * @param config - LocalConfig object to save
@@ -288,7 +295,8 @@ export function loadLocalConfigSync(configPath?: string): LocalConfig | null {
  */
 export async function saveLocalConfig(config: LocalConfig, configPath?: string): Promise<void> {
   const resolvedPath = configPath ?? getLocalConfigPath()
-  const content = stringifyYaml(config)
+  const yamlContent = stringifyYaml(config)
+  const content = IDENTITY_SCHEMA_HEADER + yamlContent
 
   // Ensure parent directory exists
   const dir = dirname(resolvedPath)
@@ -307,7 +315,8 @@ export async function saveLocalConfig(config: LocalConfig, configPath?: string):
  */
 export function saveLocalConfigSync(config: LocalConfig, configPath?: string): void {
   const resolvedPath = configPath ?? getLocalConfigPath()
-  const content = stringifyYaml(config)
+  const yamlContent = stringifyYaml(config)
+  const content = IDENTITY_SCHEMA_HEADER + yamlContent
 
   // Ensure parent directory exists
   const dir = dirname(resolvedPath)
@@ -347,9 +356,8 @@ export function getHomePublicKeysDir(): string {
 /**
  * Get the project public keys directory.
  *
- * This returns .attest-it/public-keys relative to the given project root.
- * The project public keys directory is used for CI/GitHub Actions to
- * verify attestation seals.
+ * @deprecated Public keys are now stored inline in the team section of config.yaml.
+ * This function is kept for backward compatibility but should not be used in new code.
  *
  * @param projectRoot - The project root directory (defaults to cwd)
  * @returns Path to the project public keys directory
@@ -361,6 +369,9 @@ export function getProjectPublicKeysDir(projectRoot: string = process.cwd()): st
 
 /**
  * Check if a project has attest-it configuration.
+ *
+ * @deprecated This function is kept for backward compatibility but is no longer used
+ * by the core library. Public keys are now stored inline in config.yaml.
  *
  * @param projectRoot - The project root directory (defaults to cwd)
  * @returns True if the project has .attest-it/config.yaml or similar
@@ -384,16 +395,17 @@ export interface SavePublicKeyResult {
 }
 
 /**
- * Save a public key to the user's home directory and optionally to the project directory.
+ * Save a public key to the user's home directory.
  *
  * This saves the public key as a base64-encoded string (matching the format in config.yaml)
- * to:
- * 1. ~/.attest-it/public-keys/<slug>.pem (always)
- * 2. ./.attest-it/public-keys/<slug>.pem (if project has attest-it config)
+ * to ~/.attest-it/public-keys/<slug>.pem for backup purposes.
+ *
+ * Public keys are now stored inline in the team section of config.yaml and no longer
+ * written to the project directory.
  *
  * @param slug - The identity slug (used for the filename)
  * @param publicKey - The base64-encoded public key
- * @param projectRoot - The project root directory (defaults to cwd)
+ * @param projectRoot - The project root directory (deprecated, kept for backward compatibility)
  * @returns Paths where the key was saved
  * @public
  */
@@ -402,6 +414,9 @@ export async function savePublicKey(
   publicKey: string,
   projectRoot: string = process.cwd(),
 ): Promise<SavePublicKeyResult> {
+  // projectRoot parameter is kept for backward compatibility but is no longer used
+  void projectRoot
+
   const result: SavePublicKeyResult = {
     homePath: '',
   }
@@ -413,29 +428,24 @@ export async function savePublicKey(
   await writeFile(homePath, publicKey, 'utf8')
   result.homePath = homePath
 
-  // Save to project directory if it has attest-it config
-  if (hasProjectConfig(projectRoot)) {
-    const projectDir = getProjectPublicKeysDir(projectRoot)
-    await mkdirAsync(projectDir, { recursive: true })
-    const projectPath = join(projectDir, `${slug}.pem`)
-    await writeFile(projectPath, publicKey, 'utf8')
-    result.projectPath = projectPath
-  }
+  // No longer write to project directory
+  // Public keys are now stored inline in the team section of config.yaml
 
   return result
 }
 
 /**
- * Save a public key to the user's home directory and optionally to the project directory (sync).
+ * Save a public key to the user's home directory (sync).
  *
  * This saves the public key as a base64-encoded string (matching the format in config.yaml)
- * to:
- * 1. ~/.attest-it/public-keys/<slug>.pem (always)
- * 2. ./.attest-it/public-keys/<slug>.pem (if project has attest-it config)
+ * to ~/.attest-it/public-keys/<slug>.pem for backup purposes.
+ *
+ * Public keys are now stored inline in the team section of config.yaml and no longer
+ * written to the project directory.
  *
  * @param slug - The identity slug (used for the filename)
  * @param publicKey - The base64-encoded public key
- * @param projectRoot - The project root directory (defaults to cwd)
+ * @param projectRoot - The project root directory (deprecated, kept for backward compatibility)
  * @returns Paths where the key was saved
  * @public
  */
@@ -444,6 +454,9 @@ export function savePublicKeySync(
   publicKey: string,
   projectRoot: string = process.cwd(),
 ): SavePublicKeyResult {
+  // projectRoot parameter is kept for backward compatibility but is no longer used
+  void projectRoot
+
   const result: SavePublicKeyResult = {
     homePath: '',
   }
@@ -455,14 +468,8 @@ export function savePublicKeySync(
   writeFileSync(homePath, publicKey, 'utf8')
   result.homePath = homePath
 
-  // Save to project directory if it has attest-it config
-  if (hasProjectConfig(projectRoot)) {
-    const projectDir = getProjectPublicKeysDir(projectRoot)
-    mkdirSync(projectDir, { recursive: true })
-    const projectPath = join(projectDir, `${slug}.pem`)
-    writeFileSync(projectPath, publicKey, 'utf8')
-    result.projectPath = projectPath
-  }
+  // No longer write to project directory
+  // Public keys are now stored inline in the team section of config.yaml
 
   return result
 }

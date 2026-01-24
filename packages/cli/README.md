@@ -29,16 +29,6 @@ attest-it init
 attest-it init --path .attest-it/config.yaml
 ```
 
-### keygen
-
-Generate a keypair for signing attestations:
-
-```bash
-attest-it keygen
-attest-it keygen --algorithm rsa
-attest-it keygen --public .attest-it/pubkey.pem
-```
-
 ### status
 
 Show the current status of all attestations:

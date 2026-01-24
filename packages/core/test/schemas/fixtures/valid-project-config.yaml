@@ -1,0 +1,58 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/project-config.schema.json
+# Sample valid project configuration for schema contract testing.
+# DO NOT modify this file's structure without updating the schema version!
+
+version: 1
+
+settings:
+  maxAgeDays: 30
+  attestationsPath: .attest-it/attestations.json
+
+team:
+  alice:
+    name: Alice Smith
+    email: alice@example.com
+    github: alice-smith
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+    publicKeyAlgorithm: ed25519
+  bob:
+    name: Bob Jones
+    publicKey: Gzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfB=
+
+gates:
+  cli-interactive:
+    name: CLI Interactive Tests
+    description: Manual verification of interactive CLI experiences
+    authorizedSigners:
+      - alice
+      - bob
+    fingerprint:
+      paths:
+        - packages/cli/src/commands
+      exclude:
+        - '**/*.spec.ts'
+    maxAge: 90d
+
+suites:
+  visual-tests:
+    gate: cli-interactive
+    description: Visual regression tests requiring human review
+    command: pnpm vitest packages/ui
+    timeout: 5m
+    interactive: true
+  unit-tests:
+    description: Unit tests
+    command: pnpm test
+    packages:
+      - packages/core
+    files:
+      - src/**/*.ts
+    ignore:
+      - '**/*.test.ts'
+    depends_on:
+      - visual-tests
+
+groups:
+  all-tests:
+    - visual-tests
+    - unit-tests

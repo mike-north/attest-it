@@ -1,4 +1,5 @@
 import { defineConfig } from 'tsup'
+import { copyFileSync, mkdirSync } from 'node:fs'
 
 export default defineConfig([
   // Library output (dual format)
@@ -9,6 +10,11 @@ export default defineConfig([
     clean: true,
     sourcemap: true,
     treeshake: true,
+    onSuccess: async () => {
+      // Copy templates directory to dist
+      mkdirSync('dist/templates', { recursive: true })
+      copyFileSync('templates/config.yaml', 'dist/templates/config.yaml')
+    },
   },
   // CLI bin (ESM only, executable)
   {

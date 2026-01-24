@@ -1,6 +1,7 @@
 /**
  * Tests for identity configuration loading and validation.
  */
+/* eslint-disable @typescript-eslint/no-deprecated -- This file intentionally tests deprecated functions for backward compatibility */
 
 import * as fs from 'node:fs'
 import { homedir } from 'node:os'
@@ -768,7 +769,7 @@ identities:
         expect(fs.readFileSync(result.homePath, 'utf8')).toBe('dGVzdC1wdWJsaWMta2V5')
       })
 
-      it('should also save to project directory when project has config', async () => {
+      it('should no longer save to project directory (keys now stored inline)', async () => {
         setAttestItHomeDir(tempDir)
 
         // Create project config
@@ -778,15 +779,14 @@ identities:
 
         const result = await savePublicKey('my-identity', 'bXktcHVibGljLWtleQ==', tempDir)
 
+        // Should save to home directory
         expect(result.homePath).toBe(path.join(tempDir, 'public-keys', 'my-identity.pem'))
-        expect(result.projectPath).toBe(
-          path.join(tempDir, '.attest-it', 'public-keys', 'my-identity.pem'),
-        )
         expect(fs.existsSync(result.homePath)).toBe(true)
-        expect(result.projectPath).toBeDefined()
-        if (result.projectPath) {
-          expect(fs.existsSync(result.projectPath)).toBe(true)
-        }
+
+        // Should NOT save to project directory
+        expect(result.projectPath).toBeUndefined()
+        const projectKeyPath = path.join(tempDir, '.attest-it', 'public-keys', 'my-identity.pem')
+        expect(fs.existsSync(projectKeyPath)).toBe(false)
       })
 
       it('should not save to project directory when project has no config', async () => {
@@ -822,7 +822,7 @@ identities:
         expect(fs.readFileSync(result.homePath, 'utf8')).toBe('c3luYy1pZGVudGl0eQ==')
       })
 
-      it('should also save to project directory when project has config', () => {
+      it('should no longer save to project directory (keys now stored inline)', () => {
         setAttestItHomeDir(tempDir)
 
         // Create project config
@@ -832,10 +832,14 @@ identities:
 
         const result = savePublicKeySync('sync-project', 'c3luYy1wcm9qZWN0', tempDir)
 
-        expect(result.projectPath).toBeDefined()
-        if (result.projectPath) {
-          expect(fs.existsSync(result.projectPath)).toBe(true)
-        }
+        // Should save to home directory
+        expect(result.homePath).toBe(path.join(tempDir, 'public-keys', 'sync-project.pem'))
+        expect(fs.existsSync(result.homePath)).toBe(true)
+
+        // Should NOT save to project directory
+        expect(result.projectPath).toBeUndefined()
+        const projectKeyPath = path.join(tempDir, '.attest-it', 'public-keys', 'sync-project.pem')
+        expect(fs.existsSync(projectKeyPath)).toBe(false)
       })
     })
   })

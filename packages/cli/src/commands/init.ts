@@ -1,10 +1,13 @@
 import { Command } from 'commander'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
 import { log, success, error } from '../utils/output.js'
 import { confirmAction } from '../utils/prompts.js'
 import { ExitCode } from '../utils/exit-codes.js'
 import { offerCompletionInstall } from '../utils/completion-offer.js'
+import { getPackageVersion } from '../utils/version.js'
 
 export const initCommand = new Command('init')
   .description('Initialize attest-it configuration')
@@ -19,48 +22,118 @@ interface InitOptions {
   force?: boolean
 }
 
-const CONFIG_TEMPLATE = `# attest-it configuration
-# See https://github.com/attest-it/attest-it for documentation
+/**
+ * Load the configuration template from the templates directory.
+ *
+ * This function reads the config.yaml template at build time from the templates directory.
+ * It handles different bundle output locations created by tsup.
+ */
+function loadConfigTemplate(): string {
+  const __filename = fileURLToPath(import.meta.url)
+  const __dirname = dirname(__filename)
 
-version: 1
+  // Try multiple paths since tsup creates separate bundles:
+  // - dist/commands/init.js needs ../../templates/config.yaml
+  // - dist/bin/attest-it.js (when bundled) needs ../templates/config.yaml
+  const possiblePaths = [
+    join(__dirname, '../../templates/config.yaml'),
+    join(__dirname, '../templates/config.yaml'),
+  ]
 
-settings:
-  # How long attestations remain valid (in days)
-  maxAgeDays: 30
-  # Path to the public key used for signature verification
-  publicKeyPath: .attest-it/pubkey.pem
-  # Path to the attestations file
-  attestationsPath: .attest-it/attestations.json
-  # Signing algorithm
-  algorithm: rsa
+  for (const templatePath of possiblePaths) {
+    try {
+      return fs.readFileSync(templatePath, 'utf-8')
+    } catch (error) {
+      // Only suppress "file not found" errors; rethrow anything else
+      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+        // Try next path
+        continue
+      }
+      throw error
+    }
+  }
 
-# Define your test suites below. Each suite groups tests that require
-# human verification before their attestations are accepted.
-#
-# Example:
-#
-# suites:
-#   visual-tests:
-#     description: Visual regression tests requiring human review
-#     packages:
-#       - packages/ui
-#       - packages/components
-#     command: pnpm vitest packages/ui packages/components
-#
-#   integration:
-#     description: Integration tests with external services
-#     packages:
-#       - packages/api
-#     command: pnpm vitest packages/api --project=integration
+  throw new Error('Could not find config.yaml template')
+}
 
-suites: {}
-`
+/**
+ * Represents a package.json structure with the fields we need to interact with.
+ */
+interface PackageJson {
+  name: string
+  version: string
+  devDependencies?: Record<string, string>
+  [key: string]: unknown
+}
+
+/**
+ * Type guard for package.json structure.
+ */
+function isPackageJson(data: unknown): data is PackageJson {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'name' in data &&
+    'version' in data &&
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    typeof (data as { name: unknown }).name === 'string' &&
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    typeof (data as { version: unknown }).version === 'string'
+  )
+}
+
+/**
+ * Detect the package manager being used in the project.
+ */
+function detectPackageManager(): 'pnpm' | 'yarn' | 'bun' | 'npm' {
+  if (fs.existsSync('pnpm-lock.yaml')) return 'pnpm'
+  if (fs.existsSync('yarn.lock')) return 'yarn'
+  if (fs.existsSync('bun.lockb')) return 'bun'
+  return 'npm'
+}
+
+/**
+ * Ensure attest-it is added as a devDependency.
+ * Creates or updates package.json in the current directory.
+ *
+ * @returns Information about the package manager and whether package.json was created
+ */
+async function ensureDevDependency(): Promise<{ packageManager: string; created: boolean }> {
+  const packageJsonPath = 'package.json'
+  const packageManager = detectPackageManager()
+  let created = false
+
+  let packageJson: PackageJson
+  if (fs.existsSync(packageJsonPath)) {
+    const content = await fs.promises.readFile(packageJsonPath, 'utf8')
+    const parsed: unknown = JSON.parse(content)
+
+    if (!isPackageJson(parsed)) {
+      throw new Error('Invalid package.json: missing required name or version field')
+    }
+
+    packageJson = parsed
+  } else {
+    packageJson = { name: path.basename(process.cwd()), version: '1.0.0' }
+    created = true
+  }
+
+  // Add devDependency
+  const devDeps = packageJson.devDependencies ?? {}
+  devDeps['attest-it'] = '^' + getPackageVersion()
+  packageJson.devDependencies = devDeps
+
+  await fs.promises.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n')
+
+  return { packageManager, created }
+}
 
 /**
  * Run the init command to create a new attest-it configuration.
  *
  * Creates a configuration file with sensible defaults and commented
- * examples showing how to define test suites.
+ * examples showing how to define test suites. Also ensures attest-it
+ * is added as a devDependency to package.json.
  *
  * @param options - Command options
  * @param options.path - Config file path (default: .attest-it/config.yaml)
@@ -83,16 +156,26 @@ async function runInit(options: InitOptions): Promise<void> {
       }
     }
 
+    // Ensure attest-it is in devDependencies
+    const { packageManager, created } = await ensureDevDependency()
+    if (created) {
+      success('Created package.json')
+    } else {
+      success('Updated package.json with attest-it devDependency')
+    }
+
     // Create directory and write config
     await fs.promises.mkdir(configDir, { recursive: true })
-    await fs.promises.writeFile(configPath, CONFIG_TEMPLATE, 'utf-8')
+    const configTemplate = loadConfigTemplate()
+    await fs.promises.writeFile(configPath, configTemplate, 'utf-8')
 
     success(`Configuration created at ${configPath}`)
     log('')
     log('Next steps:')
-    log(`  1. Edit ${options.path} to define your test suites`)
-    log('  2. Run: attest-it keygen')
-    log('  3. Run: attest-it status')
+    log(`  1. Run: ${packageManager} install`)
+    log("  2. Run: attest-it identity create  (if you haven't already)")
+    log('  3. Run: attest-it team join')
+    log('  4. Edit .attest-it/config.yaml to define your gates and suites')
 
     // Offer to install shell completions
     await offerCompletionInstall()

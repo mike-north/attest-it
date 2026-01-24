@@ -1,0 +1,134 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/identity.schema.json",
+  "title": "attest-it Local Identity Configuration",
+  "description": "Configuration schema for local attest-it identity management. Stored at ~/.config/attest-it/config.yaml",
+  "type": "object",
+  "properties": {
+    "activeIdentity": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The slug of the currently active identity used for signing attestations"
+    },
+    "identities": {
+      "type": "object",
+      "description": "Map of identity slugs to identity configurations",
+      "additionalProperties": {
+        "$ref": "#/definitions/identity"
+      }
+    }
+  },
+  "required": ["activeIdentity", "identities"],
+  "additionalProperties": false,
+  "definitions": {
+    "identity": {
+      "type": "object",
+      "description": "A signing identity with associated keypair",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Human-readable name for this identity (e.g., 'Mike North')"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Email address associated with this identity"
+        },
+        "github": {
+          "type": "string",
+          "minLength": 1,
+          "description": "GitHub username associated with this identity"
+        },
+        "publicKey": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Base64-encoded Ed25519 public key (~44 characters)"
+        },
+        "privateKey": {
+          "oneOf": [
+            { "$ref": "#/definitions/privateKeyFile" },
+            { "$ref": "#/definitions/privateKeyKeychain" },
+            { "$ref": "#/definitions/privateKey1Password" }
+          ],
+          "description": "Reference to the private key storage location"
+        }
+      },
+      "required": ["name", "publicKey", "privateKey"],
+      "additionalProperties": false
+    },
+    "privateKeyFile": {
+      "type": "object",
+      "description": "Private key stored in a file on the filesystem",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "file"
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Absolute path to the private key file"
+        }
+      },
+      "required": ["type", "path"],
+      "additionalProperties": false
+    },
+    "privateKeyKeychain": {
+      "type": "object",
+      "description": "Private key stored in macOS Keychain",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "keychain"
+        },
+        "service": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Keychain service name"
+        },
+        "account": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Keychain account name"
+        },
+        "keychain": {
+          "type": "string",
+          "description": "Path to a specific keychain file (optional, uses default keychain if not specified)"
+        }
+      },
+      "required": ["type", "service", "account"],
+      "additionalProperties": false
+    },
+    "privateKey1Password": {
+      "type": "object",
+      "description": "Private key stored in 1Password",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "1password"
+        },
+        "account": {
+          "type": "string",
+          "description": "1Password account identifier (optional if only one account)"
+        },
+        "vault": {
+          "type": "string",
+          "minLength": 1,
+          "description": "1Password vault name"
+        },
+        "item": {
+          "type": "string",
+          "minLength": 1,
+          "description": "1Password item name containing the private key"
+        },
+        "field": {
+          "type": "string",
+          "description": "Field name within the item (optional, defaults to 'privateKey')"
+        }
+      },
+      "required": ["type", "vault", "item"],
+      "additionalProperties": false
+    }
+  }
+}

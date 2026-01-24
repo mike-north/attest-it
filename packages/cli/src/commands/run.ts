@@ -447,9 +447,9 @@ async function runSingleSuite(
   if (!(await keyProvider.keyExists(keyRef))) {
     error(`Private key not found in ${keyProvider.displayName}`)
     if (keyProvider.type === 'filesystem') {
-      error('Run "attest-it keygen" first to generate a keypair.')
+      error('Run "attest-it identity create" first to generate a keypair.')
     } else {
-      error('Run "attest-it keygen" to generate and store a key.')
+      error('Run "attest-it identity create" to generate and store a key.')
     }
     process.exit(ExitCode.MISSING_KEY)
   }
@@ -488,7 +488,7 @@ async function promptForSeal(suiteName: string, gateId: string, config: Config):
   const localConfig = loadLocalConfigSync()
   if (!localConfig) {
     warn('No local identity configuration found - cannot create seal')
-    warn('Run "attest-it keygen" to set up your identity')
+    warn('Run "attest-it identity create" to set up your identity')
     return
   }
 

@@ -40,19 +40,22 @@ Human verification → Meta-seal → Test scripts → Ephemeral seals → Test c
 
 Before running manual tests, you need to set up your developer identity:
 
-1. **Create a 1Password item** for your attest-it signing key:
+1. **Create your signing identity**:
 
    ```bash
    # From repository root
-   npx attest-it keygen --provider 1password \
-     --account your-email@example.com \
-     --vault "Development" \
-     --item-name "attest-it-signing-key"
+   npx attest-it identity create
    ```
 
-2. **Store the public key** in your team configuration (if not already present):
-   - The public key will be automatically added to `.attest-it/config.yaml`
-   - Commit this to the repository so CI can verify your seals
+   Choose 1Password as your key storage provider and follow the prompts.
+
+2. **Add yourself to the project team**:
+
+   ```bash
+   npx attest-it team join
+   ```
+
+   This will add your public key to `.attest-it/config.yaml` and prompt you to authorize yourself for the manual-tests gate.
 
 3. **Verify 1Password CLI is installed and authenticated**:
    ```bash
