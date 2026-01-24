@@ -27,6 +27,7 @@ export {
   gateSchema,
   keyProviderOptionsSchema,
   keyProviderSchema,
+  semverSchema,
   teamMemberSchema,
 } from './shared-schemas.js'
 

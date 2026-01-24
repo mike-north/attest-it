@@ -42,14 +42,15 @@ suites:
 
 ### Root Fields
 
-| Field      | Type   | Required | Default | Description                     |
-| ---------- | ------ | -------- | ------- | ------------------------------- |
-| `version`  | `1`    | Yes      | -       | Schema version (must be `1`)    |
-| `settings` | object | No       | `{}`    | Global settings                 |
-| `team`     | object | No       | `{}`    | Team member definitions         |
-| `gates`    | object | No       | `{}`    | Gate definitions                |
-| `suites`   | object | Yes      | -       | Suite definitions (min 1 suite) |
-| `groups`   | object | No       | `{}`    | Named groups of suites          |
+| Field        | Type   | Required | Default | Description                                       |
+| ------------ | ------ | -------- | ------- | ------------------------------------------------- |
+| `version`    | `1`    | Yes      | -       | Schema version (must be `1`)                      |
+| `minVersion` | string | No       | -       | Minimum attest-it version required (e.g. "0.9.0") |
+| `settings`   | object | No       | `{}`    | Global settings                                   |
+| `team`       | object | No       | `{}`    | Team member definitions                           |
+| `gates`      | object | No       | `{}`    | Gate definitions                                  |
+| `suites`     | object | Yes      | -       | Suite definitions (min 1 suite)                   |
+| `groups`     | object | No       | `{}`    | Named groups of suites                            |
 
 ---
 
@@ -106,6 +107,47 @@ keyProvider:
 | `account`  | string | 1Password account (if multiple) |
 | `vault`    | string | Vault name                      |
 | `itemName` | string | Item name in vault              |
+
+---
+
+## Minimum Version Requirement
+
+You can specify a minimum version of attest-it required to use your configuration:
+
+```yaml
+version: 1
+minVersion: '0.9.0'
+```
+
+### When to Use
+
+- When you adopt new configuration features that older versions don't support
+- To ensure team members have a compatible CLI version
+- To prevent cryptic errors from version mismatches
+
+### What Happens
+
+If someone runs an older version of attest-it with this config, they'll see a clear error:
+
+```
+Error: This configuration requires attest-it version 0.9.0 or newer, but you are running 0.8.5.
+
+To upgrade:
+  pnpm add -D @attest-it/cli@^0.9.0
+  # then run: pnpm install
+```
+
+### Local CLI Resolution
+
+The CLI automatically prefers locally installed versions over global installations. This ensures projects use their pinned version even if a global CLI is invoked. Set `ATTEST_IT_SKIP_LOCAL_RESOLUTION=1` to disable this behavior.
+
+### Version Synchronization
+
+The `@attest-it/core` and `@attest-it/cli` packages should be kept at the same version. When upgrading, update both packages together.
+
+### Pre-release Versions
+
+The `minVersion` field supports semantic versioning including pre-release tags (e.g., "1.0.0-beta.1"). Note that per semver rules, `1.0.0-beta.1 < 1.0.0`, so a config requiring `minVersion: "1.0.0"` will reject pre-release versions.
 
 ---
 
@@ -565,6 +607,19 @@ Error: Configuration file not found
 ```
 
 **Solution:** Run `npx attest-it init` or create `.attest-it/config.yaml` manually.
+
+### Version Incompatible Error
+
+```
+Error: This configuration requires attest-it version X.Y.Z or newer, but you are running A.B.C.
+```
+
+**Cause:** Your attest-it installation is older than what this project's configuration requires.
+
+**Solution:**
+
+1. Upgrade attest-it: `pnpm add -D @attest-it/cli@^X.Y.Z && pnpm install`
+2. Or use the project's local installation: `pnpm exec attest-it <command>`
 
 ### No Identity Configured
 

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/policy.schema.json",
+  "$id": "https://attest-it.dev/schemas/policy.schema.json",
   "title": "attest-it Policy Configuration",
   "description": "Policy configuration schema for attest-it. Contains security-critical settings like team members, gates, and authorization rules.",
   "$ref": "#/definitions/policy",
@@ -11,6 +11,11 @@
         "version": {
           "type": "number",
           "const": 1
+        },
+        "minVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(-[\\w.]+)?(\\+[\\w.]+)?$",
+          "description": "Minimum required version of attest-it to use this configuration. Prevents older CLI versions from running with incompatible config formats. Example: \"0.9.0\""
         },
         "settings": {
           "type": "object",
@@ -27,6 +32,10 @@
             "attestationsPath": {
               "type": "string",
               "default": ".attest-it/attestations.json"
+            },
+            "sealsPath": {
+              "type": "string",
+              "default": ".attest-it/seals.json"
             }
           },
           "additionalProperties": false,
@@ -52,6 +61,10 @@
               "publicKey": {
                 "type": "string",
                 "minLength": 1
+              },
+              "publicKeyAlgorithm": {
+                "type": "string",
+                "const": "ed25519"
               }
             },
             "required": ["name", "publicKey"],
