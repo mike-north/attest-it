@@ -4,9 +4,9 @@ import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const packageJson = JSON.parse(
-  readFileSync(join(__dirname, 'package.json'), 'utf-8'),
-) as { version: string }
+const packageJson = JSON.parse(readFileSync(join(__dirname, 'package.json'), 'utf-8')) as {
+  version: string
+}
 
 export default defineConfig({
   entry: ['src/index.ts'],
