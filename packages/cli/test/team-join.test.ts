@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { runJoin, joinCommand } from '../src/commands/team/join.js'
 import * as core from '@attest-it/core'
 import * as fs from 'node:fs/promises'
-import { ExitCode } from '../src/utils/exit-codes.js'
 import * as prompts from '@inquirer/prompts'
 import YAML from 'yaml'
 

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://attest-it.dev/schemas/attestations.schema.json",
+  "$id": "https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/attestations.schema.json",
   "title": "attest-it Attestations",
   "type": "object",
   "required": ["schemaVersion", "attestations", "signature"],

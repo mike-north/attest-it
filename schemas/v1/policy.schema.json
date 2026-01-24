@@ -52,6 +52,11 @@
               "publicKey": {
                 "type": "string",
                 "minLength": 1
+              },
+              "publicKeyAlgorithm": {
+                "type": "string",
+                "enum": ["ed25519"],
+                "description": "Algorithm used for the public key. Currently only ed25519 is supported."
               }
             },
             "required": ["name", "publicKey"],
