@@ -292,18 +292,18 @@ async function runCreate(): Promise<void> {
                 'name' in details &&
                 typeof details.name === 'string'
                   ? details.name
-                  : acc.url
+                  : '[Could not read account name]'
               return {
                 url: acc.url,
                 email: acc.email,
                 name,
               }
             } catch {
-              // Fallback to URL if we can't get account details
+              // Fallback if we can't get account details (e.g., vault locked)
               return {
                 url: acc.url,
                 email: acc.email,
-                name: acc.url,
+                name: '[Could not read account name]',
               }
             }
           }),
