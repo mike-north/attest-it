@@ -11,7 +11,7 @@ import {
   savePublicKey,
 } from '@attest-it/core'
 import type { Identity, LocalConfig, PrivateKeyRef } from '@attest-it/core'
-import { log, success, error, info, getTheme } from '../../utils/output.js'
+import { log, success, error, info, verbose, getTheme } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
 import { validateSlug, validateEmail } from './validation.js'
 import { offerCompletionInstall } from '../../utils/completion-offer.js'
@@ -75,10 +75,20 @@ async function runCreate(): Promise<void> {
     info(
       'You may see authentication prompts from 1Password, macOS Keychain, or other security tools.',
     )
+
     const opAvailable = await OnePasswordKeyProvider.isInstalled()
+    verbose(`  1Password CLI (op): ${opAvailable ? 'found' : 'not found'}`)
+
     const keychainAvailable = MacOSKeychainKeyProvider.isAvailable()
+    verbose(`  macOS Keychain: ${keychainAvailable ? 'available' : 'not available (not macOS)'}`)
+
     const yubikeyInstalled = await YubiKeyProvider.isInstalled()
+    verbose(`  YubiKey CLI (ykman): ${yubikeyInstalled ? 'found' : 'not found'}`)
+
     const yubikeyConnected = yubikeyInstalled ? await YubiKeyProvider.isConnected() : false
+    if (yubikeyInstalled) {
+      verbose(`  YubiKey device: ${yubikeyConnected ? 'connected' : 'not connected'}`)
+    }
 
     // Build choices based on availability
     const configDir = getAttestItConfigDir()
@@ -99,6 +109,14 @@ async function runCreate(): Promise<void> {
         ? 'YubiKey (encrypted with challenge-response)'
         : 'YubiKey (not connected - insert YubiKey first)'
       storageChoices.push({ name: yubikeyLabel, value: 'yubikey' })
+    } else {
+      // Show YubiKey as disabled option so users know it exists
+      storageChoices.push({
+        name: theme.muted('YubiKey (install ykman CLI to enable)'),
+        value: 'yubikey-disabled',
+        // @ts-expect-error -- @inquirer/prompts supports disabled property but types may not reflect it
+        disabled: true,
+      })
     }
 
     // Prompt for key storage type
