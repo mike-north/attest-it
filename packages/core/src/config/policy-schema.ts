@@ -24,8 +24,10 @@ import {
   durationSchema,
   fingerprintConfigSchema,
   gateSchema,
+  semverSchema,
   teamMemberSchema,
 } from './shared-schemas.js'
+import { checkVersionCompatibility } from '../version.js'
 
 /**
  * Zod schema for policy settings (security-critical fields only).
@@ -52,6 +54,7 @@ const policySettingsSchema = z
 export const policySchema = z
   .object({
     version: z.literal(1),
+    minVersion: semverSchema.optional(),
     settings: policySettingsSchema.default({}),
     team: z.record(z.string(), teamMemberSchema).optional(),
     gates: z.record(z.string(), gateSchema).optional(),
@@ -113,6 +116,11 @@ export function parsePolicyContent(content: string, format: 'yaml' | 'json'): Po
           .join('\n'),
       result.error.issues,
     )
+  }
+
+  // Check version compatibility if minVersion is specified
+  if (result.data.minVersion !== undefined) {
+    checkVersionCompatibility(result.data.minVersion)
   }
 
   return result.data

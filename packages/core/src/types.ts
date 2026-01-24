@@ -124,6 +124,8 @@ export interface SuiteConfig {
 export interface AttestItConfig {
   /** Configuration schema version */
   version: 1
+  /** Minimum required attest-it version (semver format, e.g., "0.8.0") */
+  minVersion?: string
   /** Global settings for attestation behavior */
   settings: AttestItSettings
   /** Team members mapped by slug */

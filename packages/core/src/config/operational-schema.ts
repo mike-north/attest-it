@@ -20,7 +20,8 @@
 
 import { parse as parseYaml } from 'yaml'
 import { z } from 'zod'
-import { keyProviderSchema } from './shared-schemas.js'
+import { keyProviderSchema, semverSchema } from './shared-schemas.js'
+import { checkVersionCompatibility } from '../version.js'
 
 /**
  * Zod schema for operational settings (non-security-critical fields only).
@@ -78,6 +79,7 @@ const suiteSchema = z
 export const operationalSchema = z
   .object({
     version: z.literal(1),
+    minVersion: semverSchema.optional(),
     settings: operationalSettingsSchema.default({}),
     suites: z.record(z.string(), suiteSchema).refine((suites) => Object.keys(suites).length >= 1, {
       message: 'At least one suite must be defined',
@@ -146,6 +148,11 @@ export function parseOperationalContent(
           .join('\n'),
       result.error.issues,
     )
+  }
+
+  // Check version compatibility if minVersion is specified
+  if (result.data.minVersion !== undefined) {
+    checkVersionCompatibility(result.data.minVersion)
   }
 
   return result.data
