@@ -70,7 +70,11 @@ async function runCreate(): Promise<void> {
     })
 
     // Check provider availability
+    // Note: Checking 1Password/YubiKey may trigger authentication prompts
     info('Checking available key storage providers...')
+    info(
+      'You may see authentication prompts from 1Password, macOS Keychain, or other security tools.',
+    )
     const opAvailable = await OnePasswordKeyProvider.isInstalled()
     const keychainAvailable = MacOSKeychainKeyProvider.isAvailable()
     const yubikeyInstalled = await YubiKeyProvider.isInstalled()
@@ -115,6 +119,10 @@ async function runCreate(): Promise<void> {
 
     switch (keyStorageType) {
       case 'file': {
+        // Notify user about file creation
+        log('')
+        info('Creating encrypted private key file on disk...')
+
         // Save to filesystem (respects --home-dir override)
         const keysDir = join(getAttestItConfigDir(), 'keys')
         await mkdir(keysDir, { recursive: true })
@@ -131,6 +139,11 @@ async function runCreate(): Promise<void> {
           error('macOS Keychain is not available on this system')
           process.exit(ExitCode.CONFIG_ERROR)
         }
+
+        // Notify user about keychain access
+        log('')
+        info('Accessing macOS Keychain to list available keychains...')
+        info('You may be prompted to allow access or enter your password.')
 
         // List available keychains
         const keychains = await MacOSKeychainKeyProvider.listKeychains()
@@ -215,6 +228,13 @@ async function runCreate(): Promise<void> {
         break
       }
       case '1password': {
+        // Notify user about 1Password access
+        log('')
+        info('Accessing 1Password to list your accounts and vaults...')
+        info(
+          'You may see biometric prompts or be asked to unlock 1Password for each configured account.',
+        )
+
         // List available 1Password accounts
         const accounts = await OnePasswordKeyProvider.listAccounts()
 
@@ -363,10 +383,20 @@ async function runCreate(): Promise<void> {
           item,
           ...(selectedAccount && { account: selectedAccount }),
         }
-        keyStorageDescription = `1Password (${selectedVault}/${item})`
+
+        // Include account name in the description for clarity (users may have multiple accounts)
+        const selectedAccountDetails = accountDetails.find((acc) => acc.url === selectedAccount)
+        // selectedAccount is guaranteed to be set at this point (either auto-selected or user-selected)
+        const accountDisplayName = selectedAccountDetails?.name ?? selectedAccount
+        keyStorageDescription = `1Password (${accountDisplayName}/${selectedVault}/${item})`
         break
       }
       case 'yubikey': {
+        // Notify user about YubiKey access
+        log('')
+        info('Accessing YubiKey to detect connected devices...')
+        info('Your private key will be encrypted using HMAC challenge-response from the YubiKey.')
+
         // Check if YubiKey is connected
         if (!(await YubiKeyProvider.isConnected())) {
           error('No YubiKey detected. Please insert your YubiKey and try again.')
