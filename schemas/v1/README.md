@@ -33,6 +33,7 @@ Users' YAML files reference these schemas via URL:
 ```
 
 Breaking changes would cause:
+
 1. **Red squiggles** in users' editors on valid configs
 2. **Validation failures** in CI/CD pipelines
 3. **Confusion** about whether their config is correct

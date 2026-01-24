@@ -98,12 +98,12 @@ See [Configuration Reference](docs/configuration.md) for all options.
 
 ### Team Management
 
-| Command              | Description                                         |
-| -------------------- | --------------------------------------------------- |
-| `team list`          | List team members and gates                         |
-| `team add`           | Add a team member                                   |
+| Command              | Description                                           |
+| -------------------- | ----------------------------------------------------- |
+| `team list`          | List team members and gates                           |
+| `team add`           | Add a team member                                     |
 | `team join`          | Add yourself to the project team with active identity |
-| `team remove <slug>` | Remove team member                                  |
+| `team remove <slug>` | Remove team member                                    |
 
 ### Sealing and Verification
 
