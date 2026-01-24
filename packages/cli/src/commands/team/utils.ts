@@ -1,5 +1,5 @@
 import { checkbox } from '@inquirer/prompts'
-import type { Config, Gate } from '@attest-it/core'
+import type { Config, GateConfig } from '@attest-it/core'
 
 /**
  * Prompt the user to select which gates they want to authorize for a team member.
@@ -9,14 +9,14 @@ import type { Config, Gate } from '@attest-it/core'
  * @public
  */
 export async function promptForGateAuthorization(
-  gates: Record<string, Gate> | undefined,
+  gates: Record<string, GateConfig> | undefined,
 ): Promise<string[]> {
   // If no gates exist, return empty array
   if (!gates || Object.keys(gates).length === 0) {
     return []
   }
 
-  const gateChoices = Object.entries(gates).map(([gateId, gate]) => ({
+  const gateChoices = Object.entries(gates).map(([gateId, gate]: [string, GateConfig]) => ({
     name: `${gateId} - ${gate.name}`,
     value: gateId,
   }))
@@ -47,7 +47,7 @@ export function addTeamMemberToConfig(
     email?: string
     github?: string
     publicKey: string
-    publicKeyAlgorithm?: string
+    publicKeyAlgorithm?: 'ed25519'
   },
   authorizedGates: string[],
 ): Config {

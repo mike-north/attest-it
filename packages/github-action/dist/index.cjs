@@ -39117,7 +39117,8 @@ var teamMemberSchema = external_exports.object({
   name: external_exports.string().min(1, "Team member name cannot be empty"),
   email: external_exports.string().email().optional(),
   github: external_exports.string().min(1).optional(),
-  publicKey: external_exports.string().min(1, "Public key is required")
+  publicKey: external_exports.string().min(1, "Public key is required"),
+  publicKeyAlgorithm: external_exports.enum(["ed25519"]).optional()
 }).strict();
 var fingerprintConfigSchema = external_exports.object({
   paths: external_exports.array(external_exports.string().min(1, "Path cannot be empty")).min(1, "At least one path is required"),
@@ -39189,7 +39190,8 @@ var teamMemberSchema2 = external_exports.object({
   name: external_exports.string().min(1, "Team member name cannot be empty"),
   email: external_exports.string().email().optional(),
   github: external_exports.string().min(1).optional(),
-  publicKey: external_exports.string().min(1, "Public key is required")
+  publicKey: external_exports.string().min(1, "Public key is required"),
+  publicKeyAlgorithm: external_exports.literal("ed25519").optional()
 }).strict();
 var fingerprintConfigSchema2 = external_exports.object({
   paths: external_exports.array(external_exports.string().min(1, "Path cannot be empty")).min(1, "At least one path is required"),

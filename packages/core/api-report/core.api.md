@@ -680,16 +680,19 @@ export const policySchema: z.ZodObject<{
         github: z.ZodOptional<z.ZodString>;
         name: z.ZodString;
         publicKey: z.ZodString;
+        publicKeyAlgorithm: z.ZodOptional<z.ZodLiteral<"ed25519">>;
     }, "strict", z.ZodTypeAny, {
         email?: string | undefined;
         github?: string | undefined;
         name: string;
         publicKey: string;
+        publicKeyAlgorithm?: "ed25519" | undefined;
     }, {
         email?: string | undefined;
         github?: string | undefined;
         name: string;
         publicKey: string;
+        publicKeyAlgorithm?: "ed25519" | undefined;
     }>>>;
     version: z.ZodLiteral<1>;
 }, "strict", z.ZodTypeAny, {
@@ -714,6 +717,7 @@ export const policySchema: z.ZodObject<{
         github?: string | undefined;
         name: string;
         publicKey: string;
+        publicKeyAlgorithm?: "ed25519" | undefined;
     }> | undefined;
     version: 1;
 }, {
@@ -738,6 +742,7 @@ export const policySchema: z.ZodObject<{
         github?: string | undefined;
         name: string;
         publicKey: string;
+        publicKeyAlgorithm?: "ed25519" | undefined;
     }> | undefined;
     version: 1;
 }>;
@@ -908,6 +913,7 @@ export interface TeamMember {
     github?: string | undefined;
     name: string;
     publicKey: string;
+    publicKeyAlgorithm?: 'ed25519' | undefined;
 }
 
 // @public

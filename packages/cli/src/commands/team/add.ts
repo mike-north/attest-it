@@ -113,18 +113,20 @@ async function runAdd(): Promise<void> {
     const authorizedGates = await promptForGateAuthorization(attestItConfig.gates)
 
     // Update config with new team member
-    const updatedConfig = addTeamMemberToConfig(
-      config,
-      slug,
-      {
-        name,
-        email: email && email.trim().length > 0 ? email.trim() : undefined,
-        github: github && github.trim().length > 0 ? github.trim() : undefined,
-        publicKey: publicKey.trim(),
-        publicKeyAlgorithm: 'ed25519',
-      },
-      authorizedGates,
-    )
+    const memberData: Parameters<typeof addTeamMemberToConfig>[2] = {
+      name,
+      publicKey: publicKey.trim(),
+      publicKeyAlgorithm: 'ed25519',
+    }
+    const trimmedEmail = email.trim()
+    const trimmedGithub = github.trim()
+    if (trimmedEmail && trimmedEmail.length > 0) {
+      memberData.email = trimmedEmail
+    }
+    if (trimmedGithub && trimmedGithub.length > 0) {
+      memberData.github = trimmedGithub
+    }
+    const updatedConfig = addTeamMemberToConfig(config, slug, memberData, authorizedGates)
 
     // Write config back to file
     const configPath = findConfigPath()

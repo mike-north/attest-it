@@ -1,6 +1,7 @@
 /**
  * Tests for identity configuration loading and validation.
  */
+/* eslint-disable @typescript-eslint/no-deprecated -- This file intentionally tests deprecated functions for backward compatibility */
 
 import * as fs from 'node:fs'
 import { homedir } from 'node:os'

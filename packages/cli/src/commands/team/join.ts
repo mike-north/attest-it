@@ -94,18 +94,18 @@ export async function runJoin(): Promise<void> {
     const authorizedGates = await promptForGateAuthorization(attestItConfig.gates)
 
     // Update config with new team member
-    const updatedConfig = addTeamMemberToConfig(
-      config,
-      slug,
-      {
-        name: activeIdentity.name,
-        email: activeIdentity.email,
-        github: activeIdentity.github,
-        publicKey: activeIdentity.publicKey,
-        publicKeyAlgorithm: 'ed25519',
-      },
-      authorizedGates,
-    )
+    const memberData: Parameters<typeof addTeamMemberToConfig>[2] = {
+      name: activeIdentity.name,
+      publicKey: activeIdentity.publicKey,
+      publicKeyAlgorithm: 'ed25519',
+    }
+    if (activeIdentity.email) {
+      memberData.email = activeIdentity.email
+    }
+    if (activeIdentity.github) {
+      memberData.github = activeIdentity.github
+    }
+    const updatedConfig = addTeamMemberToConfig(config, slug, memberData, authorizedGates)
 
     // Write config back to file
     const configPath = findConfigPath()
