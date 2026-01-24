@@ -1,5 +1,14 @@
 # @attest-it/cli
 
+## 0.9.1
+
+### Patch Changes
+
+- a9be483: Defer key pair generation until after all user prompts complete during identity creation. This prevents creating orphaned keys when users abort the process and minimizes how long private key material is held in memory.
+- 5c3359a: Fix 1Password account name display when vault is locked. Previously showed confusing output like "my.1password.com (my.1password.com)" - now shows "[Could not read account name] (my.1password.com)" to clearly indicate when account details cannot be retrieved.
+- ea65b2d: Improve UX for key provider selection in identity create: notify users before checking external providers (1Password, Keychain, YubiKey), and show account name in 1Password private key location display.
+- ea65b2d: Improve YubiKey visibility in identity create: show YubiKey as a disabled option when ykman is not installed (with installation hint), and add verbose logging for provider detection.
+
 ## 0.9.0
 
 ### Minor Changes
