@@ -72,9 +72,7 @@ describe('team join command', () => {
       // Expect process.exit to be called (vitest intercepts and throws)
       await expect(runJoin()).rejects.toThrow('process.exit')
       // Error messages are prefixed with ✗
-      expect(mockConsoleError).toHaveBeenCalledWith(
-        expect.stringMatching(/✗.*No identity found/),
-      )
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringMatching(/✗.*No identity found/))
     })
 
     it('should error when no active identity exists', async () => {
@@ -88,9 +86,7 @@ describe('team join command', () => {
       // Expect process.exit to be called (vitest intercepts and throws)
       await expect(runJoin()).rejects.toThrow('process.exit')
       // Error messages are prefixed with ✗
-      expect(mockConsoleError).toHaveBeenCalledWith(
-        expect.stringMatching(/✗.*No active identity/),
-      )
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringMatching(/✗.*No active identity/))
     })
 
     it('should error when user is already a team member', async () => {
@@ -206,11 +202,7 @@ describe('team join command', () => {
 
       await runJoin()
 
-      expect(fs.writeFile).toHaveBeenCalledWith(
-        '/test/config.yaml',
-        expect.any(String),
-        'utf8',
-      )
+      expect(fs.writeFile).toHaveBeenCalledWith('/test/config.yaml', expect.any(String), 'utf8')
       // Success messages are prefixed with ✓
       expect(mockConsoleLog).toHaveBeenCalledWith(
         expect.stringMatching(/✓.*Team member "new-user" added successfully/),
@@ -440,7 +432,9 @@ describe('team join command', () => {
           message: 'Choose a different slug:',
         }),
       )
-      expect(mockConsoleLog).toHaveBeenCalledWith('Slug "taken-slug" is already taken by another team member.')
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        'Slug "taken-slug" is already taken by another team member.',
+      )
       expect(mockConsoleLog).toHaveBeenCalledWith(
         expect.stringMatching(/✓.*Team member "new-slug" added successfully/),
       )

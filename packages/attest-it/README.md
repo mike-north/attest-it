@@ -51,13 +51,13 @@ This umbrella package includes:
 
 ### CLI Commands
 
-| Command  | Description                      |
-| -------- | -------------------------------- |
-| `init`   | Initialize configuration         |
-| `status` | Show seal status                 |
-| `run`    | Run tests and create seal        |
-| `verify` | Verify seals (for CI)            |
-| `prune`  | Remove stale seals               |
+| Command  | Description               |
+| -------- | ------------------------- |
+| `init`   | Initialize configuration  |
+| `status` | Show seal status          |
+| `run`    | Run tests and create seal |
+| `verify` | Verify seals (for CI)     |
+| `prune`  | Remove stale seals        |
 
 For identity and team management commands, see the [main README](../../README.md#cli-commands).
 

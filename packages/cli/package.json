@@ -8,7 +8,6 @@
   },
   "dependencies": {
     "@attest-it/core": "workspace:*",
-    "@inkjs/ui": "^2.0.0",
     "@inquirer/prompts": "^7.0.0",
     "@pnpm/tabtab": "^0.5.4",
     "chromaterm": "^0.1.0",

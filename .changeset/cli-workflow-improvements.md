@@ -1,6 +1,6 @@
 ---
-"@attest-it/cli": minor
-"@attest-it/core": minor
+'@attest-it/cli': minor
+'@attest-it/core': minor
 ---
 
 Streamline CLI workflow with improved commands and schema versioning

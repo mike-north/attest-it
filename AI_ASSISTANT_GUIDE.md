@@ -98,6 +98,7 @@ The user's public key isn't in the gate's `authorizedSigners` list.
 **Solution:**
 
 If the user has an active identity:
+
 ```bash
 npx attest-it team join
 ```
@@ -105,6 +106,7 @@ npx attest-it team join
 This will add them to the project config and prompt to authorize them for gates.
 
 Alternatively, the manual process:
+
 1. User exports their public key: `npx attest-it identity export`
 2. Team lead adds them to project config under `team` section
 3. Team lead adds their slug to the gate's `authorizedSigners`

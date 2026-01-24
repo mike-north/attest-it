@@ -154,6 +154,7 @@ npx attest-it team join
 ```
 
 This will:
+
 1. Load your active identity
 2. Add your public key to `.attest-it/config.yaml` under the team section
 3. Prompt you to authorize yourself for gates

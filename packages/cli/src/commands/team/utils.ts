@@ -2,13 +2,6 @@ import { checkbox } from '@inquirer/prompts'
 import type { Config, Gate } from '@attest-it/core'
 
 /**
- * Result of prompting for gate authorizations.
- */
-export interface GateAuthorizationResult {
-  authorizedGates: string[]
-}
-
-/**
  * Prompt the user to select which gates they want to authorize for a team member.
  *
  * @param gates - The gates configuration from the config file
