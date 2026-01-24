@@ -125,30 +125,48 @@ async function runCreate(): Promise<void> {
       choices: storageChoices,
     })
 
-    log('')
-    log('Generating Ed25519 keypair...')
+    // ============================================================
+    // PHASE 1: Collect all provider-specific configuration
+    // (before generating key to avoid holding key material during prompts)
+    // ============================================================
 
-    // Generate keypair (this is synchronous, returns KeyPair not Promise)
-    const keyPair = generateEd25519KeyPair()
+    // Storage configuration interfaces
+    interface FileStorageConfig {
+      type: 'file'
+      keyPath: string
+    }
+    interface KeychainStorageConfig {
+      type: 'keychain'
+      selectedKeychain: { name: string; path: string }
+      keychainItemName: string
+    }
+    interface OnePasswordStorageConfig {
+      type: '1password'
+      selectedAccount: string
+      accountDisplayName: string
+      selectedVault: string
+      item: string
+    }
+    interface YubiKeyStorageConfig {
+      type: 'yubikey'
+      selectedSerial: string
+      slot: 1 | 2
+      encryptedKeyPath: string
+    }
+    type StorageConfig =
+      | FileStorageConfig
+      | KeychainStorageConfig
+      | OnePasswordStorageConfig
+      | YubiKeyStorageConfig
 
-    // Build private key reference based on storage type
-    let privateKeyRef: PrivateKeyRef
-    let keyStorageDescription: string
+    let storageConfig: StorageConfig
 
     switch (keyStorageType) {
       case 'file': {
-        // Notify user about file creation
-        log('')
-        info('Creating encrypted private key file on disk...')
-
-        // Save to filesystem (respects --home-dir override)
+        // Determine file path (respects --home-dir override)
         const keysDir = join(getAttestItConfigDir(), 'keys')
-        await mkdir(keysDir, { recursive: true })
         const keyPath = join(keysDir, `${slug}.pem`)
-        await writeFile(keyPath, keyPair.privateKey, { mode: 0o600 })
-
-        privateKeyRef = { type: 'file', path: keyPath }
-        keyStorageDescription = keyPath
+        storageConfig = { type: 'file', keyPath }
         break
       }
       case 'keychain': {
@@ -207,42 +225,7 @@ async function runCreate(): Promise<void> {
           },
         })
 
-        // Store the private key in keychain using security command
-        // Keys are stored as base64-encoded PEM strings
-        const { execFile } = await import('node:child_process')
-        const { promisify } = await import('node:util')
-        const execFileAsync = promisify(execFile)
-
-        // Encode the private key as base64 for storage
-        const encodedKey = Buffer.from(keyPair.privateKey).toString('base64')
-
-        try {
-          const addArgs = [
-            'add-generic-password',
-            '-a',
-            'attest-it',
-            '-s',
-            keychainItemName,
-            '-w',
-            encodedKey,
-            '-U',
-            selectedKeychain.path,
-          ]
-          await execFileAsync('security', addArgs)
-        } catch (err) {
-          throw new Error(
-            `Failed to store key in macOS Keychain: ${err instanceof Error ? err.message : String(err)}`,
-          )
-        }
-
-        // In the keychain, -s is the service name (item) and -a is the account ("attest-it")
-        privateKeyRef = {
-          type: 'keychain',
-          service: keychainItemName,
-          account: 'attest-it',
-          keychain: selectedKeychain.path,
-        }
-        keyStorageDescription = `macOS Keychain: ${selectedKeychain.name}/${keychainItemName}`
+        storageConfig = { type: 'keychain', selectedKeychain, keychainItemName }
         break
       }
       case '1password': {
@@ -316,7 +299,7 @@ async function runCreate(): Promise<void> {
 
         // Select account (auto-select if only one)
         // Use URL as the account identifier (required by `op` CLI)
-        let selectedAccount: string | undefined
+        let selectedAccount: string
         if (accountDetails.length === 1 && accountDetails[0]) {
           selectedAccount = accountDetails[0].url
           info(`Using 1Password account: ${formatAccountChoice(accountDetails[0])}`)
@@ -358,55 +341,17 @@ async function runCreate(): Promise<void> {
           },
         })
 
-        // Write the private key to a temp file, then upload to 1Password
-        const { tmpdir } = await import('node:os')
-        const tempDir = join(tmpdir(), `attest-it-${String(Date.now())}`)
-        await mkdir(tempDir, { recursive: true })
-        const tempPrivatePath = join(tempDir, 'private.pem')
-
-        try {
-          // Write private key to temp file for upload
-          await writeFile(tempPrivatePath, keyPair.privateKey, { mode: 0o600 })
-
-          // Upload to 1Password using op document create
-          const { execFile } = await import('node:child_process')
-          const { promisify } = await import('node:util')
-          const execFileAsync = promisify(execFile)
-
-          const opArgs = [
-            'document',
-            'create',
-            tempPrivatePath,
-            '--title',
-            item,
-            '--vault',
-            selectedVault,
-          ]
-          if (selectedAccount) {
-            opArgs.push('--account', selectedAccount)
-          }
-
-          await execFileAsync('op', opArgs)
-        } finally {
-          // Clean up temp files
-          const { rm } = await import('node:fs/promises')
-          await rm(tempDir, { recursive: true, force: true }).catch(() => {
-            // Ignore cleanup errors
-          })
-        }
-
-        privateKeyRef = {
-          type: '1password',
-          vault: selectedVault,
-          item,
-          ...(selectedAccount && { account: selectedAccount }),
-        }
-
-        // Include account name in the description for clarity (users may have multiple accounts)
+        // Get account display name for description
         const selectedAccountDetails = accountDetails.find((acc) => acc.url === selectedAccount)
-        // selectedAccount is guaranteed to be set at this point (either auto-selected or user-selected)
         const accountDisplayName = selectedAccountDetails?.name ?? selectedAccount
-        keyStorageDescription = `1Password (${accountDisplayName}/${selectedVault}/${item})`
+
+        storageConfig = {
+          type: '1password',
+          selectedAccount,
+          accountDisplayName,
+          selectedVault,
+          item,
+        }
         break
       }
       case 'yubikey': {
@@ -438,7 +383,7 @@ async function runCreate(): Promise<void> {
         }
 
         // Select YubiKey (auto-select if only one)
-        let selectedSerial: string | undefined
+        let selectedSerial: string
         if (yubikeys.length === 1 && yubikeys[0]) {
           selectedSerial = yubikeys[0].serial
           info(`Using YubiKey: ${formatYubiKeyChoice(yubikeys[0])}`)
@@ -485,28 +430,155 @@ async function runCreate(): Promise<void> {
 
         // Determine encrypted key path
         const keysDir = join(getAttestItConfigDir(), 'keys')
-        await mkdir(keysDir, { recursive: true })
         const encryptedKeyPath = join(keysDir, encryptedKeyName)
+
+        storageConfig = { type: 'yubikey', selectedSerial, slot, encryptedKeyPath }
+        break
+      }
+      default:
+        throw new Error(`Unknown key storage type: ${keyStorageType}`)
+    }
+
+    // ============================================================
+    // PHASE 2: Generate key pair (now that we have all user input)
+    // ============================================================
+    log('')
+    log('Generating Ed25519 keypair...')
+
+    // Generate keypair (this is synchronous, returns KeyPair not Promise)
+    const keyPair = generateEd25519KeyPair()
+
+    // ============================================================
+    // PHASE 3: Store the key using collected configuration
+    // ============================================================
+
+    // Build private key reference based on storage type
+    let privateKeyRef: PrivateKeyRef
+    let keyStorageDescription: string
+
+    switch (storageConfig.type) {
+      case 'file': {
+        // Notify user about file creation
+        log('')
+        info('Creating private key file on disk...')
+
+        // Save to filesystem (respects --home-dir override)
+        const keysDir = join(getAttestItConfigDir(), 'keys')
+        await mkdir(keysDir, { recursive: true })
+        await writeFile(storageConfig.keyPath, keyPair.privateKey, { mode: 0o600 })
+
+        privateKeyRef = { type: 'file', path: storageConfig.keyPath }
+        keyStorageDescription = storageConfig.keyPath
+        break
+      }
+      case 'keychain': {
+        // Store the private key in keychain using security command
+        // Keys are stored as base64-encoded PEM strings
+        const { execFile } = await import('node:child_process')
+        const { promisify } = await import('node:util')
+        const execFileAsync = promisify(execFile)
+
+        // Encode the private key as base64 for storage
+        const encodedKey = Buffer.from(keyPair.privateKey).toString('base64')
+
+        try {
+          const addArgs = [
+            'add-generic-password',
+            '-a',
+            'attest-it',
+            '-s',
+            storageConfig.keychainItemName,
+            '-w',
+            encodedKey,
+            '-U',
+            storageConfig.selectedKeychain.path,
+          ]
+          await execFileAsync('security', addArgs)
+        } catch (err) {
+          throw new Error(
+            `Failed to store key in macOS Keychain: ${err instanceof Error ? err.message : String(err)}`,
+          )
+        }
+
+        // In the keychain, -s is the service name (item) and -a is the account ("attest-it")
+        privateKeyRef = {
+          type: 'keychain',
+          service: storageConfig.keychainItemName,
+          account: 'attest-it',
+          keychain: storageConfig.selectedKeychain.path,
+        }
+        keyStorageDescription = `macOS Keychain: ${storageConfig.selectedKeychain.name}/${storageConfig.keychainItemName}`
+        break
+      }
+      case '1password': {
+        // Write the private key to a temp file, then upload to 1Password
+        const { tmpdir } = await import('node:os')
+        const tempDir = join(tmpdir(), `attest-it-${String(Date.now())}`)
+        await mkdir(tempDir, { recursive: true })
+        const tempPrivatePath = join(tempDir, 'private.pem')
+
+        try {
+          // Write private key to temp file for upload
+          await writeFile(tempPrivatePath, keyPair.privateKey, { mode: 0o600 })
+
+          // Upload to 1Password using op document create
+          const { execFile } = await import('node:child_process')
+          const { promisify } = await import('node:util')
+          const execFileAsync = promisify(execFile)
+
+          const opArgs = [
+            'document',
+            'create',
+            tempPrivatePath,
+            '--title',
+            storageConfig.item,
+            '--vault',
+            storageConfig.selectedVault,
+            '--account',
+            storageConfig.selectedAccount,
+          ]
+
+          await execFileAsync('op', opArgs)
+        } finally {
+          // Clean up temp files
+          const { rm } = await import('node:fs/promises')
+          await rm(tempDir, { recursive: true, force: true }).catch(() => {
+            // Ignore cleanup errors
+          })
+        }
+
+        privateKeyRef = {
+          type: '1password',
+          vault: storageConfig.selectedVault,
+          item: storageConfig.item,
+          account: storageConfig.selectedAccount,
+        }
+
+        keyStorageDescription = `1Password (${storageConfig.accountDisplayName}/${storageConfig.selectedVault}/${storageConfig.item})`
+        break
+      }
+      case 'yubikey': {
+        // Create keys directory if needed
+        const keysDir = join(getAttestItConfigDir(), 'keys')
+        await mkdir(keysDir, { recursive: true })
 
         // Encrypt the private key with YubiKey challenge-response
         const result = await YubiKeyProvider.encryptPrivateKey({
           privateKey: keyPair.privateKey,
-          encryptedKeyPath,
-          slot,
-          serial: selectedSerial,
+          encryptedKeyPath: storageConfig.encryptedKeyPath,
+          slot: storageConfig.slot,
+          serial: storageConfig.selectedSerial,
         })
 
         privateKeyRef = {
           type: 'yubikey',
           encryptedKeyPath: result.encryptedKeyPath,
-          slot,
-          serial: selectedSerial,
+          slot: storageConfig.slot,
+          serial: storageConfig.selectedSerial,
         }
         keyStorageDescription = result.storageDescription
         break
       }
-      default:
-        throw new Error(`Unknown key storage type: ${keyStorageType}`)
     }
 
     // Build identity object
