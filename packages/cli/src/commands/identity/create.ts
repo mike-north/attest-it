@@ -386,7 +386,8 @@ async function runCreate(): Promise<void> {
 
         // Include account name in the description for clarity (users may have multiple accounts)
         const selectedAccountDetails = accountDetails.find((acc) => acc.url === selectedAccount)
-        const accountDisplayName = selectedAccountDetails?.name ?? selectedAccount ?? 'Unknown'
+        // selectedAccount is guaranteed to be set at this point (either auto-selected or user-selected)
+        const accountDisplayName = selectedAccountDetails?.name ?? selectedAccount
         keyStorageDescription = `1Password (${accountDisplayName}/${selectedVault}/${item})`
         break
       }
