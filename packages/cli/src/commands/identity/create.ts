@@ -130,21 +130,24 @@ async function runCreate(): Promise<void> {
     // (before generating key to avoid holding key material during prompts)
     // ============================================================
 
-    // Storage configuration types
-    type FileStorageConfig = { type: 'file'; keyPath: string }
-    type KeychainStorageConfig = {
+    // Storage configuration interfaces
+    interface FileStorageConfig {
+      type: 'file'
+      keyPath: string
+    }
+    interface KeychainStorageConfig {
       type: 'keychain'
       selectedKeychain: { name: string; path: string }
       keychainItemName: string
     }
-    type OnePasswordStorageConfig = {
+    interface OnePasswordStorageConfig {
       type: '1password'
       selectedAccount: string
       accountDisplayName: string
       selectedVault: string
       item: string
     }
-    type YubiKeyStorageConfig = {
+    interface YubiKeyStorageConfig {
       type: 'yubikey'
       selectedSerial: string
       slot: 1 | 2
