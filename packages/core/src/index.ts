@@ -5,12 +5,6 @@
  * @packageDocumentation
  */
 
-/**
- * Package version
- * @public
- */
-export const version = '0.0.0'
-
 // Types
 export type {
   AttestItSettings,
@@ -37,6 +31,13 @@ export {
   ConfigNotFoundError,
   type Config,
 } from './config.js'
+
+// Version checking
+export {
+  getPackageVersion,
+  checkVersionCompatibility,
+  VersionIncompatibleError,
+} from './version.js'
 
 // Split config support
 export {

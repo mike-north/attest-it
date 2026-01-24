@@ -19,6 +19,18 @@ import ms from 'ms'
 import { z } from 'zod'
 
 /**
+ * Zod schema for semver version strings.
+ * Validates semantic version format: MAJOR.MINOR.PATCH with optional prerelease and build metadata.
+ * @public
+ */
+export const semverSchema = z
+  .string()
+  .regex(
+    /^\d+\.\d+\.\d+(-[\w.]+)?(\+[\w.]+)?$/,
+    'Must be a valid semver version (e.g., "0.8.0", "1.0.0-beta.1")',
+  )
+
+/**
  * Zod schema for a team member configuration.
  * @public
  */

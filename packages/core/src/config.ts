@@ -8,6 +8,8 @@ import { join, resolve } from 'node:path'
 import ms from 'ms'
 import { parse as parseYaml } from 'yaml'
 import { z } from 'zod'
+import { semverSchema } from './config/shared-schemas.js'
+import { checkVersionCompatibility, VersionIncompatibleError } from './version.js'
 
 /**
  * Zod schema for key provider configuration.
@@ -143,6 +145,7 @@ const suiteSchema = z
 const configSchema = z
   .object({
     version: z.literal(1),
+    minVersion: semverSchema.optional(),
     settings: settingsSchema.default({}),
     team: z.record(z.string(), teamMemberSchema).optional(),
     gates: z.record(z.string(), gateSchema).optional(),
@@ -223,6 +226,11 @@ function parseConfigContent(content: string, format: 'yaml' | 'json'): Config {
     )
   }
 
+  // Check version compatibility if minVersion is specified
+  if (result.data.minVersion !== undefined) {
+    checkVersionCompatibility(result.data.minVersion)
+  }
+
   return result.data
 }
 
@@ -281,6 +289,7 @@ export function findConfigPath(startDir: string = process.cwd()): string | null 
  * @returns Validated configuration object
  * @throws {@link ConfigNotFoundError} If config file cannot be found
  * @throws {@link ConfigValidationError} If validation fails
+ * @throws {@link VersionIncompatibleError} If config requires newer attest-it version
  * @public
  */
 export async function loadConfig(configPath?: string): Promise<Config> {
@@ -297,7 +306,7 @@ export async function loadConfig(configPath?: string): Promise<Config> {
     const format = getConfigFormat(resolvedPath)
     return parseConfigContent(content, format)
   } catch (error) {
-    if (error instanceof ConfigValidationError) {
+    if (error instanceof ConfigValidationError || error instanceof VersionIncompatibleError) {
       throw error
     }
     throw new ConfigNotFoundError(
@@ -313,6 +322,7 @@ export async function loadConfig(configPath?: string): Promise<Config> {
  * @returns Validated configuration object
  * @throws {@link ConfigNotFoundError} If config file cannot be found
  * @throws {@link ConfigValidationError} If validation fails
+ * @throws {@link VersionIncompatibleError} If config requires newer attest-it version
  * @public
  */
 export function loadConfigSync(configPath?: string): Config {
@@ -329,7 +339,7 @@ export function loadConfigSync(configPath?: string): Config {
     const format = getConfigFormat(resolvedPath)
     return parseConfigContent(content, format)
   } catch (error) {
-    if (error instanceof ConfigValidationError) {
+    if (error instanceof ConfigValidationError || error instanceof VersionIncompatibleError) {
       throw error
     }
     throw new ConfigNotFoundError(
@@ -383,6 +393,11 @@ export function toAttestItConfig(config: Config): import('./types.js').AttestItC
       sealsPath: config.settings.sealsPath,
     },
     suites: {},
+  }
+
+  // Add optional minVersion field
+  if (config.minVersion !== undefined) {
+    result.minVersion = config.minVersion
   }
 
   // Add optional settings fields

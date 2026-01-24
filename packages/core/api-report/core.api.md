@@ -27,6 +27,7 @@ export interface AttestationsFile {
 export interface AttestItConfig {
     gates?: Record<string, GateConfig>;
     groups?: Record<string, string[]>;
+    minVersion?: string;
     settings: AttestItSettings;
     suites: Record<string, SuiteConfig>;
     team?: Record<string, TeamMember>;
@@ -48,6 +49,9 @@ export function canonicalizeAttestations(attestations: Attestation[]): string;
 
 // @public
 export function checkOpenSSL(): Promise<string>;
+
+// @public
+export function checkVersionCompatibility(minVersion: string): void;
 
 // @public
 export interface CliExperiencePreferences {
@@ -201,6 +205,9 @@ export function getHomePublicKeysDir(): string;
 
 // @public
 export function getLocalConfigPath(): string;
+
+// @public
+export function getPackageVersion(): string;
 
 // @public
 export function getPreference<K extends keyof UserPreferences>(key: K): Promise<undefined | UserPreferences[K]>;
@@ -409,6 +416,7 @@ export type OperationalConfig = z.infer<typeof operationalSchema>;
 // @public
 export const operationalSchema: z.ZodObject<{
     groups: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodArray<z.ZodString, "many">>>;
+    minVersion: z.ZodOptional<z.ZodString>;
     settings: z.ZodDefault<z.ZodObject<{
         defaultCommand: z.ZodOptional<z.ZodString>;
         keyProvider: z.ZodOptional<z.ZodObject<{
@@ -550,6 +558,7 @@ export const operationalSchema: z.ZodObject<{
     version: z.ZodLiteral<1>;
 }, "strict", z.ZodTypeAny, {
     groups?: Record<string, string[]> | undefined;
+    minVersion?: string | undefined;
     settings: {
         defaultCommand?: string | undefined;
         keyProvider?: {
@@ -577,6 +586,7 @@ export const operationalSchema: z.ZodObject<{
     version: 1;
 }, {
     groups?: Record<string, string[]> | undefined;
+    minVersion?: string | undefined;
     settings?: {
         defaultCommand?: string | undefined;
         keyProvider?: {
@@ -659,6 +669,7 @@ export const policySchema: z.ZodObject<{
         maxAge: string;
         name: string;
     }>>>;
+    minVersion: z.ZodOptional<z.ZodString>;
     settings: z.ZodDefault<z.ZodObject<{
         attestationsPath: z.ZodDefault<z.ZodString>;
         maxAgeDays: z.ZodDefault<z.ZodNumber>;
@@ -706,6 +717,7 @@ export const policySchema: z.ZodObject<{
         maxAge: string;
         name: string;
     }> | undefined;
+    minVersion?: string | undefined;
     settings: {
         attestationsPath: string;
         maxAgeDays: number;
@@ -731,6 +743,7 @@ export const policySchema: z.ZodObject<{
         maxAge: string;
         name: string;
     }> | undefined;
+    minVersion?: string | undefined;
     settings?: {
         attestationsPath?: string | undefined;
         maxAgeDays?: number | undefined;
@@ -981,7 +994,11 @@ export interface VerifyResult {
 export function verifySeal(seal: Seal, config: AttestItConfig): SignatureVerificationResult;
 
 // @public
-export const version = "0.0.0";
+export class VersionIncompatibleError extends Error {
+    constructor(requiredVersion: string, currentVersion: string);
+    readonly currentVersion: string;
+    readonly requiredVersion: string;
+}
 
 // @public
 export function writeAttestations(filePath: string, attestations: Attestation[], signature: string): Promise<void>;
