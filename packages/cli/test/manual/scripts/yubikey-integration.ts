@@ -25,7 +25,7 @@
  *   --no-cleanup  Keep the encrypted key file and temp project for inspection
  */
 
-import { YubiKeyProvider } from '@attest-it/core'
+import { YubiKeyProvider, getIdentityConfigDir } from '@attest-it/core'
 import type { YubiKeyInfo } from '@attest-it/core'
 import { select } from '@inquirer/prompts'
 import * as fs from 'node:fs/promises'
@@ -211,7 +211,10 @@ async function runIntegrationTest(): Promise<boolean> {
 
     // Step 6: Generate keypair with YubiKey provider
     step('Step 6: Generating keypair and encrypting with YubiKey')
-    const encryptedKeyPath = path.join(project.baseDir, '.attest-it', 'yubikey-encrypted-key.json')
+    // YubiKeyProvider requires encrypted keys to be in the global config directory
+    // Use a unique test key name to avoid conflicts
+    const testKeyName = `test-yubikey-${Date.now().toString()}.json`
+    const encryptedKeyPath = path.join(getIdentityConfigDir(), testKeyName)
     ctx.encryptedKeyPath = encryptedKeyPath
     info(`Encrypted key path: ${encryptedKeyPath}`)
 
@@ -258,14 +261,20 @@ async function runIntegrationTest(): Promise<boolean> {
 
     // Step 9: Create a seal using the YubiKey-encrypted key
     step('Step 9: Creating test seal with YubiKey-encrypted key')
-    const { computeFingerprintSync, createSeal, writeSeals } = await import('@attest-it/core')
+    const { computeFingerprintSync, createSeal, writeSeals, getPublicKeyFromPrivate } =
+      await import('@attest-it/core')
 
-    // Read the public key we generated
-    const publicKeyContent = await fs.readFile(publicKeyPath, 'utf-8')
-    const publicKeyBase64 = publicKeyContent
-      .split('\n')
-      .filter((line) => !line.startsWith('-----'))
-      .join('')
+    // Retrieve the private key to derive the raw Ed25519 public key
+    // Team config expects raw 32-byte Ed25519 public key, not SPKI-encoded
+    const { keyPath: tempKeyPath, cleanup: tempCleanup } =
+      await provider.getPrivateKey(encryptedKeyPath)
+    let publicKeyBase64: string
+    try {
+      const privateKeyPem = await fs.readFile(tempKeyPath, 'utf-8')
+      publicKeyBase64 = getPublicKeyFromPrivate(privateKeyPem)
+    } finally {
+      await tempCleanup()
+    }
 
     // Update the project config to use the test identity
     const configPath = path.join(project.baseDir, '.attest-it', 'config.yaml')
@@ -307,12 +316,8 @@ async function runIntegrationTest(): Promise<boolean> {
     // Retrieve the private key for signing
     const { keyPath, cleanup } = await provider.getPrivateKey(encryptedKeyPath)
     try {
-      // Read the private key (base64 format needed for createSeal)
-      const privateKeyContent = await fs.readFile(keyPath, 'utf-8')
-      const privateKeyBase64 = privateKeyContent
-        .split('\n')
-        .filter((line) => !line.startsWith('-----'))
-        .join('')
+      // Read the private key (PEM format)
+      const privateKeyPem = await fs.readFile(keyPath, 'utf-8')
 
       // Create the seal
       const gateId = 'simple-test-gate'
@@ -320,7 +325,7 @@ async function runIntegrationTest(): Promise<boolean> {
         gateId,
         fingerprint: fingerprint.fingerprint,
         sealedBy: 'test-user',
-        privateKey: privateKeyBase64,
+        privateKey: privateKeyPem,
       })
       success('Seal created successfully')
 
@@ -339,7 +344,7 @@ async function runIntegrationTest(): Promise<boolean> {
     step('Step 10: Verifying the seal')
     const { verifyGateSeal, loadConfigSync, readSealsSync } = await import('@attest-it/core')
 
-    const config = loadConfigSync(project.baseDir)
+    const config = loadConfigSync(configPath)
     const gateId = 'simple-test-gate'
     const sealsPath = path.join(project.baseDir, '.attest-it', 'seals.json')
     const sealsFile = readSealsSync(sealsPath)

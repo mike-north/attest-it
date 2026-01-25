@@ -42653,13 +42653,13 @@ var YubiKeyProvider = class _YubiKeyProvider {
    */
   static async isChallengeResponseConfigured(slot = 2, serial) {
     try {
-      const args = ["otp", "info"];
+      const testChallenge = Buffer.from("attest-it-test-challenge-12345");
+      const args = ["otp", "calculate", String(slot), testChallenge.toString("hex")];
       if (serial) {
         args.unshift("--device", serial);
       }
-      const output = await execCommand3("ykman", args);
-      const slotPattern = new RegExp(`Slot ${String(slot)}:\\s+programmed.*challenge-response`, "i");
-      return slotPattern.test(output);
+      await execCommand3("ykman", args);
+      return true;
     } catch {
       return false;
     }
@@ -42996,11 +42996,10 @@ async function execCommand3(command, args) {
   });
 }
 async function performChallengeResponse(challenge, slot, serial) {
-  const args = ["otp", "chalresp", "--slot", String(slot)];
+  const args = ["otp", "calculate", String(slot), challenge.toString("hex")];
   if (serial) {
     args.unshift("--device", serial);
   }
-  args.push(challenge.toString("hex"));
   try {
     const output = await execCommand3("ykman", args);
     return Buffer.from(output.trim(), "hex");

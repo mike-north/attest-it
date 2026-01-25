@@ -24,7 +24,8 @@ import * as path from 'node:path'
 import * as crypto from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { z } from 'zod'
-import { generateKeyPair as cryptoGenerateKeyPair, setKeyPermissions } from '../crypto.js'
+import { generateKeyPair as ed25519GenerateKeyPair } from '../crypto/ed25519.js'
+import { setKeyPermissions } from '../crypto.js'
 import { getIdentityConfigDir } from '../identity/config.js'
 import type {
   KeyProvider,
@@ -271,14 +272,16 @@ export class YubiKeyProvider implements KeyProvider {
    */
   static async isChallengeResponseConfigured(slot: 1 | 2 = 2, serial?: string): Promise<boolean> {
     try {
-      const args = ['otp', 'info']
+      // Actually test challenge-response instead of parsing output text.
+      // This is more reliable across different ykman versions.
+      // Uses 'ykman otp calculate' to perform the challenge-response.
+      const testChallenge = Buffer.from('attest-it-test-challenge-12345')
+      const args = ['otp', 'calculate', String(slot), testChallenge.toString('hex')]
       if (serial) {
         args.unshift('--device', serial)
       }
-      const output = await execCommand('ykman', args)
-      // Look for "Slot X: programmed (challenge-response)" pattern
-      const slotPattern = new RegExp(`Slot ${String(slot)}:\\s+programmed.*challenge-response`, 'i')
-      return slotPattern.test(output)
+      await execCommand('ykman', args)
+      return true
     } catch {
       return false
     }
@@ -520,20 +523,20 @@ export class YubiKeyProvider implements KeyProvider {
       }
     }
 
-    // Create a temporary directory for key generation
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'attest-it-keygen-'))
-    const tempPrivateKeyPath = path.join(tempDir, 'private.pem')
-
     try {
-      // Generate the keypair to temporary location
-      await cryptoGenerateKeyPair({
-        privatePath: tempPrivateKeyPath,
-        publicPath: publicKeyPath,
-        force,
-      })
+      // Generate Ed25519 keypair using Node.js crypto (in memory)
+      const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = ed25519GenerateKeyPair()
 
-      // Read the private key
-      const privateKeyContent = await fs.readFile(tempPrivateKeyPath, 'utf8')
+      // Ensure parent directory exists for public key
+      const publicKeyDir = path.dirname(publicKeyPath)
+      await fs.mkdir(publicKeyDir, { recursive: true })
+
+      // Write public key as PEM file
+      const publicKeyPemFile = `-----BEGIN PUBLIC KEY-----\n${publicKeyBase64}\n-----END PUBLIC KEY-----\n`
+      await fs.writeFile(publicKeyPath, publicKeyPemFile, { mode: 0o644 })
+
+      // The private key content in PEM format
+      const privateKeyContent = privateKeyPem
 
       // Generate random challenge and salt
       const challenge = crypto.randomBytes(32)
@@ -578,11 +581,7 @@ export class YubiKeyProvider implements KeyProvider {
       await fs.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 0o600 })
       await setKeyPermissions(this.encryptedKeyPath)
 
-      // Clean up temporary private key (overwrite before delete)
-      const keySize = Buffer.byteLength(privateKeyContent)
-      await fs.writeFile(tempPrivateKeyPath, crypto.randomBytes(keySize))
-      await fs.unlink(tempPrivateKeyPath)
-      await fs.rmdir(tempDir)
+      // Note: Private key was generated in memory, no temp file cleanup needed
 
       return {
         privateKeyRef: this.encryptedKeyPath,
@@ -590,12 +589,6 @@ export class YubiKeyProvider implements KeyProvider {
         storageDescription: `YubiKey-encrypted: ${this.encryptedKeyPath}`,
       }
     } catch (error) {
-      // Clean up on error
-      try {
-        await fs.rm(tempDir, { recursive: true, force: true })
-      } catch {
-        // Ignore cleanup errors
-      }
       throw error
     }
   }
@@ -762,11 +755,11 @@ async function performChallengeResponse(
   slot: 1 | 2,
   serial?: string,
 ): Promise<Buffer> {
-  const args = ['otp', 'chalresp', '--slot', String(slot)]
+  // Use 'ykman otp calculate' to perform challenge-response
+  const args = ['otp', 'calculate', String(slot), challenge.toString('hex')]
   if (serial) {
     args.unshift('--device', serial)
   }
-  args.push(challenge.toString('hex'))
 
   try {
     const output = await execCommand('ykman', args)
