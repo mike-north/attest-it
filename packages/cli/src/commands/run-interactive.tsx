@@ -19,7 +19,9 @@ import * as os from 'node:os'
 import { parse as parseShellCommand } from 'shell-quote'
 import {
   loadConfig,
+  toAttestItConfig,
   computeFingerprint,
+  computeFingerprintSync,
   readAttestations,
   writeSignedAttestations,
   upsertAttestation,
@@ -27,9 +29,16 @@ import {
   getDefaultPrivateKeyPath,
   FilesystemKeyProvider,
   KeyProviderRegistry,
+  loadLocalConfigSync,
+  getActiveIdentity,
+  isAuthorizedSigner,
+  createSeal,
+  readSealsSync,
+  writeSealsSync,
   type Config,
   type KeyProvider,
 } from '@attest-it/core'
+import { confirmAction } from '../utils/prompts.js'
 import { InteractiveRun } from '../components/InteractiveRun.js'
 import { getAllSuiteStatuses, type SuiteStatus } from './run-utils.js'
 import { loadSession, saveSession as persistSession, clearSession } from '../session/session.js'
@@ -203,73 +212,195 @@ function createAttestationCreator(config: Config): (suite: string) => Promise<vo
       throw new Error(`Suite "${suiteName}" not found`)
     }
 
-    if (!suiteConfig.packages) {
-      throw new Error(`Suite "${suiteName}" has no packages defined`)
+    if (!suiteConfig.gate || !config.gates) {
+      throw new Error(`Suite "${suiteName}" must have a gate defined`)
     }
 
-    // Compute fingerprint
-    const fingerprintResult = await computeFingerprint({
-      packages: suiteConfig.packages,
-      ...(suiteConfig.ignore && { ignore: suiteConfig.ignore }),
-    })
+    await createSealForGate(suiteName, suiteConfig.gate, config)
+  }
+}
 
-    // Create attestation
-    const attestation = createAttestation({
-      suite: suiteName,
-      fingerprint: fingerprintResult.fingerprint,
-      command: suiteConfig.command ?? config.settings.defaultCommand ?? '',
-      attestedBy: os.userInfo().username,
-    })
+/**
+ * Create a seal for a gate after successful suite execution.
+ *
+ * @param suiteName - Name of the suite that was executed
+ * @param gateId - ID of the gate linked to the suite
+ * @param config - Configuration object
+ * @internal
+ */
+async function createSealForGate(suiteName: string, gateId: string, config: Config): Promise<void> {
+  log('')
+  log(`Suite '${suiteName}' is linked to gate '${gateId}'`)
 
-    // Load existing attestations
-    const attestationsPath = config.settings.attestationsPath
-    const existingFile = await readAttestations(attestationsPath).catch(() => null)
-    const existingAttestations = existingFile?.attestations ?? []
+  // Load local identity config
+  const localConfig = loadLocalConfigSync()
+  if (!localConfig) {
+    throw new Error(
+      'No local identity configuration found. Run "attest-it identity create" to set up your identity.',
+    )
+  }
 
-    // Upsert the new attestation
-    const newAttestations = upsertAttestation(existingAttestations, attestation)
+  // Get active identity
+  const identity = getActiveIdentity(localConfig)
+  if (!identity) {
+    throw new Error(`Active identity '${localConfig.activeIdentity}' not found in local config`)
+  }
 
-    // Set up key provider from config or use default
-    let keyProvider: KeyProvider
-    let keyRef: string
+  // Convert to AttestItConfig for authorization check
+  const attestItConfig = toAttestItConfig(config)
 
-    if (config.settings.keyProvider) {
-      keyProvider = KeyProviderRegistry.create({
-        type: config.settings.keyProvider.type,
-        options: config.settings.keyProvider.options ?? {},
+  // Check if user is authorized to seal this gate
+  const authorized = isAuthorizedSigner(attestItConfig, gateId, identity.publicKey)
+  if (!authorized) {
+    throw new Error(
+      `You are not authorized to seal gate '${gateId}'. ` +
+        `Your public key is not in the gate's authorizedSigners list.`,
+    )
+  }
+
+  // Prompt for seal confirmation
+  const shouldSeal = await confirmAction({
+    message: `Create seal for gate '${gateId}'`,
+    default: true,
+  })
+
+  if (!shouldSeal) {
+    log('Seal creation skipped')
+    return
+  }
+
+  // Get gate config for fingerprint
+  // eslint-disable-next-line security/detect-object-injection -- gate name from validated config
+  const gateConfig = config.gates?.[gateId]
+  if (!gateConfig) {
+    throw new Error(`Gate '${gateId}' not found in configuration`)
+  }
+
+  // Compute fingerprint for the gate
+  const fingerprintResult = computeFingerprintSync({
+    packages: gateConfig.fingerprint.paths,
+    ...(gateConfig.fingerprint.exclude && { ignore: gateConfig.fingerprint.exclude }),
+  })
+
+  // Create key provider from identity's private key reference
+  const keyProvider = createKeyProviderFromIdentity(identity)
+  const keyRef = getKeyRefFromIdentity(identity)
+
+  // Get private key from provider
+  const keyResult = await keyProvider.getPrivateKey(keyRef)
+
+  // Read the key file content
+  const fs = await import('node:fs/promises')
+  const privateKeyPem = await fs.readFile(keyResult.keyPath, 'utf8')
+
+  // Clean up after reading
+  await keyResult.cleanup()
+
+  // Create seal using identity slug (not display name) for verification lookup
+  const identitySlug = localConfig.activeIdentity
+  const seal = createSeal({
+    gateId,
+    fingerprint: fingerprintResult.fingerprint,
+    sealedBy: identitySlug,
+    privateKey: privateKeyPem,
+  })
+
+  // Read existing seals
+  const projectRoot = process.cwd()
+  const sealsFile = readSealsSync(projectRoot, attestItConfig.settings.sealsPath)
+
+  // Add seal to seals file
+  // eslint-disable-next-line security/detect-object-injection -- gate name from validated config
+  sealsFile.seals[gateId] = seal
+
+  // Write seals file
+  writeSealsSync(projectRoot, sealsFile, attestItConfig.settings.sealsPath)
+
+  log(`✓ Seal created for gate '${gateId}'`)
+  log(`  Sealed by: ${identitySlug} (${identity.name})`)
+  log(`  Timestamp: ${seal.timestamp}`)
+}
+
+/**
+ * Create a key provider from an identity's private key reference.
+ *
+ * @param identity - The identity containing the private key reference
+ * @returns A key provider instance
+ * @internal
+ */
+function createKeyProviderFromIdentity(
+  identity: ReturnType<typeof getActiveIdentity>,
+): KeyProvider {
+  if (!identity) {
+    throw new Error('Identity is required')
+  }
+  const { privateKey } = identity
+
+  switch (privateKey.type) {
+    case 'file':
+      return KeyProviderRegistry.create({
+        type: 'filesystem',
+        options: { privateKeyPath: privateKey.path },
       })
-      if (config.settings.keyProvider.type === 'filesystem') {
-        keyRef = config.settings.keyProvider.options?.privateKeyPath ?? getDefaultPrivateKeyPath()
-      } else if (config.settings.keyProvider.type === '1password') {
-        keyRef = config.settings.keyProvider.options?.itemName ?? 'attest-it-private-key'
-      } else {
-        throw new Error(`Unsupported key provider type: ${config.settings.keyProvider.type}`)
-      }
-    } else {
-      // Default to filesystem provider with default path
-      keyProvider = new FilesystemKeyProvider()
-      keyRef = getDefaultPrivateKeyPath()
+    case 'keychain':
+      return KeyProviderRegistry.create({
+        type: 'macos-keychain',
+        options: {
+          itemName: privateKey.service,
+        },
+      })
+    case '1password':
+      return KeyProviderRegistry.create({
+        type: '1password',
+        options: {
+          accountUuid: privateKey.account,
+          vault: privateKey.vault,
+          itemName: privateKey.item,
+        },
+      })
+    case 'yubikey':
+      return KeyProviderRegistry.create({
+        type: 'yubikey',
+        options: {
+          encryptedKeyPath: privateKey.encryptedKeyPath,
+          slot: privateKey.slot,
+          serial: privateKey.serial,
+        },
+      })
+    default: {
+      // This should never happen due to TypeScript's discriminated union
+      const _exhaustiveCheck: never = privateKey
+      throw new Error(`Unsupported private key type: ${String(_exhaustiveCheck)}`)
     }
+  }
+}
 
-    // Check if key exists
-    if (!(await keyProvider.keyExists(keyRef))) {
-      const providerName = keyProvider.displayName
-      const keygenMessage =
-        keyProvider.type === 'filesystem'
-          ? 'Run "attest-it keygen" first to generate a keypair.'
-          : 'Run "attest-it keygen" to generate and store a key.'
-      throw new Error(`Private key not found in ${providerName}. ${keygenMessage}`)
+/**
+ * Get the key reference string from an identity's private key reference.
+ *
+ * @param identity - The identity containing the private key reference
+ * @returns The key reference string
+ * @internal
+ */
+function getKeyRefFromIdentity(identity: ReturnType<typeof getActiveIdentity>): string {
+  if (!identity) {
+    throw new Error('Identity is required')
+  }
+  const { privateKey } = identity
+
+  switch (privateKey.type) {
+    case 'file':
+      return privateKey.path
+    case 'keychain':
+      return privateKey.service
+    case '1password':
+      return privateKey.item
+    case 'yubikey':
+      return privateKey.encryptedKeyPath
+    default: {
+      const _exhaustiveCheck: never = privateKey
+      throw new Error(`Unsupported private key type: ${String(_exhaustiveCheck)}`)
     }
-
-    // Write signed attestations
-    await writeSignedAttestations({
-      filePath: attestationsPath,
-      attestations: newAttestations,
-      keyProvider,
-      keyRef,
-    })
-
-    log(`✓ Attestation created for ${suiteName}`)
   }
 }
 
