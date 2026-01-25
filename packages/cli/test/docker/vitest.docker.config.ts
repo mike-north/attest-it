@@ -1,13 +1,11 @@
-import { defineConfig, mergeConfig } from 'vitest/config'
-import baseConfig from '../../vitest.config'
+import { defineConfig } from 'vitest/config'
 
-export default mergeConfig(
-  baseConfig,
-  defineConfig({
-    test: {
-      include: ['home-state.test.ts'],
-      testTimeout: 120_000, // 2 minutes for Docker operations
-      hookTimeout: 120_000, // 2 minutes for beforeAll hook
-    },
-  }),
-)
+// Standalone config for Docker tests - doesn't need coverage
+export default defineConfig({
+  test: {
+    include: ['home-state.test.ts'],
+    environment: 'node',
+    testTimeout: 120_000, // 2 minutes for Docker operations
+    hookTimeout: 120_000, // 2 minutes for beforeAll hook
+  },
+})
