@@ -194,21 +194,22 @@ async function runIntegrationTest(): Promise<boolean> {
       selectedAccount = accounts[0]
       success(`Using only account: ${selectedAccount.name}`)
     } else {
-      const accountEmail = await select({
+      // Use account_uuid as the selection value (guaranteed unique)
+      const selectedUuid = await select({
         message: 'Select a 1Password account:',
         choices: accounts.map((account) => ({
           name: `${account.name} (${account.url})`,
-          value: account.email,
+          value: account.account_uuid,
         })),
       })
-      const found = accounts.find((a) => a.email === accountEmail)
+      const found = accounts.find((a) => a.account_uuid === selectedUuid)
       if (!found) {
         throw new Error('Selected account not found')
       }
       selectedAccount = found
       success(`Selected: ${selectedAccount.name}`)
     }
-    ctx.account = selectedAccount.email
+    ctx.account = selectedAccount.account_uuid
 
     // Step 4: List vaults
     step('Step 4: Listing vaults')
