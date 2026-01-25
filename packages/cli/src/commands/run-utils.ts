@@ -8,7 +8,12 @@
  */
 
 import type { Config } from '@attest-it/core'
-import { computeFingerprint, readSealsSync, verifyGateSeal } from '@attest-it/core'
+import {
+  computeFingerprint,
+  readSealsSync,
+  verifyGateSeal,
+  toAttestItConfig,
+} from '@attest-it/core'
 import type { VerificationState, SealsFile } from '@attest-it/core'
 
 /**
@@ -80,7 +85,7 @@ export async function getAllSuiteStatuses(config: Config): Promise<SuiteStatus[]
 
     // Verify the seal for this gate using the new seal verification system
     const verificationResult = verifyGateSeal(
-      config,
+      toAttestItConfig(config),
       suiteConfig.gate,
       sealsFile,
       fingerprintResult.fingerprint,

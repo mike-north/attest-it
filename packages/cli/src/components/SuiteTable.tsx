@@ -1,7 +1,7 @@
 import React from 'react'
 import { Box, Text } from 'ink'
 import { StatusBadge } from './StatusBadge.js'
-import type { VerificationStatus } from '@attest-it/core'
+import type { VerificationState } from '@attest-it/core'
 
 /**
  * Information about a single suite for display in the table.
@@ -11,7 +11,7 @@ export interface SuiteInfo {
   /** Suite name */
   name: string
   /** Current verification status */
-  status: VerificationStatus
+  status: VerificationState
   /** Human-readable reason (e.g., "32 days old (max: 30)") */
   reason: string
   /** Days since attestation (if exists) */

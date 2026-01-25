@@ -1,6 +1,6 @@
 import React from 'react'
 import { Text } from 'ink'
-import type { VerificationStatus } from '@attest-it/core'
+import type { VerificationState } from '@attest-it/core'
 
 /**
  * Props for the StatusBadge component.
@@ -8,7 +8,7 @@ import type { VerificationStatus } from '@attest-it/core'
  */
 export interface StatusBadgeProps {
   /** The verification status to display */
-  status: VerificationStatus
+  status: VerificationState
 }
 
 /**
@@ -16,11 +16,11 @@ export interface StatusBadgeProps {
  *
  * Status colors:
  * - VALID: green
- * - NEEDS_ATTESTATION: yellow (display as "MISSING")
- * - FINGERPRINT_CHANGED: yellow (display as "CHANGED")
- * - EXPIRED: red (display as "STALE")
- * - SIGNATURE_INVALID: red bold
- * - INVALIDATED_BY_PARENT: red (display as "INVALIDATED")
+ * - MISSING: yellow
+ * - FINGERPRINT_MISMATCH: yellow (display as "CHANGED")
+ * - STALE: red
+ * - INVALID_SIGNATURE: red bold (display as "INVALID")
+ * - UNKNOWN_SIGNER: red (display as "UNAUTHORIZED")
  *
  * @param props - Component props
  * @returns React element
@@ -56,20 +56,20 @@ interface StatusConfig {
  * Get display configuration for a verification status.
  * @internal
  */
-function getStatusConfig(status: VerificationStatus): StatusConfig {
+function getStatusConfig(status: VerificationState): StatusConfig {
   switch (status) {
     case 'VALID':
       return { text: '✓ VALID', color: 'green' }
-    case 'NEEDS_ATTESTATION':
+    case 'MISSING':
       return { text: 'MISSING', color: 'yellow' }
-    case 'FINGERPRINT_CHANGED':
+    case 'FINGERPRINT_MISMATCH':
       return { text: 'CHANGED', color: 'yellow' }
-    case 'EXPIRED':
+    case 'STALE':
       return { text: 'STALE', color: 'red' }
-    case 'SIGNATURE_INVALID':
+    case 'INVALID_SIGNATURE':
       return { text: 'INVALID', color: 'red', bold: true }
-    case 'INVALIDATED_BY_PARENT':
-      return { text: 'INVALIDATED', color: 'red' }
+    case 'UNKNOWN_SIGNER':
+      return { text: 'UNAUTHORIZED', color: 'red' }
     default: {
       // Exhaustive check
       const _exhaustive: never = status
