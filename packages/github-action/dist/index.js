@@ -42018,20 +42018,20 @@ ${reasons}`
   }
   /**
    * List vaults in a specific account.
-   * @param account - Account email (optional if only one account)
+   * @param accountUuid - Account UUID from listAccounts() (optional if only one account)
    * @returns Array of vault information
    */
-  static async listVaults(account) {
+  static async listVaults(accountUuid) {
     const args = ["vault", "list", "--format=json"];
-    if (account) {
-      args.push("--account", account);
+    if (accountUuid) {
+      args.push("--account", accountUuid);
     }
     let output;
     try {
       output = await execCommand("op", args);
     } catch (error2) {
       throw new Error(
-        `Failed to list 1Password vaults${account ? ` for account ${account}` : ""}: ${error2 instanceof Error ? error2.message : String(error2)}`
+        `Failed to list 1Password vaults${accountUuid ? ` for account ${accountUuid}` : ""}: ${error2 instanceof Error ? error2.message : String(error2)}`
       );
     }
     const parsed = JSON.parse(output);

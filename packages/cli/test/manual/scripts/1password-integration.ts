@@ -212,7 +212,7 @@ async function runIntegrationTest(): Promise<boolean> {
 
     // Step 4: List vaults
     step('Step 4: Listing vaults')
-    const vaults = await OnePasswordKeyProvider.listVaults(selectedAccount.email)
+    const vaults = await OnePasswordKeyProvider.listVaults(selectedAccount.account_uuid)
     if (vaults.length === 0) {
       error('No vaults found in account')
       return false

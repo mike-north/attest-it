@@ -405,7 +405,7 @@ export class OnePasswordKeyProvider implements KeyProvider {
     static isInstalled(): Promise<boolean>;
     keyExists(keyRef: string): Promise<boolean>;
     static listAccounts(): Promise<ListAccountsResult>;
-    static listVaults(account?: string): Promise<OnePasswordVault[]>;
+    static listVaults(accountUuid?: string): Promise<OnePasswordVault[]>;
     // (undocumented)
     readonly type = "1password";
 }

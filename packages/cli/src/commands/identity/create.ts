@@ -142,7 +142,7 @@ async function runCreate(): Promise<void> {
     }
     interface OnePasswordStorageConfig {
       type: '1password'
-      selectedAccount: string
+      selectedAccountUuid: string
       accountDisplayName: string
       selectedVault: string
       item: string
@@ -262,22 +262,22 @@ async function runCreate(): Promise<void> {
         }
 
         // Select account (auto-select if only one)
-        // Use URL as the account identifier (required by `op` CLI)
-        let selectedAccount: string
+        // Use account_uuid as the identifier (required by `op` CLI)
+        let selectedAccountUuid: string
         let selectedAccountDisplayName: string
         if (accounts.length === 1 && accounts[0]) {
-          selectedAccount = accounts[0].url
+          selectedAccountUuid = accounts[0].account_uuid
           selectedAccountDisplayName = accounts[0].name
           info(`Using 1Password account: ${formatAccountChoice(accounts[0])}`)
         } else {
-          selectedAccount = await select({
+          selectedAccountUuid = await select({
             message: 'Select 1Password account:',
             choices: accounts.map((acc) => ({
               name: formatAccountChoice(acc),
-              value: acc.url,
+              value: acc.account_uuid,
             })),
           })
-          const selectedAcc = accounts.find((acc) => acc.url === selectedAccount)
+          const selectedAcc = accounts.find((acc) => acc.account_uuid === selectedAccountUuid)
           if (!selectedAcc) {
             throw new Error('Selected account not found')
           }
@@ -285,10 +285,10 @@ async function runCreate(): Promise<void> {
         }
 
         // List vaults for selected account
-        const vaults = await OnePasswordKeyProvider.listVaults(selectedAccount)
+        const vaults = await OnePasswordKeyProvider.listVaults(selectedAccountUuid)
 
         if (vaults.length === 0) {
-          throw new Error(`No vaults found in 1Password account: ${selectedAccount}`)
+          throw new Error(`No vaults found in 1Password account: ${selectedAccountDisplayName}`)
         }
 
         // Select vault
@@ -314,7 +314,7 @@ async function runCreate(): Promise<void> {
 
         storageConfig = {
           type: '1password',
-          selectedAccount,
+          selectedAccountUuid,
           accountDisplayName: selectedAccountDisplayName,
           selectedVault,
           item,
@@ -502,7 +502,7 @@ async function runCreate(): Promise<void> {
             '--vault',
             storageConfig.selectedVault,
             '--account',
-            storageConfig.selectedAccount,
+            storageConfig.selectedAccountUuid,
           ]
 
           await execFileAsync('op', opArgs)
@@ -518,7 +518,7 @@ async function runCreate(): Promise<void> {
           type: '1password',
           vault: storageConfig.selectedVault,
           item: storageConfig.item,
-          account: storageConfig.selectedAccount,
+          account: storageConfig.selectedAccountUuid,
         }
 
         keyStorageDescription = `1Password (${storageConfig.accountDisplayName}/${storageConfig.selectedVault}/${storageConfig.item})`
