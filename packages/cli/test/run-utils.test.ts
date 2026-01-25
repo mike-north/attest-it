@@ -7,7 +7,14 @@ import {
   formatStatusReason,
   type SuiteStatus,
 } from '../src/commands/run-utils.js'
-import type { Config, FingerprintResult, Attestation, AttestationsFile } from '@attest-it/core'
+import type {
+  Config,
+  FingerprintResult,
+  Seal,
+  SealsFile,
+  SealVerificationResult,
+  VerificationState,
+} from '@attest-it/core'
 
 // Mock the core functions
 vi.mock('@attest-it/core', async () => {
@@ -15,13 +22,14 @@ vi.mock('@attest-it/core', async () => {
   return {
     ...actual,
     computeFingerprint: vi.fn(),
-    readAttestations: vi.fn(),
-    findAttestation: vi.fn(),
+    readSealsSync: vi.fn(),
+    verifyGateSeal: vi.fn(),
+    toAttestItConfig: vi.fn((config: Config) => config),
   }
 })
 
 // Import mocked functions
-const { computeFingerprint, readAttestations, findAttestation } = await import('@attest-it/core')
+const { computeFingerprint, readSealsSync, verifyGateSeal } = await import('@attest-it/core')
 
 describe('run-utils', () => {
   beforeEach(() => {
@@ -30,10 +38,22 @@ describe('run-utils', () => {
 
   // Test helpers
   function createMockConfig(overrides?: Partial<Config>): Config {
-    // If custom suites are provided, use them exclusively (don't merge with defaults)
+    // Default to a gate-based suite since legacy package-based suites are now skipped
+    const gates = overrides?.gates ?? {
+      'test-gate': {
+        name: 'Test Gate',
+        description: 'A test gate',
+        authorizedSigners: ['test-user'],
+        fingerprint: {
+          paths: ['pkg1/**'],
+        },
+        maxAge: '30d',
+      },
+    }
+
     const suites = overrides?.suites ?? {
       'test-suite': {
-        packages: ['pkg1'],
+        gate: 'test-gate',
       },
     }
 
@@ -47,19 +67,19 @@ describe('run-utils', () => {
         ...overrides?.settings,
       },
       suites,
-      gates: overrides?.gates,
+      gates,
       groups: overrides?.groups,
+      team: overrides?.team,
     }
   }
 
-  function createMockAttestation(overrides?: Partial<Attestation>): Attestation {
+  function createMockSeal(overrides?: Partial<Seal>): Seal {
     return {
-      suite: 'test-suite',
+      gateId: 'test-gate',
       fingerprint: 'abc123',
-      attestedAt: new Date().toISOString(),
-      attestedBy: 'test-user',
-      command: 'npm test',
-      exitCode: 0,
+      timestamp: new Date().toISOString(),
+      sealedBy: 'test-user',
+      signature: 'mock-signature',
       ...overrides,
     }
   }
@@ -72,68 +92,72 @@ describe('run-utils', () => {
     }
   }
 
-  function createMockAttestationsFile(attestations: Attestation[]): AttestationsFile {
+  function createMockSealsFile(seals: Record<string, Seal> = {}): SealsFile {
     return {
-      schemaVersion: '1',
-      attestations,
-      signature: 'mock-signature',
+      version: 1,
+      seals,
+    }
+  }
+
+  function createMockVerificationResult(
+    overrides?: Partial<SealVerificationResult>,
+  ): SealVerificationResult {
+    return {
+      gateId: 'test-gate',
+      state: 'VALID' as VerificationState,
+      ...overrides,
     }
   }
 
   describe('formatStatusReason', () => {
     describe('positive cases', () => {
       it('should format VALID status with age', () => {
-        const result = formatStatusReason('VALID', 5, 30)
-        expect(result).toBe('Attested 5 days ago')
+        const result = formatStatusReason('VALID', 5)
+        expect(result).toBe('Sealed 5 days ago')
       })
 
       it('should format VALID status without age', () => {
         const result = formatStatusReason('VALID')
-        expect(result).toBe('Attested 0 days ago')
+        expect(result).toBe('Sealed 0 days ago')
       })
 
-      it('should format NEEDS_ATTESTATION status', () => {
-        const result = formatStatusReason('NEEDS_ATTESTATION')
+      it('should format MISSING status', () => {
+        const result = formatStatusReason('MISSING')
         expect(result).toBe('No attestation found')
       })
 
-      it('should format FINGERPRINT_CHANGED status', () => {
-        const result = formatStatusReason('FINGERPRINT_CHANGED')
+      it('should format FINGERPRINT_MISMATCH status', () => {
+        const result = formatStatusReason('FINGERPRINT_MISMATCH')
         expect(result).toBe('Source files modified')
       })
 
-      it('should format EXPIRED status with age and max', () => {
-        const result = formatStatusReason('EXPIRED', 35, 30)
-        expect(result).toBe('35 days old (max: 30)')
+      it('should format STALE status with age', () => {
+        const result = formatStatusReason('STALE', 35)
+        expect(result).toBe('Seal expired (35 days old)')
       })
 
-      it('should format SIGNATURE_INVALID status', () => {
-        const result = formatStatusReason('SIGNATURE_INVALID')
+      it('should format INVALID_SIGNATURE status', () => {
+        const result = formatStatusReason('INVALID_SIGNATURE')
         expect(result).toBe('Signature verification failed')
       })
 
-      it('should format INVALIDATED_BY_PARENT status', () => {
-        const result = formatStatusReason('INVALIDATED_BY_PARENT')
-        expect(result).toBe('Invalidated by parent suite')
+      it('should format UNKNOWN_SIGNER status', () => {
+        const result = formatStatusReason('UNKNOWN_SIGNER')
+        expect(result).toBe('Signer not authorized')
       })
     })
 
     describe('negative cases', () => {
-      it('should handle EXPIRED without age', () => {
-        const result = formatStatusReason('EXPIRED')
-        expect(result).toBe('0 days old (max: 30)')
-      })
-
-      it('should handle EXPIRED without maxAgeDays', () => {
-        const result = formatStatusReason('EXPIRED', 35)
-        expect(result).toBe('35 days old (max: 30)')
+      it('should handle STALE without age', () => {
+        const result = formatStatusReason('STALE')
+        expect(result).toBe('Seal expired (0 days old)')
       })
     })
 
     describe('edge cases', () => {
       it('should handle zero age', () => {
-        const result = formatStatusReason('VALID', 0, 30)
-        expect(result).toBe('Attested 0 days ago')
+        const result = formatStatusReason('VALID', 0)
+        expect(result).toBe('Sealed 0 days ago')
       })
 
       it('should return status as-is for unknown status', () => {
@@ -154,13 +178,13 @@ describe('run-utils', () => {
       },
       {
         name: 'integration-tests',
-        status: 'NEEDS_ATTESTATION',
+        status: 'MISSING',
         reason: 'Missing',
         currentFingerprint: 'def',
       },
       {
         name: 'e2e-tests',
-        status: 'FINGERPRINT_CHANGED',
+        status: 'FINGERPRINT_MISMATCH',
         reason: 'Changed',
         currentFingerprint: 'ghi',
       },
@@ -305,17 +329,23 @@ describe('run-utils', () => {
 
   describe('getAllSuiteStatuses', () => {
     describe('positive cases', () => {
-      it('should return VALID status when attestation matches', async () => {
+      it('should return VALID status when seal verification passes', async () => {
         const config = createMockConfig()
-        const attestation = createMockAttestation({
-          suite: 'test-suite',
+        const seal = createMockSeal({
           fingerprint: 'abc123',
-          attestedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+          timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
         })
 
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([attestation]))
+        vi.mocked(readSealsSync).mockReturnValue(
+          createMockSealsFile({ 'test-gate': seal }),
+        )
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult('abc123'))
-        vi.mocked(findAttestation).mockReturnValue(attestation)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({
+            state: 'VALID',
+            seal,
+          }),
+        )
 
         const result = await getAllSuiteStatuses(config)
 
@@ -324,196 +354,236 @@ describe('run-utils', () => {
           name: 'test-suite',
           status: 'VALID',
           currentFingerprint: 'abc123',
-          attestedFingerprint: 'abc123',
+          sealedFingerprint: 'abc123',
         })
         expect(result[0]?.age).toBe(5)
       })
 
       it('should return statuses for multiple suites', async () => {
-        const config: Config = {
-          version: 1,
-          settings: {
-            attestationsPath: '.attestations.json',
-            maxAgeDays: 30,
-            publicKeyPath: 'test.pub',
+        const config = createMockConfig({
+          gates: {
+            'gate-1': {
+              name: 'Gate 1',
+              description: 'First gate',
+              authorizedSigners: ['user'],
+              fingerprint: { paths: ['pkg1/**'] },
+              maxAge: '30d',
+            },
+            'gate-2': {
+              name: 'Gate 2',
+              description: 'Second gate',
+              authorizedSigners: ['user'],
+              fingerprint: { paths: ['pkg2/**'] },
+              maxAge: '30d',
+            },
           },
           suites: {
-            'suite-1': { packages: ['pkg1'] },
-            'suite-2': { packages: ['pkg2'] },
+            'suite-1': { gate: 'gate-1' },
+            'suite-2': { gate: 'gate-2' },
           },
-        }
+        })
 
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([]))
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
-        vi.mocked(findAttestation).mockReturnValue(undefined)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({ state: 'MISSING' }),
+        )
 
         const result = await getAllSuiteStatuses(config)
 
         expect(result).toHaveLength(2)
-        expect(result.map((r) => r.name)).toEqual(['suite-1', 'suite-2'])
-        expect(result.every((r) => r.status === 'NEEDS_ATTESTATION')).toBe(true)
+        expect(result.map((r) => r.name).sort()).toEqual(['suite-1', 'suite-2'])
+        expect(result.every((r) => r.status === 'MISSING')).toBe(true)
       })
 
-      it('should compute fingerprint with ignore patterns', async () => {
+      it('should compute fingerprint with ignore patterns from gate', async () => {
         const config = createMockConfig({
+          gates: {
+            'test-gate': {
+              name: 'Test Gate',
+              description: 'A test gate',
+              authorizedSigners: ['test-user'],
+              fingerprint: {
+                paths: ['pkg1/**'],
+                exclude: ['**/*.test.ts'],
+              },
+              maxAge: '30d',
+            },
+          },
           suites: {
             'test-suite': {
-              packages: ['pkg1'],
-              ignore: ['**/*.test.ts'],
+              gate: 'test-gate',
             },
           },
         })
 
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([]))
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
-        vi.mocked(findAttestation).mockReturnValue(undefined)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({ state: 'MISSING' }),
+        )
 
         await getAllSuiteStatuses(config)
 
         expect(computeFingerprint).toHaveBeenCalledWith({
-          packages: ['pkg1'],
+          packages: ['pkg1/**'],
           ignore: ['**/*.test.ts'],
         })
       })
     })
 
     describe('negative cases', () => {
-      it('should return NEEDS_ATTESTATION when no attestation exists', async () => {
+      it('should return MISSING when no seal exists', async () => {
         const config = createMockConfig()
 
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([]))
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
-        vi.mocked(findAttestation).mockReturnValue(undefined)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({
+            state: 'MISSING',
+            message: 'No seal found for gate',
+          }),
+        )
 
         const result = await getAllSuiteStatuses(config)
 
-        expect(result[0]?.status).toBe('NEEDS_ATTESTATION')
-        expect(result[0]?.reason).toBe('No attestation found')
+        expect(result[0]?.status).toBe('MISSING')
+        expect(result[0]?.reason).toBe('No seal found for gate')
       })
 
-      it('should return FINGERPRINT_CHANGED when fingerprint differs', async () => {
+      it('should return FINGERPRINT_MISMATCH when fingerprint differs', async () => {
         const config = createMockConfig()
-        const attestation = createMockAttestation({
+        const seal = createMockSeal({
           fingerprint: 'old-fingerprint',
         })
 
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([attestation]))
+        vi.mocked(readSealsSync).mockReturnValue(
+          createMockSealsFile({ 'test-gate': seal }),
+        )
         vi.mocked(computeFingerprint).mockResolvedValue(
           createMockFingerprintResult('new-fingerprint'),
         )
-        vi.mocked(findAttestation).mockReturnValue(attestation)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({
+            state: 'FINGERPRINT_MISMATCH',
+            seal,
+            message: 'Fingerprint changed since seal was created',
+          }),
+        )
 
         const result = await getAllSuiteStatuses(config)
 
-        expect(result[0]?.status).toBe('FINGERPRINT_CHANGED')
-        expect(result[0]?.reason).toBe('Source files modified')
-        expect(result[0]?.attestedFingerprint).toBe('old-fingerprint')
+        expect(result[0]?.status).toBe('FINGERPRINT_MISMATCH')
+        expect(result[0]?.reason).toBe('Fingerprint changed since seal was created')
+        expect(result[0]?.sealedFingerprint).toBe('old-fingerprint')
         expect(result[0]?.currentFingerprint).toBe('new-fingerprint')
       })
 
-      it('should return EXPIRED when attestation is too old', async () => {
-        const config = createMockConfig({
-          settings: {
-            maxAgeDays: 30,
-            attestationsPath: '.attestations.json',
-            publicKeyPath: 'test.pub',
-          },
-        })
-        const attestation = createMockAttestation({
+      it('should return STALE when seal is too old', async () => {
+        const config = createMockConfig()
+        const seal = createMockSeal({
           fingerprint: 'abc123',
-          attestedAt: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(), // 35 days ago
+          timestamp: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(), // 35 days ago
         })
 
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([attestation]))
+        vi.mocked(readSealsSync).mockReturnValue(
+          createMockSealsFile({ 'test-gate': seal }),
+        )
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult('abc123'))
-        vi.mocked(findAttestation).mockReturnValue(attestation)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({
+            state: 'STALE',
+            seal,
+            message: 'Seal is 35 days old, exceeds maxAge of 30 days',
+          }),
+        )
 
         const result = await getAllSuiteStatuses(config)
 
-        expect(result[0]?.status).toBe('EXPIRED')
+        expect(result[0]?.status).toBe('STALE')
         expect(result[0]?.age).toBe(35)
         expect(result[0]?.reason).toContain('35 days old')
       })
 
-      it('should rethrow non-ENOENT errors when reading attestations', async () => {
+      it('should return INVALID_SIGNATURE when signature verification fails', async () => {
         const config = createMockConfig()
-        const error = new Error('Permission denied')
+        const seal = createMockSeal()
 
-        vi.mocked(readAttestations).mockRejectedValue(error)
+        vi.mocked(readSealsSync).mockReturnValue(
+          createMockSealsFile({ 'test-gate': seal }),
+        )
+        vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({
+            state: 'INVALID_SIGNATURE',
+            seal,
+            message: 'Signature verification failed',
+          }),
+        )
 
-        await expect(getAllSuiteStatuses(config)).rejects.toThrow('Permission denied')
+        const result = await getAllSuiteStatuses(config)
+
+        expect(result[0]?.status).toBe('INVALID_SIGNATURE')
+        expect(result[0]?.reason).toBe('Signature verification failed')
+      })
+
+      it('should return UNKNOWN_SIGNER when signer is not authorized', async () => {
+        const config = createMockConfig()
+        const seal = createMockSeal()
+
+        vi.mocked(readSealsSync).mockReturnValue(
+          createMockSealsFile({ 'test-gate': seal }),
+        )
+        vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({
+            state: 'UNKNOWN_SIGNER',
+            seal,
+            message: 'Signer not found in team',
+          }),
+        )
+
+        const result = await getAllSuiteStatuses(config)
+
+        expect(result[0]?.status).toBe('UNKNOWN_SIGNER')
+        expect(result[0]?.reason).toBe('Signer not found in team')
       })
     })
 
     describe('edge cases', () => {
-      it('should handle missing attestations file gracefully', async () => {
+      it('should handle missing seals file gracefully', async () => {
         const config = createMockConfig()
-        const error = new Error('ENOENT: no such file or directory')
 
-        vi.mocked(readAttestations).mockRejectedValue(error)
+        vi.mocked(readSealsSync).mockImplementation(() => {
+          throw new Error('ENOENT: no such file or directory')
+        })
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
-        vi.mocked(findAttestation).mockReturnValue(undefined)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({ state: 'MISSING' }),
+        )
 
         const result = await getAllSuiteStatuses(config)
 
-        expect(result[0]?.status).toBe('NEEDS_ATTESTATION')
-      })
-
-      it('should handle attestation exactly at max age boundary', async () => {
-        const config = createMockConfig({
-          settings: {
-            maxAgeDays: 30,
-            attestationsPath: '.attestations.json',
-            publicKeyPath: 'test.pub',
-          },
-        })
-        const attestation = createMockAttestation({
-          fingerprint: 'abc123',
-          attestedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // Exactly 30 days ago
-        })
-
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([attestation]))
-        vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult('abc123'))
-        vi.mocked(findAttestation).mockReturnValue(attestation)
-
-        const result = await getAllSuiteStatuses(config)
-
-        // At exactly max age, should still be valid (not >)
-        expect(result[0]?.status).toBe('VALID')
-      })
-
-      it('should handle attestation one day past max age', async () => {
-        const config = createMockConfig({
-          settings: {
-            maxAgeDays: 30,
-            attestationsPath: '.attestations.json',
-            publicKeyPath: 'test.pub',
-          },
-        })
-        const attestation = createMockAttestation({
-          fingerprint: 'abc123',
-          attestedAt: new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString(), // 31 days ago
-        })
-
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([attestation]))
-        vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult('abc123'))
-        vi.mocked(findAttestation).mockReturnValue(attestation)
-
-        const result = await getAllSuiteStatuses(config)
-
-        expect(result[0]?.status).toBe('EXPIRED')
+        expect(result[0]?.status).toBe('MISSING')
       })
 
       it('should calculate age as 0 for today', async () => {
         const config = createMockConfig()
-        const attestation = createMockAttestation({
+        const seal = createMockSeal({
           fingerprint: 'abc123',
-          attestedAt: new Date().toISOString(), // Now
+          timestamp: new Date().toISOString(), // Now
         })
 
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([attestation]))
+        vi.mocked(readSealsSync).mockReturnValue(
+          createMockSealsFile({ 'test-gate': seal }),
+        )
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult('abc123'))
-        vi.mocked(findAttestation).mockReturnValue(attestation)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({
+            state: 'VALID',
+            seal,
+          }),
+        )
 
         const result = await getAllSuiteStatuses(config)
 
@@ -521,43 +591,57 @@ describe('run-utils', () => {
         expect(result[0]?.status).toBe('VALID')
       })
 
-      it('should not include age for suites without attestation', async () => {
+      it('should not include age for suites without seal', async () => {
         const config = createMockConfig()
 
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([]))
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
-        vi.mocked(findAttestation).mockReturnValue(undefined)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({ state: 'MISSING' }),
+        )
 
         const result = await getAllSuiteStatuses(config)
 
         expect(result[0]?.age).toBeUndefined()
-        expect(result[0]?.attestedAt).toBeUndefined()
-        expect(result[0]?.attestedFingerprint).toBeUndefined()
+        expect(result[0]?.sealedAt).toBeUndefined()
+        expect(result[0]?.sealedFingerprint).toBeUndefined()
       })
 
-      it('should handle suite config without ignore field', async () => {
+      it('should handle gate without exclude patterns', async () => {
         const config = createMockConfig({
+          gates: {
+            'simple-gate': {
+              name: 'Simple Gate',
+              description: 'A gate without excludes',
+              authorizedSigners: ['test-user'],
+              fingerprint: {
+                paths: ['lib/**/*.js'],
+              },
+              maxAge: '30d',
+            },
+          },
           suites: {
-            'test-suite': {
-              packages: ['pkg1'],
-              // No ignore field
+            'simple-suite': {
+              gate: 'simple-gate',
             },
           },
         })
 
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([]))
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
-        vi.mocked(findAttestation).mockReturnValue(undefined)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({ state: 'MISSING' }),
+        )
 
         await getAllSuiteStatuses(config)
 
         expect(computeFingerprint).toHaveBeenCalledWith({
-          packages: ['pkg1'],
+          packages: ['lib/**/*.js'],
         })
       })
     })
 
-    // Regression tests for Bug 1: gate-based suites were being skipped
+    // Tests for gate-based suite handling
     describe('gate-based suites', () => {
       it('should handle suites that reference gates via gate property', async () => {
         const config = createMockConfig({
@@ -581,53 +665,23 @@ describe('run-utils', () => {
           },
         })
 
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([]))
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult('gate-fp'))
-        vi.mocked(findAttestation).mockReturnValue(undefined)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({ state: 'MISSING' }),
+        )
 
         const result = await getAllSuiteStatuses(config)
 
         // Should NOT skip the gate-based suite
         expect(result).toHaveLength(1)
         expect(result[0]?.name).toBe('gate-based-suite')
-        expect(result[0]?.status).toBe('NEEDS_ATTESTATION')
+        expect(result[0]?.status).toBe('MISSING')
 
         // Should use gate's fingerprint.paths and fingerprint.exclude
         expect(computeFingerprint).toHaveBeenCalledWith({
           packages: ['src/**/*.ts'],
           ignore: ['**/*.test.ts'],
-        })
-      })
-
-      it('should handle gate-based suite without exclude patterns', async () => {
-        const config = createMockConfig({
-          gates: {
-            'simple-gate': {
-              name: 'Simple Gate',
-              description: 'A gate without excludes',
-              authorizedSigners: ['test-user'],
-              fingerprint: {
-                paths: ['lib/**/*.js'],
-              },
-              maxAge: '30d',
-            },
-          },
-          suites: {
-            'simple-suite': {
-              gate: 'simple-gate',
-            },
-          },
-        })
-
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([]))
-        vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
-        vi.mocked(findAttestation).mockReturnValue(undefined)
-
-        const result = await getAllSuiteStatuses(config)
-
-        expect(result).toHaveLength(1)
-        expect(computeFingerprint).toHaveBeenCalledWith({
-          packages: ['lib/**/*.js'],
         })
       })
 
@@ -649,9 +703,11 @@ describe('run-utils', () => {
           },
         })
 
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([]))
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
-        vi.mocked(findAttestation).mockReturnValue(undefined)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({ state: 'MISSING' }),
+        )
 
         const result = await getAllSuiteStatuses(config)
 
@@ -660,7 +716,7 @@ describe('run-utils', () => {
         expect(computeFingerprint).not.toHaveBeenCalled()
       })
 
-      it('should handle mix of gate-based and legacy package-based suites', async () => {
+      it('should skip suites without gate property', async () => {
         const config = createMockConfig({
           gates: {
             'ui-gate': {
@@ -676,32 +732,33 @@ describe('run-utils', () => {
               gate: 'ui-gate',
               command: 'npm run test:ui',
             },
-            'api-suite': {
-              packages: ['src/api/**'],
-              command: 'npm run test:api',
+            'legacy-suite': {
+              // No gate property - should be skipped
+              command: 'npm run test:legacy',
             },
           },
         })
 
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([]))
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
-        vi.mocked(findAttestation).mockReturnValue(undefined)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({ state: 'MISSING' }),
+        )
 
         const result = await getAllSuiteStatuses(config)
 
-        // Both suites should be included
-        expect(result).toHaveLength(2)
-        expect(result.map((r) => r.name).sort()).toEqual(['api-suite', 'ui-suite'])
+        // Only gate-based suite should be included
+        expect(result).toHaveLength(1)
+        expect(result[0]?.name).toBe('ui-suite')
 
-        // Both should have correct fingerprint calls
-        expect(computeFingerprint).toHaveBeenCalledTimes(2)
+        // Only one fingerprint call for gate-based suite
+        expect(computeFingerprint).toHaveBeenCalledTimes(1)
         expect(computeFingerprint).toHaveBeenCalledWith({ packages: ['src/ui/**'] })
-        expect(computeFingerprint).toHaveBeenCalledWith({ packages: ['src/api/**'] })
       })
 
       it('should skip suites with gate property when gates config is undefined', async () => {
         const config = createMockConfig({
-          // No gates defined
+          gates: undefined,
           suites: {
             'gate-suite': {
               gate: 'some-gate',
@@ -709,14 +766,44 @@ describe('run-utils', () => {
           },
         })
 
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([]))
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
-        vi.mocked(findAttestation).mockReturnValue(undefined)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({ state: 'MISSING' }),
+        )
 
         const result = await getAllSuiteStatuses(config)
 
         // Should skip when gates config is missing
         expect(result).toHaveLength(0)
+      })
+
+      it('should skip gates with empty paths array', async () => {
+        const config = createMockConfig({
+          gates: {
+            'empty-gate': {
+              name: 'Empty Gate',
+              description: 'A gate with no paths',
+              authorizedSigners: ['test-user'],
+              fingerprint: { paths: [] },
+              maxAge: '30d',
+            },
+          },
+          suites: {
+            'empty-suite': {
+              gate: 'empty-gate',
+            },
+          },
+        })
+
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
+        vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
+
+        const result = await getAllSuiteStatuses(config)
+
+        // Should skip suites with gates that have no paths
+        expect(result).toHaveLength(0)
+        expect(computeFingerprint).not.toHaveBeenCalled()
       })
     })
   })
@@ -724,65 +811,97 @@ describe('run-utils', () => {
   describe('getSuitesNeedingAttestation', () => {
     describe('positive cases', () => {
       it('should return only suites that are not VALID', async () => {
-        const config: Config = {
-          version: 1,
-          settings: {
-            attestationsPath: '.attestations.json',
-            maxAgeDays: 30,
-            publicKeyPath: 'test.pub',
+        const config = createMockConfig({
+          gates: {
+            'gate-1': {
+              name: 'Gate 1',
+              description: 'First gate',
+              authorizedSigners: ['user'],
+              fingerprint: { paths: ['pkg1/**'] },
+              maxAge: '30d',
+            },
+            'gate-2': {
+              name: 'Gate 2',
+              description: 'Second gate',
+              authorizedSigners: ['user'],
+              fingerprint: { paths: ['pkg2/**'] },
+              maxAge: '30d',
+            },
           },
           suites: {
-            'valid-suite': { packages: ['pkg1'] },
-            'invalid-suite': { packages: ['pkg2'] },
+            'valid-suite': { gate: 'gate-1' },
+            'invalid-suite': { gate: 'gate-2' },
           },
-        }
+        })
 
-        const validAttestation = createMockAttestation({
-          suite: 'valid-suite',
+        const validSeal = createMockSeal({
+          gateId: 'gate-1',
           fingerprint: 'valid-fp',
         })
 
-        vi.mocked(readAttestations).mockResolvedValue(
-          createMockAttestationsFile([validAttestation]),
+        vi.mocked(readSealsSync).mockReturnValue(
+          createMockSealsFile({ 'gate-1': validSeal }),
         )
+
+        // Return different fingerprints for different gates
         vi.mocked(computeFingerprint).mockImplementation(({ packages }) => {
-          // First package is 'pkg1' for valid-suite, 'pkg2' for invalid-suite
-          if (packages[0] === 'pkg1') {
+          if (packages[0] === 'pkg1/**') {
             return Promise.resolve(createMockFingerprintResult('valid-fp'))
           }
           return Promise.resolve(createMockFingerprintResult('different-fp'))
         })
-        vi.mocked(findAttestation).mockImplementation((_, suite) => {
-          if (suite === 'valid-suite') {
-            return validAttestation
+
+        // Return different verification results for different gates
+        vi.mocked(verifyGateSeal).mockImplementation((_config, gateId) => {
+          if (gateId === 'gate-1') {
+            return createMockVerificationResult({
+              gateId: 'gate-1',
+              state: 'VALID',
+              seal: validSeal,
+            })
           }
-          return undefined
+          return createMockVerificationResult({
+            gateId: 'gate-2',
+            state: 'MISSING',
+          })
         })
 
         const result = await getSuitesNeedingAttestation(config)
 
         expect(result).toHaveLength(1)
         expect(result[0]?.name).toBe('invalid-suite')
-        expect(result[0]?.status).toBe('NEEDS_ATTESTATION')
+        expect(result[0]?.status).toBe('MISSING')
       })
 
       it('should return all suites when none are valid', async () => {
-        const config: Config = {
-          version: 1,
-          settings: {
-            attestationsPath: '.attestations.json',
-            maxAgeDays: 30,
-            publicKeyPath: 'test.pub',
+        const config = createMockConfig({
+          gates: {
+            'gate-1': {
+              name: 'Gate 1',
+              description: 'First gate',
+              authorizedSigners: ['user'],
+              fingerprint: { paths: ['pkg1/**'] },
+              maxAge: '30d',
+            },
+            'gate-2': {
+              name: 'Gate 2',
+              description: 'Second gate',
+              authorizedSigners: ['user'],
+              fingerprint: { paths: ['pkg2/**'] },
+              maxAge: '30d',
+            },
           },
           suites: {
-            'suite-1': { packages: ['pkg1'] },
-            'suite-2': { packages: ['pkg2'] },
+            'suite-1': { gate: 'gate-1' },
+            'suite-2': { gate: 'gate-2' },
           },
-        }
+        })
 
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([]))
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
-        vi.mocked(findAttestation).mockReturnValue(undefined)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({ state: 'MISSING' }),
+        )
 
         const result = await getSuitesNeedingAttestation(config)
 
@@ -794,13 +913,20 @@ describe('run-utils', () => {
     describe('negative cases', () => {
       it('should return empty array when all suites are valid', async () => {
         const config = createMockConfig()
-        const attestation = createMockAttestation({
+        const seal = createMockSeal({
           fingerprint: 'abc123',
         })
 
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([attestation]))
+        vi.mocked(readSealsSync).mockReturnValue(
+          createMockSealsFile({ 'test-gate': seal }),
+        )
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult('abc123'))
-        vi.mocked(findAttestation).mockReturnValue(attestation)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({
+            state: 'VALID',
+            seal,
+          }),
+        )
 
         const result = await getSuitesNeedingAttestation(config)
 
@@ -809,43 +935,52 @@ describe('run-utils', () => {
     })
 
     describe('edge cases', () => {
-      it('should include EXPIRED suites', async () => {
-        const config = createMockConfig({
-          settings: {
-            maxAgeDays: 30,
-            attestationsPath: '.attestations.json',
-            publicKeyPath: 'test.pub',
-          },
-        })
-        const attestation = createMockAttestation({
+      it('should include STALE suites', async () => {
+        const config = createMockConfig()
+        const seal = createMockSeal({
           fingerprint: 'abc123',
-          attestedAt: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(),
+          timestamp: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(),
         })
 
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([attestation]))
+        vi.mocked(readSealsSync).mockReturnValue(
+          createMockSealsFile({ 'test-gate': seal }),
+        )
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult('abc123'))
-        vi.mocked(findAttestation).mockReturnValue(attestation)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({
+            state: 'STALE',
+            seal,
+            message: 'Seal expired',
+          }),
+        )
 
         const result = await getSuitesNeedingAttestation(config)
 
         expect(result).toHaveLength(1)
-        expect(result[0]?.status).toBe('EXPIRED')
+        expect(result[0]?.status).toBe('STALE')
       })
 
-      it('should include FINGERPRINT_CHANGED suites', async () => {
+      it('should include FINGERPRINT_MISMATCH suites', async () => {
         const config = createMockConfig()
-        const attestation = createMockAttestation({
+        const seal = createMockSeal({
           fingerprint: 'old-fp',
         })
 
-        vi.mocked(readAttestations).mockResolvedValue(createMockAttestationsFile([attestation]))
+        vi.mocked(readSealsSync).mockReturnValue(
+          createMockSealsFile({ 'test-gate': seal }),
+        )
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult('new-fp'))
-        vi.mocked(findAttestation).mockReturnValue(attestation)
+        vi.mocked(verifyGateSeal).mockReturnValue(
+          createMockVerificationResult({
+            state: 'FINGERPRINT_MISMATCH',
+            seal,
+          }),
+        )
 
         const result = await getSuitesNeedingAttestation(config)
 
         expect(result).toHaveLength(1)
-        expect(result[0]?.status).toBe('FINGERPRINT_CHANGED')
+        expect(result[0]?.status).toBe('FINGERPRINT_MISMATCH')
       })
     })
   })

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import React from 'react'
 import { render } from 'ink-testing-library'
 import { StatusBadge } from '../../src/components/StatusBadge.js'
-import type { VerificationStatus } from '@attest-it/core'
+import type { VerificationState } from '@attest-it/core'
 
 describe('StatusBadge component', () => {
   describe('positive cases - valid statuses', () => {
@@ -13,55 +13,53 @@ describe('StatusBadge component', () => {
       expect(output).toContain('✓ VALID')
     })
 
-    it('should render NEEDS_ATTESTATION as MISSING', () => {
-      const { lastFrame } = render(<StatusBadge status="NEEDS_ATTESTATION" />)
+    it('should render MISSING status', () => {
+      const { lastFrame } = render(<StatusBadge status="MISSING" />)
       const output = lastFrame() ?? ''
 
       expect(output).toContain('MISSING')
-      expect(output).not.toContain('NEEDS_ATTESTATION')
     })
 
-    it('should render FINGERPRINT_CHANGED as CHANGED', () => {
-      const { lastFrame } = render(<StatusBadge status="FINGERPRINT_CHANGED" />)
+    it('should render FINGERPRINT_MISMATCH as CHANGED', () => {
+      const { lastFrame } = render(<StatusBadge status="FINGERPRINT_MISMATCH" />)
       const output = lastFrame() ?? ''
 
       expect(output).toContain('CHANGED')
-      expect(output).not.toContain('FINGERPRINT_CHANGED')
+      expect(output).not.toContain('FINGERPRINT_MISMATCH')
     })
 
-    it('should render EXPIRED as STALE', () => {
-      const { lastFrame } = render(<StatusBadge status="EXPIRED" />)
+    it('should render STALE status', () => {
+      const { lastFrame } = render(<StatusBadge status="STALE" />)
       const output = lastFrame() ?? ''
 
       expect(output).toContain('STALE')
-      expect(output).not.toContain('EXPIRED')
     })
 
-    it('should render SIGNATURE_INVALID as INVALID', () => {
-      const { lastFrame } = render(<StatusBadge status="SIGNATURE_INVALID" />)
+    it('should render INVALID_SIGNATURE as INVALID', () => {
+      const { lastFrame } = render(<StatusBadge status="INVALID_SIGNATURE" />)
       const output = lastFrame() ?? ''
 
       expect(output).toContain('INVALID')
-      expect(output).not.toContain('SIGNATURE_INVALID')
+      expect(output).not.toContain('SIGNATURE')
     })
 
-    it('should render INVALIDATED_BY_PARENT as INVALIDATED', () => {
-      const { lastFrame } = render(<StatusBadge status="INVALIDATED_BY_PARENT" />)
+    it('should render UNKNOWN_SIGNER as UNAUTHORIZED', () => {
+      const { lastFrame } = render(<StatusBadge status="UNKNOWN_SIGNER" />)
       const output = lastFrame() ?? ''
 
-      expect(output).toContain('INVALIDATED')
-      expect(output).not.toContain('BY_PARENT')
+      expect(output).toContain('UNAUTHORIZED')
+      expect(output).not.toContain('UNKNOWN_SIGNER')
     })
   })
 
   describe('status display mapping', () => {
-    const testCases: Array<{ status: VerificationStatus; expectedText: string }> = [
+    const testCases: Array<{ status: VerificationState; expectedText: string }> = [
       { status: 'VALID', expectedText: '✓ VALID' },
-      { status: 'NEEDS_ATTESTATION', expectedText: 'MISSING' },
-      { status: 'FINGERPRINT_CHANGED', expectedText: 'CHANGED' },
-      { status: 'EXPIRED', expectedText: 'STALE' },
-      { status: 'SIGNATURE_INVALID', expectedText: 'INVALID' },
-      { status: 'INVALIDATED_BY_PARENT', expectedText: 'INVALIDATED' },
+      { status: 'MISSING', expectedText: 'MISSING' },
+      { status: 'FINGERPRINT_MISMATCH', expectedText: 'CHANGED' },
+      { status: 'STALE', expectedText: 'STALE' },
+      { status: 'INVALID_SIGNATURE', expectedText: 'INVALID' },
+      { status: 'UNKNOWN_SIGNER', expectedText: 'UNAUTHORIZED' },
     ]
 
     testCases.forEach(({ status, expectedText }) => {
@@ -81,14 +79,14 @@ describe('StatusBadge component', () => {
       expect(lastFrame()).toContain('✓ VALID')
 
       // Update to different status
-      rerender(<StatusBadge status="EXPIRED" />)
+      rerender(<StatusBadge status="STALE" />)
 
       expect(lastFrame()).toContain('STALE')
       expect(lastFrame()).not.toContain('✓ VALID')
     })
 
     it('should update from error to success status', () => {
-      const { lastFrame, rerender } = render(<StatusBadge status="SIGNATURE_INVALID" />)
+      const { lastFrame, rerender } = render(<StatusBadge status="INVALID_SIGNATURE" />)
 
       expect(lastFrame()).toContain('INVALID')
 
@@ -108,14 +106,14 @@ describe('StatusBadge component', () => {
   })
 
   describe('all status values', () => {
-    it('should handle all verification statuses', () => {
-      const statuses: VerificationStatus[] = [
+    it('should handle all verification states', () => {
+      const statuses: VerificationState[] = [
         'VALID',
-        'NEEDS_ATTESTATION',
-        'FINGERPRINT_CHANGED',
-        'EXPIRED',
-        'INVALIDATED_BY_PARENT',
-        'SIGNATURE_INVALID',
+        'MISSING',
+        'FINGERPRINT_MISMATCH',
+        'STALE',
+        'INVALID_SIGNATURE',
+        'UNKNOWN_SIGNER',
       ]
 
       // Should render without errors for all statuses
