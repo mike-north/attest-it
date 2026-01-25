@@ -236,7 +236,7 @@ async function runCreate(): Promise<void> {
           'You may see biometric prompts or be asked to unlock 1Password for each configured account.',
         )
 
-        // List available 1Password accounts
+        // List available 1Password accounts (includes friendly names from OnePasswordKeyProvider)
         const accounts = await OnePasswordKeyProvider.listAccounts()
 
         if (accounts.length === 0) {
@@ -245,72 +245,35 @@ async function runCreate(): Promise<void> {
           )
         }
 
-        // Fetch detailed account info (including friendly name) for each account
-        const { execFile } = await import('node:child_process')
-        const { promisify } = await import('node:util')
-        const execFileAsync = promisify(execFile)
-
-        interface AccountDetails {
-          url: string
-          email: string
-          name: string // Friendly name from `op account get`
-        }
-
-        const accountDetails: AccountDetails[] = await Promise.all(
-          accounts.map(async (acc) => {
-            try {
-              // Use user_uuid for unique lookup (URL can be shared by multiple accounts)
-              const { stdout } = await execFileAsync('op', [
-                'account',
-                'get',
-                '--account',
-                acc.user_uuid,
-                '--format=json',
-              ])
-              const details: unknown = JSON.parse(stdout)
-              // Extract name if it exists and is a string
-              const name =
-                details !== null &&
-                typeof details === 'object' &&
-                'name' in details &&
-                typeof details.name === 'string'
-                  ? details.name
-                  : '[Could not read account name]'
-              return {
-                url: acc.url,
-                email: acc.email,
-                name,
-              }
-            } catch {
-              // Fallback if we can't get account details (e.g., vault locked)
-              return {
-                url: acc.url,
-                email: acc.email,
-                name: '[Could not read account name]',
-              }
-            }
-          }),
-        )
-
         // Format account display with bold name and dim domain (matching `op signin` style)
-        const formatAccountChoice = (acc: AccountDetails): string => {
-          return `${theme.blue.bold()(acc.name)} ${theme.muted(`(${acc.url})`)}`
+        // Use friendly name if available, otherwise fall back to email
+        const formatAccountChoice = (acc: {
+          name?: string
+          email: string
+          url: string
+        }): string => {
+          const displayName = acc.name ?? acc.email
+          return `${theme.blue.bold()(displayName)} ${theme.muted(`(${acc.url})`)}`
         }
 
         // Select account (auto-select if only one)
         // Use URL as the account identifier (required by `op` CLI)
         let selectedAccount: string
-        if (accountDetails.length === 1 && accountDetails[0]) {
-          selectedAccount = accountDetails[0].url
-          info(`Using 1Password account: ${formatAccountChoice(accountDetails[0])}`)
+        let selectedAccountDisplayName: string
+        if (accounts.length === 1 && accounts[0]) {
+          selectedAccount = accounts[0].url
+          selectedAccountDisplayName = accounts[0].name ?? accounts[0].email
+          info(`Using 1Password account: ${formatAccountChoice(accounts[0])}`)
         } else {
           selectedAccount = await select({
             message: 'Select 1Password account:',
-            choices: accountDetails.map((acc) => ({
+            choices: accounts.map((acc) => ({
               name: formatAccountChoice(acc),
               value: acc.url,
             })),
           })
+          const selectedAcc = accounts.find((acc) => acc.url === selectedAccount)
+          selectedAccountDisplayName = selectedAcc?.name ?? selectedAcc?.email ?? selectedAccount
         }
 
         // List vaults for selected account
@@ -341,14 +304,10 @@ async function runCreate(): Promise<void> {
           },
         })
 
-        // Get account display name for description
-        const selectedAccountDetails = accountDetails.find((acc) => acc.url === selectedAccount)
-        const accountDisplayName = selectedAccountDetails?.name ?? selectedAccount
-
         storageConfig = {
           type: '1password',
           selectedAccount,
-          accountDisplayName,
+          accountDisplayName: selectedAccountDisplayName,
           selectedVault,
           item,
         }

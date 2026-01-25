@@ -148,7 +148,9 @@ async function runIntegrationTest(): Promise<boolean> {
     console.log('\nAvailable accounts:')
     accounts.forEach((account: OnePasswordAccount, index) => {
       const accountNumber = String(index + 1)
-      console.log(`  ${accountNumber}. ${account.email} (${account.url})`)
+      // Display friendly name if available, otherwise fall back to email
+      const displayName = account.name ?? account.email
+      console.log(`  ${accountNumber}. ${displayName} (${account.url})`)
     })
 
     // Step 3: Select account
@@ -156,12 +158,14 @@ async function runIntegrationTest(): Promise<boolean> {
     let selectedAccount: OnePasswordAccount
     if (accounts.length === 1) {
       selectedAccount = accounts[0]
-      success(`Using only account: ${selectedAccount.email}`)
+      const displayName = selectedAccount.name ?? selectedAccount.email
+      success(`Using only account: ${displayName}`)
     } else {
       const accountEmail = await select({
         message: 'Select a 1Password account:',
         choices: accounts.map((account: OnePasswordAccount) => ({
-          name: `${account.email} (${account.url})`,
+          // Display friendly name if available, otherwise fall back to email
+          name: `${account.name ?? account.email} (${account.url})`,
           value: account.email,
         })),
       })
@@ -170,7 +174,8 @@ async function runIntegrationTest(): Promise<boolean> {
         throw new Error('Selected account not found')
       }
       selectedAccount = found
-      success(`Selected: ${selectedAccount.email}`)
+      const displayName = selectedAccount.name ?? selectedAccount.email
+      success(`Selected: ${displayName}`)
     }
     ctx.account = selectedAccount.email
 
