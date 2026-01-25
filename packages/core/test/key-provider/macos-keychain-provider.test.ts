@@ -12,19 +12,28 @@ import * as path from 'node:path'
 import * as os from 'node:os'
 import { MacOSKeychainKeyProvider } from '../../src/key-provider/macos-keychain-provider.js'
 import * as crypto from '../../src/crypto.js'
+import * as ed25519 from '../../src/crypto/ed25519.js'
 
 // Mock child_process.spawn
 vi.mock('node:child_process', () => ({
   spawn: vi.fn(),
 }))
 
-// Mock crypto.generateKeyPair
+// Mock crypto.setKeyPermissions (generateKeyPair no longer used by keychain provider)
 vi.mock('../../src/crypto.js', async (importOriginal) => {
   const actual = await importOriginal<typeof crypto>()
   return {
     ...actual,
-    generateKeyPair: vi.fn(),
     setKeyPermissions: vi.fn(),
+  }
+})
+
+// Mock ed25519.generateKeyPair
+vi.mock('../../src/crypto/ed25519.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof ed25519>()
+  return {
+    ...actual,
+    generateKeyPair: vi.fn(),
   }
 })
 
@@ -391,22 +400,20 @@ describe('MacOSKeychainKeyProvider', () => {
   })
 
   describe('generateKeyPair', () => {
-    it('should generate keypair, encode to base64, and store in keychain', async () => {
+    const mockPublicKeyBase64 = 'Gz6xGuS0Ohc9e0GkEPYDDfkDrNowGk6R6ZzPtiCth9c='
+    const mockPrivateKeyPem =
+      '-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIHTcBn8/NrzoGS+pA5u/jvi4hrXEqsCZCoqXA23tzkiX\n-----END PRIVATE KEY-----\n'
+
+    it('should generate Ed25519 keypair and store in keychain', async () => {
       const mockSpawnFn = vi.mocked(spawn)
-      const mockGenerateKeyPair = vi.mocked(crypto.generateKeyPair)
+      const mockEd25519GenerateKeyPair = vi.mocked(ed25519.generateKeyPair)
 
       const publicPath = path.join(tmpDir, 'public.pem')
-      const privateKeyContent = '-----BEGIN PRIVATE KEY-----\nmock\n-----END PRIVATE KEY-----'
 
-      // Mock successful key generation
-      mockGenerateKeyPair.mockImplementation(async (opts) => {
-        const tempPrivatePath = opts.privatePath
-        await fs.mkdir(path.dirname(tempPrivatePath), { recursive: true })
-        await fs.writeFile(tempPrivatePath, privateKeyContent)
-        return {
-          privatePath: tempPrivatePath,
-          publicPath: opts.publicPath,
-        }
+      // Mock Ed25519 key generation (returns in-memory key pair)
+      mockEd25519GenerateKeyPair.mockReturnValue({
+        publicKey: mockPublicKeyBase64,
+        privateKey: mockPrivateKeyPem,
       })
 
       // Mock successful keychain storage
@@ -425,6 +432,11 @@ describe('MacOSKeychainKeyProvider', () => {
       expect(result.publicKeyPath).toBe(publicPath)
       expect(result.storageDescription).toBe('macOS Keychain: test-key')
 
+      // Verify public key was written
+      const publicKeyContent = await fs.readFile(publicPath, 'utf8')
+      expect(publicKeyContent).toContain('-----BEGIN PUBLIC KEY-----')
+      expect(publicKeyContent).toContain(mockPublicKeyBase64)
+
       // Verify spawn was called to store in keychain
       expect(mockSpawnFn).toHaveBeenCalledWith(
         'security',
@@ -435,7 +447,7 @@ describe('MacOSKeychainKeyProvider', () => {
           '-s',
           'test-key',
           '-w',
-          Buffer.from(privateKeyContent, 'utf8').toString('base64'),
+          Buffer.from(mockPrivateKeyPem, 'utf8').toString('base64'),
           '-T',
           '',
           '-U',
@@ -446,18 +458,13 @@ describe('MacOSKeychainKeyProvider', () => {
 
     it('should throw error when keychain storage fails', async () => {
       const mockSpawnFn = vi.mocked(spawn)
-      const mockGenerateKeyPair = vi.mocked(crypto.generateKeyPair)
+      const mockEd25519GenerateKeyPair = vi.mocked(ed25519.generateKeyPair)
 
       const publicPath = path.join(tmpDir, 'public.pem')
 
-      mockGenerateKeyPair.mockImplementation(async (opts) => {
-        const tempPrivatePath = opts.privatePath
-        await fs.mkdir(path.dirname(tempPrivatePath), { recursive: true })
-        await fs.writeFile(tempPrivatePath, 'private key contents')
-        return {
-          privatePath: tempPrivatePath,
-          publicPath: opts.publicPath,
-        }
+      mockEd25519GenerateKeyPair.mockReturnValue({
+        publicKey: mockPublicKeyBase64,
+        privateKey: mockPrivateKeyPem,
       })
 
       // Mock failed storage
@@ -474,22 +481,15 @@ describe('MacOSKeychainKeyProvider', () => {
       ).rejects.toThrow('Command failed')
     })
 
-    it('should clean up temp files after generation', async () => {
+    it('should not write temp files (in-memory key generation)', async () => {
       const mockSpawnFn = vi.mocked(spawn)
-      const mockGenerateKeyPair = vi.mocked(crypto.generateKeyPair)
+      const mockEd25519GenerateKeyPair = vi.mocked(ed25519.generateKeyPair)
 
       const publicPath = path.join(tmpDir, 'public.pem')
-      let capturedPrivatePath: string | undefined
 
-      mockGenerateKeyPair.mockImplementation(async (opts) => {
-        const tempPrivatePath = opts.privatePath
-        capturedPrivatePath = tempPrivatePath
-        await fs.mkdir(path.dirname(tempPrivatePath), { recursive: true })
-        await fs.writeFile(tempPrivatePath, 'private key contents')
-        return {
-          privatePath: tempPrivatePath,
-          publicPath: opts.publicPath,
-        }
+      mockEd25519GenerateKeyPair.mockReturnValue({
+        publicKey: mockPublicKeyBase64,
+        privateKey: mockPrivateKeyPem,
       })
 
       mockSpawnFn.mockReturnValue(mockSpawnSuccess(''))
@@ -502,28 +502,48 @@ describe('MacOSKeychainKeyProvider', () => {
         publicKeyPath: publicPath,
       })
 
-      // Verify temp private key was deleted
-      expect(capturedPrivatePath).toBeDefined()
-      if (capturedPrivatePath) {
-        await expect(fs.stat(capturedPrivatePath)).rejects.toThrow()
-      }
+      // Verify only the public key file was created (no temp private key file)
+      const files = await fs.readdir(tmpDir)
+      expect(files).toEqual(['public.pem'])
     })
 
-    it('should handle force flag correctly', async () => {
-      const mockSpawnFn = vi.mocked(spawn)
-      const mockGenerateKeyPair = vi.mocked(crypto.generateKeyPair)
+    it('should throw error if public key already exists and force is false', async () => {
+      const mockEd25519GenerateKeyPair = vi.mocked(ed25519.generateKeyPair)
 
       const publicPath = path.join(tmpDir, 'public.pem')
-      const privateKeyContent = 'private key contents'
 
-      mockGenerateKeyPair.mockImplementation(async (opts) => {
-        const tempPrivatePath = opts.privatePath
-        await fs.mkdir(path.dirname(tempPrivatePath), { recursive: true })
-        await fs.writeFile(tempPrivatePath, privateKeyContent)
-        return {
-          privatePath: tempPrivatePath,
-          publicPath: opts.publicPath,
-        }
+      // Create existing public key file
+      await fs.writeFile(publicPath, 'existing key')
+
+      mockEd25519GenerateKeyPair.mockReturnValue({
+        publicKey: mockPublicKeyBase64,
+        privateKey: mockPrivateKeyPem,
+      })
+
+      const provider = new MacOSKeychainKeyProvider({
+        itemName: 'test-key',
+      })
+
+      await expect(
+        provider.generateKeyPair({
+          publicKeyPath: publicPath,
+          force: false,
+        }),
+      ).rejects.toThrow(/already exists/)
+    })
+
+    it('should overwrite existing public key when force is true', async () => {
+      const mockSpawnFn = vi.mocked(spawn)
+      const mockEd25519GenerateKeyPair = vi.mocked(ed25519.generateKeyPair)
+
+      const publicPath = path.join(tmpDir, 'public.pem')
+
+      // Create existing public key file
+      await fs.writeFile(publicPath, 'existing key')
+
+      mockEd25519GenerateKeyPair.mockReturnValue({
+        publicKey: mockPublicKeyBase64,
+        privateKey: mockPrivateKeyPem,
       })
 
       mockSpawnFn.mockReturnValue(mockSpawnSuccess(''))
@@ -537,12 +557,9 @@ describe('MacOSKeychainKeyProvider', () => {
         force: true,
       })
 
-      // Verify generateKeyPair was called with force flag
-      expect(mockGenerateKeyPair).toHaveBeenCalledWith(
-        expect.objectContaining({
-          force: true,
-        }),
-      )
+      // Verify public key was overwritten
+      const publicKeyContent = await fs.readFile(publicPath, 'utf8')
+      expect(publicKeyContent).toContain(mockPublicKeyBase64)
     })
   })
 
@@ -718,20 +735,17 @@ describe('MacOSKeychainKeyProvider', () => {
 
     it('should complete the full generateKeyPair workflow', async () => {
       const mockSpawnFn = vi.mocked(spawn)
-      const mockGenerateKeyPair = vi.mocked(crypto.generateKeyPair)
+      const mockEd25519GenerateKeyPair = vi.mocked(ed25519.generateKeyPair)
 
       const publicPath = path.join(tmpDir, 'integration-public.pem')
-      const privateKeyContent =
-        '-----BEGIN PRIVATE KEY-----\nintegration-test\n-----END PRIVATE KEY-----'
+      const mockPublicKeyBase64 = 'Gz6xGuS0Ohc9e0GkEPYDDfkDrNowGk6R6ZzPtiCth9c='
+      const mockPrivateKeyPem =
+        '-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIHTcBn8/NrzoGS+pA5u/jvi4hrXEqsCZCoqXA23tzkiX\n-----END PRIVATE KEY-----\n'
 
-      mockGenerateKeyPair.mockImplementation(async (opts) => {
-        const tempPrivatePath = opts.privatePath
-        await fs.mkdir(path.dirname(tempPrivatePath), { recursive: true })
-        await fs.writeFile(tempPrivatePath, privateKeyContent)
-        return {
-          privatePath: tempPrivatePath,
-          publicPath: opts.publicPath,
-        }
+      // Mock Ed25519 key generation (returns in-memory key pair)
+      mockEd25519GenerateKeyPair.mockReturnValue({
+        publicKey: mockPublicKeyBase64,
+        privateKey: mockPrivateKeyPem,
       })
 
       mockSpawnFn.mockReturnValue(mockSpawnSuccess(''))
@@ -750,8 +764,13 @@ describe('MacOSKeychainKeyProvider', () => {
       expect(result.publicKeyPath).toBe(publicPath)
       expect(result.storageDescription).toBe('macOS Keychain: integration-generated-key')
 
-      // Verify the key was stored with correct base64 encoding
-      const expectedBase64 = Buffer.from(privateKeyContent, 'utf8').toString('base64')
+      // Verify public key was written to file
+      const writtenPublicKey = await fs.readFile(publicPath, 'utf8')
+      expect(writtenPublicKey).toContain('-----BEGIN PUBLIC KEY-----')
+      expect(writtenPublicKey).toContain(mockPublicKeyBase64)
+
+      // Verify the private key was stored with correct base64 encoding
+      const expectedBase64 = Buffer.from(mockPrivateKeyPem, 'utf8').toString('base64')
       expect(mockSpawnFn).toHaveBeenCalledWith(
         'security',
         [
