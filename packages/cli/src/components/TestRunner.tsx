@@ -141,13 +141,13 @@ export function TestRunner({
             setPhase('running')
           })
           .catch((err: unknown) => {
-            // Log the error so users can see why attestation failed
+            // Log the error so users can see why seal creation failed
             const errorMsg = err instanceof Error ? err.message : String(err)
             logError(`Failed to create seal: ${errorMsg}`)
-            // If attestation fails, still move on but mark as skipped
+            // Mark as failed (not skipped) so overall process fails
             setResults((prev) => ({
               ...prev,
-              skipped: [...prev.skipped, currentSuite],
+              failed: [...prev.failed, currentSuite],
             }))
             setCurrentIndex((prev) => prev + 1)
             setIsAttesting(false)
