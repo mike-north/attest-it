@@ -44,6 +44,7 @@
   "private": true,
   "scripts": {
     "build": "NX_TUI=false nx run-many --target=build --exclude=attest-it-workspace",
+    "dogfood:run": "tsx scripts/dogfood-run.ts",
     "changeset": "changeset",
     "check": "NX_TUI=false nx check",
     "check:api-reports": "NX_TUI=false nx run-many --target=check:api-report --exclude=attest-it-workspace",

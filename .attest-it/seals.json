@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "seals": {
+    "1password-integration": {
+      "gateId": "1password-integration",
+      "fingerprint": "sha256:c9b39889fbf4298c0bca8c0e5a62a5ddf278294f596c74c8a18a85ed06bae8b5",
+      "timestamp": "2026-01-25T06:13:42.360Z",
+      "sealedBy": "dogfood-test",
+      "signature": "Manim2rati6+/POI6VPYUfxGBfm/bGaQw6vKhDn2I+BhG+WHCRujBDGoRvt7SmU399kLMmA2wMZIwzJh4W4lBQ=="
+    }
+  }
+}
