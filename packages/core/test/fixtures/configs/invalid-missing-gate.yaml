@@ -1,0 +1,6 @@
+version: 1
+
+suites:
+  unit:
+    description: Unit tests without a gate reference
+    command: npm test
