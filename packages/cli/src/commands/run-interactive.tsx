@@ -38,7 +38,6 @@ import {
   type Config,
   type KeyProvider,
 } from '@attest-it/core'
-import { confirmAction } from '../utils/prompts.js'
 import { InteractiveRun } from '../components/InteractiveRun.js'
 import { getAllSuiteStatuses, type SuiteStatus } from './run-utils.js'
 import { loadSession, saveSession as persistSession, clearSession } from '../session/session.js'
@@ -258,16 +257,8 @@ async function createSealForGate(suiteName: string, gateId: string, config: Conf
     )
   }
 
-  // Prompt for seal confirmation
-  const shouldSeal = await confirmAction({
-    message: `Create seal for gate '${gateId}'`,
-    default: true,
-  })
-
-  if (!shouldSeal) {
-    log('Seal creation skipped')
-    return
-  }
+  // Note: No confirmation prompt here - TestRunner already confirmed with user
+  // via its "Create attestation? [Y/n]" prompt before calling this function
 
   // Get gate config for fingerprint
   // eslint-disable-next-line security/detect-object-injection -- gate name from validated config
