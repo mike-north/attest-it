@@ -94,11 +94,14 @@ export function TestRunner({
           setCurrentIndex((prev) => prev + 1)
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (cancelled) return
 
         // Test done - show TUI again
         setIsExecuting(false)
+        // Log the error so users know why it failed
+        const errorMsg = err instanceof Error ? err.message : String(err)
+        console.error(`\nTest execution failed: ${errorMsg}\n`)
         // Execution error, treat as failed
         setResults((prev) => ({
           ...prev,

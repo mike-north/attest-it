@@ -509,8 +509,10 @@ async function runCreate(): Promise<void> {
         } finally {
           // Clean up temp files
           const { rm } = await import('node:fs/promises')
-          await rm(tempDir, { recursive: true, force: true }).catch(() => {
-            // Ignore cleanup errors
+          await rm(tempDir, { recursive: true, force: true }).catch((err: unknown) => {
+            // Log cleanup errors as warnings but don't fail the operation
+            const errorMsg = err instanceof Error ? err.message : String(err)
+            console.warn(`Warning: Failed to clean up temp directory ${tempDir}: ${errorMsg}`)
           })
         }
 
