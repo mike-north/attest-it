@@ -65,6 +65,9 @@ importers:
       syncpack:
         specifier: ^13.0.4
         version: 13.0.4(typescript@5.8.3)
+      tsx:
+        specifier: ^4.21.0
+        version: 4.21.0
       typescript:
         specifier: 5.8.3
         version: 5.8.3
@@ -117,6 +120,9 @@ importers:
       ink:
         specifier: ^5.2.1
         version: 5.2.1(@types/react@18.3.27)(react@18.3.1)
+      ms:
+        specifier: ^2.1.3
+        version: 2.1.3
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -127,6 +133,9 @@ importers:
         specifier: ^2.8.2
         version: 2.8.2
     devDependencies:
+      '@types/ms':
+        specifier: ~2.1.0
+        version: 2.1.0
       '@types/node':
         specifier: ~22.19.3
         version: 22.19.3
