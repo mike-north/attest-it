@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Box, Text, useInput } from 'ink'
 import { ProgressSummary } from './ProgressSummary.js'
+import { error as logError } from '../utils/output.js'
 
 type RunPhase = 'running' | 'confirming' | 'complete'
 
@@ -101,7 +102,7 @@ export function TestRunner({
         setIsExecuting(false)
         // Log the error so users know why it failed
         const errorMsg = err instanceof Error ? err.message : String(err)
-        console.error(`\nTest execution failed: ${errorMsg}\n`)
+        logError(`Test execution failed: ${errorMsg}`)
         // Execution error, treat as failed
         setResults((prev) => ({
           ...prev,
@@ -142,7 +143,7 @@ export function TestRunner({
           .catch((err: unknown) => {
             // Log the error so users can see why attestation failed
             const errorMsg = err instanceof Error ? err.message : String(err)
-            console.error(`\nFailed to create attestation: ${errorMsg}\n`)
+            logError(`Failed to create seal: ${errorMsg}`)
             // If attestation fails, still move on but mark as skipped
             setResults((prev) => ({
               ...prev,
