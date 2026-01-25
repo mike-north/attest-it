@@ -124,6 +124,7 @@ export class OnePasswordKeyProvider implements KeyProvider {
       const basicAccounts = parsed as OnePasswordAccount[]
 
       // Fetch account details to get human-readable names
+      // Note: op account get requires user_uuid, not email
       const accountsWithNames = await Promise.all(
         basicAccounts.map(async (account) => {
           try {
@@ -131,7 +132,7 @@ export class OnePasswordKeyProvider implements KeyProvider {
               'account',
               'get',
               '--account',
-              account.email,
+              account.user_uuid,
               '--format=json',
             ])
             const details: unknown = JSON.parse(detailOutput)
