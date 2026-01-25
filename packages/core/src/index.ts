@@ -152,6 +152,7 @@ export {
 
 // Identity System
 export {
+  ATTEST_IT_HOME_ENV,
   getLocalConfigPath,
   getAttestItConfigDir,
   setAttestItHomeDir,

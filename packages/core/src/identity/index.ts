@@ -9,6 +9,7 @@ export type { UserPreferences, CliExperiencePreferences } from './preferences.js
 
 // Config functions
 export {
+  ATTEST_IT_HOME_ENV,
   getLocalConfigPath,
   getAttestItConfigDir,
   setAttestItHomeDir,

@@ -7,6 +7,9 @@
 import { z } from 'zod';
 
 // @public
+export const ATTEST_IT_HOME_ENV = "ATTEST_IT_HOME";
+
+// @public
 export interface Attestation {
     attestedAt: string;
     attestedBy: string;

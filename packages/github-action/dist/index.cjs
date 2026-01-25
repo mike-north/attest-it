@@ -42453,7 +42453,15 @@ async function execCommand2(command, args) {
     });
   });
 }
+var ATTEST_IT_HOME_ENV = "ATTEST_IT_HOME";
 var homeDirOverride = null;
+function getAttestItHomeDir() {
+  const envOverride = process.env[ATTEST_IT_HOME_ENV];
+  if (envOverride) {
+    return envOverride;
+  }
+  return homeDirOverride;
+}
 var privateKeyRefSchema = external_exports.discriminatedUnion("type", [
   external_exports.object({
     type: external_exports.literal("file"),
@@ -42487,8 +42495,9 @@ var localConfigSchema = external_exports.object({
   })
 }).strict();
 function getAttestItConfigDir() {
-  if (homeDirOverride) {
-    return homeDirOverride;
+  const override = getAttestItHomeDir();
+  if (override) {
+    return override;
   }
   return (0, import_path3.join)((0, import_os.homedir)(), ".config", "attest-it");
 }

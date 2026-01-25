@@ -12,8 +12,16 @@ import { z } from 'zod'
 import type { Identity, LocalConfig, PrivateKeyRef } from './types.js'
 
 /**
+ * Environment variable name for overriding the attest-it home directory.
+ * When set, this takes precedence over programmatic overrides.
+ * @public
+ */
+export const ATTEST_IT_HOME_ENV = 'ATTEST_IT_HOME'
+
+/**
  * Module-level override for the attest-it home directory.
  * When set, this overrides the default ~/.config/attest-it location.
+ * Note: The ATTEST_IT_HOME environment variable takes precedence over this.
  * @internal
  */
 let homeDirOverride: string | null = null
@@ -21,6 +29,9 @@ let homeDirOverride: string | null = null
 /**
  * Set a custom home directory for attest-it configuration.
  * This is useful for testing or running with isolated state.
+ *
+ * Note: The ATTEST_IT_HOME environment variable takes precedence
+ * over this programmatic override.
  *
  * @param dir - The directory to use, or null to reset to default
  * @public
@@ -32,10 +43,20 @@ export function setAttestItHomeDir(dir: string | null): void {
 /**
  * Get the current attest-it home directory override.
  *
+ * Checks in order:
+ * 1. ATTEST_IT_HOME environment variable
+ * 2. Programmatic override via setAttestItHomeDir()
+ * 3. Returns null if using default (~/.config/attest-it)
+ *
  * @returns The override directory, or null if using default
  * @public
  */
 export function getAttestItHomeDir(): string | null {
+  // Environment variable takes precedence
+  const envOverride = process.env[ATTEST_IT_HOME_ENV]
+  if (envOverride) {
+    return envOverride
+  }
   return homeDirOverride
 }
 
@@ -106,15 +127,18 @@ export class LocalConfigValidationError extends Error {
 /**
  * Get the path to the local config file.
  *
- * If a home directory override is set via setAttestItHomeDir(),
- * returns {homeDir}/config.yaml. Otherwise returns ~/.config/attest-it/config.yaml.
+ * Checks in order:
+ * 1. ATTEST_IT_HOME environment variable → {ATTEST_IT_HOME}/config.yaml
+ * 2. Programmatic override via setAttestItHomeDir() → {override}/config.yaml
+ * 3. Default → ~/.config/attest-it/config.yaml
  *
  * @returns Path to the local config file
  * @public
  */
 export function getLocalConfigPath(): string {
-  if (homeDirOverride) {
-    return join(homeDirOverride, 'config.yaml')
+  const override = getAttestItHomeDir()
+  if (override) {
+    return join(override, 'config.yaml')
   }
   const home = homedir()
   return join(home, '.config', 'attest-it', 'config.yaml')
@@ -123,15 +147,18 @@ export function getLocalConfigPath(): string {
 /**
  * Get the attest-it configuration directory.
  *
- * If a home directory override is set via setAttestItHomeDir(),
- * returns that directory. Otherwise returns ~/.config/attest-it.
+ * Checks in order:
+ * 1. ATTEST_IT_HOME environment variable
+ * 2. Programmatic override via setAttestItHomeDir()
+ * 3. Default → ~/.config/attest-it
  *
  * @returns Path to the configuration directory
  * @public
  */
 export function getAttestItConfigDir(): string {
-  if (homeDirOverride) {
-    return homeDirOverride
+  const override = getAttestItHomeDir()
+  if (override) {
+    return override
   }
   return join(homedir(), '.config', 'attest-it')
 }
@@ -339,16 +366,19 @@ export function getActiveIdentity(config: LocalConfig): Identity | undefined {
 /**
  * Get the user's home public keys directory.
  *
- * This returns ~/.attest-it/public-keys, which is different from the
+ * This returns ~/.attest-it/public-keys by default, which is different from the
  * config directory (~/.config/attest-it). The public keys directory
  * is designed to be easily shareable and discoverable.
+ *
+ * If ATTEST_IT_HOME env var or programmatic override is set, returns {override}/public-keys.
  *
  * @returns Path to the user's home public keys directory
  * @public
  */
 export function getHomePublicKeysDir(): string {
-  if (homeDirOverride) {
-    return join(homeDirOverride, 'public-keys')
+  const override = getAttestItHomeDir()
+  if (override) {
+    return join(override, 'public-keys')
   }
   return join(homedir(), '.attest-it', 'public-keys')
 }
