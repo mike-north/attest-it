@@ -7,8 +7,9 @@
  * @packageDocumentation
  */
 
-import type { Config, VerificationStatus, Attestation, AttestationsFile } from '@attest-it/core'
-import { computeFingerprint, readAttestations, findAttestation } from '@attest-it/core'
+import type { Config } from '@attest-it/core'
+import { computeFingerprint, readSealsSync, verifyGateSeal } from '@attest-it/core'
+import type { VerificationState, SealsFile } from '@attest-it/core'
 
 /**
  * Information about a suite's current status.
@@ -18,49 +19,17 @@ export interface SuiteStatus {
   /** Suite name */
   name: string
   /** Current verification status */
-  status: VerificationStatus
+  status: VerificationState
   /** Human-readable reason for the status */
   reason: string
   /** Current fingerprint of source files */
   currentFingerprint: string
-  /** Fingerprint from existing attestation (if any) */
-  attestedFingerprint?: string | undefined
-  /** ISO timestamp of attestation (if any) */
-  attestedAt?: string | undefined
-  /** Days since attestation (if any) */
+  /** Fingerprint from existing seal (if any) */
+  sealedFingerprint?: string | undefined
+  /** ISO timestamp of seal (if any) */
+  sealedAt?: string | undefined
+  /** Days since seal was created (if any) */
   age?: number | undefined
-}
-
-/**
- * Determine the verification status for a suite.
- *
- * @param attestation - Existing attestation, if any
- * @param currentFingerprint - Current computed fingerprint
- * @param maxAgeDays - Maximum allowed age in days
- * @returns Verification status
- * @internal
- */
-function determineStatus(
-  attestation: Attestation | null | undefined,
-  currentFingerprint: string,
-  maxAgeDays: number,
-): VerificationStatus {
-  if (!attestation) {
-    return 'NEEDS_ATTESTATION'
-  }
-
-  if (attestation.fingerprint !== currentFingerprint) {
-    return 'FINGERPRINT_CHANGED'
-  }
-
-  const attestedAt = new Date(attestation.attestedAt)
-  const ageInDays = Math.floor((Date.now() - attestedAt.getTime()) / (1000 * 60 * 60 * 24))
-
-  if (ageInDays > maxAgeDays) {
-    return 'EXPIRED'
-  }
-
-  return 'VALID'
 }
 
 /**
@@ -71,39 +40,35 @@ function determineStatus(
  * @public
  */
 export async function getAllSuiteStatuses(config: Config): Promise<SuiteStatus[]> {
-  // Load attestations (may not exist)
-  let attestationsFile: AttestationsFile | null = null
+  // Load seals file (may not exist)
+  let sealsFile: SealsFile
   try {
-    attestationsFile = await readAttestations(config.settings.attestationsPath)
-  } catch (err) {
-    // Attestations file may not exist yet - that's okay
-    if (err instanceof Error && !err.message.includes('ENOENT')) {
-      throw err
-    }
+    sealsFile = readSealsSync(process.cwd(), config.settings.sealsPath)
+  } catch {
+    // Seals file may not exist or be invalid - start with empty
+    sealsFile = { version: 1, seals: {} }
   }
-  const attestations = attestationsFile?.attestations ?? []
 
   const results: SuiteStatus[] = []
 
   for (const [suiteName, suiteConfig] of Object.entries(config.suites)) {
-    // Determine fingerprint paths - either from suite's packages or from referenced gate
-    let packages: string[] | undefined
-    let ignore: string[] | undefined
-
-    if (suiteConfig.gate && config.gates) {
-      // Suite references a gate - use gate's fingerprint config
-      const gateConfig = config.gates[suiteConfig.gate]
-      if (gateConfig) {
-        packages = gateConfig.fingerprint.paths
-        ignore = gateConfig.fingerprint.exclude
-      }
-    } else if (suiteConfig.packages) {
-      // Legacy: suite defines packages directly
-      packages = suiteConfig.packages
-      ignore = suiteConfig.ignore
+    // Suites must reference a gate
+    if (!suiteConfig.gate || !config.gates) {
+      continue
     }
 
-    // Skip if we couldn't resolve fingerprint paths
+    // Get the gate configuration
+    // eslint-disable-next-line security/detect-object-injection
+    const gateConfig = config.gates[suiteConfig.gate]
+    if (!gateConfig) {
+      continue
+    }
+
+    // Get fingerprint paths from the gate
+    const packages = gateConfig.fingerprint.paths
+    const ignore = gateConfig.fingerprint.exclude
+
+    // Skip if no paths configured
     if (!packages || packages.length === 0) {
       continue
     }
@@ -114,33 +79,28 @@ export async function getAllSuiteStatuses(config: Config): Promise<SuiteStatus[]
       ...(ignore && { ignore }),
     })
 
-    // Find existing attestation
-    const attestation = findAttestation(
-      { schemaVersion: '1', attestations, signature: '' },
-      suiteName,
-    )
-
-    // Determine status
-    const status = determineStatus(
-      attestation,
+    // Verify the seal for this gate using the new seal verification system
+    const verificationResult = verifyGateSeal(
+      config,
+      suiteConfig.gate,
+      sealsFile,
       fingerprintResult.fingerprint,
-      config.settings.maxAgeDays,
     )
 
-    // Calculate age
+    // Calculate age if we have a seal
     let age: number | undefined
-    if (attestation) {
-      const attestedAt = new Date(attestation.attestedAt)
-      age = Math.floor((Date.now() - attestedAt.getTime()) / (1000 * 60 * 60 * 24))
+    if (verificationResult.seal) {
+      const sealedAt = new Date(verificationResult.seal.timestamp)
+      age = Math.floor((Date.now() - sealedAt.getTime()) / (1000 * 60 * 60 * 24))
     }
 
     results.push({
       name: suiteName,
-      status,
-      reason: formatStatusReason(status, age, config.settings.maxAgeDays),
+      status: verificationResult.state,
+      reason: verificationResult.message ?? formatStatusReason(verificationResult.state, age),
       currentFingerprint: fingerprintResult.fingerprint,
-      attestedFingerprint: attestation?.fingerprint,
-      attestedAt: attestation?.attestedAt,
+      sealedFingerprint: verificationResult.seal?.fingerprint,
+      sealedAt: verificationResult.seal?.timestamp,
       age,
     })
   }
@@ -191,30 +151,25 @@ export function getSuitesInGroup(groupName: string, config: Config): string[] {
 /**
  * Format a human-readable reason for a suite's status.
  *
- * @param status - Verification status
+ * @param status - Verification state
  * @param age - Age in days (if available)
- * @param maxAgeDays - Maximum allowed age in days (if available)
  * @returns Human-readable status reason
  * @public
  */
-export function formatStatusReason(
-  status: VerificationStatus,
-  age?: number,
-  maxAgeDays?: number,
-): string {
+export function formatStatusReason(status: VerificationState, age?: number): string {
   switch (status) {
     case 'VALID':
-      return `Attested ${String(age ?? 0)} days ago`
-    case 'NEEDS_ATTESTATION':
+      return `Sealed ${String(age ?? 0)} days ago`
+    case 'MISSING':
       return 'No attestation found'
-    case 'FINGERPRINT_CHANGED':
+    case 'FINGERPRINT_MISMATCH':
       return 'Source files modified'
-    case 'EXPIRED':
-      return `${String(age ?? 0)} days old (max: ${String(maxAgeDays ?? 30)})`
-    case 'SIGNATURE_INVALID':
+    case 'STALE':
+      return `Seal expired (${String(age ?? 0)} days old)`
+    case 'INVALID_SIGNATURE':
       return 'Signature verification failed'
-    case 'INVALIDATED_BY_PARENT':
-      return 'Invalidated by parent suite'
+    case 'UNKNOWN_SIGNER':
+      return 'Signer not authorized'
     default:
       return status
   }
