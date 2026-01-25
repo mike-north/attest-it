@@ -2,7 +2,7 @@ version: 1
 settings:
   maxAgeDays: 30
   publicKeyPath: .attest-it/pubkey.pem
-  attestationsPath: .attest-it/attestations.json
+  attestationsPath: .attest-it/seals.json
   sealsPath: .attest-it/seals.json
 team:
   mike-north:
