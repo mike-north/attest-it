@@ -137,6 +137,18 @@ async function main(): Promise<void> {
     log(symbols.success, `Test project: ${tempDir}`, 'green')
 
     // Step 5: Generate keypair and store in Keychain
+    console.log(`\n${colors.yellow}${'─'.repeat(80)}`)
+    console.log(`${symbols.info} KEYCHAIN ACCESS WARNING`)
+    console.log(`${'─'.repeat(80)}${colors.reset}`)
+    console.log(
+      `${colors.yellow}The next step will generate an Ed25519 keypair and store the private key`,
+    )
+    console.log(`in your macOS Keychain. You may be prompted to allow access.`)
+    console.log(``)
+    console.log(`This is expected behavior for testing keychain integration.`)
+    console.log(`The test key will be deleted automatically when the test completes.`)
+    console.log(`${'─'.repeat(80)}${colors.reset}\n`)
+
     log(symbols.info, 'Generating keypair and storing in Keychain...', 'blue')
     const publicKeyPath = path.join(attestItDir, 'test-pubkey.pem')
     const keygenResult = await provider.generateKeyPair({
@@ -218,20 +230,16 @@ async function main(): Promise<void> {
     log(symbols.info, 'Retrieving private key from Keychain for signing...', 'blue')
     const keyRetrieval = await provider.getPrivateKey(keygenResult.privateKeyRef)
     const privateKeyPem = await fs.readFile(keyRetrieval.keyPath, 'utf8')
-    // Extract base64 content from PEM
-    const privateKeyBase64 = privateKeyPem
-      .split('\n')
-      .filter((line) => !line.startsWith('-----'))
-      .join('')
     log(symbols.success, 'Private key retrieved from Keychain', 'green')
 
     // Step 12: Create a test seal using the Keychain-stored key
+    // Note: createSeal expects a PEM-encoded private key (full PEM string with headers)
     log(symbols.info, 'Creating test seal...', 'blue')
     const seal = createSeal({
       gateId: 'test-gate',
       fingerprint: fingerprintResult.fingerprint,
       sealedBy: 'test-user',
-      privateKey: privateKeyBase64,
+      privateKey: privateKeyPem,
     })
     log(symbols.success, `Seal created at ${seal.timestamp}`, 'green')
 
