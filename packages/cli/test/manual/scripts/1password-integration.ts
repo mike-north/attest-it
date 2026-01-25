@@ -94,6 +94,26 @@ function info(message: string): void {
 }
 
 /**
+ * Print a phase banner to distinguish test setup from user-facing flow validation.
+ */
+function phaseBanner(phase: 'setup' | 'validation', title: string, description: string): void {
+  const isSetup = phase === 'setup'
+  const bgColor = isSetup ? colors.yellow : colors.green
+  const label = isSetup ? '🔧 TEST SETUP' : '👁️  USER-FACING FLOW'
+
+  console.log()
+  console.log(`${bgColor}${colors.bright}${'█'.repeat(80)}${colors.reset}`)
+  console.log(`${bgColor}${colors.bright}█${' '.repeat(78)}█${colors.reset}`)
+  console.log(`${bgColor}${colors.bright}█  ${label.padEnd(76)}█${colors.reset}`)
+  console.log(`${bgColor}${colors.bright}█  ${title.padEnd(76)}█${colors.reset}`)
+  console.log(`${bgColor}${colors.bright}█${' '.repeat(78)}█${colors.reset}`)
+  console.log(`${bgColor}${colors.bright}${'█'.repeat(80)}${colors.reset}`)
+  console.log()
+  console.log(`${colors.dim}${description}${colors.reset}`)
+  console.log()
+}
+
+/**
  * Test context for cleanup.
  */
 interface TestContext {
@@ -124,6 +144,12 @@ async function runIntegrationTest(): Promise<boolean> {
   console.log()
 
   try {
+    phaseBanner(
+      'setup',
+      'Configuring 1Password Test Environment',
+      'The following steps configure test infrastructure. UX does not need to be polished.\nYou may see 1Password authentication prompts - this is expected.',
+    )
+
     // Step 1: Check if op CLI is installed
     step('Step 1: Checking if 1Password CLI is installed')
     const isInstalled = await OnePasswordKeyProvider.isInstalled()
@@ -269,6 +295,12 @@ async function runIntegrationTest(): Promise<boolean> {
       await retrievalResult.cleanup()
       success('Temporary key cleaned up')
     }
+
+    phaseBanner(
+      'validation',
+      'Testing Seal Creation & Verification',
+      'The following steps exercise the actual user-facing seal workflow.\nScrutinize UX, error messages, and behavior here.',
+    )
 
     // Step 10: Create a seal using the 1Password-stored key
     step('Step 10: Creating test seal with 1Password key')
