@@ -237,7 +237,7 @@ async function runCreate(): Promise<void> {
         )
 
         // List available 1Password accounts (includes friendly names from OnePasswordKeyProvider)
-        const accounts = await OnePasswordKeyProvider.listAccounts()
+        const { accounts, inaccessible } = await OnePasswordKeyProvider.listAccounts()
 
         if (accounts.length === 0) {
           throw new Error(
@@ -245,15 +245,20 @@ async function runCreate(): Promise<void> {
           )
         }
 
+        // Report inaccessible accounts so users understand why they're not offered
+        if (inaccessible.length > 0) {
+          log('')
+          log(theme.yellow(`Some accounts could not be accessed (${String(inaccessible.length)}):`))
+          for (const acc of inaccessible) {
+            log(theme.muted(`  - ${acc.email} (${acc.url})`))
+            log(theme.muted(`    Reason: ${acc.reason}`))
+          }
+        }
+
         // Format account display with bold name and dim domain (matching `op signin` style)
-        // Use friendly name if available, otherwise fall back to email
-        const formatAccountChoice = (acc: {
-          name?: string
-          email: string
-          url: string
-        }): string => {
-          const displayName = acc.name ?? acc.email
-          return `${theme.blue.bold()(displayName)} ${theme.muted(`(${acc.url})`)}`
+        // Provider guarantees name is present for all returned accounts
+        const formatAccountChoice = (acc: { name: string; url: string }): string => {
+          return `${theme.blue.bold()(acc.name)} ${theme.muted(`(${acc.url})`)}`
         }
 
         // Select account (auto-select if only one)
@@ -262,7 +267,7 @@ async function runCreate(): Promise<void> {
         let selectedAccountDisplayName: string
         if (accounts.length === 1 && accounts[0]) {
           selectedAccount = accounts[0].url
-          selectedAccountDisplayName = accounts[0].name ?? accounts[0].email
+          selectedAccountDisplayName = accounts[0].name
           info(`Using 1Password account: ${formatAccountChoice(accounts[0])}`)
         } else {
           selectedAccount = await select({
@@ -273,7 +278,10 @@ async function runCreate(): Promise<void> {
             })),
           })
           const selectedAcc = accounts.find((acc) => acc.url === selectedAccount)
-          selectedAccountDisplayName = selectedAcc?.name ?? selectedAcc?.email ?? selectedAccount
+          if (!selectedAcc) {
+            throw new Error('Selected account not found')
+          }
+          selectedAccountDisplayName = selectedAcc.name
         }
 
         // List vaults for selected account

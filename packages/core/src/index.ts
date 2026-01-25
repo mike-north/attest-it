@@ -141,6 +141,8 @@ export {
   type OnePasswordKeyProviderOptions,
   type OnePasswordAccount,
   type OnePasswordVault,
+  type InaccessibleAccount,
+  type ListAccountsResult,
   type MacOSKeychainKeyProviderOptions,
   type MacOSKeychain,
   type YubiKeyProviderOptions,

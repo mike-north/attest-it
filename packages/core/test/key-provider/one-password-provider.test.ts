@@ -541,20 +541,22 @@ describe('OnePasswordKeyProvider', () => {
 
         const result = await OnePasswordKeyProvider.listAccounts()
 
-        expect(result).toEqual([{ ...mockAccounts[0], name: 'Test Family' }])
+        expect(result.accounts).toEqual([{ ...mockAccounts[0], name: 'Test Family' }])
+        expect(result.inaccessible).toEqual([])
         expect(mockSpawnFn).toHaveBeenCalledWith(
           'op',
           ['account', 'list', '--format=json'],
           expect.any(Object),
         )
+        // Note: op account get requires user_uuid, not email
         expect(mockSpawnFn).toHaveBeenCalledWith(
           'op',
-          ['account', 'get', '--account', 'test@example.com', '--format=json'],
+          ['account', 'get', '--account', 'user123', '--format=json'],
           expect.any(Object),
         )
       })
 
-      it('should return accounts without names when account get fails', async () => {
+      it('should throw when account get fails for all accounts', async () => {
         const mockSpawnFn = vi.mocked(spawn)
         const mockAccounts = [
           {
@@ -573,28 +575,64 @@ describe('OnePasswordKeyProvider', () => {
           return mockSpawnFailure('error getting account details')
         })
 
-        const result = await OnePasswordKeyProvider.listAccounts()
-
-        // Should return the account without the name field
-        expect(result).toEqual(mockAccounts)
+        // Should throw when no accounts are accessible
+        await expect(OnePasswordKeyProvider.listAccounts()).rejects.toThrow(
+          'Could not access any 1Password accounts',
+        )
       })
 
-      it('should return empty array on failure', async () => {
+      it('should return inaccessible accounts when some succeed and some fail', async () => {
+        const mockSpawnFn = vi.mocked(spawn)
+        const mockAccounts = [
+          {
+            account_uuid: 'abc123',
+            email: 'test@example.com',
+            url: 'https://my.1password.com',
+            user_uuid: 'user123',
+          },
+          {
+            account_uuid: 'def456',
+            email: 'other@example.com',
+            url: 'https://other.1password.com',
+            user_uuid: 'user456',
+          },
+        ]
+        const mockAccountDetails = { name: 'Test Family' }
+
+        // First account succeeds, second fails
+        mockSpawnFn.mockImplementation((_cmd, args) => {
+          if (args[0] === 'account' && args[1] === 'list') {
+            return mockSpawnSuccess(JSON.stringify(mockAccounts))
+          }
+          if (args[0] === 'account' && args[1] === 'get' && args[3] === 'user123') {
+            return mockSpawnSuccess(JSON.stringify(mockAccountDetails))
+          }
+          return mockSpawnFailure('access denied')
+        })
+
+        const result = await OnePasswordKeyProvider.listAccounts()
+
+        expect(result.accounts).toHaveLength(1)
+        expect(result.accounts[0]?.name).toBe('Test Family')
+        expect(result.inaccessible).toHaveLength(1)
+        expect(result.inaccessible[0]?.email).toBe('other@example.com')
+        expect(result.inaccessible[0]?.reason).toContain('access denied')
+      })
+
+      it('should throw on account list failure', async () => {
         const mockSpawnFn = vi.mocked(spawn)
         mockSpawnFn.mockReturnValue(mockSpawnFailure('error'))
 
-        const result = await OnePasswordKeyProvider.listAccounts()
-
-        expect(result).toEqual([])
+        await expect(OnePasswordKeyProvider.listAccounts()).rejects.toThrow(
+          'Command failed with exit code 1',
+        )
       })
 
-      it('should return empty array on invalid JSON', async () => {
+      it('should throw on invalid JSON from account list', async () => {
         const mockSpawnFn = vi.mocked(spawn)
         mockSpawnFn.mockReturnValue(mockSpawnSuccess('invalid json'))
 
-        const result = await OnePasswordKeyProvider.listAccounts()
-
-        expect(result).toEqual([])
+        await expect(OnePasswordKeyProvider.listAccounts()).rejects.toThrow()
       })
     })
 
@@ -630,13 +668,13 @@ describe('OnePasswordKeyProvider', () => {
         )
       })
 
-      it('should return empty array on failure', async () => {
+      it('should throw on failure', async () => {
         const mockSpawnFn = vi.mocked(spawn)
         mockSpawnFn.mockReturnValue(mockSpawnFailure('error'))
 
-        const result = await OnePasswordKeyProvider.listVaults()
-
-        expect(result).toEqual([])
+        await expect(OnePasswordKeyProvider.listVaults()).rejects.toThrow(
+          'Failed to list 1Password vaults',
+        )
       })
     })
   })
@@ -677,13 +715,12 @@ describe('OnePasswordKeyProvider', () => {
       await expect(provider.getPrivateKey('test-key')).rejects.toThrow('ENOENT')
     })
 
-    it('should handle empty stdout from command', async () => {
+    it('should throw on empty stdout from command', async () => {
       const mockSpawnFn = vi.mocked(spawn)
       mockSpawnFn.mockReturnValue(mockSpawnSuccess(''))
 
-      const result = await OnePasswordKeyProvider.listAccounts()
-
-      expect(result).toEqual([])
+      // Empty string is invalid JSON
+      await expect(OnePasswordKeyProvider.listAccounts()).rejects.toThrow()
     })
   })
 

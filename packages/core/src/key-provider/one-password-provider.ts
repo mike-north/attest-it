@@ -53,6 +53,30 @@ export interface OnePasswordAccount {
 }
 
 /**
+ * Information about an account that couldn't be accessed.
+ * @public
+ */
+export interface InaccessibleAccount {
+  /** User email address */
+  email: string
+  /** Account URL */
+  url: string
+  /** Reason the account couldn't be accessed */
+  reason: string
+}
+
+/**
+ * Result from listing 1Password accounts.
+ * @public
+ */
+export interface ListAccountsResult {
+  /** Accounts that were successfully accessed */
+  accounts: (OnePasswordAccount & { name: string })[]
+  /** Accounts that couldn't be accessed (with reasons) */
+  inaccessible: InaccessibleAccount[]
+}
+
+/**
  * Information about a 1Password vault.
  * @public
  */
@@ -102,64 +126,98 @@ export class OnePasswordKeyProvider implements KeyProvider {
     try {
       await execCommand('op', ['--version'])
       return true
-    } catch {
+    } catch (err) {
+      // Command not found or failed = not installed
+      // This is expected when op CLI is not installed, so we just return false
       return false
     }
   }
 
   /**
    * List all 1Password accounts.
-   * @returns Array of account information including human-readable names
+   * @returns Object containing accessible accounts and inaccessible accounts with reasons
    */
-  static async listAccounts(): Promise<OnePasswordAccount[]> {
-    try {
-      const output = await execCommand('op', ['account', 'list', '--format=json'])
-      const parsed: unknown = JSON.parse(output)
-      if (!Array.isArray(parsed)) {
-        return []
-      }
-      // Type assertion needed: We validate it's an array, but can't validate structure
-      // at runtime without a full validation library. The op CLI output format is trusted.
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-      const basicAccounts = parsed as OnePasswordAccount[]
-
-      // Fetch account details to get human-readable names
-      // Note: op account get requires user_uuid, not email
-      const accountsWithNames = await Promise.all(
-        basicAccounts.map(async (account) => {
-          try {
-            const detailOutput = await execCommand('op', [
-              'account',
-              'get',
-              '--account',
-              account.user_uuid,
-              '--format=json',
-            ])
-            const details: unknown = JSON.parse(detailOutput)
-            // Extract the name from account details if available
-            if (
-              details !== null &&
-              typeof details === 'object' &&
-              'name' in details &&
-              typeof details.name === 'string'
-            ) {
-              return { ...account, name: details.name }
-            }
-          } catch {
-            // If we fail to get details, just return the account without a name
-          }
-          return account
-        }),
-      )
-
-      return accountsWithNames
-    } catch (error) {
-      // Log in development for debugging, but don't fail
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('Failed to list 1Password accounts:', error)
-      }
-      return []
+  static async listAccounts(): Promise<ListAccountsResult> {
+    const output = await execCommand('op', ['account', 'list', '--format=json'])
+    const parsed: unknown = JSON.parse(output)
+    if (!Array.isArray(parsed)) {
+      throw new Error('Unexpected response from 1Password: account list is not an array')
     }
+    // Type assertion needed: We validate it's an array, but can't validate structure
+    // at runtime without a full validation library. The op CLI output format is trusted.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    const basicAccounts = parsed as OnePasswordAccount[]
+
+    // Fetch account details to get human-readable names
+    // Note: op account get requires user_uuid, not email
+    const accountResults = await Promise.all(
+      basicAccounts.map(async (account) => {
+        try {
+          const detailOutput = await execCommand('op', [
+            'account',
+            'get',
+            '--account',
+            account.user_uuid,
+            '--format=json',
+          ])
+          const details: unknown = JSON.parse(detailOutput)
+          // Extract the name from account details
+          if (
+            details !== null &&
+            typeof details === 'object' &&
+            'name' in details &&
+            typeof details.name === 'string'
+          ) {
+            return {
+              success: true as const,
+              account: { ...account, name: details.name },
+            }
+          }
+          // No name field - unexpected response format
+          return {
+            success: false as const,
+            email: account.email,
+            url: account.url,
+            reason: 'Account details response missing name field',
+          }
+        } catch (err) {
+          // Capture the actual error reason - could be access denied, network issue, etc.
+          const errorMessage = err instanceof Error ? err.message : String(err)
+          return {
+            success: false as const,
+            email: account.email,
+            url: account.url,
+            reason: errorMessage,
+          }
+        }
+      }),
+    )
+
+    // Separate accessible from inaccessible accounts
+    const accounts: (OnePasswordAccount & { name: string })[] = []
+    const inaccessible: InaccessibleAccount[] = []
+
+    for (const result of accountResults) {
+      if (result.success) {
+        accounts.push(result.account)
+      } else {
+        inaccessible.push({
+          email: result.email,
+          url: result.url,
+          reason: result.reason,
+        })
+      }
+    }
+
+    if (accounts.length === 0 && basicAccounts.length > 0) {
+      // Build a detailed error message with all the failure reasons
+      const reasons = inaccessible.map((a) => `  - ${a.email}: ${a.reason}`).join('\n')
+      throw new Error(
+        `Could not access any 1Password accounts. All ${String(basicAccounts.length)} account(s) failed:\n${reasons}`,
+      )
+    }
+
+    return { accounts, inaccessible }
   }
 
   /**
@@ -168,27 +226,28 @@ export class OnePasswordKeyProvider implements KeyProvider {
    * @returns Array of vault information
    */
   static async listVaults(account?: string): Promise<OnePasswordVault[]> {
-    try {
-      const args = ['vault', 'list', '--format=json']
-      if (account) {
-        args.push('--account', account)
-      }
-      const output = await execCommand('op', args)
-      const parsed: unknown = JSON.parse(output)
-      if (!Array.isArray(parsed)) {
-        return []
-      }
-      // Type assertion needed: We validate it's an array, but can't validate structure
-      // at runtime without a full validation library. The op CLI output format is trusted.
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-      return parsed as OnePasswordVault[]
-    } catch (error) {
-      // Log in development for debugging, but don't fail
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('Failed to list 1Password vaults:', error)
-      }
-      return []
+    const args = ['vault', 'list', '--format=json']
+    if (account) {
+      args.push('--account', account)
     }
+
+    let output: string
+    try {
+      output = await execCommand('op', args)
+    } catch (error) {
+      throw new Error(
+        `Failed to list 1Password vaults${account ? ` for account ${account}` : ''}: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
+
+    const parsed: unknown = JSON.parse(output)
+    if (!Array.isArray(parsed)) {
+      throw new Error('Unexpected response from 1Password: vault list is not an array')
+    }
+    // Type assertion needed: We validate it's an array, but can't validate structure
+    // at runtime without a full validation library. The op CLI output format is trusted.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    return parsed as OnePasswordVault[]
   }
 
   /**
@@ -211,7 +270,9 @@ export class OnePasswordKeyProvider implements KeyProvider {
       }
       await execCommand('op', args)
       return true
-    } catch {
+    } catch (err) {
+      // Item not found or access denied = key doesn't exist (from our perspective)
+      // This is expected when checking for non-existent keys
       return false
     }
   }

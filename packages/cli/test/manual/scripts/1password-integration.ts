@@ -25,7 +25,7 @@
  */
 
 import { OnePasswordKeyProvider } from '@attest-it/core'
-import type { OnePasswordAccount, OnePasswordVault } from '@attest-it/core'
+import type { OnePasswordAccount, OnePasswordVault, InaccessibleAccount } from '@attest-it/core'
 import { select } from '@inquirer/prompts'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
@@ -162,46 +162,51 @@ async function runIntegrationTest(): Promise<boolean> {
 
     // Step 2: List accounts
     step('Step 2: Listing 1Password accounts')
-    const accounts = await OnePasswordKeyProvider.listAccounts()
+    const { accounts, inaccessible } = await OnePasswordKeyProvider.listAccounts()
     if (accounts.length === 0) {
       error('No 1Password accounts found')
       info('Sign in to 1Password CLI with: op account add')
       return false
     }
-    success(`Found ${String(accounts.length)} account(s)`)
+    success(`Found ${String(accounts.length)} accessible account(s)`)
 
-    // Display accounts for user
+    // Display accessible accounts for user
     console.log('\nAvailable accounts:')
-    accounts.forEach((account: OnePasswordAccount, index) => {
+    accounts.forEach((account, index) => {
       const accountNumber = String(index + 1)
-      // Display friendly name if available, otherwise fall back to email
-      const displayName = account.name ?? account.email
-      console.log(`  ${accountNumber}. ${displayName} (${account.url})`)
+      console.log(`  ${accountNumber}. ${account.name} (${account.url})`)
     })
+
+    // Display inaccessible accounts with reasons (so users understand why they're not offered)
+    if (inaccessible.length > 0) {
+      console.log(`\n${colors.yellow}Accounts not available (${String(inaccessible.length)}):${colors.reset}`)
+      inaccessible.forEach((account: InaccessibleAccount) => {
+        console.log(`  ${colors.dim}- ${account.email} (${account.url})${colors.reset}`)
+        console.log(`    ${colors.dim}Reason: ${account.reason}${colors.reset}`)
+      })
+    }
 
     // Step 3: Select account
     step('Step 3: Selecting account')
-    let selectedAccount: OnePasswordAccount
+    // Type assertion: accounts from listAccounts() have guaranteed `name` property
+    let selectedAccount: OnePasswordAccount & { name: string }
     if (accounts.length === 1) {
       selectedAccount = accounts[0]
-      const displayName = selectedAccount.name ?? selectedAccount.email
-      success(`Using only account: ${displayName}`)
+      success(`Using only account: ${selectedAccount.name}`)
     } else {
       const accountEmail = await select({
         message: 'Select a 1Password account:',
-        choices: accounts.map((account: OnePasswordAccount) => ({
-          // Display friendly name if available, otherwise fall back to email
-          name: `${account.name ?? account.email} (${account.url})`,
+        choices: accounts.map((account) => ({
+          name: `${account.name} (${account.url})`,
           value: account.email,
         })),
       })
-      const found = accounts.find((a: OnePasswordAccount) => a.email === accountEmail)
+      const found = accounts.find((a) => a.email === accountEmail)
       if (!found) {
         throw new Error('Selected account not found')
       }
       selectedAccount = found
-      const displayName = selectedAccount.name ?? selectedAccount.email
-      success(`Selected: ${displayName}`)
+      success(`Selected: ${selectedAccount.name}`)
     }
     ctx.account = selectedAccount.email
 

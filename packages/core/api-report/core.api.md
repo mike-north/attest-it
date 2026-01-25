@@ -234,6 +234,13 @@ export interface Identity {
 }
 
 // @public
+export interface InaccessibleAccount {
+    email: string;
+    reason: string;
+    url: string;
+}
+
+// @public
 export function isAuthorizedSigner(config: AttestItConfig, gateId: string, publicKey: string): boolean;
 
 // @public
@@ -307,6 +314,12 @@ export interface KeyProviderSettings {
 export interface KeyRetrievalResult {
     cleanup: () => Promise<void>;
     keyPath: string;
+}
+
+// @public
+export interface ListAccountsResult {
+    accounts: ({ name: string } & OnePasswordAccount)[];
+    inaccessible: InaccessibleAccount[];
 }
 
 // @public
@@ -391,7 +404,7 @@ export class OnePasswordKeyProvider implements KeyProvider {
     isAvailable(): Promise<boolean>;
     static isInstalled(): Promise<boolean>;
     keyExists(keyRef: string): Promise<boolean>;
-    static listAccounts(): Promise<OnePasswordAccount[]>;
+    static listAccounts(): Promise<ListAccountsResult>;
     static listVaults(account?: string): Promise<OnePasswordVault[]>;
     // (undocumented)
     readonly type = "1password";

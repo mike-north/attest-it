@@ -41945,48 +41945,76 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
     try {
       await execCommand("op", ["--version"]);
       return true;
-    } catch {
+    } catch (err) {
       return false;
     }
   }
   /**
    * List all 1Password accounts.
-   * @returns Array of account information including human-readable names
+   * @returns Object containing accessible accounts and inaccessible accounts with reasons
    */
   static async listAccounts() {
-    try {
-      const output = await execCommand("op", ["account", "list", "--format=json"]);
-      const parsed = JSON.parse(output);
-      if (!Array.isArray(parsed)) {
-        return [];
-      }
-      const basicAccounts = parsed;
-      const accountsWithNames = await Promise.all(
-        basicAccounts.map(async (account) => {
-          try {
-            const detailOutput = await execCommand("op", [
-              "account",
-              "get",
-              "--account",
-              account.user_uuid,
-              "--format=json"
-            ]);
-            const details = JSON.parse(detailOutput);
-            if (details !== null && typeof details === "object" && "name" in details && typeof details.name === "string") {
-              return { ...account, name: details.name };
-            }
-          } catch {
-          }
-          return account;
-        })
-      );
-      return accountsWithNames;
-    } catch (error2) {
-      if (process.env.NODE_ENV !== "production") {
-        console.error("Failed to list 1Password accounts:", error2);
-      }
-      return [];
+    const output = await execCommand("op", ["account", "list", "--format=json"]);
+    const parsed = JSON.parse(output);
+    if (!Array.isArray(parsed)) {
+      throw new Error("Unexpected response from 1Password: account list is not an array");
     }
+    const basicAccounts = parsed;
+    const accountResults = await Promise.all(
+      basicAccounts.map(async (account) => {
+        try {
+          const detailOutput = await execCommand("op", [
+            "account",
+            "get",
+            "--account",
+            account.user_uuid,
+            "--format=json"
+          ]);
+          const details = JSON.parse(detailOutput);
+          if (details !== null && typeof details === "object" && "name" in details && typeof details.name === "string") {
+            return {
+              success: true,
+              account: { ...account, name: details.name }
+            };
+          }
+          return {
+            success: false,
+            email: account.email,
+            url: account.url,
+            reason: "Account details response missing name field"
+          };
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          return {
+            success: false,
+            email: account.email,
+            url: account.url,
+            reason: errorMessage
+          };
+        }
+      })
+    );
+    const accounts = [];
+    const inaccessible = [];
+    for (const result of accountResults) {
+      if (result.success) {
+        accounts.push(result.account);
+      } else {
+        inaccessible.push({
+          email: result.email,
+          url: result.url,
+          reason: result.reason
+        });
+      }
+    }
+    if (accounts.length === 0 && basicAccounts.length > 0) {
+      const reasons = inaccessible.map((a) => `  - ${a.email}: ${a.reason}`).join("\n");
+      throw new Error(
+        `Could not access any 1Password accounts. All ${String(basicAccounts.length)} account(s) failed:
+${reasons}`
+      );
+    }
+    return { accounts, inaccessible };
   }
   /**
    * List vaults in a specific account.
@@ -41994,23 +42022,23 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
    * @returns Array of vault information
    */
   static async listVaults(account) {
-    try {
-      const args = ["vault", "list", "--format=json"];
-      if (account) {
-        args.push("--account", account);
-      }
-      const output = await execCommand("op", args);
-      const parsed = JSON.parse(output);
-      if (!Array.isArray(parsed)) {
-        return [];
-      }
-      return parsed;
-    } catch (error2) {
-      if (process.env.NODE_ENV !== "production") {
-        console.error("Failed to list 1Password vaults:", error2);
-      }
-      return [];
+    const args = ["vault", "list", "--format=json"];
+    if (account) {
+      args.push("--account", account);
     }
+    let output;
+    try {
+      output = await execCommand("op", args);
+    } catch (error2) {
+      throw new Error(
+        `Failed to list 1Password vaults${account ? ` for account ${account}` : ""}: ${error2 instanceof Error ? error2.message : String(error2)}`
+      );
+    }
+    const parsed = JSON.parse(output);
+    if (!Array.isArray(parsed)) {
+      throw new Error("Unexpected response from 1Password: vault list is not an array");
+    }
+    return parsed;
   }
   /**
    * Check if this provider is available.
@@ -42031,7 +42059,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
       }
       await execCommand("op", args);
       return true;
-    } catch {
+    } catch (err) {
       return false;
     }
   }
