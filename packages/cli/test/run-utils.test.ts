@@ -336,9 +336,7 @@ describe('run-utils', () => {
           timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
         })
 
-        vi.mocked(readSealsSync).mockReturnValue(
-          createMockSealsFile({ 'test-gate': seal }),
-        )
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile({ 'test-gate': seal }))
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult('abc123'))
         vi.mocked(verifyGateSeal).mockReturnValue(
           createMockVerificationResult({
@@ -457,9 +455,7 @@ describe('run-utils', () => {
           fingerprint: 'old-fingerprint',
         })
 
-        vi.mocked(readSealsSync).mockReturnValue(
-          createMockSealsFile({ 'test-gate': seal }),
-        )
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile({ 'test-gate': seal }))
         vi.mocked(computeFingerprint).mockResolvedValue(
           createMockFingerprintResult('new-fingerprint'),
         )
@@ -486,9 +482,7 @@ describe('run-utils', () => {
           timestamp: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(), // 35 days ago
         })
 
-        vi.mocked(readSealsSync).mockReturnValue(
-          createMockSealsFile({ 'test-gate': seal }),
-        )
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile({ 'test-gate': seal }))
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult('abc123'))
         vi.mocked(verifyGateSeal).mockReturnValue(
           createMockVerificationResult({
@@ -509,9 +503,7 @@ describe('run-utils', () => {
         const config = createMockConfig()
         const seal = createMockSeal()
 
-        vi.mocked(readSealsSync).mockReturnValue(
-          createMockSealsFile({ 'test-gate': seal }),
-        )
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile({ 'test-gate': seal }))
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
         vi.mocked(verifyGateSeal).mockReturnValue(
           createMockVerificationResult({
@@ -531,9 +523,7 @@ describe('run-utils', () => {
         const config = createMockConfig()
         const seal = createMockSeal()
 
-        vi.mocked(readSealsSync).mockReturnValue(
-          createMockSealsFile({ 'test-gate': seal }),
-        )
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile({ 'test-gate': seal }))
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult())
         vi.mocked(verifyGateSeal).mockReturnValue(
           createMockVerificationResult({
@@ -574,9 +564,7 @@ describe('run-utils', () => {
           timestamp: new Date().toISOString(), // Now
         })
 
-        vi.mocked(readSealsSync).mockReturnValue(
-          createMockSealsFile({ 'test-gate': seal }),
-        )
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile({ 'test-gate': seal }))
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult('abc123'))
         vi.mocked(verifyGateSeal).mockReturnValue(
           createMockVerificationResult({
@@ -839,9 +827,7 @@ describe('run-utils', () => {
           fingerprint: 'valid-fp',
         })
 
-        vi.mocked(readSealsSync).mockReturnValue(
-          createMockSealsFile({ 'gate-1': validSeal }),
-        )
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile({ 'gate-1': validSeal }))
 
         // Return different fingerprints for different gates
         vi.mocked(computeFingerprint).mockImplementation(({ packages }) => {
@@ -917,9 +903,7 @@ describe('run-utils', () => {
           fingerprint: 'abc123',
         })
 
-        vi.mocked(readSealsSync).mockReturnValue(
-          createMockSealsFile({ 'test-gate': seal }),
-        )
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile({ 'test-gate': seal }))
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult('abc123'))
         vi.mocked(verifyGateSeal).mockReturnValue(
           createMockVerificationResult({
@@ -942,9 +926,7 @@ describe('run-utils', () => {
           timestamp: new Date(Date.now() - 35 * 24 * 60 * 60 * 1000).toISOString(),
         })
 
-        vi.mocked(readSealsSync).mockReturnValue(
-          createMockSealsFile({ 'test-gate': seal }),
-        )
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile({ 'test-gate': seal }))
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult('abc123'))
         vi.mocked(verifyGateSeal).mockReturnValue(
           createMockVerificationResult({
@@ -966,9 +948,7 @@ describe('run-utils', () => {
           fingerprint: 'old-fp',
         })
 
-        vi.mocked(readSealsSync).mockReturnValue(
-          createMockSealsFile({ 'test-gate': seal }),
-        )
+        vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile({ 'test-gate': seal }))
         vi.mocked(computeFingerprint).mockResolvedValue(createMockFingerprintResult('new-fp'))
         vi.mocked(verifyGateSeal).mockReturnValue(
           createMockVerificationResult({
