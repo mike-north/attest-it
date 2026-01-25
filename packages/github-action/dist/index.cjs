@@ -41968,7 +41968,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
             "account",
             "get",
             "--account",
-            account.user_uuid,
+            account.account_uuid,
             "--format=json"
           ]);
           const details = JSON.parse(detailOutput);

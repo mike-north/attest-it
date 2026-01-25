@@ -548,10 +548,10 @@ describe('OnePasswordKeyProvider', () => {
           ['account', 'list', '--format=json'],
           expect.any(Object),
         )
-        // Note: op account get requires user_uuid, not email
+        // Note: op account get requires account_uuid (not user_uuid or email)
         expect(mockSpawnFn).toHaveBeenCalledWith(
           'op',
-          ['account', 'get', '--account', 'user123', '--format=json'],
+          ['account', 'get', '--account', 'abc123', '--format=json'],
           expect.any(Object),
         )
       })
@@ -604,7 +604,8 @@ describe('OnePasswordKeyProvider', () => {
           if (args[0] === 'account' && args[1] === 'list') {
             return mockSpawnSuccess(JSON.stringify(mockAccounts))
           }
-          if (args[0] === 'account' && args[1] === 'get' && args[3] === 'user123') {
+          // account_uuid is used for --account flag
+          if (args[0] === 'account' && args[1] === 'get' && args[3] === 'abc123') {
             return mockSpawnSuccess(JSON.stringify(mockAccountDetails))
           }
           return mockSpawnFailure('access denied')
