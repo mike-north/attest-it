@@ -42493,7 +42493,10 @@ var localConfigSchema = external_exports.object({
     message: "At least one identity must be defined"
   })
 }).strict();
-function getAttestItConfigDir() {
+function getAttestItConfigDir(homeDir) {
+  if (homeDir) {
+    return homeDir;
+  }
   const override = getAttestItHomeDir();
   if (override) {
     return override;

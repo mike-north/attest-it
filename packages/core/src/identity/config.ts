@@ -127,15 +127,16 @@ export class LocalConfigValidationError extends Error {
 /**
  * Get the path to the local config file.
  *
- * Checks in order:
- * 1. ATTEST_IT_HOME environment variable → {ATTEST_IT_HOME}/config.yaml
- * 2. Programmatic override via setAttestItHomeDir() → {override}/config.yaml
- * 3. Default → ~/.config/attest-it/config.yaml
- *
+ * @param homeDir - Optional home directory override. If provided, returns {homeDir}/config.yaml.
+ *                  If not provided, checks ATTEST_IT_HOME env var, then programmatic override,
+ *                  then falls back to ~/.config/attest-it/config.yaml.
  * @returns Path to the local config file
  * @public
  */
-export function getLocalConfigPath(): string {
+export function getLocalConfigPath(homeDir?: string): string {
+  if (homeDir) {
+    return join(homeDir, 'config.yaml')
+  }
   const override = getAttestItHomeDir()
   if (override) {
     return join(override, 'config.yaml')
@@ -147,15 +148,16 @@ export function getLocalConfigPath(): string {
 /**
  * Get the attest-it configuration directory.
  *
- * Checks in order:
- * 1. ATTEST_IT_HOME environment variable
- * 2. Programmatic override via setAttestItHomeDir()
- * 3. Default → ~/.config/attest-it
- *
+ * @param homeDir - Optional home directory override. If provided, returns that directory.
+ *                  If not provided, checks ATTEST_IT_HOME env var, then programmatic override,
+ *                  then falls back to ~/.config/attest-it.
  * @returns Path to the configuration directory
  * @public
  */
-export function getAttestItConfigDir(): string {
+export function getAttestItConfigDir(homeDir?: string): string {
+  if (homeDir) {
+    return homeDir
+  }
   const override = getAttestItHomeDir()
   if (override) {
     return override
@@ -370,12 +372,16 @@ export function getActiveIdentity(config: LocalConfig): Identity | undefined {
  * config directory (~/.config/attest-it). The public keys directory
  * is designed to be easily shareable and discoverable.
  *
- * If ATTEST_IT_HOME env var or programmatic override is set, returns {override}/public-keys.
- *
+ * @param homeDir - Optional home directory override. If provided, returns {homeDir}/public-keys.
+ *                  If not provided, checks ATTEST_IT_HOME env var, then programmatic override,
+ *                  then falls back to ~/.attest-it/public-keys.
  * @returns Path to the user's home public keys directory
  * @public
  */
-export function getHomePublicKeysDir(): string {
+export function getHomePublicKeysDir(homeDir?: string): string {
+  if (homeDir) {
+    return join(homeDir, 'public-keys')
+  }
   const override = getAttestItHomeDir()
   if (override) {
     return join(override, 'public-keys')

@@ -183,7 +183,7 @@ export function generateKeyPair(options?: KeygenOptions): Promise<KeyPaths>;
 export function getActiveIdentity(config: LocalConfig): Identity | undefined;
 
 // @public
-export function getAttestItConfigDir(): string;
+export function getAttestItConfigDir(homeDir?: string): string;
 
 // @public
 export function getAttestItHomeDir(): null | string;
@@ -204,10 +204,10 @@ export function getDefaultYubiKeyEncryptedKeyPath(): string;
 export function getGate(config: AttestItConfig, gateId: string): GateConfig | undefined;
 
 // @public
-export function getHomePublicKeysDir(): string;
+export function getHomePublicKeysDir(homeDir?: string): string;
 
 // @public
-export function getLocalConfigPath(): string;
+export function getLocalConfigPath(homeDir?: string): string;
 
 // @public
 export function getPackageVersion(): string;
