@@ -49,6 +49,8 @@ export function TestRunner({
   const [_testPassed, setTestPassed] = React.useState(false)
   // Track when test command is actively executing (child process has terminal control)
   const [isExecuting, setIsExecuting] = React.useState(false)
+  // Track when attestation is being created to prevent double-trigger
+  const [isAttesting, setIsAttesting] = React.useState(false)
 
   // Use a ref to store the latest results for the completion callback
   const resultsRef = React.useRef(results)
@@ -114,6 +116,8 @@ export function TestRunner({
   useInput(
     (input, key) => {
       if (phase !== 'confirming') return
+      // Prevent double-trigger while attestation is in progress
+      if (isAttesting) return
 
       // eslint-disable-next-line security/detect-object-injection -- Safe array access with numeric index
       const currentSuite = suites[currentIndex]
@@ -121,6 +125,7 @@ export function TestRunner({
 
       // Y or Enter = create attestation
       if (input.toLowerCase() === 'y' || key.return) {
+        setIsAttesting(true)
         createAttestation(currentSuite)
           .then(() => {
             setResults((prev) => ({
@@ -128,15 +133,20 @@ export function TestRunner({
               completed: [...prev.completed, currentSuite],
             }))
             setCurrentIndex((prev) => prev + 1)
+            setIsAttesting(false)
             setPhase('running')
           })
-          .catch(() => {
+          .catch((err: unknown) => {
+            // Log the error so users can see why attestation failed
+            const errorMsg = err instanceof Error ? err.message : String(err)
+            console.error(`\nFailed to create attestation: ${errorMsg}\n`)
             // If attestation fails, still move on but mark as skipped
             setResults((prev) => ({
               ...prev,
               skipped: [...prev.skipped, currentSuite],
             }))
             setCurrentIndex((prev) => prev + 1)
+            setIsAttesting(false)
             setPhase('running')
           })
       }
