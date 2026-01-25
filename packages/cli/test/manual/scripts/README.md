@@ -217,6 +217,142 @@ Cleaning up...
 Cleanup complete
 ```
 
+### `yubikey-integration.ts`
+
+Full end-to-end integration test with YubiKey hardware tokens.
+
+**Prerequisites:**
+
+- YubiKey Manager CLI (`ykman`) installed: https://developers.yubico.com/yubikey-manager/
+- YubiKey connected with HMAC challenge-response configured on slot 2
+- Configure slot 2: `ykman otp chalresp --generate 2` (⚠️ overwrites slot 2 if already configured)
+
+**Usage:**
+
+```bash
+# Run from workspace root
+pnpm --filter @attest-it/cli test:manual:yubikey
+
+# Or directly with tsx
+pnpm tsx packages/cli/test/manual/scripts/yubikey-integration.ts
+
+# Keep test artifacts for inspection (no cleanup)
+pnpm tsx packages/cli/test/manual/scripts/yubikey-integration.ts --no-cleanup
+```
+
+**What it does:**
+
+1. Checks if `ykman` CLI is installed using `YubiKeyProvider.isInstalled()`
+2. Detects connected YubiKeys with their serial numbers
+3. Prompts user to select a YubiKey if multiple are connected
+4. Verifies slot 2 is configured for HMAC challenge-response
+5. Creates an ephemeral test project with a simple test suite
+6. Generates an Ed25519 keypair encrypted with YubiKey challenge-response
+7. Stores the encrypted private key in the test project
+8. Updates the test project configuration with the test identity
+9. Creates a test seal by decrypting the private key via YubiKey
+10. Verifies the seal passes validation
+11. Cleans up: removes encrypted key file and temporary directory
+12. Prints success/failure summary with checkmarks
+
+**Exit codes:**
+
+- `0` - All tests passed
+- `1` - Test failed or error occurred
+- `78` - Configuration error (no YubiKey, slot 2 not configured, ykman not installed) - EX_CONFIG
+
+**Options:**
+
+- `--no-cleanup` - Skip cleanup of encrypted key file and temp directory (useful for debugging)
+
+**Expected output:**
+
+```
+================================================================================
+YubiKey Integration Test
+================================================================================
+This test will:
+  1. Create an ephemeral test identity with YubiKey encryption
+  2. Generate a keypair encrypted with YubiKey challenge-response (slot 2)
+  3. Create a test seal using the YubiKey-encrypted key
+  4. Verify the seal passes validation
+  5. Clean up the test artifacts
+
+==> Step 1: Checking if YubiKey Manager CLI is installed
+✓ YubiKey Manager CLI is installed
+
+==> Step 2: Detecting connected YubiKeys
+✓ Found 1 YubiKey(s)
+
+Connected YubiKeys:
+  1. YubiKey 5C NFC - Serial: 12345678
+
+==> Step 3: Selecting YubiKey
+✓ Using YubiKey: Serial 12345678
+
+==> Step 4: Verifying slot 2 is configured
+✓ Slot 2 is configured for HMAC challenge-response
+
+==> Step 5: Creating ephemeral test project
+✓ Project created at: /tmp/...
+
+==> Step 6: Generating keypair with YubiKey encryption
+ℹ YubiKey serial: 12345678
+✓ Keypair generated and encrypted with YubiKey
+ℹ Encrypted key path: /tmp/.../test-privkey.enc
+ℹ Public key path: /tmp/.../test-pubkey.pem
+ℹ Storage: YubiKey-encrypted (Serial: 12345678, Slot: 2)
+
+==> Step 7: Verifying encrypted key file exists
+✓ Encrypted key verified
+
+==> Step 8: Testing key decryption
+✓ Key decrypted successfully with YubiKey
+ℹ Temporary decrypted key path: /tmp/...
+✓ Temporary key cleaned up
+
+==> Step 9: Creating test seal with YubiKey-encrypted key
+ℹ Fingerprint: abc123...
+✓ Seal created successfully
+✓ Seal written to disk
+
+==> Step 10: Verifying the seal
+✓ Seal verification passed!
+ℹ Sealed by: test-user
+ℹ Sealed at: 2026-01-24T...
+
+================================================================================
+✓ All tests passed!
+================================================================================
+
+==> Cleanup: Removing test artifacts
+✓ Deleted encrypted key file
+✓ Removed temporary project
+```
+
+**Troubleshooting:**
+
+- **"ykman not found"**: Install YubiKey Manager
+  - macOS: `brew install ykman`
+  - Linux: `pip install yubikey-manager`
+  - Windows: Download from https://www.yubico.com/support/download/yubikey-manager/
+
+- **"Slot 2 not configured"**: Configure slot 2 with:
+
+  ```bash
+  ykman otp chalresp --generate 2
+  ```
+
+  ⚠️ Warning: This will overwrite any existing configuration in slot 2
+
+- **"No YubiKey detected"**:
+  - Ensure YubiKey is physically connected
+  - Try unplugging and reconnecting
+  - Check USB port/connection
+  - Verify with: `ykman list`
+
+- **Multiple YubiKeys**: The script will prompt you to select which one to use
+
 ### `visual-verification.ts`
 
 Visual verification test wrapper that runs the manual-test-runner.ts with pre-flight and post-verification checklists.

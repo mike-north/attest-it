@@ -1,29 +1,39 @@
+# Operational configuration for attest-it dogfooding
+# This defines test suites and how to run them
+
 version: 1
+
+settings:
+  attestationsPath: .attest-it/attestations.json
+  algorithm: ed25519
+
 suites:
   1password-integration:
     gate: 1password-integration
-    description: Full E2E test with real 1Password vault - creates identity, stores
-      key, creates/verifies seal
+    description: Full E2E test with real 1Password vault - creates identity, stores key, creates/verifies seal
     command: pnpm --filter @attest-it/cli test:manual:1password
+
   keychain-integration:
     gate: keychain-integration
-    description: Full E2E test with real macOS Keychain - creates identity, stores
-      key, creates/verifies seal
+    description: Full E2E test with real macOS Keychain - creates identity, stores key, creates/verifies seal
     command: pnpm --filter @attest-it/cli test:manual:keychain
+
   yubikey-integration:
     gate: yubikey-integration
-    description: Full E2E test with real YubiKey hardware - encrypts key with HMAC
-      challenge-response
+    description: Full E2E test with real YubiKey hardware - encrypts key with HMAC challenge-response
     command: pnpm --filter @attest-it/cli test:manual:yubikey
+
   cli-interactive:
     gate: cli-interactive
     description: Visual verification of interactive CLI experiences including keygen wizard
     command: pnpm --filter @attest-it/cli test:manual:visual all
+
 groups:
   credential-stores:
     - 1password-integration
     - keychain-integration
     - yubikey-integration
+
   all-manual:
     - 1password-integration
     - keychain-integration

@@ -1,16 +1,13 @@
+# Policy configuration for attest-it dogfooding
+# This defines the trust model: team members, gates, and what code requires attestation
+
 version: 1
-settings:
-  maxAgeDays: 30
-  publicKeyPath: .attest-it/pubkey.pem
-  attestationsPath: .attest-it/seals.json
-  sealsPath: .attest-it/seals.json
+
 team:
   mike-north:
     name: Mike North
-    publicKey: 5L1qHe86pTHIEscURLVL7pUdK+Px74tDF11gBHPDOAE=
-    publicKeyAlgorithm: ed25519
-    email: michael.l.north@gmail.com
-    github: mike-north
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+
 gates:
   1password-integration:
     name: 1Password Integration Tests
@@ -21,22 +18,25 @@ gates:
       paths:
         - packages/cli/test/manual/scripts/1password-integration.ts
         - packages/core/src/key-provider/one-password-provider.ts
-        - packages/core/src/seal/**/*.ts
+        - packages/core/src/seal/**
         - packages/core/src/crypto.ts
+        - packages/core/src/ed25519.ts
     maxAge: 90d
+
   keychain-integration:
     name: macOS Keychain Integration Tests
-    description: Manual verification that macOS Keychain key provider works with
-      real Keychain
+    description: Manual verification that macOS Keychain key provider works with real Keychain
     authorizedSigners:
       - mike-north
     fingerprint:
       paths:
         - packages/cli/test/manual/scripts/keychain-integration.ts
         - packages/core/src/key-provider/macos-keychain-provider.ts
-        - packages/core/src/seal/**/*.ts
+        - packages/core/src/seal/**
         - packages/core/src/crypto.ts
+        - packages/core/src/ed25519.ts
     maxAge: 90d
+
   yubikey-integration:
     name: YubiKey Integration Tests
     description: Manual verification that YubiKey key provider works with real hardware
@@ -46,9 +46,11 @@ gates:
       paths:
         - packages/cli/test/manual/scripts/yubikey-integration.ts
         - packages/core/src/key-provider/yubikey-provider.ts
-        - packages/core/src/seal/**/*.ts
+        - packages/core/src/seal/**
         - packages/core/src/crypto.ts
+        - packages/core/src/ed25519.ts
     maxAge: 90d
+
   cli-interactive:
     name: CLI Interactive Tests
     description: Manual verification of interactive CLI experiences and visual rendering
@@ -57,6 +59,7 @@ gates:
     fingerprint:
       paths:
         - packages/cli/test/manual/scripts/visual-verification.ts
-        - packages/cli/src/commands/*-interactive.tsx
-        - packages/cli/src/components/**/*.tsx
+        - packages/cli/src/commands/keygen-interactive.tsx
+        - packages/cli/src/commands/run-interactive.tsx
+        - packages/cli/src/components
     maxAge: 90d

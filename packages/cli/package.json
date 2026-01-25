@@ -59,7 +59,8 @@
     "test:manual:1password": "tsx test/manual/scripts/1password-integration.ts",
     "test:manual:agent": "tsx test/manual-test-runner.ts --print-command",
     "test:manual:keychain": "tsx test/manual/scripts/keychain-integration.ts",
-    "test:manual:visual": "tsx test/manual/scripts/visual-verification.ts"
+    "test:manual:visual": "tsx test/manual/scripts/visual-verification.ts",
+    "test:manual:yubikey": "tsx test/manual/scripts/yubikey-integration.ts"
   },
   "type": "module",
   "types": "./dist/index.d.ts"

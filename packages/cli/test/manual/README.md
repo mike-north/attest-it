@@ -141,6 +141,42 @@ pnpm test:manual:keychain
 - Key retrieval from Keychain
 - Error handling for missing/invalid Keychain items
 
+### YubiKey Integration Test
+
+Tests integration with YubiKey for key storage:
+
+```bash
+pnpm test:manual:yubikey
+# or with --no-cleanup to keep artifacts for inspection
+pnpm test:manual:yubikey -- --no-cleanup
+```
+
+**Prerequisites:**
+
+- YubiKey Manager CLI (`ykman`) installed
+- YubiKey connected with HMAC challenge-response configured on slot 2
+- Configure with: `ykman otp chalresp --generate 2`
+
+**What it tests:**
+
+- Detection and selection of connected YubiKeys
+- Key generation with YubiKey challenge-response encryption
+- Signing attestations using YubiKey-encrypted keys
+- Key retrieval/decryption via YubiKey
+- Error handling for unconfigured or missing YubiKeys
+
+**Exit codes:**
+
+- `0`: Success
+- `1`: Test failure
+- `78`: Configuration error (no YubiKey, not configured, ykman not installed)
+
+**Troubleshooting:**
+
+- "ykman not found" - Install YubiKey Manager: `brew install ykman` (macOS), `pip install yubikey-manager` (Linux)
+- "Slot 2 not configured" - Run: `ykman otp chalresp --generate 2` (⚠️ overwrites slot 2)
+- Multiple YubiKeys - The test will prompt you to select which one to use
+
 ## Creating Meta-Seals
 
 After running manual tests and confirming they work correctly, create meta-seals to attest to the test infrastructure:
@@ -153,9 +189,10 @@ First, verify that all manual tests pass:
 # Visual verification
 pnpm test:manual:visual all
 
-# Platform integrations (on macOS with 1Password)
+# Platform integrations (on macOS with 1Password and YubiKey)
 pnpm test:manual:1password
 pnpm test:manual:keychain
+pnpm test:manual:yubikey
 ```
 
 ### 2. Review Changes
