@@ -142,6 +142,7 @@ async function runWithFixture(fixtureDir: string, args: string[]): Promise<numbe
       env: {
         ...process.env,
         ATTEST_IT_HOME: fixtureDir,
+        ATTEST_IT_ALLOW_DIRTY: '1',
       },
     })
 

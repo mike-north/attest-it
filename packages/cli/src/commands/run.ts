@@ -264,11 +264,13 @@ async function runDirectMode(options: RunOptions): Promise<void> {
     process.exit(ExitCode.CONFIG_ERROR)
   }
 
-  // Check for dirty working tree
-  const isDirty = await checkDirtyWorkingTree()
-  if (isDirty) {
-    error('Working tree has uncommitted changes. Please commit or stash before attesting.')
-    process.exit(ExitCode.CONFIG_ERROR)
+  // Check for dirty working tree (skip if ATTEST_IT_ALLOW_DIRTY is set - for dogfooding)
+  if (!process.env['ATTEST_IT_ALLOW_DIRTY']) {
+    const isDirty = await checkDirtyWorkingTree()
+    if (isDirty) {
+      error('Working tree has uncommitted changes. Please commit or stash before attesting.')
+      process.exit(ExitCode.CONFIG_ERROR)
+    }
   }
 
   // Run the suite
@@ -318,11 +320,13 @@ async function runAllPending(options: RunOptions): Promise<void> {
     process.exit(ExitCode.SUCCESS)
   }
 
-  // Check for dirty working tree
-  const isDirty = await checkDirtyWorkingTree()
-  if (isDirty) {
-    error('Working tree has uncommitted changes. Please commit or stash before attesting.')
-    process.exit(ExitCode.CONFIG_ERROR)
+  // Check for dirty working tree (skip if ATTEST_IT_ALLOW_DIRTY is set - for dogfooding)
+  if (!process.env['ATTEST_IT_ALLOW_DIRTY']) {
+    const isDirty = await checkDirtyWorkingTree()
+    if (isDirty) {
+      error('Working tree has uncommitted changes. Please commit or stash before attesting.')
+      process.exit(ExitCode.CONFIG_ERROR)
+    }
   }
 
   // Run each suite using existing direct mode logic
