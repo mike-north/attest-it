@@ -41621,18 +41621,33 @@ async function computeFingerprint(options) {
     fileCount: sortedFiles.length
   };
 }
+function resolvePackagePattern(pkg, baseDir) {
+  if (isGlobPattern(pkg)) {
+    return pkg;
+  }
+  const fullPath = path8.resolve(baseDir, pkg);
+  try {
+    const stats = fs2.statSync(fullPath);
+    return stats.isFile() ? pkg : `${pkg}/**/*`;
+  } catch {
+    return pkg;
+  }
+}
+var GLOB_OPTIONS = {
+  onlyFiles: true,
+  dot: true,
+  // Include dotfiles
+  absolute: false
+  // Return relative paths
+};
 async function listPackageFiles(packages, ignore = [], baseDir = process.cwd()) {
   const allFiles = [];
   for (const pkg of packages) {
-    const pattern = isGlobPattern(pkg) ? pkg : `${pkg}/**/*`;
+    const pattern = resolvePackagePattern(pkg, baseDir);
     const files = await glob([pattern], {
+      ...GLOB_OPTIONS,
       cwd: baseDir,
-      ignore,
-      onlyFiles: true,
-      dot: true,
-      // Include dotfiles
-      absolute: false
-      // Return relative paths
+      ignore
     });
     if (files.length === 0 && isGlobPattern(pkg)) {
       throw new Error(`Glob pattern matched no files: ${pkg}`);
@@ -42386,55 +42401,56 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
     }
   }
   /**
-   * Generate a new keypair and store private key in keychain.
+   * Generate a new Ed25519 keypair and store private key in keychain.
    * Public key is written to filesystem for repository commit.
    * @param options - Key generation options
    */
   async generateKeyPair(options) {
     const { publicKeyPath, force = false } = options;
-    const tempDir = await fs7.mkdtemp(path8.join(os2.tmpdir(), "attest-it-keygen-"));
-    const tempPrivateKeyPath = path8.join(tempDir, "private.pem");
+    let publicKeyExists = false;
     try {
-      await generateKeyPair({
-        privatePath: tempPrivateKeyPath,
-        publicPath: publicKeyPath,
-        force
-      });
-      const privateKeyContent = await fs7.readFile(tempPrivateKeyPath, "utf8");
-      const base64Key = Buffer.from(privateKeyContent, "utf8").toString("base64");
-      const addArgs = [
-        "add-generic-password",
-        "-a",
-        _MacOSKeychainKeyProvider.ACCOUNT,
-        "-s",
-        this.itemName,
-        "-w",
-        base64Key,
-        "-T",
-        "",
-        "-U"
-      ];
-      if (this.keychain) {
-        addArgs.push(this.keychain);
-      }
-      await execCommand2("security", addArgs);
-      await fs7.unlink(tempPrivateKeyPath);
-      await fs7.rmdir(tempDir);
-      return {
-        privateKeyRef: this.itemName,
-        publicKeyPath,
-        storageDescription: `macOS Keychain: ${this.itemName}`
-      };
+      await fs7.access(publicKeyPath);
+      publicKeyExists = true;
     } catch (error2) {
-      try {
-        await fs7.rm(tempDir, { recursive: true, force: true });
-      } catch (cleanupError) {
-        console.warn(
-          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
-        );
+      if (error2 instanceof Error && "code" in error2 && error2.code !== "ENOENT") {
+        throw error2;
       }
-      throw error2;
     }
+    if (publicKeyExists && !force) {
+      throw new Error(
+        `Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`
+      );
+    }
+    const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = generateKeyPair2();
+    const publicKeyDir = path8.dirname(publicKeyPath);
+    await fs7.mkdir(publicKeyDir, { recursive: true });
+    const publicKeyPem = `-----BEGIN PUBLIC KEY-----
+${publicKeyBase64}
+-----END PUBLIC KEY-----
+`;
+    await fs7.writeFile(publicKeyPath, publicKeyPem, { mode: 420 });
+    const base64Key = Buffer.from(privateKeyPem, "utf8").toString("base64");
+    const addArgs = [
+      "add-generic-password",
+      "-a",
+      _MacOSKeychainKeyProvider.ACCOUNT,
+      "-s",
+      this.itemName,
+      "-w",
+      base64Key,
+      "-T",
+      "",
+      "-U"
+    ];
+    if (this.keychain) {
+      addArgs.push(this.keychain);
+    }
+    await execCommand2("security", addArgs);
+    return {
+      privateKeyRef: this.itemName,
+      publicKeyPath,
+      storageDescription: `macOS Keychain: ${this.itemName}`
+    };
   }
   /**
    * Get the configuration for this provider.

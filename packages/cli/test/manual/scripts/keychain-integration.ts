@@ -177,6 +177,7 @@ async function main(): Promise<void> {
     // The team config expects the raw Ed25519 public key (32 bytes, base64 encoded)
     // NOT the full SPKI-encoded PEM content
     log(symbols.info, 'Deriving public key from private key...', 'blue')
+
     const publicKeyBase64 = getPublicKeyFromPrivate(privateKeyPem)
     log(symbols.success, 'Public key derived successfully', 'green')
 
