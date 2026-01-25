@@ -383,7 +383,7 @@ async function runIntegrationTest(): Promise<boolean> {
     step('Step 11: Verifying the seal')
     const { verifyGateSeal, loadConfigSync, readSealsSync } = await import('@attest-it/core')
 
-    const config = loadConfigSync(project.baseDir)
+    const config = loadConfigSync(configPath)
     const gateId = 'simple-test-gate'
     const sealsPath = path.join(project.baseDir, '.attest-it', 'seals.json')
     const sealsFile = readSealsSync(sealsPath)
