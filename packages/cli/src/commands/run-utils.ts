@@ -58,7 +58,6 @@ export async function getAllSuiteStatuses(config: Config): Promise<SuiteStatus[]
     }
 
     // Get the gate configuration
-    // eslint-disable-next-line security/detect-object-injection
     const gateConfig = config.gates[suiteConfig.gate]
     if (!gateConfig) {
       continue
@@ -69,7 +68,7 @@ export async function getAllSuiteStatuses(config: Config): Promise<SuiteStatus[]
     const ignore = gateConfig.fingerprint.exclude
 
     // Skip if no paths configured
-    if (!packages || packages.length === 0) {
+    if (packages.length === 0) {
       continue
     }
 

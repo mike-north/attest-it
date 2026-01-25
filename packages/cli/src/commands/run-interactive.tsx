@@ -89,7 +89,7 @@ export async function runInteractive(options: InteractiveOptions): Promise<void>
   }
 
   // Check for dirty working tree (skip if ATTEST_IT_ALLOW_DIRTY is set - for dogfooding)
-  if (!process.env['ATTEST_IT_ALLOW_DIRTY']) {
+  if (!process.env.ATTEST_IT_ALLOW_DIRTY) {
     const isDirty = await checkDirtyWorkingTree()
     if (isDirty) {
       error('Working tree has uncommitted changes. Please commit or stash before attesting.')
