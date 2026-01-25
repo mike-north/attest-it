@@ -41559,15 +41559,20 @@ async function hashFileAsync(realPath, normalizedPath, stats) {
   hash.update(content);
   return hash.digest();
 }
+function isGlobPattern(pathStr) {
+  return /[*?{}\[\]]/.test(pathStr);
+}
 function validateOptions(options) {
   if (options.packages.length === 0) {
     throw new Error("packages array must not be empty");
   }
   const baseDir = options.baseDir ?? process.cwd();
   for (const pkg of options.packages) {
-    const pkgPath = path8.resolve(baseDir, pkg);
-    if (!fs2.existsSync(pkgPath)) {
-      throw new Error(`Package path does not exist: ${pkgPath}`);
+    if (!isGlobPattern(pkg)) {
+      const pkgPath = path8.resolve(baseDir, pkg);
+      if (!fs2.existsSync(pkgPath)) {
+        throw new Error(`Package path does not exist: ${pkgPath}`);
+      }
     }
   }
   return baseDir;
@@ -41618,8 +41623,8 @@ async function computeFingerprint(options) {
 async function listPackageFiles(packages, ignore = [], baseDir = process.cwd()) {
   const allFiles = [];
   for (const pkg of packages) {
-    const patterns = [`${pkg}/**/*`];
-    const files = await glob(patterns, {
+    const pattern = isGlobPattern(pkg) ? pkg : `${pkg}/**/*`;
+    const files = await glob([pattern], {
       cwd: baseDir,
       ignore,
       onlyFiles: true,
@@ -41628,6 +41633,9 @@ async function listPackageFiles(packages, ignore = [], baseDir = process.cwd()) 
       absolute: false
       // Return relative paths
     });
+    if (files.length === 0 && isGlobPattern(pkg)) {
+      throw new Error(`Glob pattern matched no files: ${pkg}`);
+    }
     allFiles.push(...files);
   }
   return allFiles;

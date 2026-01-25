@@ -133,6 +133,13 @@ function hashFileSync(realPath: string, normalizedPath: string): Buffer {
 }
 
 /**
+ * Check if a path contains glob pattern characters.
+ */
+function isGlobPattern(pathStr: string): boolean {
+  return /[*?{}\[\]]/.test(pathStr)
+}
+
+/**
  * Validate fingerprint options and return base directory.
  */
 function validateOptions(options: FingerprintOptions): string {
@@ -142,11 +149,14 @@ function validateOptions(options: FingerprintOptions): string {
 
   const baseDir = options.baseDir ?? process.cwd()
 
-  // Verify all package paths exist
+  // Verify all non-glob package paths exist
+  // Glob patterns are validated later by tinyglobby
   for (const pkg of options.packages) {
-    const pkgPath = path.resolve(baseDir, pkg)
-    if (!fs.existsSync(pkgPath)) {
-      throw new Error(`Package path does not exist: ${pkgPath}`)
+    if (!isGlobPattern(pkg)) {
+      const pkgPath = path.resolve(baseDir, pkg)
+      if (!fs.existsSync(pkgPath)) {
+        throw new Error(`Package path does not exist: ${pkgPath}`)
+      }
     }
   }
 
@@ -325,10 +335,11 @@ export function computeFingerprintSync(options: FingerprintOptions): Fingerprint
 /**
  * List files in packages, respecting ignore patterns (async).
  *
- * @param packages - Array of package directory paths
+ * @param packages - Array of package directory paths or glob patterns
  * @param ignore - Optional glob patterns to exclude
  * @param baseDir - Base directory for resolving paths (defaults to cwd)
  * @returns Array of relative file paths
+ * @throws Error if a glob pattern matches no files
  * @public
  */
 export async function listPackageFiles(
@@ -339,17 +350,23 @@ export async function listPackageFiles(
   const allFiles: string[] = []
 
   for (const pkg of packages) {
-    // Build glob patterns for this package
-    const patterns = [`${pkg}/**/*`]
+    // If the path is already a glob pattern, use it directly
+    // Otherwise, treat it as a directory and match all files within
+    const pattern = isGlobPattern(pkg) ? pkg : `${pkg}/**/*`
 
     // Use tinyglobby to find files
-    const files = await glob(patterns, {
+    const files = await glob([pattern], {
       cwd: baseDir,
       ignore,
       onlyFiles: true,
       dot: true, // Include dotfiles
       absolute: false, // Return relative paths
     })
+
+    // Validate that glob patterns match at least one file
+    if (files.length === 0 && isGlobPattern(pkg)) {
+      throw new Error(`Glob pattern matched no files: ${pkg}`)
+    }
 
     allFiles.push(...files)
   }
@@ -359,6 +376,7 @@ export async function listPackageFiles(
 
 /**
  * Synchronous version of listPackageFiles
+ * @throws Error if a glob pattern matches no files
  */
 function listPackageFilesSync(
   packages: string[],
@@ -368,17 +386,23 @@ function listPackageFilesSync(
   const allFiles: string[] = []
 
   for (const pkg of packages) {
-    // Build glob patterns for this package
-    const patterns = [`${pkg}/**/*`]
+    // If the path is already a glob pattern, use it directly
+    // Otherwise, treat it as a directory and match all files within
+    const pattern = isGlobPattern(pkg) ? pkg : `${pkg}/**/*`
 
     // Use tinyglobby to find files (sync version)
-    const files = globSync(patterns, {
+    const files = globSync([pattern], {
       cwd: baseDir,
       ignore,
       onlyFiles: true,
       dot: true, // Include dotfiles
       absolute: false, // Return relative paths
     })
+
+    // Validate that glob patterns match at least one file
+    if (files.length === 0 && isGlobPattern(pkg)) {
+      throw new Error(`Glob pattern matched no files: ${pkg}`)
+    }
 
     allFiles.push(...files)
   }

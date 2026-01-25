@@ -1,11 +1,67 @@
-# Operational configuration for attest-it dogfooding
-# This defines test suites and how to run them
+# Configuration for attest-it dogfooding
+# This defines the trust model (team, gates) and operational config (suites, commands)
 
 version: 1
 
 settings:
   attestationsPath: .attest-it/attestations.json
-  algorithm: ed25519
+
+team:
+  mike-north:
+    name: Mike North
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+
+gates:
+  1password-integration:
+    name: 1Password Integration Tests
+    description: Manual verification that 1Password key provider works with real vaults
+    authorizedSigners:
+      - mike-north
+    fingerprint:
+      paths:
+        - packages/cli/test/manual/scripts/1password-integration.ts
+        - packages/core/src/key-provider/one-password-provider.ts
+        - packages/core/src/seal/**/*.ts
+        - packages/core/src/crypto.ts
+    maxAge: 90d
+
+  keychain-integration:
+    name: macOS Keychain Integration Tests
+    description: Manual verification that macOS Keychain key provider works with real Keychain
+    authorizedSigners:
+      - mike-north
+    fingerprint:
+      paths:
+        - packages/cli/test/manual/scripts/keychain-integration.ts
+        - packages/core/src/key-provider/macos-keychain-provider.ts
+        - packages/core/src/seal/**/*.ts
+        - packages/core/src/crypto.ts
+    maxAge: 90d
+
+  yubikey-integration:
+    name: YubiKey Integration Tests
+    description: Manual verification that YubiKey key provider works with real hardware
+    authorizedSigners:
+      - mike-north
+    fingerprint:
+      paths:
+        - packages/cli/test/manual/scripts/yubikey-integration.ts
+        - packages/core/src/key-provider/yubikey-provider.ts
+        - packages/core/src/seal/**/*.ts
+        - packages/core/src/crypto.ts
+    maxAge: 90d
+
+  cli-interactive:
+    name: CLI Interactive Tests
+    description: Manual verification of interactive CLI experiences and visual rendering
+    authorizedSigners:
+      - mike-north
+    fingerprint:
+      paths:
+        - packages/cli/test/manual/scripts/visual-verification.ts
+        - packages/cli/src/commands/*-interactive.tsx
+        - packages/cli/src/components/**/*.tsx
+    maxAge: 90d
 
 suites:
   1password-integration:

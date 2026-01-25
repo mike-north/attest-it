@@ -1,12 +1,8 @@
 name: Verify Manual Test Attestations
 
 # This workflow verifies that manual test attestations exist and are valid.
-#
-# Security: In PR context, the GitHub Action fetches policy.yaml from the
-# base branch (main), not the PR branch. This prevents PRs from modifying
-# the trust model (team members, gates, authorized signers) to bypass
-# attestation requirements. Only the operational config (suites, commands)
-# can be changed in PRs.
+# The config file contains both trust model (team, gates) and operational
+# config (suites, commands) in a single file.
 
 on:
   pull_request:
@@ -35,7 +31,6 @@ jobs:
       - name: Verify manual test attestations
         uses: ./packages/github-action
         with:
-          policy-path: .attest-it/policy.yaml
           config-path: .attest-it/config.yaml
           fail-on-missing: 'true'
           github-token: ${{ secrets.GITHUB_TOKEN }}
