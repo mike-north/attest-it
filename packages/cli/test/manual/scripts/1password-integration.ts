@@ -262,7 +262,7 @@ async function runIntegrationTest(): Promise<boolean> {
     info(`Item name: ${itemName}`)
 
     const provider = new OnePasswordKeyProvider({
-      account: selectedAccount.email,
+      accountUuid: selectedAccount.account_uuid,
       vault: vaultName,
       itemName,
     })

@@ -412,7 +412,7 @@ export class OnePasswordKeyProvider implements KeyProvider {
 
 // @public
 export interface OnePasswordKeyProviderOptions {
-    account?: string;
+    accountUuid?: string;
     itemName: string;
     vault: string;
 }

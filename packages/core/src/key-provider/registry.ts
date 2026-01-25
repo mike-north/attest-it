@@ -84,7 +84,7 @@ KeyProviderRegistry.register('filesystem', (config) => {
 // Register the 1Password provider
 KeyProviderRegistry.register('1password', (config) => {
   const { options } = config
-  const account = typeof options.account === 'string' ? options.account : undefined
+  const accountUuid = typeof options.accountUuid === 'string' ? options.accountUuid : undefined
   const vault = typeof options.vault === 'string' ? options.vault : ''
   const itemName = typeof options.itemName === 'string' ? options.itemName : ''
 
@@ -92,9 +92,9 @@ KeyProviderRegistry.register('1password', (config) => {
     throw new Error('1Password provider requires vault and itemName options')
   }
 
-  // Only pass account if it's defined (to satisfy exactOptionalPropertyTypes)
-  if (account !== undefined) {
-    return new OnePasswordKeyProvider({ account, vault, itemName })
+  // Only pass accountUuid if it's defined (to satisfy exactOptionalPropertyTypes)
+  if (accountUuid !== undefined) {
+    return new OnePasswordKeyProvider({ accountUuid, vault, itemName })
   }
   return new OnePasswordKeyProvider({ vault, itemName })
 })

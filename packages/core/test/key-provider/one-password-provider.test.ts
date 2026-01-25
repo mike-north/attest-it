@@ -129,15 +129,15 @@ describe('OnePasswordKeyProvider', () => {
       expect(provider.displayName).toBe('1Password')
     })
 
-    it('should accept optional account option', () => {
+    it('should accept optional accountUuid option', () => {
       const provider = new OnePasswordKeyProvider({
-        account: 'test@example.com',
+        accountUuid: 'test-account-uuid',
         vault: 'Private',
         itemName: 'test-key',
       })
 
       const config = provider.getConfig()
-      expect(config.options).toHaveProperty('account', 'test@example.com')
+      expect(config.options).toHaveProperty('accountUuid', 'test-account-uuid')
     })
   })
 
@@ -206,12 +206,12 @@ describe('OnePasswordKeyProvider', () => {
       expect(result).toBe(false)
     })
 
-    it('should include account flag when account is set', async () => {
+    it('should include account flag when accountUuid is set', async () => {
       const mockSpawnFn = vi.mocked(spawn)
       mockSpawnFn.mockReturnValue(mockSpawnSuccess('{"id":"item123"}'))
 
       const provider = new OnePasswordKeyProvider({
-        account: 'test@example.com',
+        accountUuid: 'test-account-uuid',
         vault: 'Private',
         itemName: 'test-key',
       })
@@ -228,7 +228,7 @@ describe('OnePasswordKeyProvider', () => {
           'Private',
           '--format=json',
           '--account',
-          'test@example.com',
+          'test-account-uuid',
         ],
         expect.any(Object),
       )
@@ -475,16 +475,16 @@ describe('OnePasswordKeyProvider', () => {
       })
     })
 
-    it('should include account when provided', () => {
+    it('should include accountUuid when provided', () => {
       const provider = new OnePasswordKeyProvider({
-        account: 'test@example.com',
+        accountUuid: 'test-account-uuid',
         vault: 'Private',
         itemName: 'test-key',
       })
 
       const config = provider.getConfig()
 
-      expect(config.options).toHaveProperty('account', 'test@example.com')
+      expect(config.options).toHaveProperty('accountUuid', 'test-account-uuid')
     })
   })
 
@@ -656,15 +656,15 @@ describe('OnePasswordKeyProvider', () => {
         )
       })
 
-      it('should include account flag when provided', async () => {
+      it('should include account flag when accountUuid provided', async () => {
         const mockSpawnFn = vi.mocked(spawn)
         mockSpawnFn.mockReturnValue(mockSpawnSuccess('[]'))
 
-        await OnePasswordKeyProvider.listVaults('test@example.com')
+        await OnePasswordKeyProvider.listVaults('test-account-uuid')
 
         expect(mockSpawnFn).toHaveBeenCalledWith(
           'op',
-          ['vault', 'list', '--format=json', '--account', 'test@example.com'],
+          ['vault', 'list', '--format=json', '--account', 'test-account-uuid'],
           expect.any(Object),
         )
       })
@@ -746,13 +746,13 @@ describe('OnePasswordKeyProvider', () => {
       mockSpawnFn.mockReturnValue(mockSpawnFailure('item not found'))
 
       const provider = new OnePasswordKeyProvider({
-        account: 'test@example.com',
+        accountUuid: 'test-account-uuid',
         vault: 'Private',
         itemName: 'test-key',
       })
 
       await expect(provider.getPrivateKey('nonexistent-key')).rejects.toThrow(
-        /Key not found in 1Password.*account: test@example.com/,
+        /Key not found in 1Password.*accountUuid: test-account-uuid/,
       )
     })
   })

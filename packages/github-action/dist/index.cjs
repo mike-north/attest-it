@@ -41924,7 +41924,7 @@ var FilesystemKeyProvider = class {
 var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
   type = "1password";
   displayName = "1Password";
-  account;
+  accountUuid;
   vault;
   itemName;
   /**
@@ -41932,8 +41932,8 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
    * @param options - Provider options
    */
   constructor(options) {
-    if (options.account !== void 0) {
-      this.account = options.account;
+    if (options.accountUuid !== void 0) {
+      this.accountUuid = options.accountUuid;
     }
     this.vault = options.vault;
     this.itemName = options.itemName;
@@ -42055,8 +42055,8 @@ ${reasons}`
   async keyExists(keyRef) {
     try {
       const args = ["item", "get", keyRef, "--vault", this.vault, "--format=json"];
-      if (this.account) {
-        args.push("--account", this.account);
+      if (this.accountUuid) {
+        args.push("--account", this.accountUuid);
       }
       await execCommand("op", args);
       return true;
@@ -42073,15 +42073,15 @@ ${reasons}`
   async getPrivateKey(keyRef) {
     if (!await this.keyExists(keyRef)) {
       throw new Error(
-        `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` + (this.account ? ` (account: ${this.account})` : "")
+        `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` + (this.accountUuid ? ` (accountUuid: ${this.accountUuid})` : "")
       );
     }
     const tempDir = await fs7.mkdtemp(path8.join(os2.tmpdir(), "attest-it-"));
     const tempKeyPath = path8.join(tempDir, "private.pem");
     try {
       const args = ["document", "get", keyRef, "--vault", this.vault, "--out-file", tempKeyPath];
-      if (this.account) {
-        args.push("--account", this.account);
+      if (this.accountUuid) {
+        args.push("--account", this.accountUuid);
       }
       await execCommand("op", args);
       await setKeyPermissions(tempKeyPath);
@@ -42133,8 +42133,8 @@ ${reasons}`
         "--vault",
         this.vault
       ];
-      if (this.account) {
-        args.push("--account", this.account);
+      if (this.accountUuid) {
+        args.push("--account", this.accountUuid);
       }
       await execCommand("op", args);
       await fs7.unlink(tempPrivateKeyPath);
@@ -42162,7 +42162,7 @@ ${reasons}`
     return {
       type: this.type,
       options: {
-        ...this.account && { account: this.account },
+        ...this.accountUuid && { accountUuid: this.accountUuid },
         vault: this.vault,
         itemName: this.itemName
       }
@@ -42960,14 +42960,14 @@ KeyProviderRegistry.register("filesystem", (config) => {
 });
 KeyProviderRegistry.register("1password", (config) => {
   const { options } = config;
-  const account = typeof options.account === "string" ? options.account : void 0;
+  const accountUuid = typeof options.accountUuid === "string" ? options.accountUuid : void 0;
   const vault = typeof options.vault === "string" ? options.vault : "";
   const itemName = typeof options.itemName === "string" ? options.itemName : "";
   if (!vault || !itemName) {
     throw new Error("1Password provider requires vault and itemName options");
   }
-  if (account !== void 0) {
-    return new OnePasswordKeyProvider({ account, vault, itemName });
+  if (accountUuid !== void 0) {
+    return new OnePasswordKeyProvider({ accountUuid, vault, itemName });
   }
   return new OnePasswordKeyProvider({ vault, itemName });
 });

@@ -27,8 +27,8 @@ import type {
  * @public
  */
 export interface OnePasswordKeyProviderOptions {
-  /** 1Password account email (optional if only one account) */
-  account?: string
+  /** 1Password account UUID from listAccounts().accounts[].account_uuid (optional if only one account) */
+  accountUuid?: string
   /** Vault name or ID where the key is stored */
   vault: string
   /** Item name in 1Password */
@@ -101,7 +101,7 @@ export class OnePasswordKeyProvider implements KeyProvider {
   readonly type = '1password'
   readonly displayName = '1Password'
 
-  private readonly account?: string
+  private readonly accountUuid?: string
   private readonly vault: string
   private readonly itemName: string
 
@@ -110,9 +110,9 @@ export class OnePasswordKeyProvider implements KeyProvider {
    * @param options - Provider options
    */
   constructor(options: OnePasswordKeyProviderOptions) {
-    // Only assign account if it's defined (to satisfy exactOptionalPropertyTypes)
-    if (options.account !== undefined) {
-      this.account = options.account
+    // Only assign accountUuid if it's defined (to satisfy exactOptionalPropertyTypes)
+    if (options.accountUuid !== undefined) {
+      this.accountUuid = options.accountUuid
     }
     this.vault = options.vault
     this.itemName = options.itemName
@@ -265,8 +265,8 @@ export class OnePasswordKeyProvider implements KeyProvider {
   async keyExists(keyRef: string): Promise<boolean> {
     try {
       const args = ['item', 'get', keyRef, '--vault', this.vault, '--format=json']
-      if (this.account) {
-        args.push('--account', this.account)
+      if (this.accountUuid) {
+        args.push('--account', this.accountUuid)
       }
       await execCommand('op', args)
       return true
@@ -288,7 +288,7 @@ export class OnePasswordKeyProvider implements KeyProvider {
     if (!(await this.keyExists(keyRef))) {
       throw new Error(
         `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` +
-          (this.account ? ` (account: ${this.account})` : ''),
+          (this.accountUuid ? ` (accountUuid: ${this.accountUuid})` : ''),
       )
     }
 
@@ -299,8 +299,8 @@ export class OnePasswordKeyProvider implements KeyProvider {
     try {
       // Download the key from 1Password
       const args = ['document', 'get', keyRef, '--vault', this.vault, '--out-file', tempKeyPath]
-      if (this.account) {
-        args.push('--account', this.account)
+      if (this.accountUuid) {
+        args.push('--account', this.accountUuid)
       }
 
       await execCommand('op', args)
@@ -367,8 +367,8 @@ export class OnePasswordKeyProvider implements KeyProvider {
         '--vault',
         this.vault,
       ]
-      if (this.account) {
-        args.push('--account', this.account)
+      if (this.accountUuid) {
+        args.push('--account', this.accountUuid)
       }
 
       await execCommand('op', args)
@@ -403,7 +403,7 @@ export class OnePasswordKeyProvider implements KeyProvider {
     return {
       type: this.type,
       options: {
-        ...(this.account && { account: this.account }),
+        ...(this.accountUuid && { accountUuid: this.accountUuid }),
         vault: this.vault,
         itemName: this.itemName,
       },
