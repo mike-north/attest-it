@@ -25,7 +25,7 @@ import * as crypto from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { z } from 'zod'
 import { generateKeyPair as cryptoGenerateKeyPair, setKeyPermissions } from '../crypto.js'
-import { getAttestItConfigDir } from '../identity/config.js'
+import { getIdentityConfigDir } from '../identity/config.js'
 import type {
   KeyProvider,
   KeyProviderConfig,
@@ -220,7 +220,7 @@ export class YubiKeyProvider implements KeyProvider {
   constructor(options: YubiKeyProviderOptions) {
     // Validate and normalize the encrypted key path
     const resolvedPath = path.resolve(options.encryptedKeyPath)
-    const configDir = getAttestItConfigDir()
+    const configDir = getIdentityConfigDir()
 
     // Security: Ensure path is within the config directory to prevent path traversal
     if (!resolvedPath.startsWith(configDir)) {
@@ -628,7 +628,7 @@ export class YubiKeyProvider implements KeyProvider {
 
     // Validate path is within config directory
     const resolvedPath = path.resolve(encryptedKeyPath)
-    const configDir = getAttestItConfigDir()
+    const configDir = getIdentityConfigDir()
     if (!resolvedPath.startsWith(configDir)) {
       throw new Error(
         `Encrypted key path must be within attest-it config directory (${configDir}). ` +

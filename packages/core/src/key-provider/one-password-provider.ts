@@ -127,7 +127,7 @@ export class OnePasswordKeyProvider implements KeyProvider {
     try {
       await execCommand('op', ['--version'])
       return true
-    } catch (err) {
+    } catch {
       // Command not found or failed = not installed
       // This is expected when op CLI is not installed, so we just return false
       return false
@@ -271,7 +271,7 @@ export class OnePasswordKeyProvider implements KeyProvider {
       }
       await execCommand('op', args)
       return true
-    } catch (err) {
+    } catch {
       // Item not found or access denied = key doesn't exist (from our perspective)
       // This is expected when checking for non-existent keys
       return false
@@ -350,7 +350,9 @@ export class OnePasswordKeyProvider implements KeyProvider {
     if (!force) {
       try {
         await fs.access(publicKeyPath)
-        throw new Error(`Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`)
+        throw new Error(
+          `Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`,
+        )
       } catch (err) {
         // File doesn't exist, which is what we want
         if (err instanceof Error && !err.message.includes('already exists')) {

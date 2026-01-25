@@ -136,7 +136,7 @@ function hashFileSync(realPath: string, normalizedPath: string): Buffer {
  * Check if a path contains glob pattern characters.
  */
 function isGlobPattern(pathStr: string): boolean {
-  return /[*?{}\[\]]/.test(pathStr)
+  return /[*?{}[\]]/.test(pathStr)
 }
 
 /**

@@ -179,7 +179,9 @@ async function runIntegrationTest(): Promise<boolean> {
 
     // Display inaccessible accounts with reasons (so users understand why they're not offered)
     if (inaccessible.length > 0) {
-      console.log(`\n${colors.yellow}Accounts not available (${String(inaccessible.length)}):${colors.reset}`)
+      console.log(
+        `\n${colors.yellow}Accounts not available (${String(inaccessible.length)}):${colors.reset}`,
+      )
       inaccessible.forEach((account: InaccessibleAccount) => {
         console.log(`  ${colors.dim}- ${account.email} (${account.url})${colors.reset}`)
         console.log(`    ${colors.dim}Reason: ${account.reason}${colors.reset}`)

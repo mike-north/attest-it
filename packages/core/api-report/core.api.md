@@ -183,9 +183,6 @@ export function generateKeyPair(options?: KeygenOptions): Promise<KeyPaths>;
 export function getActiveIdentity(config: LocalConfig): Identity | undefined;
 
 // @public
-export function getAttestItConfigDir(homeDir?: string): string;
-
-// @public
 export function getAttestItHomeDir(): null | string;
 
 // @public
@@ -205,6 +202,9 @@ export function getGate(config: AttestItConfig, gateId: string): GateConfig | un
 
 // @public
 export function getHomePublicKeysDir(homeDir?: string): string;
+
+// @public
+export function getIdentityConfigDir(homeDir?: string): string;
 
 // @public
 export function getLocalConfigPath(homeDir?: string): string;

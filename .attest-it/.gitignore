@@ -1,0 +1,5 @@
+# Runtime state
+session.json
+
+# Test identity fixture (contains private key)
+test-identity/

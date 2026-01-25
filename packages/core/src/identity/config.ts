@@ -154,7 +154,7 @@ export function getLocalConfigPath(homeDir?: string): string {
  * @returns Path to the configuration directory
  * @public
  */
-export function getAttestItConfigDir(homeDir?: string): string {
+export function getIdentityConfigDir(homeDir?: string): string {
   if (homeDir) {
     return homeDir
   }

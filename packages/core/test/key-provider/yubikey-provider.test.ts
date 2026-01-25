@@ -7,7 +7,7 @@ import * as crypto from 'node:crypto'
 // Mock the identity config module to return our test directory as the config dir
 let mockConfigDir = '/tmp/attest-it-test'
 vi.mock('../../src/identity/config.js', () => ({
-  getAttestItConfigDir: () => mockConfigDir,
+  getIdentityConfigDir: () => mockConfigDir,
 }))
 
 // Import after mocking

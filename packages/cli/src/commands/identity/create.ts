@@ -4,7 +4,7 @@ import {
   generateEd25519KeyPair,
   loadLocalConfig,
   saveLocalConfig,
-  getAttestItConfigDir,
+  getIdentityConfigDir,
   OnePasswordKeyProvider,
   MacOSKeychainKeyProvider,
   YubiKeyProvider,
@@ -91,7 +91,7 @@ async function runCreate(): Promise<void> {
     }
 
     // Build choices based on availability
-    const configDir = getAttestItConfigDir()
+    const configDir = getIdentityConfigDir()
     const storageChoices: { name: string; value: string }[] = [
       { name: `File system (${join(configDir, 'keys')})`, value: 'file' },
     ]
@@ -164,7 +164,7 @@ async function runCreate(): Promise<void> {
     switch (keyStorageType) {
       case 'file': {
         // Determine file path (respects --home-dir override)
-        const keysDir = join(getAttestItConfigDir(), 'keys')
+        const keysDir = join(getIdentityConfigDir(), 'keys')
         const keyPath = join(keysDir, `${slug}.pem`)
         storageConfig = { type: 'file', keyPath }
         break
@@ -396,7 +396,7 @@ async function runCreate(): Promise<void> {
         })
 
         // Determine encrypted key path
-        const keysDir = join(getAttestItConfigDir(), 'keys')
+        const keysDir = join(getIdentityConfigDir(), 'keys')
         const encryptedKeyPath = join(keysDir, encryptedKeyName)
 
         storageConfig = { type: 'yubikey', selectedSerial, slot, encryptedKeyPath }
@@ -430,7 +430,7 @@ async function runCreate(): Promise<void> {
         info('Creating private key file on disk...')
 
         // Save to filesystem (respects --home-dir override)
-        const keysDir = join(getAttestItConfigDir(), 'keys')
+        const keysDir = join(getIdentityConfigDir(), 'keys')
         await mkdir(keysDir, { recursive: true })
         await writeFile(storageConfig.keyPath, keyPair.privateKey, { mode: 0o600 })
 
@@ -528,7 +528,7 @@ async function runCreate(): Promise<void> {
       }
       case 'yubikey': {
         // Create keys directory if needed
-        const keysDir = join(getAttestItConfigDir(), 'keys')
+        const keysDir = join(getIdentityConfigDir(), 'keys')
         await mkdir(keysDir, { recursive: true })
 
         // Encrypt the private key with YubiKey challenge-response

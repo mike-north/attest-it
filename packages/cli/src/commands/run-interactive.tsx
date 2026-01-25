@@ -15,22 +15,15 @@
 import * as React from 'react'
 import { render } from 'ink'
 import { spawn } from 'node:child_process'
-import * as os from 'node:os'
 import { parse as parseShellCommand } from 'shell-quote'
 import {
   loadConfig,
   toAttestItConfig,
-  computeFingerprint,
   computeFingerprintSync,
-  readAttestations,
-  writeSignedAttestations,
-  upsertAttestation,
-  createAttestation,
-  getDefaultPrivateKeyPath,
-  FilesystemKeyProvider,
   KeyProviderRegistry,
   loadLocalConfigSync,
   getActiveIdentity,
+  getIdentityConfigDir,
   isAuthorizedSigner,
   createSeal,
   readSealsSync,
@@ -55,6 +48,8 @@ export interface InteractiveOptions {
   continue?: boolean | undefined
   /** Filter pattern for suite names */
   filter?: string | undefined
+  /** Override the attest-it home directory for identity config */
+  homeDir?: string | undefined
 }
 
 /**
@@ -103,8 +98,8 @@ export async function runInteractive(options: InteractiveOptions): Promise<void>
   // Create test executor
   const executeTest = createTestExecutor(config)
 
-  // Create attestation creator
-  const createAttestationFn = createAttestationCreator(config)
+  // Create attestation creator (pass homeDir for identity config override)
+  const createAttestationFn = createAttestationCreator(config, options.homeDir)
 
   // Create session saver
   const saveSessionFn = createSessionSaver()
@@ -200,10 +195,14 @@ function createTestExecutor(config: Config): (suite: string) => Promise<boolean>
  * Create an attestation creator function.
  *
  * @param config - Configuration object
+ * @param homeDir - Optional override for the attest-it home directory
  * @returns Function that creates and saves an attestation for a suite
  * @internal
  */
-function createAttestationCreator(config: Config): (suite: string) => Promise<void> {
+function createAttestationCreator(
+  config: Config,
+  homeDir: string = getIdentityConfigDir(),
+): (suite: string) => Promise<void> {
   return async (suiteName: string): Promise<void> => {
     // eslint-disable-next-line security/detect-object-injection -- Safe access with validated suite name
     const suiteConfig = config.suites[suiteName]
@@ -215,7 +214,7 @@ function createAttestationCreator(config: Config): (suite: string) => Promise<vo
       throw new Error(`Suite "${suiteName}" must have a gate defined`)
     }
 
-    await createSealForGate(suiteName, suiteConfig.gate, config)
+    await createSealForGate(suiteName, suiteConfig.gate, config, homeDir)
   }
 }
 
@@ -225,14 +224,20 @@ function createAttestationCreator(config: Config): (suite: string) => Promise<vo
  * @param suiteName - Name of the suite that was executed
  * @param gateId - ID of the gate linked to the suite
  * @param config - Configuration object
+ * @param homeDir - Optional override for the attest-it home directory
  * @internal
  */
-async function createSealForGate(suiteName: string, gateId: string, config: Config): Promise<void> {
+async function createSealForGate(
+  suiteName: string,
+  gateId: string,
+  config: Config,
+  homeDir: string = getIdentityConfigDir(),
+): Promise<void> {
   log('')
   log(`Suite '${suiteName}' is linked to gate '${gateId}'`)
 
   // Load local identity config
-  const localConfig = loadLocalConfigSync()
+  const localConfig = loadLocalConfigSync(`${homeDir}/config.yaml`)
   if (!localConfig) {
     throw new Error(
       'No local identity configuration found. Run "attest-it identity create" to set up your identity.',

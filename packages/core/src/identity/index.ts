@@ -11,7 +11,7 @@ export type { UserPreferences, CliExperiencePreferences } from './preferences.js
 export {
   ATTEST_IT_HOME_ENV,
   getLocalConfigPath,
-  getAttestItConfigDir,
+  getIdentityConfigDir,
   setAttestItHomeDir,
   getAttestItHomeDir,
   loadLocalConfig,

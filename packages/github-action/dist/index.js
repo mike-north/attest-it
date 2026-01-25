@@ -41560,7 +41560,7 @@ async function hashFileAsync(realPath, normalizedPath, stats) {
   return hash.digest();
 }
 function isGlobPattern(pathStr) {
-  return /[*?{}\[\]]/.test(pathStr);
+  return /[*?{}[\]]/.test(pathStr);
 }
 function validateOptions(options) {
   if (options.packages.length === 0) {
@@ -41984,7 +41984,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
     try {
       await execCommand("op", ["--version"]);
       return true;
-    } catch (err) {
+    } catch {
       return false;
     }
   }
@@ -42098,7 +42098,7 @@ ${reasons}`
       }
       await execCommand("op", args);
       return true;
-    } catch (err) {
+    } catch {
       return false;
     }
   }
@@ -42157,7 +42157,9 @@ ${reasons}`
     if (!force) {
       try {
         await fs7.access(publicKeyPath);
-        throw new Error(`Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`);
+        throw new Error(
+          `Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`
+        );
       } catch (err) {
         if (err instanceof Error && !err.message.includes("already exists")) ;
         else {
@@ -42493,7 +42495,7 @@ var localConfigSchema = external_exports.object({
     message: "At least one identity must be defined"
   })
 }).strict();
-function getAttestItConfigDir(homeDir) {
+function getIdentityConfigDir(homeDir) {
   if (homeDir) {
     return homeDir;
   }
@@ -42574,7 +42576,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
    */
   constructor(options) {
     const resolvedPath = path8.resolve(options.encryptedKeyPath);
-    const configDir = getAttestItConfigDir();
+    const configDir = getIdentityConfigDir();
     if (!resolvedPath.startsWith(configDir)) {
       throw new Error(
         `Encrypted key path must be within attest-it config directory (${configDir}). Got: ${resolvedPath}`
@@ -42875,7 +42877,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
   static async encryptPrivateKey(options) {
     const { privateKey, encryptedKeyPath, slot = 2, serial } = options;
     const resolvedPath = path8.resolve(encryptedKeyPath);
-    const configDir = getAttestItConfigDir();
+    const configDir = getIdentityConfigDir();
     if (!resolvedPath.startsWith(configDir)) {
       throw new Error(
         `Encrypted key path must be within attest-it config directory (${configDir}). Got: ${resolvedPath}`
