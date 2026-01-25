@@ -42000,8 +42000,24 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
       throw new Error("Unexpected response from 1Password: account list is not an array");
     }
     const basicAccounts = parsed;
-    const accountResults = await Promise.all(
-      basicAccounts.map(async (account) => {
+    const accountResults = [];
+    const RETRY_DELAY_MS = 500;
+    const MAX_RETRIES = 2;
+    for (const account of basicAccounts) {
+      if (!account.account_uuid) {
+        accountResults.push({
+          success: false,
+          email: account.email,
+          url: account.url,
+          reason: "Account missing account_uuid field"
+        });
+        continue;
+      }
+      let lastError;
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        if (attempt > 0 || accountResults.length > 0) {
+          await new Promise((resolve5) => setTimeout(resolve5, RETRY_DELAY_MS));
+        }
         try {
           const detailOutput = await execCommand("op", [
             "account",
@@ -42012,28 +42028,28 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
           ]);
           const details = JSON.parse(detailOutput);
           if (details !== null && typeof details === "object" && "name" in details && typeof details.name === "string") {
-            return {
+            accountResults.push({
               success: true,
               account: { ...account, name: details.name }
-            };
+            });
+            lastError = void 0;
+            break;
           }
-          return {
-            success: false,
-            email: account.email,
-            url: account.url,
-            reason: "Account details response missing name field"
-          };
+          lastError = "Account details response missing name field";
+          break;
         } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          return {
-            success: false,
-            email: account.email,
-            url: account.url,
-            reason: errorMessage
-          };
+          lastError = err instanceof Error ? err.message : String(err);
         }
-      })
-    );
+      }
+      if (lastError !== void 0) {
+        accountResults.push({
+          success: false,
+          email: account.email,
+          url: account.url,
+          reason: lastError
+        });
+      }
+    }
     const accounts = [];
     const inaccessible = [];
     for (const result of accountResults) {

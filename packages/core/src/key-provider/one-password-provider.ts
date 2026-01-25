@@ -151,8 +151,34 @@ export class OnePasswordKeyProvider implements KeyProvider {
 
     // Fetch account details to get human-readable names
     // Note: op account get requires account_uuid (not user_uuid or email)
-    const accountResults = await Promise.all(
-      basicAccounts.map(async (account) => {
+    // Process accounts sequentially with delay to avoid race conditions with op CLI
+    type AccountResult =
+      | { success: true; account: OnePasswordAccount & { name: string } }
+      | { success: false; email: string; url: string; reason: string }
+
+    const accountResults: AccountResult[] = []
+    const RETRY_DELAY_MS = 500
+    const MAX_RETRIES = 2
+
+    for (const account of basicAccounts) {
+      // Validate account_uuid is present
+      if (!account.account_uuid) {
+        accountResults.push({
+          success: false as const,
+          email: account.email,
+          url: account.url,
+          reason: 'Account missing account_uuid field',
+        })
+        continue
+      }
+
+      let lastError: string | undefined
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        // Add delay between attempts (and between accounts) to avoid race conditions
+        if (attempt > 0 || accountResults.length > 0) {
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
+        }
+
         try {
           const detailOutput = await execCommand('op', [
             'account',
@@ -169,30 +195,33 @@ export class OnePasswordKeyProvider implements KeyProvider {
             'name' in details &&
             typeof details.name === 'string'
           ) {
-            return {
+            accountResults.push({
               success: true as const,
               account: { ...account, name: details.name },
-            }
+            })
+            lastError = undefined
+            break
           }
-          // No name field - unexpected response format
-          return {
-            success: false as const,
-            email: account.email,
-            url: account.url,
-            reason: 'Account details response missing name field',
-          }
+          // No name field - unexpected response format (not retryable)
+          lastError = 'Account details response missing name field'
+          break
         } catch (err) {
           // Capture the actual error reason - could be access denied, network issue, etc.
-          const errorMessage = err instanceof Error ? err.message : String(err)
-          return {
-            success: false as const,
-            email: account.email,
-            url: account.url,
-            reason: errorMessage,
-          }
+          lastError = err instanceof Error ? err.message : String(err)
+          // Continue to retry unless we've exhausted attempts
         }
-      }),
-    )
+      }
+
+      // If we exhausted retries, add as inaccessible
+      if (lastError !== undefined) {
+        accountResults.push({
+          success: false as const,
+          email: account.email,
+          url: account.url,
+          reason: lastError,
+        })
+      }
+    }
 
     // Separate accessible from inaccessible accounts
     const accounts: (OnePasswordAccount & { name: string })[] = []
