@@ -53,6 +53,8 @@
     "check:eslint": "eslint src",
     "check:types": "tsc --noEmit",
     "test": "vitest run",
+    "test:docker": "vitest run --config test/docker/vitest.docker.config.ts",
+    "test:docker:build": "docker compose -f test/docker/docker-compose.yml build",
     "test:manual": "tsx test/manual-test-runner.ts",
     "test:manual:1password": "tsx test/manual/scripts/1password-integration.ts",
     "test:manual:agent": "tsx test/manual-test-runner.ts --print-command",
