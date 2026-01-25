@@ -10,6 +10,9 @@ team:
   mike-north:
     name: Mike North
     publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+  dogfood-test:
+    name: Dogfood Test Identity
+    publicKey: NVLUus5VrRJvQsux1EJxrGCeg7xkAdthX5Z983Iy5Ac=
 
 gates:
   1password-integration:
@@ -17,6 +20,7 @@ gates:
     description: Manual verification that 1Password key provider works with real vaults
     authorizedSigners:
       - mike-north
+      - dogfood-test
     fingerprint:
       paths:
         - packages/cli/test/manual/scripts/1password-integration.ts
