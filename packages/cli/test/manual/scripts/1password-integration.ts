@@ -312,12 +312,8 @@ async function runIntegrationTest(): Promise<boolean> {
     step('Step 10: Creating test seal with 1Password key')
     const { computeFingerprintSync, createSeal, writeSeals } = await import('@attest-it/core')
 
-    // Read the public key we generated
-    const publicKeyContent = await fs.readFile(publicKeyPath, 'utf-8')
-    const publicKeyBase64 = publicKeyContent
-      .split('\n')
-      .filter((line) => !line.startsWith('-----'))
-      .join('')
+    // Read the public key we generated (already base64-encoded raw Ed25519 key)
+    const publicKeyBase64 = (await fs.readFile(publicKeyPath, 'utf-8')).trim()
 
     // Update the project config to use the test identity
     const configPath = path.join(project.baseDir, '.attest-it', 'config.yaml')
@@ -359,12 +355,8 @@ async function runIntegrationTest(): Promise<boolean> {
     // Retrieve the private key for signing
     const { keyPath, cleanup } = await provider.getPrivateKey(itemName)
     try {
-      // Read the private key (base64 format needed for createSeal)
-      const privateKeyContent = await fs.readFile(keyPath, 'utf-8')
-      const privateKeyBase64 = privateKeyContent
-        .split('\n')
-        .filter((line) => !line.startsWith('-----'))
-        .join('')
+      // Read the private key (PEM format needed for createSeal)
+      const privateKeyPem = await fs.readFile(keyPath, 'utf-8')
 
       // Create the seal
       const gateId = 'simple-test-gate'
@@ -372,7 +364,7 @@ async function runIntegrationTest(): Promise<boolean> {
         gateId,
         fingerprint: fingerprint.fingerprint,
         sealedBy: 'test-user',
-        privateKey: privateKeyBase64,
+        privateKey: privateKeyPem,
       })
       success('Seal created successfully')
 

@@ -1077,7 +1077,7 @@ var require_util = __commonJS({
         return state && state.objectMode === false && state.ended === true && Number.isFinite(state.length) ? state.length : null;
       } else if (isBlobLike(body)) {
         return body.size != null ? body.size : null;
-      } else if (isBuffer(body)) {
+      } else if (isBuffer2(body)) {
         return body.byteLength;
       }
       return null;
@@ -1160,7 +1160,7 @@ var require_util = __commonJS({
       }
       return ret;
     }
-    function isBuffer(buffer) {
+    function isBuffer2(buffer) {
       return buffer instanceof Uint8Array || Buffer.isBuffer(buffer);
     }
     function validateHandler(handler2, method, upgrade) {
@@ -1324,7 +1324,7 @@ var require_util = __commonJS({
       bodyLength,
       deepClone,
       ReadableStreamFrom,
-      isBuffer,
+      isBuffer: isBuffer2,
       validateHandler,
       getSocketInfo,
       isFormDataLike,
@@ -41713,6 +41713,45 @@ var SignatureInvalidError = class extends Error {
     this.name = "SignatureInvalidError";
   }
 };
+function isBuffer(value) {
+  return Buffer.isBuffer(value);
+}
+function generateKeyPair2() {
+  try {
+    const keyPair = crypto3.generateKeyPairSync("ed25519", {
+      publicKeyEncoding: {
+        type: "spki",
+        format: "pem"
+      },
+      privateKeyEncoding: {
+        type: "pkcs8",
+        format: "pem"
+      }
+    });
+    const { publicKey, privateKey } = keyPair;
+    if (typeof publicKey !== "string" || typeof privateKey !== "string") {
+      throw new Error("Expected keypair to have string keys");
+    }
+    const publicKeyObj = crypto3.createPublicKey(publicKey);
+    const publicKeyExport = publicKeyObj.export({
+      type: "spki",
+      format: "der"
+    });
+    if (!isBuffer(publicKeyExport)) {
+      throw new Error("Expected public key export to be a Buffer");
+    }
+    const rawPublicKey = publicKeyExport.subarray(12);
+    const publicKeyBase64 = rawPublicKey.toString("base64");
+    return {
+      publicKey: publicKeyBase64,
+      privateKey
+    };
+  } catch (err) {
+    throw new Error(
+      `Failed to generate Ed25519 keypair: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+}
 async function verifyAttestations(options) {
   const { config, repoRoot = process.cwd() } = options;
   const errors = [];
@@ -42110,20 +42149,31 @@ ${reasons}`
     }
   }
   /**
-   * Generate a new keypair and store private key in 1Password.
+   * Generate a new Ed25519 keypair and store private key in 1Password.
    * Public key is written to filesystem for repository commit.
    * @param options - Key generation options
    */
   async generateKeyPair(options) {
     const { publicKeyPath, force = false } = options;
+    if (!force) {
+      try {
+        await fs7.access(publicKeyPath);
+        throw new Error(`Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`);
+      } catch (err) {
+        if (err instanceof Error && !err.message.includes("already exists")) ;
+        else {
+          throw err;
+        }
+      }
+    }
     const tempDir = await fs7.mkdtemp(path8.join(os2.tmpdir(), "attest-it-keygen-"));
     const tempPrivateKeyPath = path8.join(tempDir, "private.pem");
     try {
-      await generateKeyPair({
-        privatePath: tempPrivateKeyPath,
-        publicPath: publicKeyPath,
-        force
-      });
+      const keyPair = generateKeyPair2();
+      await fs7.writeFile(tempPrivateKeyPath, keyPair.privateKey, "utf-8");
+      await setKeyPermissions(tempPrivateKeyPath);
+      await fs7.mkdir(path8.dirname(publicKeyPath), { recursive: true });
+      await fs7.writeFile(publicKeyPath, keyPair.publicKey, "utf-8");
       const args = [
         "document",
         "create",

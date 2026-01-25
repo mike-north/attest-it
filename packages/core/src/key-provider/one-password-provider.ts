@@ -13,7 +13,8 @@ import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { spawn } from 'node:child_process'
-import { generateKeyPair as cryptoGenerateKeyPair, setKeyPermissions } from '../crypto.js'
+import { setKeyPermissions } from '../crypto.js'
+import { generateKeyPair as ed25519GenerateKeyPair } from '../crypto/ed25519.js'
 import type {
   KeyProvider,
   KeyProviderConfig,
@@ -338,24 +339,45 @@ export class OnePasswordKeyProvider implements KeyProvider {
   }
 
   /**
-   * Generate a new keypair and store private key in 1Password.
+   * Generate a new Ed25519 keypair and store private key in 1Password.
    * Public key is written to filesystem for repository commit.
    * @param options - Key generation options
    */
   async generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult> {
     const { publicKeyPath, force = false } = options
 
+    // Check if public key file already exists
+    if (!force) {
+      try {
+        await fs.access(publicKeyPath)
+        throw new Error(`Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`)
+      } catch (err) {
+        // File doesn't exist, which is what we want
+        if (err instanceof Error && !err.message.includes('already exists')) {
+          // This is an access error (file doesn't exist), continue
+        } else {
+          throw err
+        }
+      }
+    }
+
     // Create a temporary directory for key generation
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'attest-it-keygen-'))
     const tempPrivateKeyPath = path.join(tempDir, 'private.pem')
 
     try {
-      // Generate the keypair to temporary location
-      await cryptoGenerateKeyPair({
-        privatePath: tempPrivateKeyPath,
-        publicPath: publicKeyPath,
-        force,
-      })
+      // Generate Ed25519 keypair
+      const keyPair = ed25519GenerateKeyPair()
+
+      // Write private key PEM to temporary file for upload to 1Password
+      await fs.writeFile(tempPrivateKeyPath, keyPair.privateKey, 'utf-8')
+      await setKeyPermissions(tempPrivateKeyPath)
+
+      // Ensure public key directory exists
+      await fs.mkdir(path.dirname(publicKeyPath), { recursive: true })
+
+      // Write public key (base64-encoded raw key) to filesystem
+      await fs.writeFile(publicKeyPath, keyPair.publicKey, 'utf-8')
 
       // Upload the private key to 1Password as a document
       const args = [
