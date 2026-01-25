@@ -332,10 +332,9 @@ function createKeyProviderFromIdentity(
       return KeyProviderRegistry.create({
         type: '1password',
         options: {
-          account: privateKey.account,
+          accountUuid: privateKey.account,
           vault: privateKey.vault,
           itemName: privateKey.item,
-          field: privateKey.field,
         },
       })
     case 'yubikey':
