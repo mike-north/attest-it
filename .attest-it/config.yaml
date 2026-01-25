@@ -1,16 +1,16 @@
-# Configuration for attest-it dogfooding
-# This defines the trust model (team, gates) and operational config (suites, commands)
-
 version: 1
-
 settings:
+  maxAgeDays: 30
+  publicKeyPath: .attest-it/pubkey.pem
   attestationsPath: .attest-it/attestations.json
-
+  sealsPath: .attest-it/seals.json
 team:
   mike-north:
     name: Mike North
-    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
-
+    publicKey: 5L1qHe86pTHIEscURLVL7pUdK+Px74tDF11gBHPDOAE=
+    publicKeyAlgorithm: ed25519
+    email: michael.l.north@gmail.com
+    github: mike-north
 gates:
   1password-integration:
     name: 1Password Integration Tests
@@ -24,10 +24,10 @@ gates:
         - packages/core/src/seal/**/*.ts
         - packages/core/src/crypto.ts
     maxAge: 90d
-
   keychain-integration:
     name: macOS Keychain Integration Tests
-    description: Manual verification that macOS Keychain key provider works with real Keychain
+    description: Manual verification that macOS Keychain key provider works with
+      real Keychain
     authorizedSigners:
       - mike-north
     fingerprint:
@@ -37,7 +37,6 @@ gates:
         - packages/core/src/seal/**/*.ts
         - packages/core/src/crypto.ts
     maxAge: 90d
-
   yubikey-integration:
     name: YubiKey Integration Tests
     description: Manual verification that YubiKey key provider works with real hardware
@@ -50,7 +49,6 @@ gates:
         - packages/core/src/seal/**/*.ts
         - packages/core/src/crypto.ts
     maxAge: 90d
-
   cli-interactive:
     name: CLI Interactive Tests
     description: Manual verification of interactive CLI experiences and visual rendering
@@ -62,34 +60,31 @@ gates:
         - packages/cli/src/commands/*-interactive.tsx
         - packages/cli/src/components/**/*.tsx
     maxAge: 90d
-
 suites:
   1password-integration:
     gate: 1password-integration
-    description: Full E2E test with real 1Password vault - creates identity, stores key, creates/verifies seal
+    description: Full E2E test with real 1Password vault - creates identity, stores
+      key, creates/verifies seal
     command: pnpm --filter @attest-it/cli test:manual:1password
-
   keychain-integration:
     gate: keychain-integration
-    description: Full E2E test with real macOS Keychain - creates identity, stores key, creates/verifies seal
+    description: Full E2E test with real macOS Keychain - creates identity, stores
+      key, creates/verifies seal
     command: pnpm --filter @attest-it/cli test:manual:keychain
-
   yubikey-integration:
     gate: yubikey-integration
-    description: Full E2E test with real YubiKey hardware - encrypts key with HMAC challenge-response
+    description: Full E2E test with real YubiKey hardware - encrypts key with HMAC
+      challenge-response
     command: pnpm --filter @attest-it/cli test:manual:yubikey
-
   cli-interactive:
     gate: cli-interactive
     description: Visual verification of interactive CLI experiences including keygen wizard
     command: pnpm --filter @attest-it/cli test:manual:visual all
-
 groups:
   credential-stores:
     - 1password-integration
     - keychain-integration
     - yubikey-integration
-
   all-manual:
     - 1password-integration
     - keychain-integration
