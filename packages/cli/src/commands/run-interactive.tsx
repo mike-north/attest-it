@@ -178,6 +178,10 @@ function createTestExecutor(config: Config): (suite: string) => Promise<boolean>
 
     log(`Running: ${command}`)
 
+    // Small delay to allow React to process isExecuting state change
+    // This ensures the TUI is hidden before child process starts writing
+    await new Promise((resolve) => setTimeout(resolve, 50))
+
     // Execute command
     const exitCode = await executeCommand(command)
     return exitCode === 0

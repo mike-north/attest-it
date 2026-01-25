@@ -26,7 +26,7 @@ export interface RunResults {
  *
  * Flow for each suite:
  * 1. Show "Running suite-name..."
- * 2. Execute test command
+ * 2. Execute test command (render nothing while executing to avoid TUI interference)
  * 3. If passed, prompt "Create attestation? [Y/n]"
  * 4. If user confirms, create attestation
  * 5. Move to next suite
@@ -38,7 +38,7 @@ export function TestRunner({
   executeTest,
   createAttestation,
   onComplete,
-}: TestRunnerProps): React.ReactElement {
+}: TestRunnerProps): React.ReactElement | null {
   const [currentIndex, setCurrentIndex] = React.useState(0)
   const [phase, setPhase] = React.useState<RunPhase>('running')
   const [results, setResults] = React.useState<RunResults>({
@@ -47,6 +47,8 @@ export function TestRunner({
     skipped: [],
   })
   const [_testPassed, setTestPassed] = React.useState(false)
+  // Track when test command is actively executing (child process has terminal control)
+  const [isExecuting, setIsExecuting] = React.useState(false)
 
   // Use a ref to store the latest results for the completion callback
   const resultsRef = React.useRef(results)
@@ -67,12 +69,17 @@ export function TestRunner({
       return
     }
 
+    // Mark as executing before starting test - this hides the TUI
+    setIsExecuting(true)
+
     // Execute the test
     let cancelled = false
     executeTest(currentSuite)
       .then((passed) => {
         if (cancelled) return
 
+        // Test done - show TUI again
+        setIsExecuting(false)
         setTestPassed(passed)
         if (passed) {
           setPhase('confirming')
@@ -88,6 +95,8 @@ export function TestRunner({
       .catch(() => {
         if (cancelled) return
 
+        // Test done - show TUI again
+        setIsExecuting(false)
         // Execution error, treat as failed
         setResults((prev) => ({
           ...prev,
@@ -147,6 +156,12 @@ export function TestRunner({
 
   // eslint-disable-next-line security/detect-object-injection -- Safe array access with numeric index
   const currentSuite = suites[currentIndex]
+
+  // Don't render anything while test is executing
+  // This prevents Ink's TUI from interfering with child process output
+  if (isExecuting) {
+    return null
+  }
 
   return (
     <Box flexDirection="column">
