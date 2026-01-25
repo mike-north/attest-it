@@ -1,0 +1,5 @@
+activeIdentity: [unclosed-array
+identities:
+  broken-user:
+    name: This will never parse
+    publicKey: invalid yaml here {{{

@@ -1,0 +1,40 @@
+services:
+  # Base service definition with common configuration
+  base:
+    build:
+      context: ../../../..
+      dockerfile: packages/cli/test/docker/Dockerfile
+    environment:
+      - NO_COLOR=1
+      - CI=true
+    # Don't run base service directly
+    profiles:
+      - base-only
+
+  # Test scenario: fresh user with no existing configuration
+  test-fresh-user:
+    extends: base
+    command: bash ./test/docker/scenarios/fresh-user.sh
+    volumes:
+      # Mount scenario script as read-only
+      - ./scenarios/fresh-user.sh:/monorepo/packages/cli/test/docker/scenarios/fresh-user.sh:ro
+
+  # Test scenario: existing user with valid identity configuration
+  test-existing-identity:
+    extends: base
+    command: bash ./test/docker/scenarios/existing-identity.sh
+    volumes:
+      # Mount scenario script as read-only
+      - ./scenarios/existing-identity.sh:/monorepo/packages/cli/test/docker/scenarios/existing-identity.sh:ro
+      # Mount existing identity fixture to user's config directory
+      - ./fixtures/existing-identity:/home/testuser/.config/attest-it:ro
+
+  # Test scenario: user with corrupted configuration file
+  test-corrupted-config:
+    extends: base
+    command: bash ./test/docker/scenarios/corrupted-config.sh
+    volumes:
+      # Mount scenario script as read-only
+      - ./scenarios/corrupted-config.sh:/monorepo/packages/cli/test/docker/scenarios/corrupted-config.sh:ro
+      # Mount corrupted config fixture to user's config directory
+      - ./fixtures/corrupted-config:/home/testuser/.config/attest-it:ro

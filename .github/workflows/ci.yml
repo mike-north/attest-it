@@ -60,3 +60,25 @@ jobs:
           act -W packages/github-action/test/act-workflows push \
             -P ubuntu-latest=catthehacker/ubuntu:act-latest \
             --container-architecture linux/amd64
+
+  # Test CLI in Docker containers
+  test-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Run Docker tests
+        run: pnpm --filter @attest-it/cli test:docker

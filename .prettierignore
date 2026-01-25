@@ -10,3 +10,6 @@ tmp/**/*
 **/build/**/*
 **/build/**/*
 pnpm-lock.yaml
+
+# Intentionally malformed files for testing
+packages/cli/test/docker/fixtures/corrupted-config/config.yaml

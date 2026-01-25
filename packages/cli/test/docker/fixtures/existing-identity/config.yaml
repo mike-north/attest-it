@@ -1,0 +1,10 @@
+activeIdentity: existing-user
+identities:
+  existing-user:
+    name: Existing User
+    email: existing@example.com
+    github: existinguser
+    publicKey: dGVzdC1wdWJsaWMta2V5LWZvci1leGlzdGluZy11c2Vy
+    privateKey:
+      type: file
+      path: /home/testuser/.config/attest-it/keys/existing-user.pem
