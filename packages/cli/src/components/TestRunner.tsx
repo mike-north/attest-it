@@ -127,8 +127,8 @@ export function TestRunner({
       const currentSuite = suites[currentIndex]
       if (!currentSuite) return
 
-      // Y or Enter = create attestation
-      if (input.toLowerCase() === 'y' || key.return) {
+      // Y = create attestation (explicit confirmation required)
+      if (input.toLowerCase() === 'y') {
         setIsAttesting(true)
         createAttestation(currentSuite)
           .then(() => {
@@ -155,8 +155,8 @@ export function TestRunner({
           })
       }
 
-      // N = skip attestation
-      if (input.toLowerCase() === 'n') {
+      // N or Enter = skip attestation (default is no)
+      if (input.toLowerCase() === 'n' || key.return) {
         setResults((prev) => ({
           ...prev,
           skipped: [...prev.skipped, currentSuite],
@@ -198,7 +198,7 @@ export function TestRunner({
         {phase === 'confirming' && currentSuite && (
           <Box flexDirection="column">
             <Text color="green">✓ Tests passed!</Text>
-            <Text>Create attestation for {currentSuite}? [Y/n]: </Text>
+            <Text>Create attestation for {currentSuite}? [y/N]: </Text>
           </Box>
         )}
 

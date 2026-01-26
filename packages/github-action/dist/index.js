@@ -42266,15 +42266,22 @@ async function execCommand(command, args) {
 }
 async function execInteractiveCommand(command, args) {
   return new Promise((resolve5, reject) => {
-    const isWindows = process.platform === "win32";
+    const platform = process.platform;
     let proc;
-    if (isWindows) {
+    if (platform === "win32") {
       proc = spawn2(command, args, {
         stdio: ["inherit", "pipe", "pipe"],
         env: getCleanEnvironment()
       });
-    } else {
+    } else if (platform === "darwin") {
       proc = spawn2("script", ["-q", "/dev/null", command, ...args], {
+        stdio: ["inherit", "pipe", "pipe"],
+        env: getCleanEnvironment()
+      });
+    } else {
+      const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "'\\''")}'`).join(" ");
+      const fullCommand = `${command} ${quotedArgs}`;
+      proc = spawn2("script", ["-q", "/dev/null", "-c", fullCommand], {
         stdio: ["inherit", "pipe", "pipe"],
         env: getCleanEnvironment()
       });

@@ -3,10 +3,10 @@
   "seals": {
     "1password-integration": {
       "gateId": "1password-integration",
-      "fingerprint": "sha256:28fc67eef67cdb50c37569b8c64adeb8b2584c11b8e3b7a976f73e974dc898e5",
-      "timestamp": "2026-01-26T05:14:05.726Z",
+      "fingerprint": "sha256:d1b3112b0a389c19d94084016a348c39b7374431960391b0f6166152bcd65ec8",
+      "timestamp": "2026-01-26T05:34:47.765Z",
       "sealedBy": "mike-north",
-      "signature": "GEpWUl/QuWLpwp9mb7EIcLSPVa16tFAGmAUhmeYL8SqXkdOC3MYVMpx9BHzrmzADoV48BL4Axi0WZEIhrmyfAg=="
+      "signature": "bkZwyZkMpD1ZA4Fq81hXgEJewMTarPijxHU/F4UG1kxDHLAF1hmy0fC6Tb1n+XdeD854BPpPACkDmyxR9nm0DA=="
     },
     "yubikey-integration": {
       "gateId": "yubikey-integration",

@@ -95,7 +95,7 @@ describe('TestRunner component', () => {
       const output = lastFrame() ?? ''
       expect(output).toContain('Tests passed')
       expect(output).toContain('Create attestation for test-suite-1')
-      expect(output).toContain('[Y/n]')
+      expect(output).toContain('[y/N]')
     })
 
     it('should move to next suite after test failure', async () => {
