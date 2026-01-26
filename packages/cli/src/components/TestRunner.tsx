@@ -52,7 +52,6 @@ export function TestRunner({
   const [isExecuting, setIsExecuting] = React.useState(false)
   // Track when attestation is being created to prevent double-trigger
   const [isAttesting, setIsAttesting] = React.useState(false)
-
   // Use a ref to store the latest results for the completion callback
   const resultsRef = React.useRef(results)
   React.useEffect(() => {
@@ -155,8 +154,8 @@ export function TestRunner({
           })
       }
 
-      // N or Enter = skip attestation (default is no)
-      if (input.toLowerCase() === 'n' || key.return) {
+      // N = skip attestation (explicit input required to avoid stray keystrokes)
+      if (input.toLowerCase() === 'n') {
         setResults((prev) => ({
           ...prev,
           skipped: [...prev.skipped, currentSuite],
@@ -198,7 +197,7 @@ export function TestRunner({
         {phase === 'confirming' && currentSuite && (
           <Box flexDirection="column">
             <Text color="green">✓ Tests passed!</Text>
-            <Text>Create attestation for {currentSuite}? [y/N]: </Text>
+            <Text>Create attestation for {currentSuite}? [y/n]: </Text>
           </Box>
         )}
 
