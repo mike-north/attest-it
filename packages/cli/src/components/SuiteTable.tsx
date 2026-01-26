@@ -91,7 +91,7 @@ export function SuiteTable({
           <Box key={suite.name}>
             {showCursor && <Text color="cyan">{isCurrent ? '› ' : '  '}</Text>}
             {selectable && (
-              <Text color={isCurrent ? 'cyan' : undefined}>
+              <Text {...(isCurrent ? { color: 'cyan' } : {})}>
                 {selected.has(suite.name) ? '[✓] ' : '[ ] '}
               </Text>
             )}
@@ -99,7 +99,7 @@ export function SuiteTable({
               <StatusBadge status={suite.status} />
             </Box>
             <Text> </Text>
-            <Text color={isCurrent ? 'cyan' : undefined}>
+            <Text {...(isCurrent ? { color: 'cyan' } : {})}>
               {padEnd(suite.name, columnWidths.suite)}
             </Text>
             <Text> </Text>

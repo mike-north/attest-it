@@ -573,6 +573,7 @@ async function runCreate(): Promise<void> {
     } else {
       // Create new config with this identity as active
       newConfig = {
+        version: 1,
         activeIdentity: slug,
         identities: {
           [slug]: identity,
