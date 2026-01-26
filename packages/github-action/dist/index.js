@@ -42234,10 +42234,19 @@ function getCleanEnvironment() {
 }
 async function execCommand(command, args) {
   return new Promise((resolve5, reject) => {
-    const proc = spawn2(command, args, {
-      stdio: ["inherit", "pipe", "pipe"],
-      env: getCleanEnvironment()
-    });
+    const isWindows = process.platform === "win32";
+    let proc;
+    if (isWindows) {
+      proc = spawn2(command, args, {
+        stdio: ["inherit", "pipe", "pipe"],
+        env: getCleanEnvironment()
+      });
+    } else {
+      proc = spawn2("script", ["-q", "/dev/null", command, ...args], {
+        stdio: ["inherit", "pipe", "pipe"],
+        env: getCleanEnvironment()
+      });
+    }
     let stdout = "";
     let stderr = "";
     proc.stdout.on("data", (data) => {

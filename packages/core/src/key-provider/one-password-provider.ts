@@ -483,22 +483,43 @@ function getCleanEnvironment(): NodeJS.ProcessEnv {
 }
 
 /**
- * Execute a command and return stdout.
+ * Execute a command in a PTY and return stdout.
  *
  * @remarks
- * For security, this function removes 1Password session tokens from the environment
- * to force fresh authentication on each call. This ensures a human must interact
- * (via Touch ID, password prompt, etc.) to access private keys, preventing automated
- * agents from using cached credentials.
+ * For security, this function:
+ * 1. Removes 1Password session tokens from the environment to force fresh authentication
+ * 2. Runs the command in a pseudo-terminal (PTY) so Touch ID and other interactive
+ *    prompts work correctly
+ *
+ * This ensures a human must interact (via Touch ID, password prompt, etc.) to access
+ * private keys, preventing automated agents from using cached credentials.
  *
  * @internal
  */
 async function execCommand(command: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    const proc = spawn(command, args, {
-      stdio: ['inherit', 'pipe', 'pipe'],
-      env: getCleanEnvironment(),
-    })
+    // Use 'script' command to run in a PTY on macOS/Linux
+    // This is necessary for 1Password's Touch ID prompt to work
+    // script -q /dev/null runs the command in a PTY without saving output to a file
+    const isWindows = process.platform === 'win32'
+
+    let proc
+    if (isWindows) {
+      // On Windows, spawn directly (no PTY wrapper available)
+      proc = spawn(command, args, {
+        stdio: ['inherit', 'pipe', 'pipe'],
+        env: getCleanEnvironment(),
+      })
+    } else {
+      // On macOS/Linux, wrap in 'script' for PTY support
+      // The -q flag suppresses "Script started/done" messages
+      // /dev/null discards the typescript file
+      proc = spawn('script', ['-q', '/dev/null', command, ...args], {
+        stdio: ['inherit', 'pipe', 'pipe'],
+        env: getCleanEnvironment(),
+      })
+    }
+
     let stdout = ''
     let stderr = ''
 
