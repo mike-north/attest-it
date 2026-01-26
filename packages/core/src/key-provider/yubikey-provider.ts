@@ -274,15 +274,14 @@ export class YubiKeyProvider implements KeyProvider {
     try {
       // Actually test challenge-response instead of parsing output text.
       // This is more reliable across different ykman versions.
-      // Note: We do NOT use -t here because this is just a detection check,
-      // not an actual cryptographic operation. Touch is required during
-      // actual signing operations (see performChallengeResponse).
+      // We use execInteractiveCommand because if the slot is configured with
+      // touch required, the user needs to see the "Touch your YubiKey..." prompt.
       const testChallenge = Buffer.from('attest-it-test-challenge-12345')
       const args = ['otp', 'calculate', String(slot), testChallenge.toString('hex')]
       if (serial) {
         args.unshift('--device', serial)
       }
-      await execCommand('ykman', args)
+      await execInteractiveCommand('ykman', args)
       return true
     } catch {
       return false

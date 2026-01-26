@@ -10,10 +10,10 @@
     },
     "yubikey-integration": {
       "gateId": "yubikey-integration",
-      "fingerprint": "sha256:d7e0c2131f55dd6817a2e324b63206d4fb19cc0f0de733de37d8fddeac4ae15b",
-      "timestamp": "2026-01-25T23:39:56.290Z",
+      "fingerprint": "sha256:6f27e024966df749a9aceac094f7cc7676644ef20fda07f43a6a228fcb61c96a",
+      "timestamp": "2026-01-26T05:20:18.537Z",
       "sealedBy": "mike-north",
-      "signature": "z4Z/xthtUrkRspOM/X3gf4hhOPupmYu6CkGj4iQnSNHLyZtAj3QSpSl8SVs0mbiot+FI/P3QzIEbgaDZMhjdBQ=="
+      "signature": "8x9aTEpuhvjsHfBziiRCMPXRtOtFLd0WLWsA2ofWo/U/F7rxUMseWYP0GbJBicq3nhIUYtVL4voWh9kxANX6Dw=="
     },
     "keychain-integration": {
       "gateId": "keychain-integration",

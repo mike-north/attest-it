@@ -42642,7 +42642,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
       if (serial) {
         args.unshift("--device", serial);
       }
-      await execCommand3("ykman", args);
+      await execInteractiveCommand("ykman", args);
       return true;
     } catch {
       return false;
