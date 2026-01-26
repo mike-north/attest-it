@@ -9,5 +9,5 @@ Whether the attestations file signature is valid
 **Signature:**
 
 ```typescript
-signatureValid: boolean
+signatureValid: boolean;
 ```

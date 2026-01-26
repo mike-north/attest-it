@@ -87,7 +87,7 @@ describe('merge', () => {
           settings: {},
           suites: {
             unit: {
-              packages: ['packages/core'],
+              gate: 'core-gate',
               command: 'npm test',
             },
           },
@@ -130,7 +130,7 @@ describe('merge', () => {
           },
           suites: {
             integration: {
-              packages: ['packages/*'],
+              gate: 'integration-gate',
             },
           },
         }
@@ -219,15 +219,15 @@ describe('merge', () => {
           settings: {},
           suites: {
             unit: {
-              packages: ['packages/core'],
+              gate: 'unit-gate',
               command: 'npm run test:unit',
             },
             integration: {
-              packages: ['packages/*'],
+              gate: 'integration-gate',
               command: 'npm run test:integration',
             },
             e2e: {
-              packages: ['test/e2e'],
+              gate: 'e2e-gate',
               command: 'npm run test:e2e',
             },
           },
@@ -336,7 +336,7 @@ describe('merge', () => {
           settings: {},
           suites: {
             unit: {
-              packages: ['packages/core'],
+              gate: 'default-gate',
             },
           },
         }
@@ -362,7 +362,7 @@ describe('merge', () => {
           settings: {},
           suites: {
             unit: {
-              packages: ['packages/core'],
+              gate: 'default-gate',
             },
           },
         }
@@ -388,7 +388,7 @@ describe('merge', () => {
           settings: {},
           suites: {
             unit: {
-              packages: ['packages/core'],
+              gate: 'default-gate',
             },
           },
         }
@@ -413,7 +413,7 @@ describe('merge', () => {
           settings: {},
           suites: {
             unit: {
-              packages: ['packages/core'],
+              gate: 'default-gate',
             },
           },
         }
@@ -439,14 +439,11 @@ describe('merge', () => {
           settings: {},
           suites: {
             minimal: {
-              packages: ['src'],
+              gate: 'minimal-gate',
             },
             complete: {
               gate: 'core',
               description: 'Complete test suite',
-              packages: ['packages/core'],
-              files: ['docs/**/*.md'],
-              ignore: ['*.tmp'],
               command: 'npm test',
               timeout: '10m',
               interactive: true,
@@ -481,7 +478,7 @@ describe('merge', () => {
           },
           suites: {
             unit: {
-              packages: ['src'],
+              gate: 'unit-gate',
             },
           },
         }

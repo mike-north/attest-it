@@ -9,5 +9,5 @@ Global settings for attestation behavior
 **Signature:**
 
 ```typescript
-settings: AttestItSettings
+settings: AttestItSettings;
 ```

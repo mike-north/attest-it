@@ -9,5 +9,5 @@ Cryptographic algorithm to use for signatures
 **Signature:**
 
 ```typescript
-algorithm: 'ed25519' | 'rsa'
+algorithm: 'ed25519' | 'rsa';
 ```

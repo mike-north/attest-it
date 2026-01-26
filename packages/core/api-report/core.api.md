@@ -218,14 +218,8 @@ export function getPreference<K extends keyof UserPreferences>(key: K): Promise<
 // @public
 export function getPreferencesPath(): string;
 
-// @public @deprecated
-export function getProjectPublicKeysDir(projectRoot?: string): string;
-
 // @public
 export function getPublicKeyFromPrivate(privateKeyPem: string): string;
-
-// @public @deprecated
-export function hasProjectConfig(projectRoot?: string): boolean;
 
 // @public
 export interface Identity {
@@ -493,82 +487,45 @@ export const operationalSchema: z.ZodObject<{
             type: string;
         } | undefined;
     }>>;
-    suites: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEffects<z.ZodObject<{
+    suites: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodObject<{
         command: z.ZodOptional<z.ZodString>;
         depends_on: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         description: z.ZodOptional<z.ZodString>;
-        files: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
-        gate: z.ZodOptional<z.ZodString>;
-        ignore: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        gate: z.ZodString;
         interactive: z.ZodOptional<z.ZodBoolean>;
         invalidates: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
-        packages: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         timeout: z.ZodOptional<z.ZodString>;
     }, "strict", z.ZodTypeAny, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
-        timeout?: string | undefined;
-    }>, {
-        command?: string | undefined;
-        depends_on?: string[] | undefined;
-        description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
-        interactive?: boolean | undefined;
-        invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
-        timeout?: string | undefined;
-    }, {
-        command?: string | undefined;
-        depends_on?: string[] | undefined;
-        description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
-        interactive?: boolean | undefined;
-        invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>>, Record<string, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>, Record<string, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>>;
     version: z.ZodLiteral<1>;
@@ -591,12 +548,9 @@ export const operationalSchema: z.ZodObject<{
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>;
     version: 1;
@@ -619,12 +573,9 @@ export const operationalSchema: z.ZodObject<{
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>;
     version: 1;
@@ -842,16 +793,15 @@ export function saveLocalConfigSync(config: LocalConfig, configPath?: string): v
 export function savePreferences(preferences: UserPreferences): Promise<void>;
 
 // @public
-export function savePublicKey(slug: string, publicKey: string, projectRoot?: string): Promise<SavePublicKeyResult>;
+export function savePublicKey(slug: string, publicKey: string): Promise<SavePublicKeyResult>;
 
 // @public
 export interface SavePublicKeyResult {
     homePath: string;
-    projectPath?: string;
 }
 
 // @public
-export function savePublicKeySync(slug: string, publicKey: string, projectRoot?: string): SavePublicKeyResult;
+export function savePublicKeySync(slug: string, publicKey: string): SavePublicKeyResult;
 
 // @public
 export interface Seal {
@@ -916,12 +866,9 @@ export interface SuiteConfig {
     command?: string;
     depends_on?: string[];
     description?: string;
-    files?: string[];
-    gate?: string;
-    ignore?: string[];
+    gate: string;
     interactive?: boolean;
     invalidates?: string[];
-    packages?: string[];
     timeout?: string;
 }
 

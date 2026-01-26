@@ -9,7 +9,7 @@ Options for reading and verifying signed attestations.
 **Signature:**
 
 ```typescript
-interface ReadSignedAttestationsOptions
+interface ReadSignedAttestationsOptions 
 ```
 
 ## Properties
@@ -18,47 +18,60 @@ interface ReadSignedAttestationsOptions
 
 Property
 
+
 </th><th>
 
 Modifiers
+
 
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [filePath](./core.readsignedattestationsoptions.filepath.md)
 
+
 </td><td>
+
 
 </td><td>
 
 string
 
+
 </td><td>
 
 Path to read the attestations file from
+
 
 </td></tr>
 <tr><td>
 
 [publicKeyPath](./core.readsignedattestationsoptions.publickeypath.md)
 
+
 </td><td>
+
 
 </td><td>
 
 string
 
+
 </td><td>
 
 Path to the public key for verification
 
+
 </td></tr>
 </tbody></table>
+

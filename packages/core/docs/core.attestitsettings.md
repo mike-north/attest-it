@@ -9,7 +9,7 @@ Settings from the configuration file.
 **Signature:**
 
 ```typescript
-interface AttestItSettings
+interface AttestItSettings 
 ```
 
 ## Properties
@@ -18,92 +18,117 @@ interface AttestItSettings
 
 Property
 
+
 </th><th>
 
 Modifiers
+
 
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [algorithm](./core.attestitsettings.algorithm.md)
 
+
 </td><td>
+
 
 </td><td>
 
 'ed25519' \| 'rsa'
 
+
 </td><td>
 
 Cryptographic algorithm to use for signatures
+
 
 </td></tr>
 <tr><td>
 
 [attestationsPath](./core.attestitsettings.attestationspath.md)
 
+
 </td><td>
+
 
 </td><td>
 
 string
 
+
 </td><td>
 
 Path to the attestations file
+
 
 </td></tr>
 <tr><td>
 
 [defaultCommand?](./core.attestitsettings.defaultcommand.md)
 
+
 </td><td>
+
 
 </td><td>
 
 string
 
+
 </td><td>
 
 _(Optional)_ Default command to execute for attestation (can be overridden per suite)
+
 
 </td></tr>
 <tr><td>
 
 [maxAgeDays](./core.attestitsettings.maxagedays.md)
 
+
 </td><td>
+
 
 </td><td>
 
 number
 
+
 </td><td>
 
 Maximum age in days before an attestation expires
+
 
 </td></tr>
 <tr><td>
 
 [publicKeyPath](./core.attestitsettings.publickeypath.md)
 
+
 </td><td>
+
 
 </td><td>
 
 string
 
+
 </td><td>
 
 Path to the public key file used for signature verification
 
+
 </td></tr>
 </tbody></table>
+

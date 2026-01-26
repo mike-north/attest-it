@@ -11,9 +11,7 @@ This function reads the attestations file, canonicalizes the attestations, and v
 **Signature:**
 
 ```typescript
-declare function readAndVerifyAttestations(
-  options: ReadSignedAttestationsOptions,
-): Promise<AttestationsFile>
+declare function readAndVerifyAttestations(options: ReadSignedAttestationsOptions): Promise<AttestationsFile>;
 ```
 
 ## Parameters
@@ -22,26 +20,32 @@ declare function readAndVerifyAttestations(
 
 Parameter
 
+
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 options
 
+
 </td><td>
 
 [ReadSignedAttestationsOptions](./core.readsignedattestationsoptions.md)
 
+
 </td><td>
 
 Options for reading and verifying attestations
+
 
 </td></tr>
 </tbody></table>
@@ -57,3 +61,4 @@ The attestations file if signature is valid
 Error if attestations file not found
 
 SignatureInvalidError if signature verification fails
+

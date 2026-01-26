@@ -9,5 +9,5 @@ Exit code (must be 0 for valid attestation)
 **Signature:**
 
 ```typescript
-exitCode: 0
+exitCode: 0;
 ```

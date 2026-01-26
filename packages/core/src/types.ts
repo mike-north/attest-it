@@ -95,16 +95,10 @@ export interface GateConfig {
  * @public
  */
 export interface SuiteConfig {
-  /** Reference to a gate (if present, inherits gate configuration) */
-  gate?: string
+  /** Reference to a gate (required - defines the fingerprint configuration) */
+  gate: string
   /** Human-readable description of what this suite tests */
   description?: string
-  /** Glob patterns for npm packages to include in fingerprint (legacy/backward compatibility) */
-  packages?: string[]
-  /** Additional file patterns to include in fingerprint */
-  files?: string[]
-  /** Patterns to ignore when computing fingerprint */
-  ignore?: string[]
   /** Command to execute for this suite (overrides defaultCommand) */
   command?: string
   /** Timeout for command execution (duration string) */

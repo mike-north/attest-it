@@ -64,31 +64,11 @@
             "type": "object",
             "properties": {
               "gate": {
-                "type": "string"
+                "type": "string",
+                "minLength": 1
               },
               "description": {
                 "type": "string"
-              },
-              "packages": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "files": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "ignore": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "minLength": 1
-                }
               },
               "command": {
                 "type": "string"
@@ -114,6 +94,7 @@
                 }
               }
             },
+            "required": ["gate"],
             "additionalProperties": false
           }
         },

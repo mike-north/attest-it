@@ -5,30 +5,69 @@ settings:
   attestationsPath: .attest-it/attestations.json
   defaultCommand: pnpm test
 
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+
+gates:
+  visual-gate:
+    name: Visual Gate
+    description: Visual test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - packages/visual
+    maxAge: 30d
+  colors-gate:
+    name: Colors Gate
+    description: Color test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - packages/colors
+    maxAge: 30d
+  focus-gate:
+    name: Focus Gate
+    description: Focus detection gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - packages/focus
+    maxAge: 30d
+  acceptance-gate:
+    name: Acceptance Gate
+    description: Full acceptance test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - packages/*
+    maxAge: 30d
+
 suites:
   visual-effects:
+    gate: visual-gate
     description: Flash animations
     command: pnpm test:visual
-    packages:
-      - packages/visual
 
   custom-colors:
+    gate: colors-gate
     description: Custom color tests
     command: pnpm test:colors
-    packages:
-      - packages/colors
 
   focus-detection:
+    gate: focus-gate
     description: Focus detection tests
     command: pnpm test:focus
-    packages:
-      - packages/focus
 
   full-acceptance:
+    gate: acceptance-gate
     description: Complete test suite
     command: pnpm test:all
-    packages:
-      - packages/*
     depends_on:
       - visual-effects
       - focus-detection

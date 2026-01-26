@@ -24,7 +24,7 @@ describe('SuiteSelector component', () => {
       status: 'FINGERPRINT_CHANGED',
       reason: 'Source files modified',
       currentFingerprint: 'ghi789',
-      attestedFingerprint: 'old123',
+      sealedFingerprint: 'old123',
       age: 10,
     },
   ]
@@ -35,8 +35,8 @@ describe('SuiteSelector component', () => {
       status: 'VALID',
       reason: 'Attested 5 days ago',
       currentFingerprint: 'valid123',
-      attestedFingerprint: 'valid123',
-      attestedAt: '2024-01-01T00:00:00Z',
+      sealedFingerprint: 'valid123',
+      sealedAt: '2024-01-01T00:00:00Z',
       age: 5,
     },
     {
@@ -44,8 +44,8 @@ describe('SuiteSelector component', () => {
       status: 'VALID',
       reason: 'Attested 2 days ago',
       currentFingerprint: 'valid456',
-      attestedFingerprint: 'valid456',
-      attestedAt: '2024-01-04T00:00:00Z',
+      sealedFingerprint: 'valid456',
+      sealedAt: '2024-01-04T00:00:00Z',
       age: 2,
     },
   ]
@@ -125,8 +125,12 @@ describe('SuiteSelector component', () => {
       expect(output).toContain('Select suites to run:')
       expect(output).toContain('All pending')
       expect(output).toContain('[a]')
-      expect(output).toContain('By number')
+      expect(output).toContain('Toggle by number')
       expect(output).toContain('[1-9]')
+      expect(output).toContain('Toggle current')
+      expect(output).toContain('[Space]')
+      expect(output).toContain('Navigate')
+      expect(output).toContain('[↑↓]')
       expect(output).toContain('None/exit')
       expect(output).toContain('[n]')
     })
@@ -249,7 +253,7 @@ describe('SuiteSelector component', () => {
       )
 
       const output = lastFrame() ?? ''
-      expect(output).toContain('By number')
+      expect(output).toContain('Toggle by number')
       expect(output).toContain('[1-9]')
     })
 

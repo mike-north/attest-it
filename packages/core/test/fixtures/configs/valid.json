@@ -6,18 +6,42 @@
     "attestationsPath": ".attest-it/attestations.json",
     "defaultCommand": "pnpm test"
   },
+  "team": {
+    "test-user": {
+      "name": "Test User",
+      "publicKey": "Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA="
+    }
+  },
+  "gates": {
+    "unit-gate": {
+      "name": "Unit Gate",
+      "description": "Unit test gate",
+      "authorizedSigners": ["test-user"],
+      "fingerprint": {
+        "paths": ["@attest-it/core"],
+        "exclude": ["**/node_modules/**", "**/*.spec.ts"]
+      },
+      "maxAge": "30d"
+    },
+    "integration-gate": {
+      "name": "Integration Gate",
+      "description": "Integration test gate",
+      "authorizedSigners": ["test-user"],
+      "fingerprint": {
+        "paths": ["@attest-it/core", "@attest-it/cli"]
+      },
+      "maxAge": "30d"
+    }
+  },
   "suites": {
     "unit": {
       "description": "Unit tests for core functionality",
-      "packages": ["@attest-it/core"],
-      "files": ["src/**/*.test.ts"],
-      "ignore": ["**/node_modules/**", "**/*.spec.ts"],
+      "gate": "unit-gate",
       "command": "pnpm test:unit"
     },
     "integration": {
       "description": "Integration tests",
-      "packages": ["@attest-it/core", "@attest-it/cli"],
-      "files": ["integration/**/*.test.ts"],
+      "gate": "integration-gate",
       "command": "pnpm test:integration",
       "invalidates": ["unit"]
     }

@@ -465,12 +465,40 @@ export class OnePasswordKeyProvider implements KeyProvider {
 }
 
 /**
+ * Filter environment variables to remove 1Password session tokens.
+ * This forces fresh authentication, requiring human interaction (Touch ID, password, etc.).
+ * @internal
+ */
+function getCleanEnvironment(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {}
+  for (const [key, value] of Object.entries(process.env)) {
+    // Filter out 1Password session tokens and cache-related variables
+    // This ensures the op CLI will prompt for authentication
+    if (!key.startsWith('OP_SESSION_') && key !== 'OP_SERVICE_ACCOUNT_TOKEN') {
+      // eslint-disable-next-line security/detect-object-injection
+      env[key] = value
+    }
+  }
+  return env
+}
+
+/**
  * Execute a command and return stdout.
+ *
+ * @remarks
+ * For security, this function removes 1Password session tokens from the environment
+ * to force fresh authentication on each call. This ensures a human must interact
+ * (via Touch ID, password prompt, etc.) to access private keys, preventing automated
+ * agents from using cached credentials.
+ *
  * @internal
  */
 async function execCommand(command: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    const proc = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] })
+    const proc = spawn(command, args, {
+      stdio: ['inherit', 'pipe', 'pipe'],
+      env: getCleanEnvironment(),
+    })
     let stdout = ''
     let stderr = ''
 

@@ -31,10 +31,22 @@ function createTestConfig(overrides?: Partial<AttestItConfig>): AttestItConfig {
       maxAgeDays: 30,
       publicKeyPath: path.join(TEST_DIR, 'public.pem'),
       attestationsPath: path.join(TEST_DIR, 'attestations.json'),
+      sealsPath: path.join(TEST_DIR, 'seals.json'),
+    },
+    gates: {
+      'default-gate': {
+        name: 'Default Gate',
+        description: 'Default test gate',
+        authorizedSigners: ['testuser'],
+        fingerprint: {
+          paths: ['packages/pkg1'],
+        },
+        maxAge: '30d',
+      },
     },
     suites: {
       unit: {
-        packages: ['packages/pkg1'],
+        gate: 'default-gate',
         command: 'npm test',
       },
     },
@@ -89,9 +101,20 @@ describe('verifyAttestations', () => {
   describe('positive tests', () => {
     it('should return success when all attestations are valid', async () => {
       const config = createTestConfig({
+        gates: {
+          'test-gate': {
+            name: 'Test Gate',
+            description: 'Test gate',
+            authorizedSigners: ['testuser'],
+            fingerprint: {
+              paths: [FINGERPRINT_PROJECT],
+            },
+            maxAge: '30d',
+          },
+        },
         suites: {
           unit: {
-            packages: [FINGERPRINT_PROJECT],
+            gate: 'test-gate',
           },
         },
       })
@@ -125,9 +148,20 @@ describe('verifyAttestations', () => {
 
     it('should handle empty attestations file correctly', async () => {
       const config = createTestConfig({
+        gates: {
+          'test-gate': {
+            name: 'Test Gate',
+            description: 'Test gate',
+            authorizedSigners: ['testuser'],
+            fingerprint: {
+              paths: [FINGERPRINT_PROJECT],
+            },
+            maxAge: '30d',
+          },
+        },
         suites: {
           unit: {
-            packages: [FINGERPRINT_PROJECT],
+            gate: 'test-gate',
           },
         },
       })
@@ -151,10 +185,22 @@ describe('verifyAttestations', () => {
           maxAgeDays: 30,
           publicKeyPath: path.join(TEST_DIR, 'public.pem'),
           attestationsPath: path.join(TEST_DIR, 'attestations.json'),
+          sealsPath: path.join(TEST_DIR, 'seals.json'),
+        },
+        gates: {
+          'test-gate': {
+            name: 'Test Gate',
+            description: 'Test gate',
+            authorizedSigners: ['testuser'],
+            fingerprint: {
+              paths: [FINGERPRINT_PROJECT],
+            },
+            maxAge: '30d',
+          },
         },
         suites: {
           unit: {
-            packages: [FINGERPRINT_PROJECT],
+            gate: 'test-gate',
           },
         },
       })
@@ -192,12 +238,23 @@ describe('verifyAttestations', () => {
 
     it('should handle multiple suites all valid', async () => {
       const config = createTestConfig({
+        gates: {
+          'test-gate': {
+            name: 'Test Gate',
+            description: 'Test gate',
+            authorizedSigners: ['testuser'],
+            fingerprint: {
+              paths: [FINGERPRINT_PROJECT],
+            },
+            maxAge: '30d',
+          },
+        },
         suites: {
           unit: {
-            packages: [FINGERPRINT_PROJECT],
+            gate: 'test-gate',
           },
           integration: {
-            packages: [FINGERPRINT_PROJECT],
+            gate: 'test-gate',
           },
         },
       })
@@ -235,11 +292,21 @@ describe('verifyAttestations', () => {
   })
 
   describe('status tests', () => {
-    it('should return NEEDS_ATTESTATION when no attestation exists', async () => {
-      const config = createTestConfig({
+    it('should return NEEDS_ATTESTATION when no attestation exists', async () => {      const config = createTestConfig({
+        gates: {
+          'test-gate': {
+            name: 'Test Gate',
+            description: 'Test gate',
+            authorizedSigners: ['testuser'],
+            fingerprint: {
+              paths: [FINGERPRINT_PROJECT],
+            },
+            maxAge: '30d',
+          },
+        },
         suites: {
           unit: {
-            packages: [FINGERPRINT_PROJECT],
+            gate: 'test-gate',
           },
         },
       })
@@ -256,11 +323,21 @@ describe('verifyAttestations', () => {
       expect(result.suites[0]?.message).toContain('No attestation found')
     })
 
-    it('should return FINGERPRINT_CHANGED when code changed', async () => {
-      const config = createTestConfig({
+    it('should return FINGERPRINT_CHANGED when code changed', async () => {      const config = createTestConfig({
+        gates: {
+          'test-gate': {
+            name: 'Test Gate',
+            description: 'Test gate',
+            authorizedSigners: ['testuser'],
+            fingerprint: {
+              paths: [FINGERPRINT_PROJECT],
+            },
+            maxAge: '30d',
+          },
+        },
         suites: {
           unit: {
-            packages: [FINGERPRINT_PROJECT],
+            gate: 'test-gate',
           },
         },
       })
@@ -284,16 +361,27 @@ describe('verifyAttestations', () => {
       expect(result.suites[0]?.message).toContain('Fingerprint changed')
     })
 
-    it('should return EXPIRED when attestation too old', async () => {
-      const config = createTestConfig({
+    it('should return EXPIRED when attestation too old', async () => {      const config = createTestConfig({
         settings: {
           maxAgeDays: 7,
           publicKeyPath: path.join(TEST_DIR, 'public.pem'),
           attestationsPath: path.join(TEST_DIR, 'attestations.json'),
+          sealsPath: path.join(TEST_DIR, 'seals.json'),
+        },
+        gates: {
+          'test-gate': {
+            name: 'Test Gate',
+            description: 'Test gate',
+            authorizedSigners: ['testuser'],
+            fingerprint: {
+              paths: [FINGERPRINT_PROJECT],
+            },
+            maxAge: '30d',
+          },
         },
         suites: {
           unit: {
-            packages: [FINGERPRINT_PROJECT],
+            gate: 'test-gate',
           },
         },
       })
@@ -329,11 +417,21 @@ describe('verifyAttestations', () => {
       expect(result.suites[0]?.age).toBeGreaterThanOrEqual(9)
     })
 
-    it('should return SIGNATURE_INVALID when signature tampered', async () => {
-      const config = createTestConfig({
+    it('should return SIGNATURE_INVALID when signature tampered', async () => {      const config = createTestConfig({
+        gates: {
+          'test-gate': {
+            name: 'Test Gate',
+            description: 'Test gate',
+            authorizedSigners: ['testuser'],
+            fingerprint: {
+              paths: [FINGERPRINT_PROJECT],
+            },
+            maxAge: '30d',
+          },
+        },
         suites: {
           unit: {
-            packages: [FINGERPRINT_PROJECT],
+            gate: 'test-gate',
           },
         },
       })
@@ -372,15 +470,25 @@ describe('verifyAttestations', () => {
       expect(result.errors[0]).toContain('Signature verification failed')
     })
 
-    it('should return INVALIDATED_BY_PARENT for invalidation chains', async () => {
-      const config = createTestConfig({
+    it('should return INVALIDATED_BY_PARENT for invalidation chains', async () => {      const config = createTestConfig({
+        gates: {
+          'test-gate': {
+            name: 'Test Gate',
+            description: 'Test gate',
+            authorizedSigners: ['testuser'],
+            fingerprint: {
+              paths: [FINGERPRINT_PROJECT],
+            },
+            maxAge: '30d',
+          },
+        },
         suites: {
           unit: {
-            packages: [FINGERPRINT_PROJECT],
+            gate: 'test-gate',
             invalidates: ['integration'],
           },
           integration: {
-            packages: [FINGERPRINT_PROJECT],
+            gate: 'test-gate',
           },
         },
       })
@@ -431,16 +539,27 @@ describe('verifyAttestations', () => {
   })
 
   describe('edge cases', () => {
-    it('should handle missing public key file', async () => {
-      const config = createTestConfig({
+    it('should handle missing public key file', async () => {      const config = createTestConfig({
         settings: {
           maxAgeDays: 30,
           publicKeyPath: path.join(TEST_DIR, 'nonexistent-public.pem'),
           attestationsPath: path.join(TEST_DIR, 'attestations.json'),
+          sealsPath: path.join(TEST_DIR, 'seals.json'),
+        },
+        gates: {
+          'test-gate': {
+            name: 'Test Gate',
+            description: 'Test gate',
+            authorizedSigners: ['testuser'],
+            fingerprint: {
+              paths: [FINGERPRINT_PROJECT],
+            },
+            maxAge: '30d',
+          },
         },
         suites: {
           unit: {
-            packages: [FINGERPRINT_PROJECT],
+            gate: 'test-gate',
           },
         },
       })
@@ -472,11 +591,21 @@ describe('verifyAttestations', () => {
       expect(result.errors.some((e) => e.includes('Public key not found'))).toBe(true)
     })
 
-    it('should handle missing attestations file (fresh repo)', async () => {
-      const config = createTestConfig({
+    it('should handle missing attestations file (fresh repo)', async () => {      const config = createTestConfig({
+        gates: {
+          'test-gate': {
+            name: 'Test Gate',
+            description: 'Test gate',
+            authorizedSigners: ['testuser'],
+            fingerprint: {
+              paths: [FINGERPRINT_PROJECT],
+            },
+            maxAge: '30d',
+          },
+        },
         suites: {
           unit: {
-            packages: [FINGERPRINT_PROJECT],
+            gate: 'test-gate',
           },
         },
       })
@@ -510,15 +639,25 @@ describe('verifyAttestations', () => {
       expect(result.suites).toHaveLength(0)
     })
 
-    it('should handle circular invalidation chains without infinite loop', async () => {
-      const config = createTestConfig({
+    it('should handle circular invalidation chains without infinite loop', async () => {      const config = createTestConfig({
+        gates: {
+          'test-gate': {
+            name: 'Test Gate',
+            description: 'Test gate',
+            authorizedSigners: ['testuser'],
+            fingerprint: {
+              paths: [FINGERPRINT_PROJECT],
+            },
+            maxAge: '30d',
+          },
+        },
         suites: {
           unit: {
-            packages: [FINGERPRINT_PROJECT],
+            gate: 'test-gate',
             invalidates: ['integration'],
           },
           integration: {
-            packages: [FINGERPRINT_PROJECT],
+            gate: 'test-gate',
             invalidates: ['unit'],
           },
         },
@@ -558,12 +697,23 @@ describe('verifyAttestations', () => {
   describe('integration tests', () => {
     it('should complete full workflow with real signing and verification', async () => {
       const config = createTestConfig({
+        gates: {
+          'test-gate': {
+            name: 'Test Gate',
+            description: 'Test gate',
+            authorizedSigners: ['testuser'],
+            fingerprint: {
+              paths: [FINGERPRINT_PROJECT],
+            },
+            maxAge: '30d',
+          },
+        },
         suites: {
           unit: {
-            packages: [FINGERPRINT_PROJECT],
+            gate: 'test-gate',
           },
           integration: {
-            packages: [FINGERPRINT_PROJECT],
+            gate: 'test-gate',
           },
         },
       })
@@ -614,9 +764,20 @@ describe('verifyAttestations', () => {
       await fs.promises.writeFile(testFile, 'initial content')
 
       const config = createTestConfig({
+        gates: {
+          'temp-gate': {
+            name: 'Temp Gate',
+            description: 'Temp gate for testing',
+            authorizedSigners: ['testuser'],
+            fingerprint: {
+              paths: [tempProject],
+            },
+            maxAge: '30d',
+          },
+        },
         suites: {
           unit: {
-            packages: [tempProject],
+            gate: 'temp-gate',
           },
         },
       })

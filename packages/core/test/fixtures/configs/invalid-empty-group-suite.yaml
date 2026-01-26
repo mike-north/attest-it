@@ -5,10 +5,25 @@ settings:
   attestationsPath: .attest-it/attestations.json
   defaultCommand: pnpm test
 
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
+
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 
 groups:
   ui-tests:

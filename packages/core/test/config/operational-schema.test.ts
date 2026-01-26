@@ -68,14 +68,13 @@ describe('operational-schema', () => {
 version: 1
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `
         const config = parseOperationalContent(yaml, 'yaml')
 
         expect(config.version).toBe(1)
         expect(config.suites.unit).toBeDefined()
-        expect(config.suites.unit.packages).toEqual(['@attest-it/core'])
+        expect(config.suites.unit.gate).toBe('unit-gate')
         expect(config.settings.defaultCommand).toBeUndefined()
         expect(config.settings.keyProvider).toBeUndefined()
         expect(config.groups).toBeUndefined()
@@ -86,7 +85,7 @@ suites:
           version: 1,
           suites: {
             unit: {
-              packages: ['@attest-it/core'],
+              gate: 'unit-gate',
             },
           },
         })
@@ -95,6 +94,7 @@ suites:
 
         expect(config.version).toBe(1)
         expect(config.suites.unit).toBeDefined()
+        expect(config.suites.unit.gate).toBe('unit-gate')
       })
 
       it('should parse config with defaultCommand', () => {
@@ -104,8 +104,7 @@ settings:
   defaultCommand: pnpm test
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `
         const config = parseOperationalContent(yaml, 'yaml')
 
@@ -122,8 +121,7 @@ settings:
       privateKeyPath: /custom/path/private.pem
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `
         const config = parseOperationalContent(yaml, 'yaml')
 
@@ -146,8 +144,7 @@ settings:
       itemName: attest-it-key
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `
         const config = parseOperationalContent(yaml, 'yaml')
 
@@ -171,26 +168,19 @@ suites:
         expect(config.suites.unit.command).toBe('pnpm test:unit')
       })
 
-      it('should parse suite with legacy fingerprint definition', () => {
+      it('should parse suite with description and command', () => {
         const yaml = `
 version: 1
 suites:
   unit:
+    gate: unit-tests
     description: Unit tests for core functionality
-    packages:
-      - '@attest-it/core'
-    files:
-      - 'src/**/*.test.ts'
-    ignore:
-      - '**/node_modules/**'
     command: pnpm test:unit
 `
         const config = parseOperationalContent(yaml, 'yaml')
 
+        expect(config.suites.unit.gate).toBe('unit-tests')
         expect(config.suites.unit.description).toBe('Unit tests for core functionality')
-        expect(config.suites.unit.packages).toEqual(['@attest-it/core'])
-        expect(config.suites.unit.files).toEqual(['src/**/*.test.ts'])
-        expect(config.suites.unit.ignore).toEqual(['**/node_modules/**'])
         expect(config.suites.unit.command).toBe('pnpm test:unit')
       })
 
@@ -199,8 +189,7 @@ suites:
 version: 1
 suites:
   e2e:
-    packages:
-      - '@attest-it/e2e'
+    gate: e2e-gate
     command: pnpm test:e2e
     timeout: 30m
     interactive: true
@@ -216,11 +205,9 @@ suites:
 version: 1
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
   integration:
-    packages:
-      - '@attest-it/cli'
+    gate: integration-gate
     depends_on:
       - unit
 `
@@ -234,11 +221,9 @@ suites:
 version: 1
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
   integration:
-    packages:
-      - '@attest-it/cli'
+    gate: integration-gate
     invalidates:
       - unit
 `
@@ -252,14 +237,11 @@ suites:
 version: 1
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
   integration:
-    packages:
-      - '@attest-it/cli'
+    gate: integration-gate
   e2e:
-    packages:
-      - '@attest-it/e2e'
+    gate: e2e-gate
 groups:
   fast-tests:
     - unit
@@ -284,6 +266,8 @@ settings:
     options:
       privateKeyPath: /path/to/key.pem
 suites:
+  lint:
+    gate: lint-gate
   unit:
     gate: unit-tests
     command: pnpm test:unit
@@ -293,6 +277,8 @@ suites:
       - lint
     invalidates:
       - build
+  build:
+    gate: build-gate
 groups:
   ci:
     - unit
@@ -311,8 +297,7 @@ version: 1
 settings: {}
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `
         const config = parseOperationalContent(yaml, 'yaml')
 
@@ -325,8 +310,7 @@ suites:
 version: 1
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `
         const config = parseOperationalContent(yaml, 'yaml')
 
@@ -342,8 +326,7 @@ settings:
     type: filesystem
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `
         const config = parseOperationalContent(yaml, 'yaml')
 
@@ -358,8 +341,7 @@ suites:
 version: 2
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `
         expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(OperationalValidationError)
         expect(() => parseOperationalContent(yaml, 'yaml')).toThrow('version')
@@ -369,8 +351,7 @@ suites:
         const yaml = `
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `
         expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(OperationalValidationError)
         expect(() => parseOperationalContent(yaml, 'yaml')).toThrow('version')
@@ -393,7 +374,7 @@ version: 1
         expect(() => parseOperationalContent(yaml, 'yaml')).toThrow('suites')
       })
 
-      it('should reject suite without gate or packages', () => {
+      it('should reject suite without gate', () => {
         const yaml = `
 version: 1
 suites:
@@ -401,67 +382,18 @@ suites:
     command: pnpm test
 `
         expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(OperationalValidationError)
-        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(
-          'Suite must either reference a gate or define packages',
-        )
+        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow('gate')
       })
 
-      it('should reject suite with empty packages array', () => {
+      it('should reject suite with empty gate string', () => {
         const yaml = `
 version: 1
 suites:
   unit:
-    packages: []
+    gate: ''
 `
         expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(OperationalValidationError)
-        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(
-          'Suite must either reference a gate or define packages',
-        )
-      })
-
-      it('should reject suite with empty string in packages', () => {
-        const yaml = `
-version: 1
-suites:
-  unit:
-    packages:
-      - '@attest-it/core'
-      - ''
-`
-        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(OperationalValidationError)
-        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow('Package path cannot be empty')
-      })
-
-      it('should reject suite with empty string in files', () => {
-        const yaml = `
-version: 1
-suites:
-  unit:
-    packages:
-      - '@attest-it/core'
-    files:
-      - 'src/**/*.ts'
-      - ''
-`
-        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(OperationalValidationError)
-        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow('File path cannot be empty')
-      })
-
-      it('should reject suite with empty string in ignore', () => {
-        const yaml = `
-version: 1
-suites:
-  unit:
-    packages:
-      - '@attest-it/core'
-    ignore:
-      - '**/node_modules/**'
-      - ''
-`
-        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(OperationalValidationError)
-        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(
-          'Ignore pattern cannot be empty',
-        )
+        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow('Gate reference cannot be empty')
       })
 
       it('should reject suite with empty string in invalidates', () => {
@@ -469,11 +401,9 @@ suites:
 version: 1
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
   integration:
-    packages:
-      - '@attest-it/cli'
+    gate: integration-gate
     invalidates:
       - unit
       - ''
@@ -489,11 +419,9 @@ suites:
 version: 1
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
   integration:
-    packages:
-      - '@attest-it/cli'
+    gate: integration-gate
     depends_on:
       - unit
       - ''
@@ -509,8 +437,7 @@ suites:
 version: 1
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 groups:
   test-group:
     - unit
@@ -528,8 +455,7 @@ version: 1
 extraProperty: invalid
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `
         expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(OperationalValidationError)
       })
@@ -542,8 +468,7 @@ settings:
   maxAgeDays: 30
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `
         expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(OperationalValidationError)
       })
@@ -553,8 +478,7 @@ suites:
 version: 1
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
     extraField: invalid
 `
         expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(OperationalValidationError)
@@ -569,8 +493,7 @@ settings:
       privateKeyPath: /path/to/key.pem
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `
         expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(OperationalValidationError)
         expect(() => parseOperationalContent(yaml, 'yaml')).toThrow('type')
@@ -601,8 +524,7 @@ suites: [unclosed array
 version: 1
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
     depends_on: []
 `
         const config = parseOperationalContent(yaml, 'yaml')
@@ -614,8 +536,7 @@ suites:
 version: 1
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
     invalidates: []
 `
         const config = parseOperationalContent(yaml, 'yaml')
@@ -627,8 +548,7 @@ suites:
 version: 1
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 groups: {}
 `
         const config = parseOperationalContent(yaml, 'yaml')
@@ -640,8 +560,7 @@ groups: {}
 version: 1
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 groups:
   empty-group: []
 `
@@ -658,8 +577,7 @@ settings:
     options: {}
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `
         const config = parseOperationalContent(yaml, 'yaml')
         expect(config.settings.keyProvider?.options).toEqual({})
@@ -670,8 +588,7 @@ suites:
 version: 1
 suites:
   'unit-test:special@chars':
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `
         const config = parseOperationalContent(yaml, 'yaml')
         expect(config.suites['unit-test:special@chars']).toBeDefined()
@@ -682,16 +599,13 @@ suites:
 version: 1
 suites:
   base:
-    packages:
-      - '@attest-it/core'
+    gate: base-gate
   suite-a:
-    packages:
-      - '@attest-it/a'
+    gate: suite-a-gate
     depends_on:
       - base
   suite-b:
-    packages:
-      - '@attest-it/b'
+    gate: suite-b-gate
     depends_on:
       - base
 `
@@ -705,8 +619,7 @@ suites:
 version: 1
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 groups:
   group-a:
     - unit
@@ -728,8 +641,7 @@ settings:
       customOption: value
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `
         const config = parseOperationalContent(yaml, 'yaml')
         expect(config.settings.keyProvider?.type).toBe('custom-provider')
@@ -740,29 +652,11 @@ suites:
 version: 1
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
     interactive: false
 `
         const config = parseOperationalContent(yaml, 'yaml')
         expect(config.suites.unit.interactive).toBe(false)
-      })
-
-      it('should handle suite with both gate and legacy fingerprint fields', () => {
-        const yaml = `
-version: 1
-suites:
-  unit:
-    gate: unit-tests
-    packages:
-      - '@attest-it/core'
-    files:
-      - 'src/**/*.ts'
-`
-        const config = parseOperationalContent(yaml, 'yaml')
-        expect(config.suites.unit.gate).toBe('unit-tests')
-        expect(config.suites.unit.packages).toEqual(['@attest-it/core'])
-        expect(config.suites.unit.files).toEqual(['src/**/*.ts'])
       })
     })
   })
@@ -813,7 +707,7 @@ suites:
         settings: {},
         suites: {
           unit: {
-            packages: ['@attest-it/core'],
+            gate: 'unit-gate',
           },
         },
       }
@@ -827,7 +721,7 @@ suites:
         version: 2,
         suites: {
           unit: {
-            packages: ['@attest-it/core'],
+            gate: 'unit-gate',
           },
         },
       }

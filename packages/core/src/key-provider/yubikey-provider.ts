@@ -274,9 +274,9 @@ export class YubiKeyProvider implements KeyProvider {
     try {
       // Actually test challenge-response instead of parsing output text.
       // This is more reliable across different ykman versions.
-      // Uses 'ykman otp calculate' to perform the challenge-response.
+      // Uses 'ykman otp calculate -t' to perform the challenge-response with touch required.
       const testChallenge = Buffer.from('attest-it-test-challenge-12345')
-      const args = ['otp', 'calculate', String(slot), testChallenge.toString('hex')]
+      const args = ['otp', 'calculate', '-t', String(slot), testChallenge.toString('hex')]
       if (serial) {
         args.unshift('--device', serial)
       }
@@ -755,8 +755,10 @@ async function performChallengeResponse(
   slot: 1 | 2,
   serial?: string,
 ): Promise<Buffer> {
-  // Use 'ykman otp calculate' to perform challenge-response
-  const args = ['otp', 'calculate', String(slot), challenge.toString('hex')]
+  // Use 'ykman otp calculate -t' to perform challenge-response with touch required.
+  // The -t flag ensures that a human must physically touch the YubiKey to complete
+  // the operation, preventing automated/agent-initiated signing.
+  const args = ['otp', 'calculate', '-t', String(slot), challenge.toString('hex')]
   if (serial) {
     args.unshift('--device', serial)
   }
@@ -769,7 +771,8 @@ async function performChallengeResponse(
     // Sanitized error - don't leak command details
     throw new Error(
       'YubiKey challenge-response failed. ' +
-        'Verify your YubiKey is inserted and the slot is configured for challenge-response.',
+        'Verify your YubiKey is inserted, touch it when prompted, ' +
+        'and ensure the slot is configured for challenge-response.',
     )
   }
 }

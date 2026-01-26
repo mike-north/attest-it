@@ -9,7 +9,7 @@ Options for verifying signatures.
 **Signature:**
 
 ```typescript
-interface VerifyOptions$1
+interface VerifyOptions$1 
 ```
 
 ## Properties
@@ -18,62 +18,79 @@ interface VerifyOptions$1
 
 Property
 
+
 </th><th>
 
 Modifiers
+
 
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [data](./core.cryptoverifyoptions.data.md)
 
+
 </td><td>
+
 
 </td><td>
 
 string \| Buffer
 
+
 </td><td>
 
 Original data that was signed
+
 
 </td></tr>
 <tr><td>
 
 [publicKeyPath](./core.cryptoverifyoptions.publickeypath.md)
 
+
 </td><td>
+
 
 </td><td>
 
 string
 
+
 </td><td>
 
 Path to the public key file
+
 
 </td></tr>
 <tr><td>
 
 [signature](./core.cryptoverifyoptions.signature.md)
 
+
 </td><td>
+
 
 </td><td>
 
 string
 
+
 </td><td>
 
 Base64-encoded signature to verify
 
+
 </td></tr>
 </tbody></table>
+

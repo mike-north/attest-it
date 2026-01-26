@@ -9,7 +9,7 @@ Generate a new keypair using OpenSSL.
 **Signature:**
 
 ```typescript
-declare function generateKeyPair(options?: KeygenOptions): Promise<KeyPaths>
+declare function generateKeyPair(options?: KeygenOptions): Promise<KeyPaths>;
 ```
 
 ## Parameters
@@ -18,26 +18,32 @@ declare function generateKeyPair(options?: KeygenOptions): Promise<KeyPaths>
 
 Parameter
 
+
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 options
 
+
 </td><td>
 
 [KeygenOptions](./core.keygenoptions.md)
 
+
 </td><td>
 
 _(Optional)_ Generation options
+
 
 </td></tr>
 </tbody></table>
@@ -51,3 +57,4 @@ Paths to generated keys
 ## Exceptions
 
 Error if OpenSSL fails or keys exist without force
+

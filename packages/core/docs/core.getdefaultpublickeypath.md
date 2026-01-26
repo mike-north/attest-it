@@ -9,9 +9,9 @@ Get the default public key path (in repo).
 **Signature:**
 
 ```typescript
-declare function getDefaultPublicKeyPath(): string
+declare function getDefaultPublicKeyPath(): string;
 ```
-
 **Returns:**
 
 string
+

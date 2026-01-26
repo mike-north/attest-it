@@ -3,10 +3,24 @@
   "seals": {
     "1password-integration": {
       "gateId": "1password-integration",
-      "fingerprint": "sha256:c9b39889fbf4298c0bca8c0e5a62a5ddf278294f596c74c8a18a85ed06bae8b5",
-      "timestamp": "2026-01-25T06:31:15.233Z",
+      "fingerprint": "sha256:7e5608ae7029674de7ffb1ed1a6945c616d2b9d745d511d0a21ef61441d9b4a9",
+      "timestamp": "2026-01-25T23:40:29.693Z",
       "sealedBy": "mike-north",
-      "signature": "Tlo6bwP8wTYuVVWr2Io/JUEU+mp8sz1brBtIseXjGzfqgfyoXFGELyBh94+e+tFgKbwSqguvo+y0gutETZUEDw=="
+      "signature": "hBb4Yvb77mBCMcZFPZ2RpHtr56fsJBDxN3zgtRtajWhOAjwG+94KcThFkcxRv0DF/UlIMe8Qirw6VOdclfQzCA=="
+    },
+    "yubikey-integration": {
+      "gateId": "yubikey-integration",
+      "fingerprint": "sha256:d7e0c2131f55dd6817a2e324b63206d4fb19cc0f0de733de37d8fddeac4ae15b",
+      "timestamp": "2026-01-25T23:39:56.290Z",
+      "sealedBy": "mike-north",
+      "signature": "z4Z/xthtUrkRspOM/X3gf4hhOPupmYu6CkGj4iQnSNHLyZtAj3QSpSl8SVs0mbiot+FI/P3QzIEbgaDZMhjdBQ=="
+    },
+    "keychain-integration": {
+      "gateId": "keychain-integration",
+      "fingerprint": "sha256:7fa386820f145a46737290fd6a5ed9c8fdaac0f62a32546b29ede3a21ff3aaf0",
+      "timestamp": "2026-01-25T23:41:28.481Z",
+      "sealedBy": "mike-north",
+      "signature": "FY79OMZCsAinQZMao0hqXgQDdlbl43ytgOYiABYIjHKSGQgbAepwKq/bsxrftePrfQhP4gxCsjEq48IeRNVRCA=="
     }
   }
 }

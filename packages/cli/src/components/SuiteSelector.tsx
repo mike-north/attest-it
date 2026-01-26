@@ -139,8 +139,13 @@ export function SuiteSelector({
       <Header pendingCount={pendingSuites.length} />
 
       <Box marginY={1}>
-        {/* Table of pending suites with numbers and checkboxes */}
-        <SuiteTable suites={pendingSuites} selectable={true} selected={selectedSuites} />
+        {/* Table of pending suites with checkboxes and cursor */}
+        <SuiteTable
+          suites={pendingSuites}
+          selectable={true}
+          selected={selectedSuites}
+          cursorIndex={cursorIndex}
+        />
       </Box>
 
       {/* Show valid suites if any */}
@@ -160,7 +165,9 @@ export function SuiteSelector({
         message="Select suites to run:"
         options={[
           { label: 'All pending', value: 'all', hint: 'a' },
-          { label: 'By number', value: 'number', hint: '1-9' },
+          { label: 'Toggle by number', value: 'number', hint: '1-9' },
+          { label: 'Toggle current', value: 'toggle', hint: 'Space' },
+          { label: 'Navigate', value: 'nav', hint: '↑↓' },
           { label: 'None/exit', value: 'none', hint: 'n' },
         ]}
         groups={
@@ -168,6 +175,7 @@ export function SuiteSelector({
             ? Object.keys(groups).map((name, i) => ({
                 name: `g${String(i + 1)}`,
                 label: name,
+                description: `select all in "${name}"`,
               }))
             : undefined
         }

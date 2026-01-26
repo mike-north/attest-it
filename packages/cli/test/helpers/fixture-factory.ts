@@ -161,8 +161,6 @@ export async function createProjectFixture(options: ProjectFixtureOptions = {}):
     yamlLines.push(`  ${suite.name}:`)
     yamlLines.push(`    description: "Test suite: ${suite.name}"`)
     yamlLines.push(`    gate: ${gateId}`)
-    yamlLines.push('    packages:')
-    yamlLines.push('      - .')
     yamlLines.push(`    command: ${suite.command}`)
   })
 

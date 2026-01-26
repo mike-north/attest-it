@@ -22,10 +22,6 @@ export {
   LocalConfigValidationError,
   // Public key storage
   getHomePublicKeysDir,
-  // eslint-disable-next-line @typescript-eslint/no-deprecated -- Re-exporting for backward compatibility
-  getProjectPublicKeysDir,
-  // eslint-disable-next-line @typescript-eslint/no-deprecated -- Re-exporting for backward compatibility
-  hasProjectConfig,
   savePublicKey,
   savePublicKeySync,
 } from './config.js'

@@ -9,10 +9,7 @@ Find an attestation for a specific suite.
 **Signature:**
 
 ```typescript
-declare function findAttestation(
-  attestations: AttestationsFile,
-  suite: string,
-): Attestation | undefined
+declare function findAttestation(attestations: AttestationsFile, suite: string): Attestation | undefined;
 ```
 
 ## Parameters
@@ -21,39 +18,48 @@ declare function findAttestation(
 
 Parameter
 
+
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 attestations
 
+
 </td><td>
 
 [AttestationsFile](./core.attestationsfile.md)
 
+
 </td><td>
 
 Attestations file containing all attestations
+
 
 </td></tr>
 <tr><td>
 
 suite
 
+
 </td><td>
 
 string
 
+
 </td><td>
 
 Name of the suite to find
+
 
 </td></tr>
 </tbody></table>
@@ -63,3 +69,4 @@ Name of the suite to find
 [Attestation](./core.attestation.md) \| undefined
 
 The attestation if found, undefined otherwise
+

@@ -11,7 +11,7 @@ This is an immutable operation that returns a new array.
 **Signature:**
 
 ```typescript
-declare function removeAttestation(attestations: Attestation[], suite: string): Attestation[]
+declare function removeAttestation(attestations: Attestation[], suite: string): Attestation[];
 ```
 
 ## Parameters
@@ -20,39 +20,48 @@ declare function removeAttestation(attestations: Attestation[], suite: string): 
 
 Parameter
 
+
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 attestations
 
+
 </td><td>
 
 [Attestation](./core.attestation.md)<!-- -->\[\]
 
+
 </td><td>
 
 Current array of attestations
+
 
 </td></tr>
 <tr><td>
 
 suite
 
+
 </td><td>
 
 string
 
+
 </td><td>
 
 Name of the suite to remove
+
 
 </td></tr>
 </tbody></table>
@@ -62,3 +71,4 @@ Name of the suite to remove
 [Attestation](./core.attestation.md)<!-- -->\[\]
 
 New attestations array without the specified suite
+

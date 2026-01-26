@@ -41225,28 +41225,14 @@ var settingsSchema = external_exports.object({
   // Note: algorithm field was removed - RSA is the only supported algorithm
 }).passthrough();
 var suiteSchema = external_exports.object({
-  // Gate fields (if present, this suite references a gate)
-  gate: external_exports.string().optional(),
-  // Legacy fingerprint definition (for backward compatibility)
+  gate: external_exports.string().min(1, "Gate reference cannot be empty"),
   description: external_exports.string().optional(),
-  packages: external_exports.array(external_exports.string().min(1, "Package path cannot be empty")).optional(),
-  files: external_exports.array(external_exports.string().min(1, "File path cannot be empty")).optional(),
-  ignore: external_exports.array(external_exports.string().min(1, "Ignore pattern cannot be empty")).optional(),
-  // CLI-specific fields
   command: external_exports.string().optional(),
   timeout: external_exports.string().optional(),
   interactive: external_exports.boolean().optional(),
-  // Relationship fields
   invalidates: external_exports.array(external_exports.string().min(1, "Invalidated suite name cannot be empty")).optional(),
   depends_on: external_exports.array(external_exports.string().min(1, "Dependency suite name cannot be empty")).optional()
-}).strict().refine(
-  (suite) => {
-    return suite.gate !== void 0 || suite.packages !== void 0 && suite.packages.length > 0;
-  },
-  {
-    message: "Suite must either reference a gate or define packages for fingerprinting"
-  }
-);
+}).strict();
 var configSchema = external_exports.object({
   version: external_exports.literal(1),
   minVersion: semverSchema.optional(),
@@ -41309,28 +41295,14 @@ var operationalSettingsSchema = external_exports.object({
   keyProvider: keyProviderSchema.optional()
 }).strict();
 var suiteSchema2 = external_exports.object({
-  // Gate fields (if present, this suite references a gate)
-  gate: external_exports.string().optional(),
-  // Legacy fingerprint definition (for backward compatibility)
+  gate: external_exports.string().min(1, "Gate reference cannot be empty"),
   description: external_exports.string().optional(),
-  packages: external_exports.array(external_exports.string().min(1, "Package path cannot be empty")).optional(),
-  files: external_exports.array(external_exports.string().min(1, "File path cannot be empty")).optional(),
-  ignore: external_exports.array(external_exports.string().min(1, "Ignore pattern cannot be empty")).optional(),
-  // CLI-specific fields
   command: external_exports.string().optional(),
   timeout: external_exports.string().optional(),
   interactive: external_exports.boolean().optional(),
-  // Relationship fields
   invalidates: external_exports.array(external_exports.string().min(1, "Invalidated suite name cannot be empty")).optional(),
   depends_on: external_exports.array(external_exports.string().min(1, "Dependency suite name cannot be empty")).optional()
-}).strict().refine(
-  (suite) => {
-    return suite.gate !== void 0 || suite.packages !== void 0 && suite.packages.length > 0;
-  },
-  {
-    message: "Suite must either reference a gate or define packages for fingerprinting"
-  }
-);
+}).strict();
 var operationalSchema = external_exports.object({
   version: external_exports.literal(1),
   minVersion: semverSchema.optional(),
@@ -41374,12 +41346,10 @@ function parseOperationalContent(content, format) {
   return result.data;
 }
 function toSuiteConfig(suite) {
-  const result = {};
-  if (suite.gate !== void 0) result.gate = suite.gate;
+  const result = {
+    gate: suite.gate
+  };
   if (suite.description !== void 0) result.description = suite.description;
-  if (suite.packages !== void 0) result.packages = suite.packages;
-  if (suite.files !== void 0) result.files = suite.files;
-  if (suite.ignore !== void 0) result.ignore = suite.ignore;
   if (suite.command !== void 0) result.command = suite.command;
   if (suite.timeout !== void 0) result.timeout = suite.timeout;
   if (suite.interactive !== void 0) result.interactive = suite.interactive;
@@ -41800,6 +41770,7 @@ async function verifyAttestations(options) {
     const result = await verifySuite({
       suiteName,
       suiteConfig,
+      gates: config.gates ?? {},
       attestations,
       maxAgeDays: config.settings.maxAgeDays,
       repoRoot
@@ -41816,19 +41787,20 @@ async function verifyAttestations(options) {
   };
 }
 async function verifySuite(options) {
-  const { suiteName, suiteConfig, attestations, maxAgeDays, repoRoot } = options;
-  if (!suiteConfig.packages || suiteConfig.packages.length === 0) {
+  const { suiteName, suiteConfig, gates, attestations, maxAgeDays, repoRoot } = options;
+  const gate = gates[suiteConfig.gate];
+  if (!gate) {
     return {
       suite: suiteName,
       status: "NEEDS_ATTESTATION",
       fingerprint: "",
-      message: "Suite configuration missing packages field"
+      message: `Gate not found: ${suiteConfig.gate}`
     };
   }
   const fingerprintOptions = {
-    packages: suiteConfig.packages.map((p) => resolvePath(p, repoRoot)),
+    packages: gate.fingerprint.paths.map((p) => resolvePath(p, repoRoot)),
     baseDir: repoRoot,
-    ...suiteConfig.ignore && { ignore: suiteConfig.ignore }
+    ...gate.fingerprint.exclude && { ignore: gate.fingerprint.exclude }
   };
   const fingerprintResult = await computeFingerprint(fingerprintOptions);
   const attestation = attestations.find((a) => a.suite === suiteName);
@@ -42252,9 +42224,21 @@ ${reasons}`
     };
   }
 };
+function getCleanEnvironment() {
+  const env = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (!key.startsWith("OP_SESSION_") && key !== "OP_SERVICE_ACCOUNT_TOKEN") {
+      env[key] = value;
+    }
+  }
+  return env;
+}
 async function execCommand(command, args) {
   return new Promise((resolve5, reject) => {
-    const proc = (0, import_child_process2.spawn)(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    const proc = (0, import_child_process2.spawn)(command, args, {
+      stdio: ["inherit", "pipe", "pipe"],
+      env: getCleanEnvironment()
+    });
     let stdout = "";
     let stderr = "";
     proc.stdout.on("data", (data) => {
@@ -42654,7 +42638,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
   static async isChallengeResponseConfigured(slot = 2, serial) {
     try {
       const testChallenge = Buffer.from("attest-it-test-challenge-12345");
-      const args = ["otp", "calculate", String(slot), testChallenge.toString("hex")];
+      const args = ["otp", "calculate", "-t", String(slot), testChallenge.toString("hex")];
       if (serial) {
         args.unshift("--device", serial);
       }
@@ -42840,15 +42824,16 @@ var YubiKeyProvider = class _YubiKeyProvider {
         );
       }
     }
-    const tempDir = await fs7.mkdtemp(path8.join(os2.tmpdir(), "attest-it-keygen-"));
-    const tempPrivateKeyPath = path8.join(tempDir, "private.pem");
     try {
-      await generateKeyPair({
-        privatePath: tempPrivateKeyPath,
-        publicPath: publicKeyPath,
-        force
-      });
-      const privateKeyContent = await fs7.readFile(tempPrivateKeyPath, "utf8");
+      const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = generateKeyPair2();
+      const publicKeyDir = path8.dirname(publicKeyPath);
+      await fs7.mkdir(publicKeyDir, { recursive: true });
+      const publicKeyPemFile = `-----BEGIN PUBLIC KEY-----
+${publicKeyBase64}
+-----END PUBLIC KEY-----
+`;
+      await fs7.writeFile(publicKeyPath, publicKeyPemFile, { mode: 420 });
+      const privateKeyContent = privateKeyPem;
       const challenge = crypto3.randomBytes(32);
       const salt = crypto3.randomBytes(32);
       const iv = crypto3.randomBytes(12);
@@ -42876,20 +42861,12 @@ var YubiKeyProvider = class _YubiKeyProvider {
       await fs7.mkdir(path8.dirname(this.encryptedKeyPath), { recursive: true });
       await fs7.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
       await setKeyPermissions(this.encryptedKeyPath);
-      const keySize = Buffer.byteLength(privateKeyContent);
-      await fs7.writeFile(tempPrivateKeyPath, crypto3.randomBytes(keySize));
-      await fs7.unlink(tempPrivateKeyPath);
-      await fs7.rmdir(tempDir);
       return {
         privateKeyRef: this.encryptedKeyPath,
         publicKeyPath,
         storageDescription: `YubiKey-encrypted: ${this.encryptedKeyPath}`
       };
     } catch (error2) {
-      try {
-        await fs7.rm(tempDir, { recursive: true, force: true });
-      } catch {
-      }
       throw error2;
     }
   }
@@ -42996,7 +42973,7 @@ async function execCommand3(command, args) {
   });
 }
 async function performChallengeResponse(challenge, slot, serial) {
-  const args = ["otp", "calculate", String(slot), challenge.toString("hex")];
+  const args = ["otp", "calculate", "-t", String(slot), challenge.toString("hex")];
   if (serial) {
     args.unshift("--device", serial);
   }
@@ -43005,7 +42982,7 @@ async function performChallengeResponse(challenge, slot, serial) {
     return Buffer.from(output.trim(), "hex");
   } catch {
     throw new Error(
-      "YubiKey challenge-response failed. Verify your YubiKey is inserted and the slot is configured for challenge-response."
+      "YubiKey challenge-response failed. Verify your YubiKey is inserted, touch it when prompted, and ensure the slot is configured for challenge-response."
     );
   }
 }

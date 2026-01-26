@@ -361,17 +361,21 @@ async function runSingleSuite(
     process.exit(ExitCode.CONFIG_ERROR)
   }
 
-  if (!suiteConfig.packages) {
-    error(`Suite "${suiteName}" has no packages defined`)
+  // Look up the gate configuration
+  const gateId = suiteConfig.gate
+  // eslint-disable-next-line security/detect-object-injection -- gateId is from validated config
+  const gateConfig = config.gates?.[gateId]
+  if (!gateConfig) {
+    error(`Gate "${gateId}" not found for suite "${suiteName}"`)
     process.exit(ExitCode.CONFIG_ERROR)
   }
 
   log(`\n=== Running suite: ${suiteName} ===\n`)
 
-  // Compute fingerprint before running
+  // Compute fingerprint using gate's fingerprint configuration
   const fingerprintOptions = {
-    packages: suiteConfig.packages,
-    ...(suiteConfig.ignore && { ignore: suiteConfig.ignore }),
+    packages: gateConfig.fingerprint.paths,
+    ...(gateConfig.fingerprint.exclude && { ignore: gateConfig.fingerprint.exclude }),
   }
   const fingerprintResult = await computeFingerprint(fingerprintOptions)
   verbose(`Fingerprint: ${fingerprintResult.fingerprint}`)

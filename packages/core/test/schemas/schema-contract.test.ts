@@ -184,15 +184,13 @@ describe('Schema Contract Tests', () => {
         version: 1,
         suites: {
           basic: {
+            gate: 'basic-gate',
             command: 'npm test',
           },
           full: {
             gate: 'my-gate',
             description: 'Full test',
             command: 'npm test',
-            packages: ['pkg-a'],
-            files: ['src/**'],
-            ignore: ['**/*.spec.ts'],
             timeout: '5m',
             interactive: true,
             invalidates: ['other-suite'],

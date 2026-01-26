@@ -9,7 +9,7 @@ Read attestations file from disk (sync).
 **Signature:**
 
 ```typescript
-declare function readAttestationsSync(filePath: string): AttestationsFile | null
+declare function readAttestationsSync(filePath: string): AttestationsFile | null;
 ```
 
 ## Parameters
@@ -18,26 +18,32 @@ declare function readAttestationsSync(filePath: string): AttestationsFile | null
 
 Parameter
 
+
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 filePath
 
+
 </td><td>
 
 string
 
+
 </td><td>
 
 Absolute path to the attestations JSON file
+
 
 </td></tr>
 </tbody></table>
@@ -51,3 +57,4 @@ Parsed attestations file, or null if the file doesn't exist
 ## Exceptions
 
 Error on parse or validation errors
+

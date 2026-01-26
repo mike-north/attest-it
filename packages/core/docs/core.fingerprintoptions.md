@@ -9,7 +9,7 @@ Options for computing a package fingerprint.
 **Signature:**
 
 ```typescript
-interface FingerprintOptions
+interface FingerprintOptions 
 ```
 
 ## Properties
@@ -18,62 +18,79 @@ interface FingerprintOptions
 
 Property
 
+
 </th><th>
 
 Modifiers
+
 
 </th><th>
 
 Type
 
+
 </th><th>
 
 Description
+
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [baseDir?](./core.fingerprintoptions.basedir.md)
 
+
 </td><td>
+
 
 </td><td>
 
 string
 
+
 </td><td>
 
 _(Optional)_ Base directory for resolving paths
+
 
 </td></tr>
 <tr><td>
 
 [ignore?](./core.fingerprintoptions.ignore.md)
 
+
 </td><td>
+
 
 </td><td>
 
 string\[\]
 
+
 </td><td>
 
 _(Optional)_ Glob patterns to exclude from fingerprint
+
 
 </td></tr>
 <tr><td>
 
 [packages](./core.fingerprintoptions.packages.md)
 
+
 </td><td>
+
 
 </td><td>
 
 string\[\]
 
+
 </td><td>
 
 Package directories to include
 
+
 </td></tr>
 </tbody></table>
+
