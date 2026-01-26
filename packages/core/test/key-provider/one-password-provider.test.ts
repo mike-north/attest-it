@@ -268,8 +268,9 @@ describe('OnePasswordKeyProvider', () => {
       // On macOS/Linux, op is wrapped in 'script' for PTY support
       const spawnCalls = mockSpawnFn.mock.calls
       const opCall = spawnCalls.find((call) => {
-        const cmd = call[0] as string
-        const args = call[1] as string[]
+        const cmd = String(call[0])
+        const args = call[1]
+        if (!Array.isArray(args)) return false
         // Direct op call (Windows) or wrapped in script (macOS/Linux)
         return (
           (cmd === 'op' && args.includes('document')) ||
@@ -277,14 +278,16 @@ describe('OnePasswordKeyProvider', () => {
         )
       })
       expect(opCall).toBeDefined()
-      const opArgs = opCall![1] as string[]
+      if (!opCall) throw new Error('opCall not found')
+      const opArgs = opCall[1]
+      if (!Array.isArray(opArgs)) throw new Error('opArgs not an array')
       expect(opArgs).toContain('document')
       expect(opArgs).toContain('get')
       expect(opArgs).toContain('test-key')
       expect(opArgs).toContain('--vault')
       expect(opArgs).toContain('Private')
       expect(opArgs).toContain('--out-file')
-      expect(opArgs.some((arg) => arg.includes('private.pem'))).toBe(true)
+      expect(opArgs.some((arg) => String(arg).includes('private.pem'))).toBe(true)
 
       // Verify permissions were set
       expect(mockSetKeyPermissions).toHaveBeenCalled()
@@ -837,15 +840,18 @@ describe('OnePasswordKeyProvider', () => {
 
       // First call: keyExists check
       const keyExistsCall = spawnCalls.find((call) => {
-        const cmd = call[0] as string
-        const args = call[1] as string[]
+        const cmd = String(call[0])
+        const args = call[1]
+        if (!Array.isArray(args)) return false
         return (
           (cmd === 'op' && args.includes('item') && args.includes('get')) ||
           (cmd === 'script' && args.includes('op') && args.includes('item') && args.includes('get'))
         )
       })
       expect(keyExistsCall).toBeDefined()
-      const keyExistsArgs = keyExistsCall![1] as string[]
+      if (!keyExistsCall) throw new Error('keyExistsCall not found')
+      const keyExistsArgs = keyExistsCall[1]
+      if (!Array.isArray(keyExistsArgs)) throw new Error('keyExistsArgs not an array')
       expect(keyExistsArgs).toContain('item')
       expect(keyExistsArgs).toContain('get')
       expect(keyExistsArgs).toContain('integration-test-key')
@@ -854,8 +860,9 @@ describe('OnePasswordKeyProvider', () => {
 
       // Second call: document get
       const docGetCall = spawnCalls.find((call) => {
-        const cmd = call[0] as string
-        const args = call[1] as string[]
+        const cmd = String(call[0])
+        const args = call[1]
+        if (!Array.isArray(args)) return false
         return (
           (cmd === 'op' && args.includes('document') && args.includes('get')) ||
           (cmd === 'script' &&
@@ -865,7 +872,9 @@ describe('OnePasswordKeyProvider', () => {
         )
       })
       expect(docGetCall).toBeDefined()
-      const docGetArgs = docGetCall![1] as string[]
+      if (!docGetCall) throw new Error('docGetCall not found')
+      const docGetArgs = docGetCall[1]
+      if (!Array.isArray(docGetArgs)) throw new Error('docGetArgs not an array')
       expect(docGetArgs).toContain('document')
       expect(docGetArgs).toContain('get')
       expect(docGetArgs).toContain('integration-test-key')
