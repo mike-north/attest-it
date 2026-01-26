@@ -333,13 +333,13 @@ export class OnePasswordKeyProvider implements KeyProvider {
     const tempKeyPath = path.join(tempDir, 'private.pem')
 
     try {
-      // Download the key from 1Password (runs in PTY for auth)
+      // Download the key from 1Password (runs in PTY to require fresh auth)
       const args = ['document', 'get', keyRef, '--vault', this.vault, '--out-file', tempKeyPath]
       if (this.accountUuid) {
         args.push('--account', this.accountUuid)
       }
 
-      await execCommand('op', args)
+      await execInteractiveCommand('op', args)
 
       // Set proper permissions
       await setKeyPermissions(tempKeyPath)
@@ -489,24 +489,61 @@ function getCleanEnvironment(): NodeJS.ProcessEnv {
 }
 
 /**
- * Execute a command in a PTY and return stdout.
+ * Execute a command and return stdout.
  *
  * @remarks
- * For security, this function:
- * 1. Removes 1Password session tokens from the environment to force fresh authentication
- * 2. Runs the command in a pseudo-terminal (PTY) so Touch ID and other interactive
- *    prompts work correctly
- *
- * This ensures a human must interact (via Touch ID, password prompt, etc.) to access
- * private keys, preventing automated agents from using cached credentials.
+ * This function removes 1Password session tokens from the environment to prevent
+ * use of cached credentials. Used for non-interactive commands like account list.
  *
  * @internal
  */
 async function execCommand(command: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    // Use 'script' command to run in a PTY on macOS/Linux
-    // This is necessary for 1Password's Touch ID prompt to work
-    // script -q /dev/null runs the command in a PTY without saving output to a file
+    const proc = spawn(command, args, {
+      stdio: ['inherit', 'pipe', 'pipe'],
+      env: getCleanEnvironment(),
+    })
+
+    let stdout = ''
+    let stderr = ''
+
+    proc.stdout.on('data', (data: Buffer) => {
+      stdout += data.toString()
+    })
+
+    proc.stderr.on('data', (data: Buffer) => {
+      stderr += data.toString()
+    })
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        resolve(stdout.trim())
+      } else {
+        reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`))
+      }
+    })
+
+    proc.on('error', (error) => {
+      reject(error)
+    })
+  })
+}
+
+/**
+ * Execute a command in a PTY for interactive authentication.
+ *
+ * @remarks
+ * This function:
+ * 1. Removes 1Password session tokens from the environment to force fresh authentication
+ * 2. Runs the command in a pseudo-terminal (PTY) so Touch ID and other interactive
+ *    prompts work correctly
+ *
+ * Used for commands that require user authentication, like document retrieval.
+ *
+ * @internal
+ */
+async function execInteractiveCommand(command: string, args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
     const isWindows = process.platform === 'win32'
 
     let proc

@@ -42131,7 +42131,7 @@ ${reasons}`
       if (this.accountUuid) {
         args.push("--account", this.accountUuid);
       }
-      await execCommand("op", args);
+      await execInteractiveCommand("op", args);
       await setKeyPermissions(tempKeyPath);
       return {
         keyPath: tempKeyPath,
@@ -42240,6 +42240,32 @@ function getCleanEnvironment() {
   return env;
 }
 async function execCommand(command, args) {
+  return new Promise((resolve5, reject) => {
+    const proc = (0, import_child_process2.spawn)(command, args, {
+      stdio: ["inherit", "pipe", "pipe"],
+      env: getCleanEnvironment()
+    });
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolve5(stdout.trim());
+      } else {
+        reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
+      }
+    });
+    proc.on("error", (error2) => {
+      reject(error2);
+    });
+  });
+}
+async function execInteractiveCommand(command, args) {
   return new Promise((resolve5, reject) => {
     const isWindows = process.platform === "win32";
     let proc;
@@ -42657,7 +42683,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
       if (serial) {
         args.unshift("--device", serial);
       }
-      await execInteractiveCommand("ykman", args);
+      await execInteractiveCommand2("ykman", args);
       return true;
     } catch {
       return false;
@@ -42987,7 +43013,7 @@ async function execCommand3(command, args) {
     });
   });
 }
-async function execInteractiveCommand(command, args) {
+async function execInteractiveCommand2(command, args) {
   return new Promise((resolve5, reject) => {
     const proc = (0, import_child_process2.spawn)(command, args, { stdio: ["inherit", "pipe", "inherit"] });
     let stdout = "";
@@ -43012,7 +43038,7 @@ async function performChallengeResponse(challenge, slot, serial) {
     args.unshift("--device", serial);
   }
   try {
-    const output = await execInteractiveCommand("ykman", args);
+    const output = await execInteractiveCommand2("ykman", args);
     return Buffer.from(output.trim(), "hex");
   } catch {
     throw new Error(
