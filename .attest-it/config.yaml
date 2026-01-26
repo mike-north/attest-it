@@ -1,66 +1,31 @@
-# attest-it configuration
-# See https://github.com/attest-it/attest-it for documentation
-
 version: 1
-
-settings:
-  # How long attestations remain valid (in days)
-  maxAgeDays: 90
-  # Path to the attestations file
-  attestationsPath: .attest-it/attestations.json
-  # Signing algorithm
-  algorithm: ed25519
-
-# Team members authorized to sign attestations
-team:
-  mike-north:
-    name: Mike North
-    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
-
-# Gates define what code changes require re-attestation
-gates:
-  cli-interactive:
-    name: CLI Interactive Tests
-    description: Manual verification of interactive CLI experiences
-    authorizedSigners:
-      - mike-north
-    fingerprint:
-      paths:
-        - packages/cli/src/commands/keygen-interactive.tsx
-        - packages/cli/src/components
-    maxAge: 90d
-
-# Test suites that require manual verification
 suites:
-  keygen-interactive:
-    description: Verify interactive keygen wizard displays correct options and completes successfully
+  1password-integration:
+    gate: 1password-integration
+    description: Full E2E test with real 1Password vault - creates identity, stores
+      key, creates/verifies seal
+    command: pnpm --filter @attest-it/cli test:manual:1password
+  keychain-integration:
+    gate: keychain-integration
+    description: Full E2E test with real macOS Keychain - creates identity, stores
+      key, creates/verifies seal
+    command: pnpm --filter @attest-it/cli test:manual:keychain
+  yubikey-integration:
+    gate: yubikey-integration
+    description: Full E2E test with real YubiKey hardware - encrypts key with HMAC
+      challenge-response
+    command: pnpm --filter @attest-it/cli test:manual:yubikey
+  cli-interactive:
     gate: cli-interactive
-    command: |
-      echo "=== Manual Test: keygen-interactive ==="
-      echo ""
-      echo "Steps:"
-      echo "1. Run: pnpm --filter @attest-it/cli exec attest-it keygen"
-      echo "2. Verify provider options appear (Filesystem, Keychain if on macOS, 1Password if op installed)"
-      echo "3. Select 'Local Filesystem' provider"
-      echo "4. Verify keypair is generated and success message shows paths"
-      echo ""
-      echo "Expected: Keypair generated successfully with correct path display"
-      echo ""
-      read -p "Did the test pass? (y/n): " result
-      [ "$result" = "y" ] || [ "$result" = "Y" ]
-
-  keygen-escape-cancel:
-    description: Verify pressing Escape cancels the keygen flow gracefully
-    gate: cli-interactive
-    command: |
-      echo "=== Manual Test: keygen-escape-cancel ==="
-      echo ""
-      echo "Steps:"
-      echo "1. Run: pnpm --filter @attest-it/cli exec attest-it keygen"
-      echo "2. When provider selection appears, press Escape"
-      echo "3. Verify the flow is cancelled without error or crash"
-      echo ""
-      echo "Expected: Clean exit with no stack trace or error message"
-      echo ""
-      read -p "Did the test pass? (y/n): " result
-      [ "$result" = "y" ] || [ "$result" = "Y" ]
+    description: Visual verification of interactive CLI experiences including keygen wizard
+    command: pnpm --filter @attest-it/cli test:manual:visual all
+groups:
+  credential-stores:
+    - 1password-integration
+    - keychain-integration
+    - yubikey-integration
+  all-manual:
+    - 1password-integration
+    - keychain-integration
+    - yubikey-integration
+    - cli-interactive

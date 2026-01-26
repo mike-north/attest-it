@@ -1,0 +1,39 @@
+name: Verify Manual Test Attestations
+
+# This workflow verifies that manual test attestations exist and are valid.
+# The config file contains both trust model (team, gates) and operational
+# config (suites, commands) in a single file.
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify-attestations:
+    name: Verify manual test attestations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Verify manual test attestations
+        uses: ./packages/github-action
+        with:
+          config-path: .attest-it/config.yaml
+          # Use PR branch for policy since this is the initial dogfooding setup
+          # and policy.yaml doesn't exist on main yet
+          policy-ref: ${{ github.head_ref }}
+          fail-on-missing: 'true'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
