@@ -641,7 +641,6 @@ suites:
         // No errors because there are no signers to validate
         expect(errors).toEqual([])
       })
-
     })
 
     describe('error message content', () => {
