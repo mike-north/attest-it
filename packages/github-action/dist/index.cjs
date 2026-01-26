@@ -42638,7 +42638,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
   static async isChallengeResponseConfigured(slot = 2, serial) {
     try {
       const testChallenge = Buffer.from("attest-it-test-challenge-12345");
-      const args = ["otp", "calculate", "-t", String(slot), testChallenge.toString("hex")];
+      const args = ["otp", "calculate", String(slot), testChallenge.toString("hex")];
       if (serial) {
         args.unshift("--device", serial);
       }

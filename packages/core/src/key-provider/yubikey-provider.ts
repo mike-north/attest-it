@@ -274,9 +274,11 @@ export class YubiKeyProvider implements KeyProvider {
     try {
       // Actually test challenge-response instead of parsing output text.
       // This is more reliable across different ykman versions.
-      // Uses 'ykman otp calculate -t' to perform the challenge-response with touch required.
+      // Note: We do NOT use -t here because this is just a detection check,
+      // not an actual cryptographic operation. Touch is required during
+      // actual signing operations (see performChallengeResponse).
       const testChallenge = Buffer.from('attest-it-test-challenge-12345')
-      const args = ['otp', 'calculate', '-t', String(slot), testChallenge.toString('hex')]
+      const args = ['otp', 'calculate', String(slot), testChallenge.toString('hex')]
       if (serial) {
         args.unshift('--device', serial)
       }
