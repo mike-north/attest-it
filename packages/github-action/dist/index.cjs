@@ -42972,13 +42972,32 @@ async function execCommand3(command, args) {
     });
   });
 }
+async function execInteractiveCommand(command, args) {
+  return new Promise((resolve5, reject) => {
+    const proc = (0, import_child_process2.spawn)(command, args, { stdio: ["inherit", "pipe", "inherit"] });
+    let stdout = "";
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolve5(stdout.trim());
+      } else {
+        reject(new Error(`Command failed with exit code ${String(code)}`));
+      }
+    });
+    proc.on("error", (error2) => {
+      reject(error2);
+    });
+  });
+}
 async function performChallengeResponse(challenge, slot, serial) {
   const args = ["otp", "calculate", "-t", String(slot), challenge.toString("hex")];
   if (serial) {
     args.unshift("--device", serial);
   }
   try {
-    const output = await execCommand3("ykman", args);
+    const output = await execInteractiveCommand("ykman", args);
     return Buffer.from(output.trim(), "hex");
   } catch {
     throw new Error(

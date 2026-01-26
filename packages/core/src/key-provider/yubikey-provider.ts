@@ -745,6 +745,35 @@ async function execCommand(command: string, args: string[]): Promise<string> {
 }
 
 /**
+ * Execute an interactive command that shows stderr to user (for prompts).
+ * Used for operations requiring user interaction like YubiKey touch.
+ * @internal
+ */
+async function execInteractiveCommand(command: string, args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    // inherit stderr so user sees "Touch your YubiKey..." prompt
+    const proc = spawn(command, args, { stdio: ['inherit', 'pipe', 'inherit'] })
+    let stdout = ''
+
+    proc.stdout.on('data', (data: Buffer) => {
+      stdout += data.toString()
+    })
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        resolve(stdout.trim())
+      } else {
+        reject(new Error(`Command failed with exit code ${String(code)}`))
+      }
+    })
+
+    proc.on('error', (error) => {
+      reject(error)
+    })
+  })
+}
+
+/**
  * Perform HMAC-SHA1 challenge-response with YubiKey.
  * @param challenge - Challenge bytes to send
  * @param slot - YubiKey slot (1 or 2)
@@ -760,13 +789,14 @@ async function performChallengeResponse(
   // Use 'ykman otp calculate -t' to perform challenge-response with touch required.
   // The -t flag ensures that a human must physically touch the YubiKey to complete
   // the operation, preventing automated/agent-initiated signing.
+  // We use execInteractiveCommand so the "Touch your YubiKey..." prompt is visible.
   const args = ['otp', 'calculate', '-t', String(slot), challenge.toString('hex')]
   if (serial) {
     args.unshift('--device', serial)
   }
 
   try {
-    const output = await execCommand('ykman', args)
+    const output = await execInteractiveCommand('ykman', args)
     // Response is hex-encoded
     return Buffer.from(output.trim(), 'hex')
   } catch {
