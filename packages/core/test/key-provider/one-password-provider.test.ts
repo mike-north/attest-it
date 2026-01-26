@@ -825,9 +825,22 @@ describe('OnePasswordKeyProvider', () => {
           return mockSpawnSuccess('{"id":"item123"}')
         } else {
           // document get - simulate op writing the key to the target file
-          const outFileIndex = (args as string[]).indexOf('--out-file')
-          if (outFileIndex !== -1) {
-            const targetPath = (args as string[])[outFileIndex + 1]
+          // Extract --out-file path, handling both macOS (separate args) and Linux (-c string)
+          let targetPath: string | undefined
+          const argsArray = args as string[]
+          const cIndex = argsArray.indexOf('-c')
+          if (cIndex !== -1 && cIndex + 1 < argsArray.length) {
+            // Linux: parse --out-file from -c command string
+            const cmdStr = argsArray[cIndex + 1]
+            const match = cmdStr.match(/--out-file\s+['"]?([^\s'"]+)['"]?/)
+            if (match) targetPath = match[1]
+          } else {
+            // macOS/Windows: --out-file is separate array element
+            const outFileIndex = argsArray.indexOf('--out-file')
+            if (outFileIndex !== -1) targetPath = argsArray[outFileIndex + 1]
+          }
+
+          if (targetPath) {
             // Synchronously schedule the file write (simulates op writing the file)
             setImmediate(() => {
               void (async () => {
