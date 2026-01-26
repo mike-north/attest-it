@@ -101,6 +101,7 @@ const identitySchema = z
  */
 const localConfigSchema = z
   .object({
+    version: z.literal(1),
     activeIdentity: z.string().min(1, 'Active identity name cannot be empty'),
     identities: z
       .record(z.string(), identitySchema)
@@ -238,6 +239,7 @@ function parseLocalConfigContent(content: string): LocalConfig {
   )
 
   return {
+    version: 1,
     activeIdentity: result.data.activeIdentity,
     identities,
   }

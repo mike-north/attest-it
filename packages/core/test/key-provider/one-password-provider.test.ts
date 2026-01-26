@@ -265,19 +265,26 @@ describe('OnePasswordKeyProvider', () => {
       expect(typeof result.cleanup).toBe('function')
 
       // Verify spawn was called with correct args
-      expect(mockSpawnFn).toHaveBeenCalledWith(
-        'op',
-        expect.arrayContaining([
-          'document',
-          'get',
-          'test-key',
-          '--vault',
-          'Private',
-          '--out-file',
-          expect.stringContaining('private.pem'),
-        ]),
-        expect.any(Object),
-      )
+      // On macOS/Linux, op is wrapped in 'script' for PTY support
+      const spawnCalls = mockSpawnFn.mock.calls
+      const opCall = spawnCalls.find((call) => {
+        const cmd = call[0] as string
+        const args = call[1] as string[]
+        // Direct op call (Windows) or wrapped in script (macOS/Linux)
+        return (
+          (cmd === 'op' && args.includes('document')) ||
+          (cmd === 'script' && args.includes('op') && args.includes('document'))
+        )
+      })
+      expect(opCall).toBeDefined()
+      const opArgs = opCall![1] as string[]
+      expect(opArgs).toContain('document')
+      expect(opArgs).toContain('get')
+      expect(opArgs).toContain('test-key')
+      expect(opArgs).toContain('--vault')
+      expect(opArgs).toContain('Private')
+      expect(opArgs).toContain('--out-file')
+      expect(opArgs.some((arg) => arg.includes('private.pem'))).toBe(true)
 
       // Verify permissions were set
       expect(mockSetKeyPermissions).toHaveBeenCalled()
@@ -825,28 +832,46 @@ describe('OnePasswordKeyProvider', () => {
       // Verify op CLI was called correctly
       expect(mockSpawnFn).toHaveBeenCalledTimes(2)
 
+      // On macOS/Linux, op is wrapped in 'script' for PTY support
+      const spawnCalls = mockSpawnFn.mock.calls
+
       // First call: keyExists check
-      expect(mockSpawnFn).toHaveBeenNthCalledWith(
-        1,
-        'op',
-        ['item', 'get', 'integration-test-key', '--vault', 'Private', '--format=json'],
-        expect.any(Object),
-      )
+      const keyExistsCall = spawnCalls.find((call) => {
+        const cmd = call[0] as string
+        const args = call[1] as string[]
+        return (
+          (cmd === 'op' && args.includes('item') && args.includes('get')) ||
+          (cmd === 'script' && args.includes('op') && args.includes('item') && args.includes('get'))
+        )
+      })
+      expect(keyExistsCall).toBeDefined()
+      const keyExistsArgs = keyExistsCall![1] as string[]
+      expect(keyExistsArgs).toContain('item')
+      expect(keyExistsArgs).toContain('get')
+      expect(keyExistsArgs).toContain('integration-test-key')
+      expect(keyExistsArgs).toContain('--vault')
+      expect(keyExistsArgs).toContain('Private')
 
       // Second call: document get
-      expect(mockSpawnFn).toHaveBeenNthCalledWith(
-        2,
-        'op',
-        expect.arrayContaining([
-          'document',
-          'get',
-          'integration-test-key',
-          '--vault',
-          'Private',
-          '--out-file',
-        ]),
-        expect.any(Object),
-      )
+      const docGetCall = spawnCalls.find((call) => {
+        const cmd = call[0] as string
+        const args = call[1] as string[]
+        return (
+          (cmd === 'op' && args.includes('document') && args.includes('get')) ||
+          (cmd === 'script' &&
+            args.includes('op') &&
+            args.includes('document') &&
+            args.includes('get'))
+        )
+      })
+      expect(docGetCall).toBeDefined()
+      const docGetArgs = docGetCall![1] as string[]
+      expect(docGetArgs).toContain('document')
+      expect(docGetArgs).toContain('get')
+      expect(docGetArgs).toContain('integration-test-key')
+      expect(docGetArgs).toContain('--vault')
+      expect(docGetArgs).toContain('Private')
+      expect(docGetArgs).toContain('--out-file')
 
       // Verify setKeyPermissions was called on the temp file
       expect(mockSetKeyPermissions).toHaveBeenCalledWith(keyResult.keyPath)

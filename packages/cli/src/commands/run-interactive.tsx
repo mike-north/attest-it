@@ -170,15 +170,10 @@ function createTestExecutor(config: Config): (suite: string) => Promise<boolean>
     }
 
     // Build command
-    let command = suiteConfig.command ?? config.settings.defaultCommand
+    const command = suiteConfig.command ?? config.settings.defaultCommand
     if (!command) {
       error(`No command specified for suite "${suiteName}"`)
       return false
-    }
-
-    // Substitute ${files} if present
-    if (command.includes('${files}') && suiteConfig.files) {
-      command = command.replaceAll('${files}', suiteConfig.files.join(' '))
     }
 
     log(`Running: ${command}`)

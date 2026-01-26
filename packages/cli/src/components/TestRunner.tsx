@@ -117,7 +117,7 @@ export function TestRunner({
 
   // Handle attestation confirmation
   useInput(
-    (input, key) => {
+    (input, _key) => {
       if (phase !== 'confirming') return
       // Prevent double-trigger while attestation is in progress
       if (isAttesting) return

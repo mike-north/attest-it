@@ -35,6 +35,8 @@ export interface Identity {
  * @public
  */
 export interface LocalConfig {
+  /** Schema version for forward compatibility */
+  version: 1
   /** Name of the currently active identity */
   activeIdentity: string
   /** Map of identity names to identity configurations */

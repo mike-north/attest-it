@@ -63,12 +63,24 @@ describe('runPrune', () => {
         maxAgeDays: 30,
         publicKeyPath: '.attest-it/pubkey.pem',
         attestationsPath: '.attest-it/attestations.json',
-        algorithm: 'ed25519',
+        sealsPath: '.attest-it/seals.json',
         ...overrides?.settings,
+      },
+      gates: {
+        'test-gate': {
+          name: 'Test Gate',
+          description: 'Test gate',
+          authorizedSigners: ['test-user'],
+          fingerprint: {
+            paths: ['pkg1'],
+          },
+          maxAge: '30d',
+        },
+        ...overrides?.gates,
       },
       suites: {
         'test-suite': {
-          packages: ['pkg1'],
+          gate: 'test-gate',
         },
         ...overrides?.suites,
       },

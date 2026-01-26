@@ -41458,9 +41458,6 @@ function validateSuiteGateReferences(policy, operational) {
   const team = policy.team ?? {};
   for (const [suiteName, suiteConfig] of Object.entries(operational.suites)) {
     const gateName = suiteConfig.gate;
-    if (gateName === void 0) {
-      continue;
-    }
     const gate = gates[gateName];
     if (gate === void 0) {
       errors.push({
@@ -42555,6 +42552,7 @@ var identitySchema = external_exports.object({
   privateKey: privateKeyRefSchema
 }).strict();
 var localConfigSchema = external_exports.object({
+  version: external_exports.literal(1),
   activeIdentity: external_exports.string().min(1, "Active identity name cannot be empty"),
   identities: external_exports.record(external_exports.string(), identitySchema).refine((identities) => Object.keys(identities).length >= 1, {
     message: "At least one identity must be defined"
@@ -42872,51 +42870,47 @@ var YubiKeyProvider = class _YubiKeyProvider {
         );
       }
     }
-    try {
-      const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = generateKeyPair2();
-      const publicKeyDir = path8.dirname(publicKeyPath);
-      await fs7.mkdir(publicKeyDir, { recursive: true });
-      const publicKeyPemFile = `-----BEGIN PUBLIC KEY-----
+    const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = generateKeyPair2();
+    const publicKeyDir = path8.dirname(publicKeyPath);
+    await fs7.mkdir(publicKeyDir, { recursive: true });
+    const publicKeyPemFile = `-----BEGIN PUBLIC KEY-----
 ${publicKeyBase64}
 -----END PUBLIC KEY-----
 `;
-      await fs7.writeFile(publicKeyPath, publicKeyPemFile, { mode: 420 });
-      const privateKeyContent = privateKeyPem;
-      const challenge = crypto3.randomBytes(32);
-      const salt = crypto3.randomBytes(32);
-      const iv = crypto3.randomBytes(12);
-      const response = await performChallengeResponse(challenge, this.slot, this.serial);
-      const aesKey = deriveKey(response, salt);
-      const aad = constructAAD(1, this.slot, serial);
-      const cipher = crypto3.createCipheriv("aes-256-gcm", aesKey, iv);
-      cipher.setAAD(aad);
-      const ciphertext = Buffer.concat([
-        cipher.update(Buffer.from(privateKeyContent, "utf8")),
-        cipher.final()
-      ]);
-      const authTag = cipher.getAuthTag();
-      const keyFile = {
-        version: 1,
-        iv: iv.toString("base64"),
-        authTag: authTag.toString("base64"),
-        salt: salt.toString("base64"),
-        challenge: challenge.toString("base64"),
-        ciphertext: ciphertext.toString("base64"),
-        slot: this.slot,
-        aad: aad.toString("base64"),
-        ...serial && { serial }
-      };
-      await fs7.mkdir(path8.dirname(this.encryptedKeyPath), { recursive: true });
-      await fs7.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
-      await setKeyPermissions(this.encryptedKeyPath);
-      return {
-        privateKeyRef: this.encryptedKeyPath,
-        publicKeyPath,
-        storageDescription: `YubiKey-encrypted: ${this.encryptedKeyPath}`
-      };
-    } catch (error2) {
-      throw error2;
-    }
+    await fs7.writeFile(publicKeyPath, publicKeyPemFile, { mode: 420 });
+    const privateKeyContent = privateKeyPem;
+    const challenge = crypto3.randomBytes(32);
+    const salt = crypto3.randomBytes(32);
+    const iv = crypto3.randomBytes(12);
+    const response = await performChallengeResponse(challenge, this.slot, this.serial);
+    const aesKey = deriveKey(response, salt);
+    const aad = constructAAD(1, this.slot, serial);
+    const cipher = crypto3.createCipheriv("aes-256-gcm", aesKey, iv);
+    cipher.setAAD(aad);
+    const ciphertext = Buffer.concat([
+      cipher.update(Buffer.from(privateKeyContent, "utf8")),
+      cipher.final()
+    ]);
+    const authTag = cipher.getAuthTag();
+    const keyFile = {
+      version: 1,
+      iv: iv.toString("base64"),
+      authTag: authTag.toString("base64"),
+      salt: salt.toString("base64"),
+      challenge: challenge.toString("base64"),
+      ciphertext: ciphertext.toString("base64"),
+      slot: this.slot,
+      aad: aad.toString("base64"),
+      ...serial && { serial }
+    };
+    await fs7.mkdir(path8.dirname(this.encryptedKeyPath), { recursive: true });
+    await fs7.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
+    await setKeyPermissions(this.encryptedKeyPath);
+    return {
+      privateKeyRef: this.encryptedKeyPath,
+      publicKeyPath,
+      storageDescription: `YubiKey-encrypted: ${this.encryptedKeyPath}`
+    };
   }
   /**
    * Encrypt an existing private key with YubiKey challenge-response.

@@ -341,6 +341,7 @@ export function loadPreferences(): Promise<UserPreferences>;
 export interface LocalConfig {
     activeIdentity: string;
     identities: Record<string, Identity>;
+    version: 1;
 }
 
 // @public

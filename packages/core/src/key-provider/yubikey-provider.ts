@@ -524,73 +524,69 @@ export class YubiKeyProvider implements KeyProvider {
       }
     }
 
-    try {
-      // Generate Ed25519 keypair using Node.js crypto (in memory)
-      const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = ed25519GenerateKeyPair()
+    // Generate Ed25519 keypair using Node.js crypto (in memory)
+    const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = ed25519GenerateKeyPair()
 
-      // Ensure parent directory exists for public key
-      const publicKeyDir = path.dirname(publicKeyPath)
-      await fs.mkdir(publicKeyDir, { recursive: true })
+    // Ensure parent directory exists for public key
+    const publicKeyDir = path.dirname(publicKeyPath)
+    await fs.mkdir(publicKeyDir, { recursive: true })
 
-      // Write public key as PEM file
-      const publicKeyPemFile = `-----BEGIN PUBLIC KEY-----\n${publicKeyBase64}\n-----END PUBLIC KEY-----\n`
-      await fs.writeFile(publicKeyPath, publicKeyPemFile, { mode: 0o644 })
+    // Write public key as PEM file
+    const publicKeyPemFile = `-----BEGIN PUBLIC KEY-----\n${publicKeyBase64}\n-----END PUBLIC KEY-----\n`
+    await fs.writeFile(publicKeyPath, publicKeyPemFile, { mode: 0o644 })
 
-      // The private key content in PEM format
-      const privateKeyContent = privateKeyPem
+    // The private key content in PEM format
+    const privateKeyContent = privateKeyPem
 
-      // Generate random challenge and salt
-      const challenge = crypto.randomBytes(32)
-      const salt = crypto.randomBytes(32)
-      const iv = crypto.randomBytes(12) // 96 bits for GCM
+    // Generate random challenge and salt
+    const challenge = crypto.randomBytes(32)
+    const salt = crypto.randomBytes(32)
+    const iv = crypto.randomBytes(12) // 96 bits for GCM
 
-      // Perform challenge-response
-      const response = await performChallengeResponse(challenge, this.slot, this.serial)
+    // Perform challenge-response
+    const response = await performChallengeResponse(challenge, this.slot, this.serial)
 
-      // Derive AES-256 key from response using HKDF
-      const aesKey = deriveKey(response, salt)
+    // Derive AES-256 key from response using HKDF
+    const aesKey = deriveKey(response, salt)
 
-      // Construct AAD to bind metadata to ciphertext
-      const aad = constructAAD(1, this.slot, serial)
+    // Construct AAD to bind metadata to ciphertext
+    const aad = constructAAD(1, this.slot, serial)
 
-      // Encrypt the private key with AES-256-GCM
-      const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv)
-      cipher.setAAD(aad)
-      const ciphertext = Buffer.concat([
-        cipher.update(Buffer.from(privateKeyContent, 'utf8')),
-        cipher.final(),
-      ])
-      const authTag = cipher.getAuthTag()
+    // Encrypt the private key with AES-256-GCM
+    const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv)
+    cipher.setAAD(aad)
+    const ciphertext = Buffer.concat([
+      cipher.update(Buffer.from(privateKeyContent, 'utf8')),
+      cipher.final(),
+    ])
+    const authTag = cipher.getAuthTag()
 
-      // Create the encrypted key file
-      const keyFile: EncryptedKeyFile = {
-        version: 1,
-        iv: iv.toString('base64'),
-        authTag: authTag.toString('base64'),
-        salt: salt.toString('base64'),
-        challenge: challenge.toString('base64'),
-        ciphertext: ciphertext.toString('base64'),
-        slot: this.slot,
-        aad: aad.toString('base64'),
-        ...(serial && { serial }),
-      }
+    // Create the encrypted key file
+    const keyFile: EncryptedKeyFile = {
+      version: 1,
+      iv: iv.toString('base64'),
+      authTag: authTag.toString('base64'),
+      salt: salt.toString('base64'),
+      challenge: challenge.toString('base64'),
+      ciphertext: ciphertext.toString('base64'),
+      slot: this.slot,
+      aad: aad.toString('base64'),
+      ...(serial && { serial }),
+    }
 
-      // Ensure parent directory exists
-      await fs.mkdir(path.dirname(this.encryptedKeyPath), { recursive: true })
+    // Ensure parent directory exists
+    await fs.mkdir(path.dirname(this.encryptedKeyPath), { recursive: true })
 
-      // Write the encrypted key file
-      await fs.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 0o600 })
-      await setKeyPermissions(this.encryptedKeyPath)
+    // Write the encrypted key file
+    await fs.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 0o600 })
+    await setKeyPermissions(this.encryptedKeyPath)
 
-      // Note: Private key was generated in memory, no temp file cleanup needed
+    // Note: Private key was generated in memory, no temp file cleanup needed
 
-      return {
-        privateKeyRef: this.encryptedKeyPath,
-        publicKeyPath,
-        storageDescription: `YubiKey-encrypted: ${this.encryptedKeyPath}`,
-      }
-    } catch (error) {
-      throw error
+    return {
+      privateKeyRef: this.encryptedKeyPath,
+      publicKeyPath,
+      storageDescription: `YubiKey-encrypted: ${this.encryptedKeyPath}`,
     }
   }
 

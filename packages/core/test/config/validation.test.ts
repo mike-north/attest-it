@@ -171,83 +171,6 @@ suites:
         expect(errors).toEqual([])
       })
 
-      it('should return no errors when suites do not reference gates (legacy)', () => {
-        const policy: PolicyConfig = {
-          version: 1,
-          settings: {
-            maxAgeDays: 30,
-            publicKeyPath: '.attest-it/pubkey.pem',
-            attestationsPath: '.attest-it/attestations.json',
-          },
-        }
-
-        const operational: OperationalConfig = {
-          version: 1,
-          settings: {},
-          suites: {
-            unit: {
-              packages: ['packages/core'],
-              command: 'npm test',
-            },
-            integration: {
-              packages: ['packages/*'],
-              command: 'npm run test:integration',
-            },
-          },
-        }
-
-        const errors = validateSuiteGateReferences(policy, operational)
-
-        expect(errors).toEqual([])
-      })
-
-      it('should return no errors when some suites use gates and others do not', () => {
-        const policy: PolicyConfig = {
-          version: 1,
-          settings: {
-            maxAgeDays: 30,
-            publicKeyPath: '.attest-it/pubkey.pem',
-            attestationsPath: '.attest-it/attestations.json',
-          },
-          team: {
-            developer: {
-              name: 'Developer',
-              publicKey: 'ssh-rsa DEV_KEY',
-            },
-          },
-          gates: {
-            security: {
-              name: 'Security Tests',
-              description: 'Security checks',
-              authorizedSigners: ['developer'],
-              fingerprint: {
-                paths: ['src/**/*.ts'],
-              },
-              maxAge: '14d',
-            },
-          },
-        }
-
-        const operational: OperationalConfig = {
-          version: 1,
-          settings: {},
-          suites: {
-            security: {
-              gate: 'security',
-              command: 'npm run test:security',
-            },
-            lint: {
-              packages: ['src'],
-              command: 'npm run lint',
-            },
-          },
-        }
-
-        const errors = validateSuiteGateReferences(policy, operational)
-
-        expect(errors).toEqual([])
-      })
-
       it('should return no errors with multiple suites referencing the same gate', () => {
         const policy: PolicyConfig = {
           version: 1,
@@ -719,41 +642,6 @@ suites:
         expect(errors).toEqual([])
       })
 
-      it('should return no errors when all suites use legacy fingerprinting', () => {
-        const policy: PolicyConfig = {
-          version: 1,
-          settings: {
-            maxAgeDays: 30,
-            publicKeyPath: '.attest-it/pubkey.pem',
-            attestationsPath: '.attest-it/attestations.json',
-          },
-        }
-
-        const operational: OperationalConfig = {
-          version: 1,
-          settings: {},
-          suites: {
-            unit: {
-              packages: ['packages/core'],
-              command: 'npm test',
-            },
-            integration: {
-              packages: ['packages/*'],
-              command: 'npm run test:integration',
-            },
-            e2e: {
-              packages: ['test/e2e'],
-              files: ['**/*.spec.ts'],
-              ignore: ['**/*.tmp'],
-              command: 'npm run test:e2e',
-            },
-          },
-        }
-
-        const errors = validateSuiteGateReferences(policy, operational)
-
-        expect(errors).toEqual([])
-      })
     })
 
     describe('error message content', () => {

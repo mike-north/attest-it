@@ -265,6 +265,7 @@ describe('Schema Contract Tests', () => {
 
     it('should accept file-based private keys', () => {
       const config = {
+        version: 1,
         activeIdentity: 'test',
         identities: {
           test: {
@@ -282,6 +283,7 @@ describe('Schema Contract Tests', () => {
 
     it('should accept keychain-based private keys', () => {
       const config = {
+        version: 1,
         activeIdentity: 'test',
         identities: {
           test: {
@@ -300,6 +302,7 @@ describe('Schema Contract Tests', () => {
 
     it('should accept keychain with optional keychain path', () => {
       const config = {
+        version: 1,
         activeIdentity: 'test',
         identities: {
           test: {
@@ -319,6 +322,7 @@ describe('Schema Contract Tests', () => {
 
     it('should accept 1Password-based private keys', () => {
       const config = {
+        version: 1,
         activeIdentity: 'test',
         identities: {
           test: {
@@ -337,6 +341,7 @@ describe('Schema Contract Tests', () => {
 
     it('should accept 1Password with all optional fields', () => {
       const config = {
+        version: 1,
         activeIdentity: 'test',
         identities: {
           test: {
@@ -357,6 +362,7 @@ describe('Schema Contract Tests', () => {
 
     it('should accept identity with optional email and github', () => {
       const config = {
+        version: 1,
         activeIdentity: 'test',
         identities: {
           test: {
@@ -396,6 +402,7 @@ describe('Schema Contract Tests', () => {
 
     it('should reject identity missing required privateKey', () => {
       const config = {
+        version: 1,
         activeIdentity: 'test',
         identities: {
           test: {

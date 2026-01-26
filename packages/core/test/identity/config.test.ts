@@ -171,6 +171,7 @@ describe('identity/config', () => {
           fs.writeFileSync(
             configPath,
             `
+version: 1
 activeIdentity: default
 identities:
   default:
@@ -192,6 +193,7 @@ identities:
           fs.writeFileSync(
             configPath,
             `
+version: 1
 activeIdentity: default
 identities:
   default:
@@ -216,6 +218,7 @@ identities:
           fs.writeFileSync(
             configPath,
             `
+version: 1
 activeIdentity: ""
 identities:
   default:
@@ -244,6 +247,7 @@ identities:
           fs.writeFileSync(
             configPath,
             `
+version: 1
 activeIdentity: default
 identities:
   default:
@@ -270,6 +274,7 @@ identities:
           fs.writeFileSync(
             configPath,
             `
+version: 1
 activeIdentity: default
 identities:
   default:
@@ -297,6 +302,7 @@ identities:
           fs.writeFileSync(
             configPath,
             `
+version: 1
 activeIdentity: default
 identities:
   default:
@@ -324,6 +330,7 @@ identities:
           fs.writeFileSync(
             configPath,
             `
+version: 1
 activeIdentity: default
 identities:
   default:

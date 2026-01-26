@@ -382,7 +382,7 @@ async function runSingleSuite(
   verbose(`Files: ${String(fingerprintResult.fileCount)}`)
 
   // Build the test command
-  const command = buildCommand(config, suiteConfig.command, suiteConfig.files)
+  const command = buildCommand(config, suiteConfig.command)
   log(`Running: ${command}`)
   log('')
 
