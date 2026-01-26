@@ -49,6 +49,11 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2)
 
   const exitCode = await runAttestIt(args)
+
+  // Exit code 2 means "no work to do" (all suites valid) - treat as success for dogfooding
+  if (exitCode === 2) {
+    process.exit(0)
+  }
   process.exit(exitCode)
 }
 

@@ -10,10 +10,10 @@
     },
     "yubikey-integration": {
       "gateId": "yubikey-integration",
-      "fingerprint": "sha256:6f27e024966df749a9aceac094f7cc7676644ef20fda07f43a6a228fcb61c96a",
-      "timestamp": "2026-01-26T05:20:18.537Z",
+      "fingerprint": "sha256:48a27c8a889ff25c17836d2ba41af8869856c6964e95fbd5c6f555c33a235f9c",
+      "timestamp": "2026-01-26T05:21:43.749Z",
       "sealedBy": "mike-north",
-      "signature": "8x9aTEpuhvjsHfBziiRCMPXRtOtFLd0WLWsA2ofWo/U/F7rxUMseWYP0GbJBicq3nhIUYtVL4voWh9kxANX6Dw=="
+      "signature": "i8vONIlr8z0H4cQF6FHA4pQ5kTNeUH1HZkt7aPe4VTHqIT2Ql8gjPGhFyy93H2d25bV9PzQDCaM8kb/+eqslDg=="
     },
     "keychain-integration": {
       "gateId": "keychain-integration",
@@ -21,6 +21,13 @@
       "timestamp": "2026-01-25T23:41:28.481Z",
       "sealedBy": "mike-north",
       "signature": "FY79OMZCsAinQZMao0hqXgQDdlbl43ytgOYiABYIjHKSGQgbAepwKq/bsxrftePrfQhP4gxCsjEq48IeRNVRCA=="
+    },
+    "cli-interactive": {
+      "gateId": "cli-interactive",
+      "fingerprint": "sha256:ee69c52e87d641ab7eee436529c6d1699c3fec048652f5a29d8eb87b836d0a8f",
+      "timestamp": "2026-01-26T05:23:11.122Z",
+      "sealedBy": "mike-north",
+      "signature": "UQZLrtah3zxtTzN2REcu05+05KAiLIrX80r4yrLuNS0xI3VGS84IjxxQv/eQX5r8TcqSPHNpAcDILvbUwyeLDg=="
     }
   }
 }
