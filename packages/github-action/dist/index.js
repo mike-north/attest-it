@@ -42108,6 +42108,12 @@ ${reasons}`
   /**
    * Get the private key from 1Password for signing.
    * Downloads to a temporary file and returns a cleanup function.
+   *
+   * @remarks
+   * For security, this runs in a new PTY which requires the user to authenticate
+   * (via Touch ID, password, etc.) each time. This prevents automated agents
+   * from using cached credentials.
+   *
    * @param keyRef - Item name in 1Password
    * @throws Error if the key does not exist in 1Password
    */

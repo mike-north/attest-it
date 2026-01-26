@@ -310,6 +310,12 @@ export class OnePasswordKeyProvider implements KeyProvider {
   /**
    * Get the private key from 1Password for signing.
    * Downloads to a temporary file and returns a cleanup function.
+   *
+   * @remarks
+   * For security, this runs in a new PTY which requires the user to authenticate
+   * (via Touch ID, password, etc.) each time. This prevents automated agents
+   * from using cached credentials.
+   *
    * @param keyRef - Item name in 1Password
    * @throws Error if the key does not exist in 1Password
    */
@@ -327,7 +333,7 @@ export class OnePasswordKeyProvider implements KeyProvider {
     const tempKeyPath = path.join(tempDir, 'private.pem')
 
     try {
-      // Download the key from 1Password
+      // Download the key from 1Password (runs in PTY for auth)
       const args = ['document', 'get', keyRef, '--vault', this.vault, '--out-file', tempKeyPath]
       if (this.accountUuid) {
         args.push('--account', this.accountUuid)
@@ -544,3 +550,4 @@ async function execCommand(command: string, args: string[]): Promise<string> {
     })
   })
 }
+
