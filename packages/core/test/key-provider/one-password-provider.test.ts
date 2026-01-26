@@ -831,8 +831,9 @@ describe('OnePasswordKeyProvider', () => {
           const cIndex = argsArray.indexOf('-c')
           if (cIndex !== -1 && cIndex + 1 < argsArray.length) {
             // Linux: parse --out-file from -c command string
+            // Arguments are single-quoted: '--out-file' '/tmp/path'
             const cmdStr = argsArray[cIndex + 1]
-            const match = cmdStr.match(/--out-file\s+['"]?([^\s'"]+)['"]?/)
+            const match = cmdStr.match(/'--out-file'\s+'([^']+)'/)
             if (match) targetPath = match[1]
           } else {
             // macOS/Windows: --out-file is separate array element
@@ -994,8 +995,9 @@ describe('OnePasswordKeyProvider', () => {
           const cIndex = argsArray.indexOf('-c')
           if (cIndex !== -1 && cIndex + 1 < argsArray.length) {
             // Linux: parse --out-file from -c command string
+            // Arguments are single-quoted: '--out-file' '/tmp/path'
             const cmdStr = argsArray[cIndex + 1]
-            const match = cmdStr.match(/--out-file\s+['"]?([^\s'"]+)['"]?/)
+            const match = cmdStr.match(/'--out-file'\s+'([^']+)'/)
             if (match) targetPath = match[1]
           } else {
             // macOS/Windows: --out-file is separate array element
