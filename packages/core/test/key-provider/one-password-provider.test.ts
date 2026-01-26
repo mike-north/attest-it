@@ -266,28 +266,53 @@ describe('OnePasswordKeyProvider', () => {
 
       // Verify spawn was called with correct args
       // On macOS/Linux, op is wrapped in 'script' for PTY support
+      // On macOS: spawn('script', ['-q', '/dev/null', 'op', 'document', ...])
+      // On Linux: spawn('script', ['-q', '/dev/null', '-c', 'op document get ...'])
       const spawnCalls = mockSpawnFn.mock.calls
       const opCall = spawnCalls.find((call) => {
         const cmd = call[0]
         const args = call[1]
         if (!Array.isArray(args)) return false
-        // Direct op call (Windows) or wrapped in script (macOS/Linux)
-        return (
-          (cmd === 'op' && args.includes('document')) ||
-          (cmd === 'script' && args.includes('op') && args.includes('document'))
-        )
+        // Direct op call (Windows)
+        if (cmd === 'op' && args.includes('document')) return true
+        // macOS: args are individual elements
+        if (cmd === 'script' && args.includes('op') && args.includes('document')) return true
+        // Linux: command is a string after -c flag
+        if (cmd === 'script') {
+          const cIndex = args.indexOf('-c')
+          if (cIndex !== -1 && cIndex + 1 < args.length) {
+            const cmdStr = String(args[cIndex + 1])
+            return cmdStr.includes('op') && cmdStr.includes('document')
+          }
+        }
+        return false
       })
       expect(opCall).toBeDefined()
       if (!opCall) throw new Error('opCall not found')
       const opArgs = opCall[1]
       if (!Array.isArray(opArgs)) throw new Error('opArgs not an array')
-      expect(opArgs).toContain('document')
-      expect(opArgs).toContain('get')
-      expect(opArgs).toContain('test-key')
-      expect(opArgs).toContain('--vault')
-      expect(opArgs).toContain('Private')
-      expect(opArgs).toContain('--out-file')
-      expect(opArgs.some((arg) => String(arg).includes('private.pem'))).toBe(true)
+      // Check args - either as individual elements or within -c string
+      const cIndex = opArgs.indexOf('-c')
+      if (cIndex !== -1 && cIndex + 1 < opArgs.length) {
+        // Linux: check the -c command string
+        const cmdStr = String(opArgs[cIndex + 1])
+        expect(cmdStr).toContain('document')
+        expect(cmdStr).toContain('get')
+        expect(cmdStr).toContain('test-key')
+        expect(cmdStr).toContain('--vault')
+        expect(cmdStr).toContain('Private')
+        expect(cmdStr).toContain('--out-file')
+        expect(cmdStr).toContain('private.pem')
+      } else {
+        // macOS/Windows: check individual args
+        expect(opArgs).toContain('document')
+        expect(opArgs).toContain('get')
+        expect(opArgs).toContain('test-key')
+        expect(opArgs).toContain('--vault')
+        expect(opArgs).toContain('Private')
+        expect(opArgs).toContain('--out-file')
+        expect(opArgs.some((arg) => String(arg).includes('private.pem'))).toBe(true)
+      }
 
       // Verify permissions were set
       expect(mockSetKeyPermissions).toHaveBeenCalled()
@@ -838,49 +863,84 @@ describe('OnePasswordKeyProvider', () => {
       // On macOS/Linux, op is wrapped in 'script' for PTY support
       const spawnCalls = mockSpawnFn.mock.calls
 
-      // First call: keyExists check
-      const keyExistsCall = spawnCalls.find((call) => {
+      // Helper to check if a spawn call matches expected op command
+      // Handles: direct op call, macOS (script with args), Linux (script -c "...")
+      const matchesOpCall = (
+        call: [string, string[], ...unknown[]],
+        ...expectedTerms: string[]
+      ): boolean => {
         const cmd = call[0]
         const args = call[1]
         if (!Array.isArray(args)) return false
-        return (
-          (cmd === 'op' && args.includes('item') && args.includes('get')) ||
-          (cmd === 'script' && args.includes('op') && args.includes('item') && args.includes('get'))
-        )
-      })
+        // For direct op call: cmd is 'op', check other terms in args
+        if (cmd === 'op') {
+          const nonOpTerms = expectedTerms.filter((t) => t !== 'op')
+          return nonOpTerms.every((term) => args.includes(term))
+        }
+        // macOS: script with args as individual elements (op, item, get, etc.)
+        if (cmd === 'script' && expectedTerms.every((term) => args.includes(term))) return true
+        // Linux: script -c "op item get ..."
+        if (cmd === 'script') {
+          const cIdx = args.indexOf('-c')
+          if (cIdx !== -1 && cIdx + 1 < args.length) {
+            const cmdStr = String(args[cIdx + 1])
+            return expectedTerms.every((term) => cmdStr.includes(term))
+          }
+        }
+        return false
+      }
+
+      // First call: keyExists check
+      const keyExistsCall = spawnCalls.find((call) =>
+        matchesOpCall(call as [string, string[], ...unknown[]], 'op', 'item', 'get'),
+      )
       expect(keyExistsCall).toBeDefined()
       if (!keyExistsCall) throw new Error('keyExistsCall not found')
       const keyExistsArgs = keyExistsCall[1]
       if (!Array.isArray(keyExistsArgs)) throw new Error('keyExistsArgs not an array')
-      expect(keyExistsArgs).toContain('item')
-      expect(keyExistsArgs).toContain('get')
-      expect(keyExistsArgs).toContain('integration-test-key')
-      expect(keyExistsArgs).toContain('--vault')
-      expect(keyExistsArgs).toContain('Private')
+      // Check args - either as individual elements or within -c string
+      const keyCIndex = keyExistsArgs.indexOf('-c')
+      if (keyCIndex !== -1 && keyCIndex + 1 < keyExistsArgs.length) {
+        const cmdStr = String(keyExistsArgs[keyCIndex + 1])
+        expect(cmdStr).toContain('item')
+        expect(cmdStr).toContain('get')
+        expect(cmdStr).toContain('integration-test-key')
+        expect(cmdStr).toContain('--vault')
+        expect(cmdStr).toContain('Private')
+      } else {
+        expect(keyExistsArgs).toContain('item')
+        expect(keyExistsArgs).toContain('get')
+        expect(keyExistsArgs).toContain('integration-test-key')
+        expect(keyExistsArgs).toContain('--vault')
+        expect(keyExistsArgs).toContain('Private')
+      }
 
       // Second call: document get
-      const docGetCall = spawnCalls.find((call) => {
-        const cmd = call[0]
-        const args = call[1]
-        if (!Array.isArray(args)) return false
-        return (
-          (cmd === 'op' && args.includes('document') && args.includes('get')) ||
-          (cmd === 'script' &&
-            args.includes('op') &&
-            args.includes('document') &&
-            args.includes('get'))
-        )
-      })
+      const docGetCall = spawnCalls.find((call) =>
+        matchesOpCall(call as [string, string[], ...unknown[]], 'op', 'document', 'get'),
+      )
       expect(docGetCall).toBeDefined()
       if (!docGetCall) throw new Error('docGetCall not found')
       const docGetArgs = docGetCall[1]
       if (!Array.isArray(docGetArgs)) throw new Error('docGetArgs not an array')
-      expect(docGetArgs).toContain('document')
-      expect(docGetArgs).toContain('get')
-      expect(docGetArgs).toContain('integration-test-key')
-      expect(docGetArgs).toContain('--vault')
-      expect(docGetArgs).toContain('Private')
-      expect(docGetArgs).toContain('--out-file')
+      // Check args - either as individual elements or within -c string
+      const docCIndex = docGetArgs.indexOf('-c')
+      if (docCIndex !== -1 && docCIndex + 1 < docGetArgs.length) {
+        const cmdStr = String(docGetArgs[docCIndex + 1])
+        expect(cmdStr).toContain('document')
+        expect(cmdStr).toContain('get')
+        expect(cmdStr).toContain('integration-test-key')
+        expect(cmdStr).toContain('--vault')
+        expect(cmdStr).toContain('Private')
+        expect(cmdStr).toContain('--out-file')
+      } else {
+        expect(docGetArgs).toContain('document')
+        expect(docGetArgs).toContain('get')
+        expect(docGetArgs).toContain('integration-test-key')
+        expect(docGetArgs).toContain('--vault')
+        expect(docGetArgs).toContain('Private')
+        expect(docGetArgs).toContain('--out-file')
+      }
 
       // Verify setKeyPermissions was called on the temp file
       expect(mockSetKeyPermissions).toHaveBeenCalledWith(keyResult.keyPath)
