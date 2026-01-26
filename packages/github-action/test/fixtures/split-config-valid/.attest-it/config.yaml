@@ -1,21 +1,5 @@
 version: 1
 
-team:
-  test-user:
-    name: Test User
-    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
-
-gates:
-  unit-tests:
-    name: Unit Tests
-    description: Unit test suite
-    authorizedSigners:
-      - test-user
-    fingerprint:
-      paths:
-        - src
-    maxAge: 30d
-
 suites:
   unit-tests:
     gate: unit-tests

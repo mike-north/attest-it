@@ -4,7 +4,7 @@
 
 ## SuiteVerificationResult.changedFiles property
 
-List of files that changed (if status is FINGERPRINT\_CHANGED)
+List of files that changed (if status is FINGERPRINT_CHANGED)
 
 **Signature:**
 

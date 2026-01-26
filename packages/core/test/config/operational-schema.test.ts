@@ -393,7 +393,9 @@ suites:
     gate: ''
 `
         expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(OperationalValidationError)
-        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow('Gate reference cannot be empty')
+        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(
+          'Gate reference cannot be empty',
+        )
       })
 
       it('should reject suite with empty string in invalidates', () => {

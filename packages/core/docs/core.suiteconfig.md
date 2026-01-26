@@ -9,7 +9,7 @@ Suite definition from the configuration file.
 **Signature:**
 
 ```typescript
-interface SuiteConfig 
+interface SuiteConfig
 ```
 
 ## Properties
@@ -18,136 +18,107 @@ interface SuiteConfig
 
 Property
 
-
 </th><th>
 
 Modifiers
-
 
 </th><th>
 
 Type
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 [command?](./core.suiteconfig.command.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string
 
-
 </td><td>
 
 _(Optional)_ Command to execute for this suite (overrides defaultCommand)
-
 
 </td></tr>
 <tr><td>
 
 [description?](./core.suiteconfig.description.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string
 
-
 </td><td>
 
 _(Optional)_ Human-readable description of what this suite tests
-
 
 </td></tr>
 <tr><td>
 
 [files?](./core.suiteconfig.files.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string\[\]
 
-
 </td><td>
 
 _(Optional)_ Additional file patterns to include in fingerprint
-
 
 </td></tr>
 <tr><td>
 
 [ignore?](./core.suiteconfig.ignore.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string\[\]
 
-
 </td><td>
 
 _(Optional)_ Patterns to ignore when computing fingerprint
-
 
 </td></tr>
 <tr><td>
 
 [invalidates?](./core.suiteconfig.invalidates.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string\[\]
 
-
 </td><td>
 
 _(Optional)_ Other suite names that, when changed, invalidate this suite's attestation
-
 
 </td></tr>
 <tr><td>
 
 [packages](./core.suiteconfig.packages.md)
 
-
 </td><td>
-
 
 </td><td>
 
 string\[\]
 
-
 </td><td>
 
 Glob patterns for npm packages to include in fingerprint
 
-
 </td></tr>
 </tbody></table>
-

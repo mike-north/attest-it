@@ -9,5 +9,5 @@ Schema version for forward compatibility
 **Signature:**
 
 ```typescript
-schemaVersion: '1';
+schemaVersion: '1'
 ```

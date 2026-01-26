@@ -9,5 +9,5 @@ Original data that was signed
 **Signature:**
 
 ```typescript
-data: string | Buffer;
+data: string | Buffer
 ```

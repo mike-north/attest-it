@@ -9,5 +9,5 @@ Current computed fingerprint for the suite
 **Signature:**
 
 ```typescript
-fingerprint: string;
+fingerprint: string
 ```

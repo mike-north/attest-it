@@ -9,7 +9,7 @@ Read attestations file from disk (async).
 **Signature:**
 
 ```typescript
-declare function readAttestations(filePath: string): Promise<AttestationsFile | null>;
+declare function readAttestations(filePath: string): Promise<AttestationsFile | null>
 ```
 
 ## Parameters
@@ -18,32 +18,26 @@ declare function readAttestations(filePath: string): Promise<AttestationsFile | 
 
 Parameter
 
-
 </th><th>
 
 Type
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 filePath
 
-
 </td><td>
 
 string
 
-
 </td><td>
 
 Absolute path to the attestations JSON file
-
 
 </td></tr>
 </tbody></table>
@@ -57,4 +51,3 @@ Parsed attestations file, or null if the file doesn't exist
 ## Exceptions
 
 Error on parse or validation errors
-

@@ -9,5 +9,5 @@ Overall success - true if all attestations are valid
 **Signature:**
 
 ```typescript
-success: boolean;
+success: boolean
 ```

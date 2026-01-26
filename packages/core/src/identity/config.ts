@@ -409,10 +409,7 @@ export interface SavePublicKeyResult {
  * @returns Path where the key was saved
  * @public
  */
-export async function savePublicKey(
-  slug: string,
-  publicKey: string,
-): Promise<SavePublicKeyResult> {
+export async function savePublicKey(slug: string, publicKey: string): Promise<SavePublicKeyResult> {
   // Save to user's home directory (~/.attest-it/public-keys/<slug>.pem)
   const homeDir = getHomePublicKeysDir()
   await mkdirAsync(homeDir, { recursive: true })

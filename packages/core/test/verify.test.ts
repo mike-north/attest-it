@@ -292,7 +292,8 @@ describe('verifyAttestations', () => {
   })
 
   describe('status tests', () => {
-    it('should return NEEDS_ATTESTATION when no attestation exists', async () => {      const config = createTestConfig({
+    it('should return NEEDS_ATTESTATION when no attestation exists', async () => {
+      const config = createTestConfig({
         gates: {
           'test-gate': {
             name: 'Test Gate',
@@ -323,7 +324,8 @@ describe('verifyAttestations', () => {
       expect(result.suites[0]?.message).toContain('No attestation found')
     })
 
-    it('should return FINGERPRINT_CHANGED when code changed', async () => {      const config = createTestConfig({
+    it('should return FINGERPRINT_CHANGED when code changed', async () => {
+      const config = createTestConfig({
         gates: {
           'test-gate': {
             name: 'Test Gate',
@@ -361,7 +363,8 @@ describe('verifyAttestations', () => {
       expect(result.suites[0]?.message).toContain('Fingerprint changed')
     })
 
-    it('should return EXPIRED when attestation too old', async () => {      const config = createTestConfig({
+    it('should return EXPIRED when attestation too old', async () => {
+      const config = createTestConfig({
         settings: {
           maxAgeDays: 7,
           publicKeyPath: path.join(TEST_DIR, 'public.pem'),
@@ -417,7 +420,8 @@ describe('verifyAttestations', () => {
       expect(result.suites[0]?.age).toBeGreaterThanOrEqual(9)
     })
 
-    it('should return SIGNATURE_INVALID when signature tampered', async () => {      const config = createTestConfig({
+    it('should return SIGNATURE_INVALID when signature tampered', async () => {
+      const config = createTestConfig({
         gates: {
           'test-gate': {
             name: 'Test Gate',
@@ -470,7 +474,8 @@ describe('verifyAttestations', () => {
       expect(result.errors[0]).toContain('Signature verification failed')
     })
 
-    it('should return INVALIDATED_BY_PARENT for invalidation chains', async () => {      const config = createTestConfig({
+    it('should return INVALIDATED_BY_PARENT for invalidation chains', async () => {
+      const config = createTestConfig({
         gates: {
           'test-gate': {
             name: 'Test Gate',
@@ -539,7 +544,8 @@ describe('verifyAttestations', () => {
   })
 
   describe('edge cases', () => {
-    it('should handle missing public key file', async () => {      const config = createTestConfig({
+    it('should handle missing public key file', async () => {
+      const config = createTestConfig({
         settings: {
           maxAgeDays: 30,
           publicKeyPath: path.join(TEST_DIR, 'nonexistent-public.pem'),
@@ -591,7 +597,8 @@ describe('verifyAttestations', () => {
       expect(result.errors.some((e) => e.includes('Public key not found'))).toBe(true)
     })
 
-    it('should handle missing attestations file (fresh repo)', async () => {      const config = createTestConfig({
+    it('should handle missing attestations file (fresh repo)', async () => {
+      const config = createTestConfig({
         gates: {
           'test-gate': {
             name: 'Test Gate',
@@ -639,7 +646,8 @@ describe('verifyAttestations', () => {
       expect(result.suites).toHaveLength(0)
     })
 
-    it('should handle circular invalidation chains without infinite loop', async () => {      const config = createTestConfig({
+    it('should handle circular invalidation chains without infinite loop', async () => {
+      const config = createTestConfig({
         gates: {
           'test-gate': {
             name: 'Test Gate',

@@ -39,4 +39,3 @@ Schemas are served from GitHub raw content:
 ```
 https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/<schema-name>.schema.json
 ```
-

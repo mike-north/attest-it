@@ -32,5 +32,8 @@ jobs:
         uses: ./packages/github-action
         with:
           config-path: .attest-it/config.yaml
+          # Use PR branch for policy since this is the initial dogfooding setup
+          # and policy.yaml doesn't exist on main yet
+          policy-ref: ${{ github.head_ref }}
           fail-on-missing: 'true'
           github-token: ${{ secrets.GITHUB_TOKEN }}

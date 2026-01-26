@@ -9,5 +9,5 @@ Supported signature algorithms.
 **Signature:**
 
 ```typescript
-type Algorithm = 'ed25519' | 'rsa';
+type Algorithm = 'ed25519' | 'rsa'
 ```

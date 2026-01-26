@@ -9,7 +9,7 @@ Sign data using a private key.
 **Signature:**
 
 ```typescript
-declare function sign(options: SignOptions): Promise<string>;
+declare function sign(options: SignOptions): Promise<string>
 ```
 
 ## Parameters
@@ -18,32 +18,26 @@ declare function sign(options: SignOptions): Promise<string>;
 
 Parameter
 
-
 </th><th>
 
 Type
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 options
 
-
 </td><td>
 
 [SignOptions](./core.signoptions.md)
 
-
 </td><td>
 
 Signing options
-
 
 </td></tr>
 </tbody></table>
@@ -57,4 +51,3 @@ Base64-encoded signature
 ## Exceptions
 
 Error if signing fails
-

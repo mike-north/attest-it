@@ -11,7 +11,11 @@ Creates parent directories if needed. The signature should be computed separatel
 **Signature:**
 
 ```typescript
-declare function writeAttestationsSync(filePath: string, attestations: Attestation[], signature: string): void;
+declare function writeAttestationsSync(
+  filePath: string,
+  attestations: Attestation[],
+  signature: string,
+): void
 ```
 
 ## Parameters
@@ -20,64 +24,52 @@ declare function writeAttestationsSync(filePath: string, attestations: Attestati
 
 Parameter
 
-
 </th><th>
 
 Type
 
-
 </th><th>
 
 Description
-
 
 </th></tr></thead>
 <tbody><tr><td>
 
 filePath
 
-
 </td><td>
 
 string
 
-
 </td><td>
 
 Absolute path to write the attestations file
-
 
 </td></tr>
 <tr><td>
 
 attestations
 
-
 </td><td>
 
 [Attestation](./core.attestation.md)<!-- -->\[\]
 
-
 </td><td>
 
 Array of attestation entries
-
 
 </td></tr>
 <tr><td>
 
 signature
 
-
 </td><td>
 
 string
 
-
 </td><td>
 
 Cryptographic signature of the attestations
-
 
 </td></tr>
 </tbody></table>
@@ -89,4 +81,3 @@ void
 ## Exceptions
 
 Error on validation or write errors
-

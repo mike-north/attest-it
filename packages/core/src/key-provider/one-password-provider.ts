@@ -597,4 +597,3 @@ async function execInteractiveCommand(command: string, args: string[]): Promise<
     })
   })
 }
-
