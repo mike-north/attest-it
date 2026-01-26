@@ -26,7 +26,7 @@
 
 import { OnePasswordKeyProvider } from '@attest-it/core'
 import type { OnePasswordAccount, OnePasswordVault, InaccessibleAccount } from '@attest-it/core'
-import { select } from '@inquirer/prompts'
+import { select, confirm } from '@inquirer/prompts'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import { execa } from 'execa'
@@ -354,7 +354,24 @@ async function runIntegrationTest(): Promise<boolean> {
     })
     info(`Fingerprint: ${fingerprint.fingerprint}`)
 
-    // Retrieve the private key for signing
+    // Ask user for confirmation before accessing 1Password to create the seal
+    const shouldCreateSeal = await confirm({
+      message: 'Do you want to create a seal? (This will prompt you to unlock 1Password)',
+      default: true,
+    })
+
+    if (!shouldCreateSeal) {
+      warn('Seal creation skipped by user')
+      console.log()
+      console.log(`${colors.bright}${colors.yellow}`)
+      console.log('='.repeat(80))
+      console.log('Test completed without seal creation (user skipped)')
+      console.log('='.repeat(80))
+      console.log(colors.reset)
+      return true
+    }
+
+    // Retrieve the private key for signing (will prompt for 1Password unlock)
     const { keyPath, cleanup } = await provider.getPrivateKey(itemName)
     try {
       // Read the private key (PEM format needed for createSeal)

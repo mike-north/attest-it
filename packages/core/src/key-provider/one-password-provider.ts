@@ -544,20 +544,30 @@ async function execCommand(command: string, args: string[]): Promise<string> {
  */
 async function execInteractiveCommand(command: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    const isWindows = process.platform === 'win32'
+    const platform = process.platform
 
     let proc
-    if (isWindows) {
+    if (platform === 'win32') {
       // On Windows, spawn directly (no PTY wrapper available)
       proc = spawn(command, args, {
         stdio: ['inherit', 'pipe', 'pipe'],
         env: getCleanEnvironment(),
       })
-    } else {
-      // On macOS/Linux, wrap in 'script' for PTY support
+    } else if (platform === 'darwin') {
+      // On macOS (BSD script), pass command as positional args
       // The -q flag suppresses "Script started/done" messages
       // /dev/null discards the typescript file
       proc = spawn('script', ['-q', '/dev/null', command, ...args], {
+        stdio: ['inherit', 'pipe', 'pipe'],
+        env: getCleanEnvironment(),
+      })
+    } else {
+      // On Linux (GNU script), use -c flag to specify command
+      // The -q flag suppresses "Script started/done" messages
+      // Quote args properly for shell execution
+      const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "'\\''")}'`).join(' ')
+      const fullCommand = `${command} ${quotedArgs}`
+      proc = spawn('script', ['-q', '/dev/null', '-c', fullCommand], {
         stdio: ['inherit', 'pipe', 'pipe'],
         env: getCleanEnvironment(),
       })
