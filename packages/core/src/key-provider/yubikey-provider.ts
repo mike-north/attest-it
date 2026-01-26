@@ -497,7 +497,7 @@ export class YubiKeyProvider implements KeyProvider {
     if (!(await YubiKeyProvider.isChallengeResponseConfigured(this.slot, this.serial))) {
       throw new Error(
         `YubiKey slot ${String(this.slot)} is not configured for HMAC challenge-response. ` +
-          'Ensure your YubiKey is connected and use "ykman otp chalresp --generate 2" to configure it.',
+          'Ensure your YubiKey is connected and use "ykman otp chalresp -t --generate 2" to configure it with touch required.',
       )
     }
 
@@ -644,7 +644,7 @@ export class YubiKeyProvider implements KeyProvider {
     if (!(await YubiKeyProvider.isChallengeResponseConfigured(slot, serial))) {
       throw new Error(
         `YubiKey slot ${String(slot)} is not configured for HMAC challenge-response. ` +
-          'Ensure your YubiKey is connected and use "ykman otp chalresp --generate 2" to configure it.',
+          'Ensure your YubiKey is connected and use "ykman otp chalresp -t --generate 2" to configure it with touch required.',
       )
     }
 
@@ -786,11 +786,12 @@ async function performChallengeResponse(
   slot: 1 | 2,
   serial?: string,
 ): Promise<Buffer> {
-  // Use 'ykman otp calculate -t' to perform challenge-response with touch required.
-  // The -t flag ensures that a human must physically touch the YubiKey to complete
-  // the operation, preventing automated/agent-initiated signing.
-  // We use execInteractiveCommand so the "Touch your YubiKey..." prompt is visible.
-  const args = ['otp', 'calculate', '-t', String(slot), challenge.toString('hex')]
+  // Use 'ykman otp calculate' to perform challenge-response.
+  // Touch requirement should be configured at the hardware level when setting up
+  // the slot with 'ykman otp chalresp -t --generate <slot>'. This ensures human
+  // interaction is required at the YubiKey itself.
+  // We use execInteractiveCommand so any touch prompts are visible to the user.
+  const args = ['otp', 'calculate', String(slot), challenge.toString('hex')]
   if (serial) {
     args.unshift('--device', serial)
   }
@@ -803,8 +804,9 @@ async function performChallengeResponse(
     // Sanitized error - don't leak command details
     throw new Error(
       'YubiKey challenge-response failed. ' +
-        'Verify your YubiKey is inserted, touch it when prompted, ' +
-        'and ensure the slot is configured for challenge-response.',
+        'Verify your YubiKey is inserted, touch it if prompted, ' +
+        'and ensure the slot is configured for challenge-response with touch required ' +
+        '(ykman otp chalresp -t --generate <slot>).',
     )
   }
 }

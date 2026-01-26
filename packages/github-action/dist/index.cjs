@@ -42803,7 +42803,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
     const { publicKeyPath, force = false } = options;
     if (!await _YubiKeyProvider.isChallengeResponseConfigured(this.slot, this.serial)) {
       throw new Error(
-        `YubiKey slot ${String(this.slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp --generate 2" to configure it.`
+        `YubiKey slot ${String(this.slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp -t --generate 2" to configure it with touch required.`
       );
     }
     if (!force && await this.keyExists(this.encryptedKeyPath)) {
@@ -42900,7 +42900,7 @@ ${publicKeyBase64}
     }
     if (!await _YubiKeyProvider.isChallengeResponseConfigured(slot, serial)) {
       throw new Error(
-        `YubiKey slot ${String(slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp --generate 2" to configure it.`
+        `YubiKey slot ${String(slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp -t --generate 2" to configure it with touch required.`
       );
     }
     const challenge = crypto3.randomBytes(32);
@@ -42992,7 +42992,7 @@ async function execInteractiveCommand(command, args) {
   });
 }
 async function performChallengeResponse(challenge, slot, serial) {
-  const args = ["otp", "calculate", "-t", String(slot), challenge.toString("hex")];
+  const args = ["otp", "calculate", String(slot), challenge.toString("hex")];
   if (serial) {
     args.unshift("--device", serial);
   }
@@ -43001,7 +43001,7 @@ async function performChallengeResponse(challenge, slot, serial) {
     return Buffer.from(output.trim(), "hex");
   } catch {
     throw new Error(
-      "YubiKey challenge-response failed. Verify your YubiKey is inserted, touch it when prompted, and ensure the slot is configured for challenge-response."
+      "YubiKey challenge-response failed. Verify your YubiKey is inserted, touch it if prompted, and ensure the slot is configured for challenge-response with touch required (ykman otp chalresp -t --generate <slot>)."
     );
   }
 }
