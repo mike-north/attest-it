@@ -268,7 +268,7 @@ describe('OnePasswordKeyProvider', () => {
       // On macOS/Linux, op is wrapped in 'script' for PTY support
       const spawnCalls = mockSpawnFn.mock.calls
       const opCall = spawnCalls.find((call) => {
-        const cmd = String(call[0])
+        const cmd = call[0]
         const args = call[1]
         if (!Array.isArray(args)) return false
         // Direct op call (Windows) or wrapped in script (macOS/Linux)
@@ -840,7 +840,7 @@ describe('OnePasswordKeyProvider', () => {
 
       // First call: keyExists check
       const keyExistsCall = spawnCalls.find((call) => {
-        const cmd = String(call[0])
+        const cmd = call[0]
         const args = call[1]
         if (!Array.isArray(args)) return false
         return (
@@ -860,7 +860,7 @@ describe('OnePasswordKeyProvider', () => {
 
       // Second call: document get
       const docGetCall = spawnCalls.find((call) => {
-        const cmd = String(call[0])
+        const cmd = call[0]
         const args = call[1]
         if (!Array.isArray(args)) return false
         return (
