@@ -421,10 +421,8 @@ export interface OnePasswordVault {
     name: string;
 }
 
-// Warning: (ae-forgotten-export) The symbol "OperationalConfigV1" needs to be exported by the entry point index.d.ts
-//
 // @public
-export type OperationalConfig = OperationalConfigV1;
+export type OperationalConfig = z.infer<typeof operationalSchema>;
 
 // @public
 export const operationalSchema: z.ZodObject<{
@@ -490,45 +488,82 @@ export const operationalSchema: z.ZodObject<{
             type: string;
         } | undefined;
     }>>;
-    suites: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodObject<{
+    suites: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEffects<z.ZodObject<{
         command: z.ZodOptional<z.ZodString>;
         depends_on: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         description: z.ZodOptional<z.ZodString>;
-        gate: z.ZodString;
+        files: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        gate: z.ZodOptional<z.ZodString>;
+        ignore: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         interactive: z.ZodOptional<z.ZodBoolean>;
         invalidates: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        packages: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         timeout: z.ZodOptional<z.ZodString>;
     }, "strict", z.ZodTypeAny, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        gate: string;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
         timeout?: string | undefined;
     }, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        gate: string;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
+        timeout?: string | undefined;
+    }>, {
+        command?: string | undefined;
+        depends_on?: string[] | undefined;
+        description?: string | undefined;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
+        interactive?: boolean | undefined;
+        invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
+        timeout?: string | undefined;
+    }, {
+        command?: string | undefined;
+        depends_on?: string[] | undefined;
+        description?: string | undefined;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
+        interactive?: boolean | undefined;
+        invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>>, Record<string, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        gate: string;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>, Record<string, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        gate: string;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>>;
     version: z.ZodEffects<z.ZodUnion<[z.ZodLiteral<1>, z.ZodLiteral<string>]>, 1, 1 | string>;
@@ -551,9 +586,12 @@ export const operationalSchema: z.ZodObject<{
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        gate: string;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>;
     version: 1;
@@ -576,9 +614,12 @@ export const operationalSchema: z.ZodObject<{
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        gate: string;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>;
     version: 1 | string;
@@ -600,10 +641,8 @@ export function parseOperationalContent(content: string, format: 'json' | 'yaml'
 // @public
 export function parsePolicyContent(content: string, format: 'json' | 'yaml'): PolicyConfig;
 
-// Warning: (ae-forgotten-export) The symbol "PolicyConfigV1" needs to be exported by the entry point index.d.ts
-//
 // @public
-export type PolicyConfig = PolicyConfigV1;
+export type PolicyConfig = z.infer<typeof policySchema>;
 
 // @public
 export const policySchema: z.ZodObject<{

@@ -23,9 +23,13 @@ import type { PolicyConfig } from './policy-schema.js'
  * Converts a Zod-inferred suite config to the AttestItConfig suite type.
  * Filters out undefined values to match exactOptionalPropertyTypes requirements.
  */
-function toSuiteConfig(suite: OperationalConfig['suites'][string]): SuiteConfig {
+function toSuiteConfig(
+  suiteName: string,
+  suite: OperationalConfig['suites'][string],
+): SuiteConfig {
+  // Gate is required. If suite uses legacy packages definition, use suite name as gate reference
   const result: SuiteConfig = {
-    gate: suite.gate,
+    gate: suite.gate ?? suiteName,
   }
 
   if (suite.description !== undefined) result.description = suite.description
@@ -161,7 +165,7 @@ export function mergeConfigs(policy: PolicyConfig, operational: OperationalConfi
   const suites: Record<string, SuiteConfig> = {}
   for (const [name, suite] of Object.entries(operational.suites)) {
     // eslint-disable-next-line security/detect-object-injection
-    suites[name] = toSuiteConfig(suite)
+    suites[name] = toSuiteConfig(name, suite)
   }
 
   const config: AttestItConfig = {

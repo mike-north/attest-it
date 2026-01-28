@@ -45,7 +45,7 @@ const operationalSettingsSchemaV1 = z
 const suiteSchemaV1 = z
   .object({
     // Gate fields (if present, this suite references a gate)
-    gate: z.string().optional(),
+    gate: z.string().min(1, 'Gate reference cannot be empty').optional(),
     // Legacy fingerprint definition (for backward compatibility)
     description: z.string().optional(),
     packages: z.array(z.string().min(1, 'Package path cannot be empty')).optional(),

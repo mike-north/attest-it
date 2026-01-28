@@ -178,6 +178,7 @@ function transformToLocalConfig(data: IdentityConfigV1): LocalConfig {
   )
 
   return {
+    version: 1,
     activeIdentity: data.activeIdentity,
     identities,
   }

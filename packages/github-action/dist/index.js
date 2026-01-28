@@ -1081,7 +1081,7 @@ var require_util = __commonJS({
         return state && state.objectMode === false && state.ended === true && Number.isFinite(state.length) ? state.length : null;
       } else if (isBlobLike(body)) {
         return body.size != null ? body.size : null;
-      } else if (isBuffer(body)) {
+      } else if (isBuffer2(body)) {
         return body.byteLength;
       }
       return null;
@@ -1164,7 +1164,7 @@ var require_util = __commonJS({
       }
       return ret;
     }
-    function isBuffer(buffer) {
+    function isBuffer2(buffer) {
       return buffer instanceof Uint8Array || Buffer.isBuffer(buffer);
     }
     function validateHandler(handler2, method, upgrade) {
@@ -1328,7 +1328,7 @@ var require_util = __commonJS({
       bodyLength,
       deepClone,
       ReadableStreamFrom,
-      isBuffer,
+      isBuffer: isBuffer2,
       validateHandler,
       getSocketInfo,
       isFormDataLike,
@@ -42272,28 +42272,14 @@ var settingsSchema = external_exports.object({
   // Note: algorithm field was removed - RSA is the only supported algorithm
 }).passthrough();
 var suiteSchema = external_exports.object({
-  // Gate fields (if present, this suite references a gate)
-  gate: external_exports.string().optional(),
-  // Legacy fingerprint definition (for backward compatibility)
+  gate: external_exports.string().min(1, "Gate reference cannot be empty"),
   description: external_exports.string().optional(),
-  packages: external_exports.array(external_exports.string().min(1, "Package path cannot be empty")).optional(),
-  files: external_exports.array(external_exports.string().min(1, "File path cannot be empty")).optional(),
-  ignore: external_exports.array(external_exports.string().min(1, "Ignore pattern cannot be empty")).optional(),
-  // CLI-specific fields
   command: external_exports.string().optional(),
   timeout: external_exports.string().optional(),
   interactive: external_exports.boolean().optional(),
-  // Relationship fields
   invalidates: external_exports.array(external_exports.string().min(1, "Invalidated suite name cannot be empty")).optional(),
   depends_on: external_exports.array(external_exports.string().min(1, "Dependency suite name cannot be empty")).optional()
-}).strict().refine(
-  (suite) => {
-    return suite.gate !== void 0 || suite.packages !== void 0 && suite.packages.length > 0;
-  },
-  {
-    message: "Suite must either reference a gate or define packages for fingerprinting"
-  }
-);
+}).strict();
 var configSchema = external_exports.object({
   version: external_exports.literal(1),
   minVersion: semverSchema.optional(),
@@ -42407,7 +42393,7 @@ var operationalSettingsSchemaV1 = external_exports.object({
 }).strict();
 var suiteSchemaV1 = external_exports.object({
   // Gate fields (if present, this suite references a gate)
-  gate: external_exports.string().optional(),
+  gate: external_exports.string().min(1, "Gate reference cannot be empty").optional(),
   // Legacy fingerprint definition (for backward compatibility)
   description: external_exports.string().optional(),
   packages: external_exports.array(external_exports.string().min(1, "Package path cannot be empty")).optional(),
@@ -42512,13 +42498,11 @@ function parseOperationalContent(content, format) {
   }
   return result.data;
 }
-function toSuiteConfig(suite) {
-  const result = {};
-  if (suite.gate !== void 0) result.gate = suite.gate;
+function toSuiteConfig(suiteName, suite) {
+  const result = {
+    gate: suite.gate ?? suiteName
+  };
   if (suite.description !== void 0) result.description = suite.description;
-  if (suite.packages !== void 0) result.packages = suite.packages;
-  if (suite.files !== void 0) result.files = suite.files;
-  if (suite.ignore !== void 0) result.ignore = suite.ignore;
   if (suite.command !== void 0) result.command = suite.command;
   if (suite.timeout !== void 0) result.timeout = suite.timeout;
   if (suite.interactive !== void 0) result.interactive = suite.interactive;
@@ -42595,7 +42579,7 @@ function mergeConfigs(policy, operational) {
   }
   const suites = {};
   for (const [name, suite] of Object.entries(operational.suites)) {
-    suites[name] = toSuiteConfig(suite);
+    suites[name] = toSuiteConfig(name, suite);
   }
   const config = {
     version: 1,
@@ -42699,15 +42683,20 @@ async function hashFileAsync(realPath, normalizedPath, stats) {
   hash.update(content);
   return hash.digest();
 }
+function isGlobPattern(pathStr) {
+  return /[*?{}[\]]/.test(pathStr);
+}
 function validateOptions(options) {
   if (options.packages.length === 0) {
     throw new Error("packages array must not be empty");
   }
   const baseDir = options.baseDir ?? process.cwd();
   for (const pkg of options.packages) {
-    const pkgPath = path8.resolve(baseDir, pkg);
-    if (!fs2.existsSync(pkgPath)) {
-      throw new Error(`Package path does not exist: ${pkgPath}`);
+    if (!isGlobPattern(pkg)) {
+      const pkgPath = path8.resolve(baseDir, pkg);
+      if (!fs2.existsSync(pkgPath)) {
+        throw new Error(`Package path does not exist: ${pkgPath}`);
+      }
     }
   }
   return baseDir;
@@ -42755,19 +42744,37 @@ async function computeFingerprint(options) {
     fileCount: sortedFiles.length
   };
 }
+function resolvePackagePattern(pkg, baseDir) {
+  if (isGlobPattern(pkg)) {
+    return pkg;
+  }
+  const fullPath = path8.resolve(baseDir, pkg);
+  try {
+    const stats = fs2.statSync(fullPath);
+    return stats.isFile() ? pkg : `${pkg}/**/*`;
+  } catch {
+    return pkg;
+  }
+}
+var GLOB_OPTIONS = {
+  onlyFiles: true,
+  dot: true,
+  // Include dotfiles
+  absolute: false
+  // Return relative paths
+};
 async function listPackageFiles(packages, ignore = [], baseDir = process.cwd()) {
   const allFiles = [];
   for (const pkg of packages) {
-    const patterns = [`${pkg}/**/*`];
-    const files = await glob(patterns, {
+    const pattern = resolvePackagePattern(pkg, baseDir);
+    const files = await glob([pattern], {
+      ...GLOB_OPTIONS,
       cwd: baseDir,
-      ignore,
-      onlyFiles: true,
-      dot: true,
-      // Include dotfiles
-      absolute: false
-      // Return relative paths
+      ignore
     });
+    if (files.length === 0 && isGlobPattern(pkg)) {
+      throw new Error(`Glob pattern matched no files: ${pkg}`);
+    }
     allFiles.push(...files);
   }
   return allFiles;
@@ -42844,6 +42851,45 @@ var SignatureInvalidError = class extends Error {
     this.name = "SignatureInvalidError";
   }
 };
+function isBuffer(value) {
+  return Buffer.isBuffer(value);
+}
+function generateKeyPair2() {
+  try {
+    const keyPair = crypto3.generateKeyPairSync("ed25519", {
+      publicKeyEncoding: {
+        type: "spki",
+        format: "pem"
+      },
+      privateKeyEncoding: {
+        type: "pkcs8",
+        format: "pem"
+      }
+    });
+    const { publicKey, privateKey } = keyPair;
+    if (typeof publicKey !== "string" || typeof privateKey !== "string") {
+      throw new Error("Expected keypair to have string keys");
+    }
+    const publicKeyObj = crypto3.createPublicKey(publicKey);
+    const publicKeyExport = publicKeyObj.export({
+      type: "spki",
+      format: "der"
+    });
+    if (!isBuffer(publicKeyExport)) {
+      throw new Error("Expected public key export to be a Buffer");
+    }
+    const rawPublicKey = publicKeyExport.subarray(12);
+    const publicKeyBase64 = rawPublicKey.toString("base64");
+    return {
+      publicKey: publicKeyBase64,
+      privateKey
+    };
+  } catch (err) {
+    throw new Error(
+      `Failed to generate Ed25519 keypair: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+}
 async function verifyAttestations(options) {
   const { config, repoRoot = process.cwd() } = options;
   const errors = [];
@@ -42877,6 +42923,7 @@ async function verifyAttestations(options) {
     const result = await verifySuite({
       suiteName,
       suiteConfig,
+      gates: config.gates ?? {},
       attestations,
       maxAgeDays: config.settings.maxAgeDays,
       repoRoot
@@ -42893,19 +42940,20 @@ async function verifyAttestations(options) {
   };
 }
 async function verifySuite(options) {
-  const { suiteName, suiteConfig, attestations, maxAgeDays, repoRoot } = options;
-  if (!suiteConfig.packages || suiteConfig.packages.length === 0) {
+  const { suiteName, suiteConfig, gates, attestations, maxAgeDays, repoRoot } = options;
+  const gate = gates[suiteConfig.gate];
+  if (!gate) {
     return {
       suite: suiteName,
       status: "NEEDS_ATTESTATION",
       fingerprint: "",
-      message: "Suite configuration missing packages field"
+      message: `Gate not found: ${suiteConfig.gate}`
     };
   }
   const fingerprintOptions = {
-    packages: suiteConfig.packages.map((p) => resolvePath(p, repoRoot)),
+    packages: gate.fingerprint.paths.map((p) => resolvePath(p, repoRoot)),
     baseDir: repoRoot,
-    ...suiteConfig.ignore && { ignore: suiteConfig.ignore }
+    ...gate.fingerprint.exclude && { ignore: gate.fingerprint.exclude }
   };
   const fingerprintResult = await computeFingerprint(fingerprintOptions);
   const attestation = attestations.find((a) => a.suite === suiteName);
@@ -43055,7 +43103,7 @@ var FilesystemKeyProvider = class {
 var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
   type = "1password";
   displayName = "1Password";
-  account;
+  accountUuid;
   vault;
   itemName;
   /**
@@ -43063,8 +43111,8 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
    * @param options - Provider options
    */
   constructor(options) {
-    if (options.account !== void 0) {
-      this.account = options.account;
+    if (options.accountUuid !== void 0) {
+      this.accountUuid = options.accountUuid;
     }
     this.vault = options.vault;
     this.itemName = options.itemName;
@@ -43083,66 +43131,110 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
   }
   /**
    * List all 1Password accounts.
-   * @returns Array of account information including human-readable names
+   * @returns Object containing accessible accounts and inaccessible accounts with reasons
    */
   static async listAccounts() {
-    try {
-      const output = await execCommand("op", ["account", "list", "--format=json"]);
-      const parsed = JSON.parse(output);
-      if (!Array.isArray(parsed)) {
-        return [];
-      }
-      const basicAccounts = parsed;
-      const accountsWithNames = await Promise.all(
-        basicAccounts.map(async (account) => {
-          try {
-            const detailOutput = await execCommand("op", [
-              "account",
-              "get",
-              "--account",
-              account.email,
-              "--format=json"
-            ]);
-            const details = JSON.parse(detailOutput);
-            if (details !== null && typeof details === "object" && "name" in details && typeof details.name === "string") {
-              return { ...account, name: details.name };
-            }
-          } catch {
-          }
-          return account;
-        })
-      );
-      return accountsWithNames;
-    } catch (error2) {
-      if (process.env.NODE_ENV !== "production") {
-        console.error("Failed to list 1Password accounts:", error2);
-      }
-      return [];
+    const output = await execCommand("op", ["account", "list", "--format=json"]);
+    const parsed = JSON.parse(output);
+    if (!Array.isArray(parsed)) {
+      throw new Error("Unexpected response from 1Password: account list is not an array");
     }
+    const basicAccounts = parsed;
+    const accountResults = [];
+    const RETRY_DELAY_MS = 500;
+    const MAX_RETRIES = 2;
+    for (const account of basicAccounts) {
+      if (!account.account_uuid) {
+        accountResults.push({
+          success: false,
+          email: account.email,
+          url: account.url,
+          reason: "Account missing account_uuid field"
+        });
+        continue;
+      }
+      let lastError;
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        if (attempt > 0 || accountResults.length > 0) {
+          await new Promise((resolve5) => setTimeout(resolve5, RETRY_DELAY_MS));
+        }
+        try {
+          const detailOutput = await execCommand("op", [
+            "account",
+            "get",
+            "--account",
+            account.account_uuid,
+            "--format=json"
+          ]);
+          const details = JSON.parse(detailOutput);
+          if (details !== null && typeof details === "object" && "name" in details && typeof details.name === "string") {
+            accountResults.push({
+              success: true,
+              account: { ...account, name: details.name }
+            });
+            lastError = void 0;
+            break;
+          }
+          lastError = "Account details response missing name field";
+          break;
+        } catch (err) {
+          lastError = err instanceof Error ? err.message : String(err);
+        }
+      }
+      if (lastError !== void 0) {
+        accountResults.push({
+          success: false,
+          email: account.email,
+          url: account.url,
+          reason: lastError
+        });
+      }
+    }
+    const accounts = [];
+    const inaccessible = [];
+    for (const result of accountResults) {
+      if (result.success) {
+        accounts.push(result.account);
+      } else {
+        inaccessible.push({
+          email: result.email,
+          url: result.url,
+          reason: result.reason
+        });
+      }
+    }
+    if (accounts.length === 0 && basicAccounts.length > 0) {
+      const reasons = inaccessible.map((a) => `  - ${a.email}: ${a.reason}`).join("\n");
+      throw new Error(
+        `Could not access any 1Password accounts. All ${String(basicAccounts.length)} account(s) failed:
+${reasons}`
+      );
+    }
+    return { accounts, inaccessible };
   }
   /**
    * List vaults in a specific account.
-   * @param account - Account email (optional if only one account)
+   * @param accountUuid - Account UUID from listAccounts() (optional if only one account)
    * @returns Array of vault information
    */
-  static async listVaults(account) {
-    try {
-      const args = ["vault", "list", "--format=json"];
-      if (account) {
-        args.push("--account", account);
-      }
-      const output = await execCommand("op", args);
-      const parsed = JSON.parse(output);
-      if (!Array.isArray(parsed)) {
-        return [];
-      }
-      return parsed;
-    } catch (error2) {
-      if (process.env.NODE_ENV !== "production") {
-        console.error("Failed to list 1Password vaults:", error2);
-      }
-      return [];
+  static async listVaults(accountUuid) {
+    const args = ["vault", "list", "--format=json"];
+    if (accountUuid) {
+      args.push("--account", accountUuid);
     }
+    let output;
+    try {
+      output = await execCommand("op", args);
+    } catch (error2) {
+      throw new Error(
+        `Failed to list 1Password vaults${accountUuid ? ` for account ${accountUuid}` : ""}: ${error2 instanceof Error ? error2.message : String(error2)}`
+      );
+    }
+    const parsed = JSON.parse(output);
+    if (!Array.isArray(parsed)) {
+      throw new Error("Unexpected response from 1Password: vault list is not an array");
+    }
+    return parsed;
   }
   /**
    * Check if this provider is available.
@@ -43158,8 +43250,8 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
   async keyExists(keyRef) {
     try {
       const args = ["item", "get", keyRef, "--vault", this.vault, "--format=json"];
-      if (this.account) {
-        args.push("--account", this.account);
+      if (this.accountUuid) {
+        args.push("--account", this.accountUuid);
       }
       await execCommand("op", args);
       return true;
@@ -43170,23 +43262,29 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
   /**
    * Get the private key from 1Password for signing.
    * Downloads to a temporary file and returns a cleanup function.
+   *
+   * @remarks
+   * For security, this runs in a new PTY which requires the user to authenticate
+   * (via Touch ID, password, etc.) each time. This prevents automated agents
+   * from using cached credentials.
+   *
    * @param keyRef - Item name in 1Password
    * @throws Error if the key does not exist in 1Password
    */
   async getPrivateKey(keyRef) {
     if (!await this.keyExists(keyRef)) {
       throw new Error(
-        `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` + (this.account ? ` (account: ${this.account})` : "")
+        `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` + (this.accountUuid ? ` (accountUuid: ${this.accountUuid})` : "")
       );
     }
     const tempDir = await fs7.mkdtemp(path8.join(os2.tmpdir(), "attest-it-"));
     const tempKeyPath = path8.join(tempDir, "private.pem");
     try {
       const args = ["document", "get", keyRef, "--vault", this.vault, "--out-file", tempKeyPath];
-      if (this.account) {
-        args.push("--account", this.account);
+      if (this.accountUuid) {
+        args.push("--account", this.accountUuid);
       }
-      await execCommand("op", args);
+      await execInteractiveCommand("op", args);
       await setKeyPermissions(tempKeyPath);
       return {
         keyPath: tempKeyPath,
@@ -43213,20 +43311,33 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
     }
   }
   /**
-   * Generate a new keypair and store private key in 1Password.
+   * Generate a new Ed25519 keypair and store private key in 1Password.
    * Public key is written to filesystem for repository commit.
    * @param options - Key generation options
    */
   async generateKeyPair(options) {
     const { publicKeyPath, force = false } = options;
+    if (!force) {
+      try {
+        await fs7.access(publicKeyPath);
+        throw new Error(
+          `Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`
+        );
+      } catch (err) {
+        if (err instanceof Error && !err.message.includes("already exists")) ;
+        else {
+          throw err;
+        }
+      }
+    }
     const tempDir = await fs7.mkdtemp(path8.join(os2.tmpdir(), "attest-it-keygen-"));
     const tempPrivateKeyPath = path8.join(tempDir, "private.pem");
     try {
-      await generateKeyPair({
-        privatePath: tempPrivateKeyPath,
-        publicPath: publicKeyPath,
-        force
-      });
+      const keyPair = generateKeyPair2();
+      await fs7.writeFile(tempPrivateKeyPath, keyPair.privateKey, "utf-8");
+      await setKeyPermissions(tempPrivateKeyPath);
+      await fs7.mkdir(path8.dirname(publicKeyPath), { recursive: true });
+      await fs7.writeFile(publicKeyPath, keyPair.publicKey, "utf-8");
       const args = [
         "document",
         "create",
@@ -43236,8 +43347,8 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
         "--vault",
         this.vault
       ];
-      if (this.account) {
-        args.push("--account", this.account);
+      if (this.accountUuid) {
+        args.push("--account", this.accountUuid);
       }
       await execCommand("op", args);
       await fs7.unlink(tempPrivateKeyPath);
@@ -43265,16 +43376,70 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
     return {
       type: this.type,
       options: {
-        ...this.account && { account: this.account },
+        ...this.accountUuid && { accountUuid: this.accountUuid },
         vault: this.vault,
         itemName: this.itemName
       }
     };
   }
 };
+function getCleanEnvironment() {
+  const env = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (!key.startsWith("OP_SESSION_") && key !== "OP_SERVICE_ACCOUNT_TOKEN") {
+      env[key] = value;
+    }
+  }
+  return env;
+}
 async function execCommand(command, args) {
   return new Promise((resolve5, reject) => {
-    const proc = spawn2(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    const proc = spawn2(command, args, {
+      stdio: ["inherit", "pipe", "pipe"],
+      env: getCleanEnvironment()
+    });
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolve5(stdout.trim());
+      } else {
+        reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
+      }
+    });
+    proc.on("error", (error2) => {
+      reject(error2);
+    });
+  });
+}
+async function execInteractiveCommand(command, args) {
+  return new Promise((resolve5, reject) => {
+    const platform = process.platform;
+    let proc;
+    if (platform === "win32") {
+      proc = spawn2(command, args, {
+        stdio: ["inherit", "pipe", "pipe"],
+        env: getCleanEnvironment()
+      });
+    } else if (platform === "darwin") {
+      proc = spawn2("script", ["-q", "/dev/null", command, ...args], {
+        stdio: ["inherit", "pipe", "pipe"],
+        env: getCleanEnvironment()
+      });
+    } else {
+      const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "'\\''")}'`).join(" ");
+      const fullCommand = `${command} ${quotedArgs}`;
+      proc = spawn2("script", ["-q", "/dev/null", "-c", fullCommand], {
+        stdio: ["inherit", "pipe", "pipe"],
+        env: getCleanEnvironment()
+      });
+    }
     let stdout = "";
     let stderr = "";
     proc.stdout.on("data", (data) => {
@@ -43421,55 +43586,56 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
     }
   }
   /**
-   * Generate a new keypair and store private key in keychain.
+   * Generate a new Ed25519 keypair and store private key in keychain.
    * Public key is written to filesystem for repository commit.
    * @param options - Key generation options
    */
   async generateKeyPair(options) {
     const { publicKeyPath, force = false } = options;
-    const tempDir = await fs7.mkdtemp(path8.join(os2.tmpdir(), "attest-it-keygen-"));
-    const tempPrivateKeyPath = path8.join(tempDir, "private.pem");
+    let publicKeyExists = false;
     try {
-      await generateKeyPair({
-        privatePath: tempPrivateKeyPath,
-        publicPath: publicKeyPath,
-        force
-      });
-      const privateKeyContent = await fs7.readFile(tempPrivateKeyPath, "utf8");
-      const base64Key = Buffer.from(privateKeyContent, "utf8").toString("base64");
-      const addArgs = [
-        "add-generic-password",
-        "-a",
-        _MacOSKeychainKeyProvider.ACCOUNT,
-        "-s",
-        this.itemName,
-        "-w",
-        base64Key,
-        "-T",
-        "",
-        "-U"
-      ];
-      if (this.keychain) {
-        addArgs.push(this.keychain);
-      }
-      await execCommand2("security", addArgs);
-      await fs7.unlink(tempPrivateKeyPath);
-      await fs7.rmdir(tempDir);
-      return {
-        privateKeyRef: this.itemName,
-        publicKeyPath,
-        storageDescription: `macOS Keychain: ${this.itemName}`
-      };
+      await fs7.access(publicKeyPath);
+      publicKeyExists = true;
     } catch (error2) {
-      try {
-        await fs7.rm(tempDir, { recursive: true, force: true });
-      } catch (cleanupError) {
-        console.warn(
-          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
-        );
+      if (error2 instanceof Error && "code" in error2 && error2.code !== "ENOENT") {
+        throw error2;
       }
-      throw error2;
     }
+    if (publicKeyExists && !force) {
+      throw new Error(
+        `Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`
+      );
+    }
+    const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = generateKeyPair2();
+    const publicKeyDir = path8.dirname(publicKeyPath);
+    await fs7.mkdir(publicKeyDir, { recursive: true });
+    const publicKeyPem = `-----BEGIN PUBLIC KEY-----
+${publicKeyBase64}
+-----END PUBLIC KEY-----
+`;
+    await fs7.writeFile(publicKeyPath, publicKeyPem, { mode: 420 });
+    const base64Key = Buffer.from(privateKeyPem, "utf8").toString("base64");
+    const addArgs = [
+      "add-generic-password",
+      "-a",
+      _MacOSKeychainKeyProvider.ACCOUNT,
+      "-s",
+      this.itemName,
+      "-w",
+      base64Key,
+      "-T",
+      "",
+      "-U"
+    ];
+    if (this.keychain) {
+      addArgs.push(this.keychain);
+    }
+    await execCommand2("security", addArgs);
+    return {
+      privateKeyRef: this.itemName,
+      publicKeyPath,
+      storageDescription: `macOS Keychain: ${this.itemName}`
+    };
   }
   /**
    * Get the configuration for this provider.
@@ -43506,10 +43672,22 @@ async function execCommand2(command, args) {
     });
   });
 }
+var ATTEST_IT_HOME_ENV = "ATTEST_IT_HOME";
 var homeDirOverride = null;
-function getAttestItConfigDir() {
-  if (homeDirOverride) {
-    return homeDirOverride;
+function getAttestItHomeDir() {
+  const envOverride = process.env[ATTEST_IT_HOME_ENV];
+  if (envOverride) {
+    return envOverride;
+  }
+  return homeDirOverride;
+}
+function getIdentityConfigDir(homeDir) {
+  if (homeDir) {
+    return homeDir;
+  }
+  const override = getAttestItHomeDir();
+  if (override) {
+    return override;
   }
   return join3(homedir2(), ".config", "attest-it");
 }
@@ -43584,7 +43762,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
    */
   constructor(options) {
     const resolvedPath = path8.resolve(options.encryptedKeyPath);
-    const configDir = getAttestItConfigDir();
+    const configDir = getIdentityConfigDir();
     if (!resolvedPath.startsWith(configDir)) {
       throw new Error(
         `Encrypted key path must be within attest-it config directory (${configDir}). Got: ${resolvedPath}`
@@ -43628,13 +43806,13 @@ var YubiKeyProvider = class _YubiKeyProvider {
    */
   static async isChallengeResponseConfigured(slot = 2, serial) {
     try {
-      const args = ["otp", "info"];
+      const testChallenge = Buffer.from("attest-it-test-challenge-12345");
+      const args = ["otp", "calculate", String(slot), testChallenge.toString("hex")];
       if (serial) {
         args.unshift("--device", serial);
       }
-      const output = await execCommand3("ykman", args);
-      const slotPattern = new RegExp(`Slot ${String(slot)}:\\s+programmed.*challenge-response`, "i");
-      return slotPattern.test(output);
+      await execInteractiveCommand2("ykman", args);
+      return true;
     } catch {
       return false;
     }
@@ -43794,7 +43972,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
     const { publicKeyPath, force = false } = options;
     if (!await _YubiKeyProvider.isChallengeResponseConfigured(this.slot, this.serial)) {
       throw new Error(
-        `YubiKey slot ${String(this.slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp --generate 2" to configure it.`
+        `YubiKey slot ${String(this.slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp -t --generate 2" to configure it with touch required.`
       );
     }
     if (!force && await this.keyExists(this.encryptedKeyPath)) {
@@ -43815,58 +43993,47 @@ var YubiKeyProvider = class _YubiKeyProvider {
         );
       }
     }
-    const tempDir = await fs7.mkdtemp(path8.join(os2.tmpdir(), "attest-it-keygen-"));
-    const tempPrivateKeyPath = path8.join(tempDir, "private.pem");
-    try {
-      await generateKeyPair({
-        privatePath: tempPrivateKeyPath,
-        publicPath: publicKeyPath,
-        force
-      });
-      const privateKeyContent = await fs7.readFile(tempPrivateKeyPath, "utf8");
-      const challenge = crypto3.randomBytes(32);
-      const salt = crypto3.randomBytes(32);
-      const iv = crypto3.randomBytes(12);
-      const response = await performChallengeResponse(challenge, this.slot, this.serial);
-      const aesKey = deriveKey(response, salt);
-      const aad = constructAAD(1, this.slot, serial);
-      const cipher = crypto3.createCipheriv("aes-256-gcm", aesKey, iv);
-      cipher.setAAD(aad);
-      const ciphertext = Buffer.concat([
-        cipher.update(Buffer.from(privateKeyContent, "utf8")),
-        cipher.final()
-      ]);
-      const authTag = cipher.getAuthTag();
-      const keyFile = {
-        version: 1,
-        iv: iv.toString("base64"),
-        authTag: authTag.toString("base64"),
-        salt: salt.toString("base64"),
-        challenge: challenge.toString("base64"),
-        ciphertext: ciphertext.toString("base64"),
-        slot: this.slot,
-        aad: aad.toString("base64"),
-        ...serial && { serial }
-      };
-      await fs7.mkdir(path8.dirname(this.encryptedKeyPath), { recursive: true });
-      await fs7.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
-      await setKeyPermissions(this.encryptedKeyPath);
-      const keySize = Buffer.byteLength(privateKeyContent);
-      await fs7.writeFile(tempPrivateKeyPath, crypto3.randomBytes(keySize));
-      await fs7.unlink(tempPrivateKeyPath);
-      await fs7.rmdir(tempDir);
-      return {
-        privateKeyRef: this.encryptedKeyPath,
-        publicKeyPath,
-        storageDescription: `YubiKey-encrypted: ${this.encryptedKeyPath}`
-      };
-    } catch (error2) {
-      try {
-        await fs7.rm(tempDir, { recursive: true, force: true });
-      } catch {
-      }
-      throw error2;
-    }
+    const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = generateKeyPair2();
+    const publicKeyDir = path8.dirname(publicKeyPath);
+    await fs7.mkdir(publicKeyDir, { recursive: true });
+    const publicKeyPemFile = `-----BEGIN PUBLIC KEY-----
+${publicKeyBase64}
+-----END PUBLIC KEY-----
+`;
+    await fs7.writeFile(publicKeyPath, publicKeyPemFile, { mode: 420 });
+    const privateKeyContent = privateKeyPem;
+    const challenge = crypto3.randomBytes(32);
+    const salt = crypto3.randomBytes(32);
+    const iv = crypto3.randomBytes(12);
+    const response = await performChallengeResponse(challenge, this.slot, this.serial);
+    const aesKey = deriveKey(response, salt);
+    const aad = constructAAD(1, this.slot, serial);
+    const cipher = crypto3.createCipheriv("aes-256-gcm", aesKey, iv);
+    cipher.setAAD(aad);
+    const ciphertext = Buffer.concat([
+      cipher.update(Buffer.from(privateKeyContent, "utf8")),
+      cipher.final()
+    ]);
+    const authTag = cipher.getAuthTag();
+    const keyFile = {
+      version: 1,
+      iv: iv.toString("base64"),
+      authTag: authTag.toString("base64"),
+      salt: salt.toString("base64"),
+      challenge: challenge.toString("base64"),
+      ciphertext: ciphertext.toString("base64"),
+      slot: this.slot,
+      aad: aad.toString("base64"),
+      ...serial && { serial }
+    };
+    await fs7.mkdir(path8.dirname(this.encryptedKeyPath), { recursive: true });
+    await fs7.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
+    await setKeyPermissions(this.encryptedKeyPath);
+    return {
+      privateKeyRef: this.encryptedKeyPath,
+      publicKeyPath,
+      storageDescription: `YubiKey-encrypted: ${this.encryptedKeyPath}`
+    };
   }
   /**
    * Encrypt an existing private key with YubiKey challenge-response.
@@ -43885,7 +44052,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
   static async encryptPrivateKey(options) {
     const { privateKey, encryptedKeyPath, slot = 2, serial } = options;
     const resolvedPath = path8.resolve(encryptedKeyPath);
-    const configDir = getAttestItConfigDir();
+    const configDir = getIdentityConfigDir();
     if (!resolvedPath.startsWith(configDir)) {
       throw new Error(
         `Encrypted key path must be within attest-it config directory (${configDir}). Got: ${resolvedPath}`
@@ -43898,7 +44065,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
     }
     if (!await _YubiKeyProvider.isChallengeResponseConfigured(slot, serial)) {
       throw new Error(
-        `YubiKey slot ${String(slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp --generate 2" to configure it.`
+        `YubiKey slot ${String(slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp -t --generate 2" to configure it with touch required.`
       );
     }
     const challenge = crypto3.randomBytes(32);
@@ -43970,18 +44137,36 @@ async function execCommand3(command, args) {
     });
   });
 }
+async function execInteractiveCommand2(command, args) {
+  return new Promise((resolve5, reject) => {
+    const proc = spawn2(command, args, { stdio: ["inherit", "pipe", "inherit"] });
+    let stdout = "";
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolve5(stdout.trim());
+      } else {
+        reject(new Error(`Command failed with exit code ${String(code)}`));
+      }
+    });
+    proc.on("error", (error2) => {
+      reject(error2);
+    });
+  });
+}
 async function performChallengeResponse(challenge, slot, serial) {
-  const args = ["otp", "chalresp", "--slot", String(slot)];
+  const args = ["otp", "calculate", String(slot), challenge.toString("hex")];
   if (serial) {
     args.unshift("--device", serial);
   }
-  args.push(challenge.toString("hex"));
   try {
-    const output = await execCommand3("ykman", args);
+    const output = await execInteractiveCommand2("ykman", args);
     return Buffer.from(output.trim(), "hex");
   } catch {
     throw new Error(
-      "YubiKey challenge-response failed. Verify your YubiKey is inserted and the slot is configured for challenge-response."
+      "YubiKey challenge-response failed. Verify your YubiKey is inserted, touch it if prompted, and ensure the slot is configured for challenge-response with touch required (ykman otp chalresp -t --generate <slot>)."
     );
   }
 }
@@ -44031,14 +44216,14 @@ KeyProviderRegistry.register("filesystem", (config) => {
 });
 KeyProviderRegistry.register("1password", (config) => {
   const { options } = config;
-  const account = typeof options.account === "string" ? options.account : void 0;
+  const accountUuid = typeof options.accountUuid === "string" ? options.accountUuid : void 0;
   const vault = typeof options.vault === "string" ? options.vault : "";
   const itemName = typeof options.itemName === "string" ? options.itemName : "";
   if (!vault || !itemName) {
     throw new Error("1Password provider requires vault and itemName options");
   }
-  if (account !== void 0) {
-    return new OnePasswordKeyProvider({ account, vault, itemName });
+  if (accountUuid !== void 0) {
+    return new OnePasswordKeyProvider({ accountUuid, vault, itemName });
   }
   return new OnePasswordKeyProvider({ vault, itemName });
 });

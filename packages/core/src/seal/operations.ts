@@ -18,7 +18,7 @@ import { sealsFileSchemaV1 } from '../config/migrations/index.js'
  * @internal
  */
 const SEALS_SCHEMA_HEADER =
-  '# yaml-language-server: $schema=https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/seals.schema.json\n'
+  '# yaml-language-server: $schema=https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/seals.schema.json\n'
 
 /**
  * Schema URL for seals.json files (legacy format).

@@ -335,7 +335,7 @@ describe('readSeals and writeSeals (async)', () => {
     expect(content.endsWith('\n')).toBe(true)
     // Written file includes yaml-language-server schema header for editor support
     expect(content).toContain('# yaml-language-server: $schema=')
-    expect(content).toContain('schemas/seals.schema.json')
+    expect(content).toContain('schemas/v1/seals.schema.json')
   })
 
   it('should throw error for invalid YAML in seals file', async () => {
