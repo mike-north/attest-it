@@ -1,5 +1,28 @@
 # @attest-it/core
 
+## 0.10.0
+
+### Minor Changes
+
+- a0291f8: BREAKING: Remove suite-level fingerprint configuration in favor of gates.
+  - Remove `packages`, `files`, and `ignore` fields from suite configuration
+  - Require `gate` field on all suites (must reference a defined gate)
+  - Remove deprecated functions: `getProjectPublicKeysDir()`, `hasProjectConfig()`
+  - Remove `projectPath` field from `SavePublicKeyResult`
+  - Remove `projectRoot` parameter from `savePublicKey()` and `savePublicKeySync()`
+
+  Migration: Replace suite-level `packages`/`files`/`ignore` with a `gate` reference to a named gate definition.
+
+- a0291f8: Add security requirements for human interaction during signing operations:
+  - YubiKey: Add `-t` flag to require physical touch for challenge-response operations
+  - 1Password: Filter session tokens from environment to force re-authentication via Touch ID/password
+
+  These changes prevent automated agents from using cached credentials to sign attestations.
+
+### Patch Changes
+
+- a0291f8: Add glob pattern support for fingerprint paths. Paths containing glob characters (`*`, `?`, `{}`, `[]`) are now expanded using tinyglobby instead of being validated as literal paths. Glob patterns that match no files will throw an error to catch typos early.
+
 ## 0.9.0
 
 ### Minor Changes

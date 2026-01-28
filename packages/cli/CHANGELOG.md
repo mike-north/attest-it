@@ -1,5 +1,26 @@
 # @attest-it/cli
 
+## 0.10.0
+
+### Minor Changes
+
+- a0291f8: Add manual attestation-gated tests that dogfood the project's own GitHub Action. This includes a new YubiKey integration test script and CI workflow that verifies manual test attestations on PRs to main. The system ensures humans have actually run and verified credential store integrations (1Password, macOS Keychain, YubiKey) work before code can be merged.
+
+### Patch Changes
+
+- aa25ddc: Add Docker-based containerized tests for home folder state testing. These tests verify CLI behavior with different home directory states (fresh user, existing identity, corrupted config) in isolated Docker containers, preventing interference with the host system.
+- a0291f8: Fix interactive TUI interference with test output. The status bar was appearing multiple times on screen because Ink's re-renders were conflicting with child process stdout. The TestRunner component now returns null while tests are executing, preventing TUI interference while preserving React state.
+- a0291f8: Improve suite selector UI:
+  - Add cursor indicator (`>`) for keyboard navigation
+  - Show keyboard shortcuts: `[Space]` for toggle, `[up/down]` for navigation
+  - Display group descriptions explaining what each shortcut does
+  - Rename "By number" to "Toggle by number" for clarity
+
+- Updated dependencies [a0291f8]
+- Updated dependencies [a0291f8]
+- Updated dependencies [a0291f8]
+  - @attest-it/core@0.10.0
+
 ## 0.9.1
 
 ### Patch Changes
