@@ -24,15 +24,10 @@ import {
   durationSchema,
   fingerprintConfigSchema,
   gateSchema,
-  semverSchema,
   teamMemberSchema,
 } from './shared-schemas.js'
 import { checkVersionCompatibility } from '../version.js'
-import {
-  policyMigrationGraph,
-  policySchemaV1,
-  type PolicyConfigV1,
-} from './migrations/index.js'
+import { policySchemaV1 } from './migrations/index.js'
 
 /**
  * Zod schema for the policy configuration file.
@@ -53,7 +48,7 @@ export const policySchema = policySchemaV1
  * Policy configuration type inferred from the Zod schema.
  * @public
  */
-export type PolicyConfig = PolicyConfigV1
+export type PolicyConfig = z.infer<typeof policySchema>
 
 /**
  * Error thrown when policy configuration is invalid.

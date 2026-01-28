@@ -9,7 +9,7 @@ import * as path from 'node:path'
 import * as ed25519 from '../crypto/ed25519.js'
 import type { AttestItConfig } from '../types.js'
 import type { Seal, SealsFile } from './types.js'
-import { sealsFileSchemaV1, type SealsFileV1 } from '../config/migrations/index.js'
+import { sealsFileSchemaV1 } from '../config/migrations/index.js'
 
 /**
  * Options for creating a seal.

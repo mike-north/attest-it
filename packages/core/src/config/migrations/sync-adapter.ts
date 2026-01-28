@@ -1,8 +1,8 @@
 /**
  * Synchronous file operations adapter for migrex.
  *
- * The @migrex/files package only provides async operations.
- * This adapter provides sync variants for identity and seals configs.
+ * This adapter provides synchronous file I/O with migrex validation,
+ * used for identity and seals configs that need sync loading.
  *
  * @packageDocumentation
  */

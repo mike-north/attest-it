@@ -3,7 +3,7 @@
  * @packageDocumentation
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { mkdir as mkdirAsync, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -305,10 +305,10 @@ const IDENTITY_SCHEMA_HEADER =
 export async function saveLocalConfig(config: LocalConfig, configPath?: string): Promise<void> {
   const resolvedPath = configPath ?? getLocalConfigPath()
 
-  // Add version field for migrex compatibility
+  // Add version field for migrex compatibility (spread config first, then version to ensure it's always 1)
   const versionedConfig: IdentityConfigV1 = {
-    version: 1,
     ...config,
+    version: 1,
   }
 
   // Validate using the schema
@@ -347,10 +347,10 @@ export async function saveLocalConfig(config: LocalConfig, configPath?: string):
 export function saveLocalConfigSync(config: LocalConfig, configPath?: string): void {
   const resolvedPath = configPath ?? getLocalConfigPath()
 
-  // Add version field for migrex compatibility
+  // Add version field for migrex compatibility (spread config first, then version to ensure it's always 1)
   const versionedConfig: IdentityConfigV1 = {
-    version: 1,
     ...config,
+    version: 1,
   }
 
   // Validate using the schema
