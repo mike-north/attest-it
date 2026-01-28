@@ -1081,7 +1081,7 @@ var require_util = __commonJS({
         return state && state.objectMode === false && state.ended === true && Number.isFinite(state.length) ? state.length : null;
       } else if (isBlobLike(body)) {
         return body.size != null ? body.size : null;
-      } else if (isBuffer2(body)) {
+      } else if (isBuffer(body)) {
         return body.byteLength;
       }
       return null;
@@ -1164,7 +1164,7 @@ var require_util = __commonJS({
       }
       return ret;
     }
-    function isBuffer2(buffer) {
+    function isBuffer(buffer) {
       return buffer instanceof Uint8Array || Buffer.isBuffer(buffer);
     }
     function validateHandler(handler2, method, upgrade) {
@@ -1328,7 +1328,7 @@ var require_util = __commonJS({
       bodyLength,
       deepClone,
       ReadableStreamFrom,
-      isBuffer: isBuffer2,
+      isBuffer,
       validateHandler,
       getSocketInfo,
       isFormDataLike,
@@ -29669,6 +29669,42 @@ var require_semver2 = __commonJS({
   }
 });
 
+// ../../node_modules/.pnpm/fast-deep-equal@3.1.3/node_modules/fast-deep-equal/index.js
+var require_fast_deep_equal = __commonJS({
+  "../../node_modules/.pnpm/fast-deep-equal@3.1.3/node_modules/fast-deep-equal/index.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    module.exports = function equal(a, b) {
+      if (a === b) return true;
+      if (a && b && typeof a == "object" && typeof b == "object") {
+        if (a.constructor !== b.constructor) return false;
+        var length, i, keys;
+        if (Array.isArray(a)) {
+          length = a.length;
+          if (length != b.length) return false;
+          for (i = length; i-- !== 0; )
+            if (!equal(a[i], b[i])) return false;
+          return true;
+        }
+        if (a.constructor === RegExp) return a.source === b.source && a.flags === b.flags;
+        if (a.valueOf !== Object.prototype.valueOf) return a.valueOf() === b.valueOf();
+        if (a.toString !== Object.prototype.toString) return a.toString() === b.toString();
+        keys = Object.keys(a);
+        length = keys.length;
+        if (length !== Object.keys(b).length) return false;
+        for (i = length; i-- !== 0; )
+          if (!Object.prototype.hasOwnProperty.call(b, keys[i])) return false;
+        for (i = length; i-- !== 0; ) {
+          var key = keys[i];
+          if (!equal(a[key], b[key])) return false;
+        }
+        return true;
+      }
+      return a !== a && b !== b;
+    };
+  }
+});
+
 // ../../node_modules/.pnpm/picomatch@4.0.3/node_modules/picomatch/lib/constants.js
 var require_constants7 = __commonJS({
   "../../node_modules/.pnpm/picomatch@4.0.3/node_modules/picomatch/lib/constants.js"(exports, module) {
@@ -40288,6 +40324,1018 @@ var NEVER = INVALID;
 
 // ../core/dist/index.js
 var import_semver = __toESM(require_semver2(), 1);
+
+// ../../node_modules/.pnpm/@migrex+core@0.2.0-alpha.1/node_modules/@migrex/core/dist/index.js
+init_esm_shims();
+var import_fast_deep_equal = __toESM(require_fast_deep_equal(), 1);
+var MigrationError = class extends Error {
+  code;
+  details;
+  constructor(message, code, details) {
+    super(message);
+    this.name = "MigrationError";
+    this.code = code;
+    if (details !== void 0) {
+      this.details = details;
+    }
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+};
+var NoPathError = class extends MigrationError {
+  constructor(fromVersion, toVersion) {
+    super(
+      `No migration path exists from version "${fromVersion}" to "${toVersion}"`,
+      "NO_PATH",
+      { fromVersion, toVersion }
+    );
+    this.name = "NoPathError";
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+};
+var SchemaValidationError = class extends MigrationError {
+  validationErrors;
+  constructor(version2, validationErrors) {
+    super(
+      `Validation failed for version "${version2}": ${validationErrors.map((e) => e.message).join(", ")}`,
+      "VALIDATION_FAILED",
+      { version: version2, validationErrors }
+    );
+    this.name = "SchemaValidationError";
+    this.validationErrors = validationErrors;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+};
+var INTEGER_REGEX = /^(0|[1-9]\d*)$/;
+var integerStrategy = {
+  id: "integer",
+  compare(a, b) {
+    const numA = parseInt(a, 10);
+    const numB = parseInt(b, 10);
+    if (numA < numB) return -1;
+    if (numA > numB) return 1;
+    return 0;
+  },
+  isValid(version2) {
+    return INTEGER_REGEX.test(version2);
+  },
+  normalize(version2) {
+    if (!this.isValid(version2)) {
+      throw new Error(`Invalid integer version: ${version2}`);
+    }
+    return version2;
+  },
+  parse(version2) {
+    if (!this.isValid(version2)) {
+      throw new Error(`Invalid integer version: ${version2}`);
+    }
+    return { parts: [parseInt(version2, 10)] };
+  },
+  increment(version2, _type) {
+    const num = parseInt(version2, 10);
+    return String(num + 1);
+  }
+};
+var PreservationStash = class {
+  fields = /* @__PURE__ */ new Map();
+  eventLog = [];
+  /**
+   * Create a new stash, optionally initialized with existing preserved fields.
+   */
+  constructor(initialFields) {
+    if (initialFields) {
+      for (const field of initialFields) {
+        if (field.kind === "single") {
+          const internal = {
+            path: field.path,
+            values: [
+              {
+                value: field.value,
+                event: field.history[0],
+                ...field.metadata !== void 0 && { metadata: field.metadata }
+              }
+            ]
+          };
+          this.fields.set(field.path, internal);
+        } else {
+          const internal = {
+            path: field.path,
+            values: field.entries.map((e) => ({
+              value: e.value,
+              event: e.event,
+              ...e.metadata !== void 0 && { metadata: e.metadata }
+            }))
+          };
+          this.fields.set(field.path, internal);
+        }
+      }
+    }
+  }
+  /**
+   * Preserve a field value for later restoration.
+   * Handles idempotent preservations and multi-value scenarios.
+   */
+  preserve(field, value, currentStep, metadata) {
+    const event = {
+      type: "preserved",
+      version: currentStep.version,
+      direction: currentStep.direction,
+      stepIndex: currentStep.index,
+      timestamp: Date.now(),
+      ...metadata !== void 0 && { metadata }
+    };
+    const existing = this.fields.get(field);
+    if (!existing) {
+      const preserved = {
+        path: field,
+        values: [{ value, event, ...metadata !== void 0 && { metadata } }]
+      };
+      this.fields.set(field, preserved);
+      this.eventLog.push(event);
+      return {
+        status: "preserved",
+        field: this.toPreservedField(preserved)
+      };
+    }
+    const lastValue = existing.values[existing.values.length - 1].value;
+    if (this.valuesEquivalent(lastValue, value)) {
+      return {
+        status: "already_preserved",
+        field: this.toPreservedField(existing),
+        note: "Same value already preserved"
+      };
+    }
+    const rePreserveEvent = {
+      ...event,
+      type: "re-preserved"
+    };
+    existing.values.push({ value, event: rePreserveEvent, ...metadata !== void 0 && { metadata } });
+    this.eventLog.push(rePreserveEvent);
+    return {
+      status: "preserved",
+      field: this.toPreservedField(existing)
+    };
+  }
+  /**
+   * Consume (retrieve and remove) a preserved field.
+   * Records the consumption event in the audit trail.
+   */
+  consume(field, currentStep) {
+    const preserved = this.fields.get(field);
+    if (!preserved || preserved.consumed) {
+      return void 0;
+    }
+    const event = {
+      type: "consumed",
+      version: currentStep.version,
+      direction: currentStep.direction,
+      stepIndex: currentStep.index,
+      timestamp: Date.now()
+    };
+    this.eventLog.push(event);
+    preserved.consumed = true;
+    preserved.consumedAt = currentStep.version;
+    return this.toPreservedField(preserved);
+  }
+  /**
+   * Peek at a preserved field without consuming it.
+   */
+  peek(field) {
+    const preserved = this.fields.get(field);
+    if (!preserved || preserved.consumed) {
+      return void 0;
+    }
+    return this.toPreservedField(preserved);
+  }
+  /**
+   * Check if a field is currently preserved (and not consumed).
+   */
+  has(field) {
+    const preserved = this.fields.get(field);
+    return preserved !== void 0 && !preserved.consumed;
+  }
+  /**
+   * List all currently preserved (unconsumed) fields.
+   */
+  listAll() {
+    return Array.from(this.fields.values()).filter((f) => !f.consumed).map((f) => this.toPreservedField(f));
+  }
+  /**
+   * Get a summary of all preserved fields and their lifecycle.
+   */
+  getSummary() {
+    const consumed = [];
+    const unconsumed = [];
+    for (const field of this.fields.values()) {
+      const history = field.values.flatMap((v) => [v.event]);
+      const preservedAt = field.values[0].event.version;
+      if (field.consumed) {
+        consumed.push({
+          path: field.path,
+          preservedAt,
+          history,
+          ...field.consumedAt !== void 0 && { consumedAt: field.consumedAt }
+        });
+      } else {
+        unconsumed.push({
+          path: field.path,
+          preservedAt,
+          history
+        });
+      }
+    }
+    return {
+      consumed,
+      unconsumed,
+      lossless: unconsumed.length === 0
+    };
+  }
+  /**
+   * Get a human-readable audit log of all preservation events.
+   */
+  getAuditLog() {
+    const lines = ["=== Preservation Audit Log ==="];
+    for (const event of this.eventLog) {
+      const direction = event.direction === "up" ? "\u2191" : "\u2193";
+      lines.push(
+        `[${event.type}] ${direction} step ${event.stepIndex} @ ${event.version}`
+      );
+    }
+    lines.push("");
+    lines.push("=== Current State ===");
+    for (const [field, preserved] of this.fields) {
+      const status = preserved.consumed ? "(consumed)" : "(active)";
+      const valueCount = preserved.values.length;
+      lines.push(`${field}: ${valueCount} value(s) ${status}`);
+    }
+    return lines.join("\n");
+  }
+  /**
+   * Convert internal representation to public PreservedField type.
+   */
+  toPreservedField(internal) {
+    if (internal.values.length === 1) {
+      const entry = internal.values[0];
+      const single = {
+        kind: "single",
+        path: internal.path,
+        value: entry.value,
+        history: [entry.event],
+        ...entry.metadata !== void 0 && { metadata: entry.metadata }
+      };
+      return single;
+    }
+    const multi = {
+      kind: "multi",
+      path: internal.path,
+      entries: internal.values.map((v) => ({
+        value: v.value,
+        event: v.event,
+        ...v.metadata !== void 0 && { metadata: v.metadata }
+      })),
+      valuesEquivalent: this.allValuesEquivalent(
+        internal.values.map((v) => v.value)
+      )
+    };
+    return multi;
+  }
+  /**
+   * Deep equality check for values using fast-deep-equal.
+   * Handles edge cases like NaN, undefined, circular references better than JSON.stringify.
+   */
+  valuesEquivalent(a, b) {
+    return (0, import_fast_deep_equal.default)(a, b);
+  }
+  /**
+   * Check if all values in an array are equivalent.
+   */
+  allValuesEquivalent(values) {
+    if (values.length <= 1) return true;
+    const first = values[0];
+    return values.every((v) => this.valuesEquivalent(v, first));
+  }
+};
+var MigrationContextImplClass = class {
+  stash;
+  _currentStep;
+  constructor(totalSteps, initialStash) {
+    this.stash = new PreservationStash(initialStash);
+    this._currentStep = {
+      from: "",
+      to: "",
+      direction: "up",
+      index: 0,
+      totalSteps
+    };
+  }
+  get currentStep() {
+    return { ...this._currentStep };
+  }
+  setCurrentStep(step) {
+    this._currentStep = step;
+  }
+  preserve(field, value, metadata) {
+    return this.stash.preserve(
+      field,
+      value,
+      {
+        version: this._currentStep.from,
+        direction: this._currentStep.direction,
+        index: this._currentStep.index
+      },
+      metadata
+    );
+  }
+  hasPreserved(field) {
+    return this.stash.has(field);
+  }
+  consume(field) {
+    return this.stash.consume(field, {
+      version: this._currentStep.to,
+      direction: this._currentStep.direction,
+      index: this._currentStep.index
+    });
+  }
+  peek(field) {
+    return this.stash.peek(field);
+  }
+  listPreserved() {
+    return this.stash.listAll();
+  }
+  getAuditLog() {
+    return this.stash.getAuditLog();
+  }
+  getSummary() {
+    const summary = this.stash.getSummary();
+    return {
+      consumed: summary.consumed,
+      unconsumed: summary.unconsumed,
+      lossless: summary.lossless
+    };
+  }
+  getPreservedFields() {
+    return this.stash.listAll();
+  }
+};
+function createMigrationContext(totalSteps, initialStash) {
+  return new MigrationContextImplClass(totalSteps, initialStash);
+}
+function findPath(from, to, adjacencyList, migrations, versionStrategy, getMigrationKey) {
+  const visited = /* @__PURE__ */ new Set();
+  const queue = [
+    { version: from, path: [from] }
+  ];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (current.version === to) {
+      return buildMigrationPath(
+        current.path,
+        migrations,
+        versionStrategy,
+        getMigrationKey
+      );
+    }
+    if (visited.has(current.version)) {
+      continue;
+    }
+    visited.add(current.version);
+    const neighbors = adjacencyList.get(current.version);
+    if (neighbors) {
+      for (const neighbor of neighbors) {
+        if (!visited.has(neighbor)) {
+          queue.push({
+            version: neighbor,
+            path: [...current.path, neighbor]
+          });
+        }
+      }
+    }
+  }
+  return null;
+}
+function buildMigrationPath(versionPath, migrations, versionStrategy, getMigrationKey) {
+  const steps = [];
+  let hasIrreversibleStep = false;
+  let overallDirection = "up";
+  let hasUp = false;
+  let hasDown = false;
+  for (let i = 0; i < versionPath.length - 1; i++) {
+    const fromVersion = versionPath[i];
+    const toVersion = versionPath[i + 1];
+    const key = getMigrationKey(fromVersion, toVersion);
+    const migration = migrations.get(key);
+    if (!migration) {
+      throw new Error(`Migration not found for ${fromVersion} -> ${toVersion}`);
+    }
+    const comparison = versionStrategy.compare(fromVersion, toVersion);
+    const direction = comparison < 0 ? "up" : "down";
+    if (direction === "up") {
+      hasUp = true;
+    } else {
+      hasDown = true;
+    }
+    if (direction === "down" && !("down" in migration)) {
+      hasIrreversibleStep = true;
+    }
+    steps.push({
+      fromVersion,
+      toVersion,
+      direction,
+      migration
+    });
+  }
+  if (hasUp && hasDown) {
+    overallDirection = "mixed";
+  } else if (hasDown) {
+    overallDirection = "down";
+  }
+  return {
+    steps,
+    direction: overallDirection,
+    hasIrreversibleStep
+  };
+}
+var MigrationGraphImpl = class {
+  schemas = /* @__PURE__ */ new Map();
+  migrations = /* @__PURE__ */ new Map();
+  adjacencyList = /* @__PURE__ */ new Map();
+  versionStrategy;
+  telemetry;
+  id;
+  constructor(options) {
+    this.id = options.id;
+    this.versionStrategy = options.versionStrategy;
+    if (options.telemetry) {
+      this.telemetry = options.telemetry;
+    }
+  }
+  registerSchema(schema) {
+    const version2 = this.normalizeVersion(schema.version);
+    if (this.schemas.has(version2)) {
+      throw new MigrationError(
+        `Schema for version "${version2}" already registered`,
+        "DUPLICATE_SCHEMA",
+        { version: version2 }
+      );
+    }
+    this.schemas.set(version2, schema);
+    if (!this.adjacencyList.has(version2)) {
+      this.adjacencyList.set(version2, /* @__PURE__ */ new Set());
+    }
+  }
+  registerMigration(migration) {
+    const fromVersion = this.normalizeVersion(migration.fromVersion);
+    const toVersion = this.normalizeVersion(migration.toVersion);
+    const key = this.getMigrationKey(fromVersion, toVersion);
+    if (this.migrations.has(key)) {
+      throw new MigrationError(
+        `Migration from "${fromVersion}" to "${toVersion}" already registered`,
+        "DUPLICATE_MIGRATION",
+        { fromVersion, toVersion }
+      );
+    }
+    this.migrations.set(key, migration);
+    if (!this.adjacencyList.has(fromVersion)) {
+      this.adjacencyList.set(fromVersion, /* @__PURE__ */ new Set());
+    }
+    if (!this.adjacencyList.has(toVersion)) {
+      this.adjacencyList.set(toVersion, /* @__PURE__ */ new Set());
+    }
+    this.adjacencyList.get(fromVersion).add(toVersion);
+    this.adjacencyList.get(toVersion).add(fromVersion);
+  }
+  hasPath(fromVersion, toVersion) {
+    try {
+      this.getPath(fromVersion, toVersion);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  getPath(fromVersion, toVersion) {
+    const normalizedFrom = this.normalizeVersion(fromVersion);
+    const normalizedTo = this.normalizeVersion(toVersion);
+    if (normalizedFrom === normalizedTo) {
+      return {
+        steps: [],
+        direction: "up",
+        hasIrreversibleStep: false
+      };
+    }
+    const path4 = findPath(
+      normalizedFrom,
+      normalizedTo,
+      this.adjacencyList,
+      this.migrations,
+      this.versionStrategy,
+      (from, to) => this.getMigrationKey(from, to)
+    );
+    if (!path4) {
+      throw new NoPathError(fromVersion, toVersion);
+    }
+    return path4;
+  }
+  migrate(data, fromVersion, toVersion, options = {}) {
+    const startTime = performance.now();
+    const normalizedFrom = this.normalizeVersion(fromVersion);
+    const normalizedTo = this.normalizeVersion(toVersion);
+    const sourceSchema = this.schemas.get(normalizedFrom);
+    if (sourceSchema && !options.skipValidation) {
+      const validation2 = sourceSchema.schema(data);
+      if (!validation2.success) {
+        const error2 = new SchemaValidationError(
+          normalizedFrom,
+          validation2.errors ?? []
+        );
+        const dummyContext = createMigrationContext(0, options.initialStash);
+        this.telemetry?.onError?.(error2, null, dummyContext);
+        const result2 = {
+          success: false,
+          path: { steps: [], direction: "up", hasIrreversibleStep: false },
+          stash: { consumed: [], unconsumed: [], lossless: true },
+          preservedFields: options.initialStash ?? [],
+          error: error2
+        };
+        const totalDuration2 = performance.now() - startTime;
+        this.telemetry?.onMigrationComplete?.(result2, totalDuration2);
+        return result2;
+      }
+      data = validation2.data;
+    }
+    let path4;
+    try {
+      const pathStartTime = performance.now();
+      path4 = this.getPath(normalizedFrom, normalizedTo);
+      const pathDuration = performance.now() - pathStartTime;
+      this.telemetry?.onPathComputed?.(path4, pathDuration);
+    } catch (err) {
+      return {
+        success: false,
+        path: { steps: [], direction: "up", hasIrreversibleStep: false },
+        stash: { consumed: [], unconsumed: [], lossless: true },
+        preservedFields: options.initialStash ?? [],
+        error: err
+      };
+    }
+    if (path4.steps.length === 0) {
+      return {
+        success: true,
+        data,
+        path: path4,
+        stash: { consumed: [], unconsumed: [], lossless: true },
+        preservedFields: options.initialStash ?? []
+      };
+    }
+    const context = createMigrationContext(path4.steps.length, options.initialStash);
+    let currentData = data;
+    for (let i = 0; i < path4.steps.length; i++) {
+      const step = path4.steps[i];
+      context.setCurrentStep({
+        from: step.fromVersion,
+        to: step.toVersion,
+        direction: step.direction,
+        index: i,
+        totalSteps: path4.steps.length
+      });
+      this.telemetry?.onStepStart?.(step, i, path4.steps.length);
+      const stepStartTime = performance.now();
+      try {
+        if (step.direction === "up") {
+          currentData = step.migration.up(currentData, context);
+        } else {
+          const reversibleMigration = step.migration;
+          currentData = reversibleMigration.down(currentData, context);
+        }
+        const stepDuration = performance.now() - stepStartTime;
+        this.telemetry?.onStepComplete?.(step, i, stepDuration);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const error2 = new MigrationError(
+          `Migration failed at step ${i + 1}: ${errorMessage}`,
+          "MIGRATION_FAILED",
+          {
+            step: i,
+            fromVersion: step.fromVersion,
+            toVersion: step.toVersion
+          }
+        );
+        this.telemetry?.onError?.(error2, step, context);
+        return {
+          success: false,
+          path: path4,
+          stash: context.getSummary(),
+          preservedFields: context.getPreservedFields(),
+          error: error2
+        };
+      }
+      if (options.validateIntermediate && i < path4.steps.length - 1) {
+        const intermediateSchema = this.schemas.get(step.toVersion);
+        if (intermediateSchema) {
+          const validation2 = intermediateSchema.schema(currentData);
+          if (!validation2.success) {
+            return {
+              success: false,
+              path: path4,
+              stash: context.getSummary(),
+              preservedFields: context.getPreservedFields(),
+              error: new SchemaValidationError(
+                step.toVersion,
+                validation2.errors ?? []
+              )
+            };
+          }
+        }
+      }
+    }
+    const destSchema = this.schemas.get(normalizedTo);
+    let validation;
+    if (destSchema && !options.skipValidation) {
+      validation = destSchema.schema(currentData);
+      if (!validation.success) {
+        const error2 = new SchemaValidationError(
+          normalizedTo,
+          validation.errors ?? []
+        );
+        this.telemetry?.onError?.(error2, null, context);
+        const result2 = {
+          success: false,
+          path: path4,
+          stash: context.getSummary(),
+          preservedFields: context.getPreservedFields(),
+          validation,
+          error: error2
+        };
+        const totalDuration2 = performance.now() - startTime;
+        this.telemetry?.onMigrationComplete?.(result2, totalDuration2);
+        return result2;
+      }
+      if (destSchema.validate) {
+        validation = destSchema.validate(validation.data);
+        if (!validation.success) {
+          const error2 = new SchemaValidationError(
+            normalizedTo,
+            validation.errors ?? []
+          );
+          this.telemetry?.onError?.(error2, null, context);
+          const result2 = {
+            success: false,
+            path: path4,
+            stash: context.getSummary(),
+            preservedFields: context.getPreservedFields(),
+            validation,
+            error: error2
+          };
+          const totalDuration2 = performance.now() - startTime;
+          this.telemetry?.onMigrationComplete?.(result2, totalDuration2);
+          return result2;
+        }
+      }
+      currentData = validation.data;
+    }
+    const result = {
+      success: true,
+      data: currentData,
+      path: path4,
+      stash: context.getSummary(),
+      preservedFields: context.getPreservedFields(),
+      ...validation !== void 0 && { validation }
+    };
+    const totalDuration = performance.now() - startTime;
+    this.telemetry?.onMigrationComplete?.(result, totalDuration);
+    return result;
+  }
+  async migrateAsync(data, fromVersion, toVersion, options = {}) {
+    const startTime = performance.now();
+    const normalizedFrom = this.normalizeVersion(fromVersion);
+    const normalizedTo = this.normalizeVersion(toVersion);
+    const sourceSchema = this.schemas.get(normalizedFrom);
+    if (sourceSchema && !options.skipValidation) {
+      const validation2 = sourceSchema.schema(data);
+      if (!validation2.success) {
+        const result2 = {
+          success: false,
+          path: { steps: [], direction: "up", hasIrreversibleStep: false },
+          stash: { consumed: [], unconsumed: [], lossless: true },
+          preservedFields: options.initialStash ?? [],
+          error: new SchemaValidationError(
+            normalizedFrom,
+            validation2.errors ?? []
+          )
+        };
+        this.telemetry?.onMigrationComplete?.(result2, performance.now() - startTime);
+        return result2;
+      }
+      data = validation2.data;
+    }
+    let path4;
+    try {
+      const pathStartTime = performance.now();
+      path4 = this.getPath(normalizedFrom, normalizedTo);
+      this.telemetry?.onPathComputed?.(path4, performance.now() - pathStartTime);
+    } catch (err) {
+      const result2 = {
+        success: false,
+        path: { steps: [], direction: "up", hasIrreversibleStep: false },
+        stash: { consumed: [], unconsumed: [], lossless: true },
+        preservedFields: options.initialStash ?? [],
+        error: err
+      };
+      this.telemetry?.onMigrationComplete?.(result2, performance.now() - startTime);
+      return result2;
+    }
+    if (path4.steps.length === 0) {
+      const result2 = {
+        success: true,
+        data,
+        path: path4,
+        stash: { consumed: [], unconsumed: [], lossless: true },
+        preservedFields: options.initialStash ?? []
+      };
+      this.telemetry?.onMigrationComplete?.(result2, performance.now() - startTime);
+      return result2;
+    }
+    const context = createMigrationContext(path4.steps.length, options.initialStash);
+    let currentData = data;
+    for (let i = 0; i < path4.steps.length; i++) {
+      const step = path4.steps[i];
+      context.setCurrentStep({
+        from: step.fromVersion,
+        to: step.toVersion,
+        direction: step.direction,
+        index: i,
+        totalSteps: path4.steps.length
+      });
+      const stepStartTime = performance.now();
+      this.telemetry?.onStepStart?.(step, i, path4.steps.length);
+      try {
+        if (step.direction === "up") {
+          const result2 = step.migration.up(currentData, context);
+          currentData = result2 instanceof Promise ? await result2 : result2;
+        } else {
+          const reversibleMigration = step.migration;
+          const result2 = reversibleMigration.down(currentData, context);
+          currentData = result2 instanceof Promise ? await result2 : result2;
+        }
+        this.telemetry?.onStepComplete?.(step, i, performance.now() - stepStartTime);
+      } catch (err) {
+        this.telemetry?.onError?.(err, step, context);
+        const result2 = {
+          success: false,
+          path: path4,
+          stash: context.getSummary(),
+          preservedFields: context.getPreservedFields(),
+          error: new MigrationError(
+            `Migration failed at step ${i + 1}: ${err instanceof Error ? err.message : String(err)}`,
+            "MIGRATION_FAILED",
+            {
+              step: i,
+              fromVersion: step.fromVersion,
+              toVersion: step.toVersion
+            }
+          )
+        };
+        this.telemetry?.onMigrationComplete?.(result2, performance.now() - startTime);
+        return result2;
+      }
+      if (options.validateIntermediate && i < path4.steps.length - 1) {
+        const intermediateSchema = this.schemas.get(step.toVersion);
+        if (intermediateSchema) {
+          const validation2 = intermediateSchema.schema(currentData);
+          if (!validation2.success) {
+            const result2 = {
+              success: false,
+              path: path4,
+              stash: context.getSummary(),
+              preservedFields: context.getPreservedFields(),
+              error: new SchemaValidationError(
+                step.toVersion,
+                validation2.errors ?? []
+              )
+            };
+            this.telemetry?.onMigrationComplete?.(result2, performance.now() - startTime);
+            return result2;
+          }
+        }
+      }
+    }
+    const destSchema = this.schemas.get(normalizedTo);
+    let validation;
+    if (destSchema && !options.skipValidation) {
+      validation = destSchema.schema(currentData);
+      if (!validation.success) {
+        const result2 = {
+          success: false,
+          path: path4,
+          stash: context.getSummary(),
+          preservedFields: context.getPreservedFields(),
+          validation,
+          error: new SchemaValidationError(
+            normalizedTo,
+            validation.errors ?? []
+          )
+        };
+        this.telemetry?.onMigrationComplete?.(result2, performance.now() - startTime);
+        return result2;
+      }
+      if (destSchema.validate) {
+        validation = destSchema.validate(validation.data);
+        if (!validation.success) {
+          const result2 = {
+            success: false,
+            path: path4,
+            stash: context.getSummary(),
+            preservedFields: context.getPreservedFields(),
+            validation,
+            error: new SchemaValidationError(
+              normalizedTo,
+              validation.errors ?? []
+            )
+          };
+          this.telemetry?.onMigrationComplete?.(result2, performance.now() - startTime);
+          return result2;
+        }
+      }
+      currentData = validation.data;
+    }
+    const result = {
+      success: true,
+      data: currentData,
+      path: path4,
+      stash: context.getSummary(),
+      preservedFields: context.getPreservedFields(),
+      ...validation !== void 0 && { validation }
+    };
+    const totalDuration = performance.now() - startTime;
+    this.telemetry?.onMigrationComplete?.(result, totalDuration);
+    return result;
+  }
+  migrateMany(data, fromVersion, toVersion, options = {}) {
+    const normalizedFrom = this.normalizeVersion(fromVersion);
+    const normalizedTo = this.normalizeVersion(toVersion);
+    let path4;
+    try {
+      const pathStartTime = performance.now();
+      path4 = this.getPath(normalizedFrom, normalizedTo);
+      const pathDuration = performance.now() - pathStartTime;
+      this.telemetry?.onPathComputed?.(path4, pathDuration);
+    } catch {
+      return {
+        total: 0,
+        succeeded: 0,
+        failed: 0,
+        results: [],
+        path: { steps: [], direction: "up", hasIrreversibleStep: false }
+      };
+    }
+    const items = Array.from(data);
+    const results = [];
+    let succeeded = 0;
+    let failed = 0;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const result = this.migrate(item, fromVersion, toVersion, options);
+      results.push(result);
+      if (result.success) {
+        succeeded++;
+      } else {
+        failed++;
+        if (!options.continueOnError) {
+          for (let j = i + 1; j < items.length; j++) {
+            results.push({
+              success: false,
+              path: path4,
+              stash: { consumed: [], unconsumed: [], lossless: true },
+              preservedFields: [],
+              error: new MigrationError(
+                "Batch migration stopped due to previous error",
+                "MIGRATION_FAILED",
+                { skipped: true }
+              )
+            });
+            failed++;
+          }
+          break;
+        }
+      }
+      options.onProgress?.(i + 1, items.length, result);
+    }
+    return {
+      total: items.length,
+      succeeded,
+      failed,
+      results,
+      path: path4
+    };
+  }
+  getVersions() {
+    const allVersions = /* @__PURE__ */ new Set();
+    for (const version2 of this.schemas.keys()) {
+      allVersions.add(version2);
+    }
+    for (const migration of this.migrations.values()) {
+      allVersions.add(migration.fromVersion);
+      allVersions.add(migration.toVersion);
+    }
+    return Array.from(allVersions).sort(
+      (a, b) => this.versionStrategy.compare(a, b)
+    );
+  }
+  getSchema(version2) {
+    return this.schemas.get(this.normalizeVersion(version2));
+  }
+  getMigrations() {
+    return Array.from(this.migrations.values());
+  }
+  /**
+   * Normalize a version string using the version strategy.
+   * @throws {MigrationError} If version is invalid
+   */
+  normalizeVersion(version2) {
+    if (!this.versionStrategy.isValid(version2)) {
+      if (this.versionStrategy.normalize) {
+        try {
+          return this.versionStrategy.normalize(version2);
+        } catch {
+          throw new MigrationError(
+            `Invalid version "${version2}" for strategy "${this.versionStrategy.id}"`,
+            "INVALID_VERSION",
+            { version: version2, strategy: this.versionStrategy.id }
+          );
+        }
+      }
+      throw new MigrationError(
+        `Invalid version "${version2}" for strategy "${this.versionStrategy.id}"`,
+        "INVALID_VERSION",
+        { version: version2, strategy: this.versionStrategy.id }
+      );
+    }
+    return this.versionStrategy.normalize?.(version2) ?? version2;
+  }
+  /**
+   * Generate a consistent key for looking up migrations.
+   * Always uses the migration's registered direction (from -> to).
+   */
+  getMigrationKey(from, to) {
+    const key1 = `${from}:${to}`;
+    const key2 = `${to}:${from}`;
+    if (this.migrations.has(key1)) {
+      return key1;
+    }
+    if (this.migrations.has(key2)) {
+      return key2;
+    }
+    return key1;
+  }
+};
+function createMigrationGraph(options) {
+  const graph = new MigrationGraphImpl(options);
+  if (options.schemas) {
+    for (const schema of options.schemas) {
+      graph.registerSchema(schema);
+    }
+  }
+  if (options.migrations) {
+    for (const migration of options.migrations) {
+      graph.registerMigration(migration);
+    }
+  }
+  return graph;
+}
+
+// ../../node_modules/.pnpm/@migrex+zod@1.0.0-alpha.1_@migrex+core@0.2.0-alpha.1_zod@3.25.76/node_modules/@migrex/zod/dist/index.js
+init_esm_shims();
+function pathToStringArray(path4) {
+  return path4.map((p) => String(p));
+}
+function zodErrorToValidationErrors(error2) {
+  return error2.issues.map((issue) => ({
+    path: pathToStringArray(issue.path),
+    message: issue.message,
+    code: issue.code
+  }));
+}
+function fromZod(version2, zodSchema, options) {
+  return {
+    version: version2,
+    schema(data) {
+      const result = zodSchema.safeParse(data);
+      if (!result.success) {
+        return {
+          success: false,
+          errors: zodErrorToValidationErrors(result.error)
+        };
+      }
+      return {
+        success: true,
+        data: result.data
+      };
+    },
+    ...options?.validate !== void 0 && { validate: options.validate },
+    ...options?.deprecated !== void 0 && { deprecated: options.deprecated },
+    ...options?.releaseDate !== void 0 && { releaseDate: options.releaseDate }
+  };
+}
+
+// ../core/dist/index.js
 import * as crypto3 from "crypto";
 
 // ../../node_modules/.pnpm/tinyglobby@0.2.15/node_modules/tinyglobby/dist/index.mjs
@@ -41224,14 +42272,28 @@ var settingsSchema = external_exports.object({
   // Note: algorithm field was removed - RSA is the only supported algorithm
 }).passthrough();
 var suiteSchema = external_exports.object({
-  gate: external_exports.string().min(1, "Gate reference cannot be empty"),
+  // Gate fields (if present, this suite references a gate)
+  gate: external_exports.string().optional(),
+  // Legacy fingerprint definition (for backward compatibility)
   description: external_exports.string().optional(),
+  packages: external_exports.array(external_exports.string().min(1, "Package path cannot be empty")).optional(),
+  files: external_exports.array(external_exports.string().min(1, "File path cannot be empty")).optional(),
+  ignore: external_exports.array(external_exports.string().min(1, "Ignore pattern cannot be empty")).optional(),
+  // CLI-specific fields
   command: external_exports.string().optional(),
   timeout: external_exports.string().optional(),
   interactive: external_exports.boolean().optional(),
+  // Relationship fields
   invalidates: external_exports.array(external_exports.string().min(1, "Invalidated suite name cannot be empty")).optional(),
   depends_on: external_exports.array(external_exports.string().min(1, "Dependency suite name cannot be empty")).optional()
-}).strict();
+}).strict().refine(
+  (suite) => {
+    return suite.gate !== void 0 || suite.packages !== void 0 && suite.packages.length > 0;
+  },
+  {
+    message: "Suite must either reference a gate or define packages for fingerprinting"
+  }
+);
 var configSchema = external_exports.object({
   version: external_exports.literal(1),
   minVersion: semverSchema.optional(),
@@ -41243,19 +42305,146 @@ var configSchema = external_exports.object({
   }),
   groups: external_exports.record(external_exports.string(), external_exports.array(external_exports.string().min(1, "Suite name in group cannot be empty"))).optional()
 }).strict();
-var policySettingsSchema = external_exports.object({
+function optionalVersionSchema(version2) {
+  return external_exports.union([external_exports.literal(version2), external_exports.literal(String(version2)), external_exports.undefined()]).transform((v) => v === void 0 ? void 0 : version2);
+}
+var privateKeyRefSchemaV1 = external_exports.discriminatedUnion("type", [
+  external_exports.object({
+    type: external_exports.literal("file"),
+    path: external_exports.string().min(1, "File path cannot be empty")
+  }),
+  external_exports.object({
+    type: external_exports.literal("keychain"),
+    service: external_exports.string().min(1, "Service name cannot be empty"),
+    account: external_exports.string().min(1, "Account name cannot be empty"),
+    keychain: external_exports.string().optional()
+  }),
+  external_exports.object({
+    type: external_exports.literal("1password"),
+    account: external_exports.string().optional(),
+    vault: external_exports.string().min(1, "Vault name cannot be empty"),
+    item: external_exports.string().min(1, "Item name cannot be empty"),
+    field: external_exports.string().optional()
+  }),
+  external_exports.object({
+    type: external_exports.literal("yubikey"),
+    encryptedKeyPath: external_exports.string().min(1, "Encrypted key path cannot be empty"),
+    slot: external_exports.union([external_exports.literal(1), external_exports.literal(2)]).optional(),
+    serial: external_exports.string().optional()
+  })
+]);
+var identitySchemaV1 = external_exports.object({
+  name: external_exports.string().min(1, "Identity name cannot be empty"),
+  email: external_exports.string().optional(),
+  github: external_exports.string().optional(),
+  publicKey: external_exports.string().min(1, "Public key cannot be empty"),
+  privateKey: privateKeyRefSchemaV1
+}).strict();
+var localConfigSchemaV1 = external_exports.object({
+  version: optionalVersionSchema(1),
+  activeIdentity: external_exports.string().min(1, "Active identity name cannot be empty"),
+  identities: external_exports.record(external_exports.string(), identitySchemaV1).refine((identities) => Object.keys(identities).length >= 1, {
+    message: "At least one identity must be defined"
+  })
+}).strict();
+var schemaV1 = fromZod("1", localConfigSchemaV1);
+var identityMigrationGraph = createMigrationGraph({
+  id: "attest-it-identity-config",
+  versionStrategy: integerStrategy,
+  schemas: [schemaV1],
+  migrations: []
+});
+function versionSchema(version2) {
+  return external_exports.union([external_exports.literal(version2), external_exports.literal(String(version2))]).transform(() => version2);
+}
+var sealSchemaV1 = external_exports.object({
+  gateId: external_exports.string().min(1, "Gate ID cannot be empty"),
+  fingerprint: external_exports.string().regex(/^sha256:[a-f0-9]+$/i, "Invalid fingerprint format (expected sha256:<hex>)"),
+  timestamp: external_exports.string().datetime({ message: "Invalid ISO 8601 timestamp" }),
+  sealedBy: external_exports.string().min(1, "Signer slug cannot be empty"),
+  signature: external_exports.string().min(1, "Signature cannot be empty")
+});
+var sealsFileSchemaV1 = external_exports.object({
+  version: versionSchema(1),
+  seals: external_exports.record(external_exports.string(), sealSchemaV1)
+});
+var schemaV12 = fromZod("1", sealsFileSchemaV1);
+createMigrationGraph({
+  id: "attest-it-seals",
+  versionStrategy: integerStrategy,
+  schemas: [schemaV12],
+  migrations: []
+});
+function versionSchema2(version2) {
+  return external_exports.union([external_exports.literal(version2), external_exports.literal(String(version2))]).transform(() => version2);
+}
+var policySettingsSchemaV1 = external_exports.object({
   maxAgeDays: external_exports.number().int().positive().default(30),
   publicKeyPath: external_exports.string().default(".attest-it/pubkey.pem"),
   attestationsPath: external_exports.string().default(".attest-it/attestations.json"),
   sealsPath: external_exports.string().default(".attest-it/seals.json")
 }).strict();
-var policySchema = external_exports.object({
-  version: external_exports.literal(1),
+var policySchemaV1 = external_exports.object({
+  version: versionSchema2(1),
   minVersion: semverSchema.optional(),
-  settings: policySettingsSchema.default({}),
+  settings: policySettingsSchemaV1.default({}),
   team: external_exports.record(external_exports.string(), teamMemberSchema).optional(),
   gates: external_exports.record(external_exports.string(), gateSchema).optional()
 }).strict();
+var schemaV13 = fromZod("1", policySchemaV1);
+createMigrationGraph({
+  id: "attest-it-policy",
+  versionStrategy: integerStrategy,
+  schemas: [schemaV13],
+  migrations: []
+});
+function versionSchema3(version2) {
+  return external_exports.union([external_exports.literal(version2), external_exports.literal(String(version2))]).transform(() => version2);
+}
+var operationalSettingsSchemaV1 = external_exports.object({
+  defaultCommand: external_exports.string().optional(),
+  keyProvider: keyProviderSchema.optional()
+}).strict();
+var suiteSchemaV1 = external_exports.object({
+  // Gate fields (if present, this suite references a gate)
+  gate: external_exports.string().optional(),
+  // Legacy fingerprint definition (for backward compatibility)
+  description: external_exports.string().optional(),
+  packages: external_exports.array(external_exports.string().min(1, "Package path cannot be empty")).optional(),
+  files: external_exports.array(external_exports.string().min(1, "File path cannot be empty")).optional(),
+  ignore: external_exports.array(external_exports.string().min(1, "Ignore pattern cannot be empty")).optional(),
+  // CLI-specific fields
+  command: external_exports.string().optional(),
+  timeout: external_exports.string().optional(),
+  interactive: external_exports.boolean().optional(),
+  // Relationship fields
+  invalidates: external_exports.array(external_exports.string().min(1, "Invalidated suite name cannot be empty")).optional(),
+  depends_on: external_exports.array(external_exports.string().min(1, "Dependency suite name cannot be empty")).optional()
+}).strict().refine(
+  (suite) => {
+    return suite.gate !== void 0 || suite.packages !== void 0 && suite.packages.length > 0;
+  },
+  {
+    message: "Suite must either reference a gate or define packages for fingerprinting"
+  }
+);
+var operationalSchemaV1 = external_exports.object({
+  version: versionSchema3(1),
+  minVersion: semverSchema.optional(),
+  settings: operationalSettingsSchemaV1.default({}),
+  suites: external_exports.record(external_exports.string(), suiteSchemaV1).refine((suites) => Object.keys(suites).length >= 1, {
+    message: "At least one suite must be defined"
+  }),
+  groups: external_exports.record(external_exports.string(), external_exports.array(external_exports.string().min(1, "Suite name in group cannot be empty"))).optional()
+}).strict();
+var schemaV14 = fromZod("1", operationalSchemaV1);
+createMigrationGraph({
+  id: "attest-it-operational",
+  versionStrategy: integerStrategy,
+  schemas: [schemaV14],
+  migrations: []
+});
+var policySchema = policySchemaV1;
 var PolicyValidationError = class extends Error {
   constructor(message, issues) {
     super(message);
@@ -41289,28 +42478,7 @@ function parsePolicyContent(content, format) {
   }
   return result.data;
 }
-var operationalSettingsSchema = external_exports.object({
-  defaultCommand: external_exports.string().optional(),
-  keyProvider: keyProviderSchema.optional()
-}).strict();
-var suiteSchema2 = external_exports.object({
-  gate: external_exports.string().min(1, "Gate reference cannot be empty"),
-  description: external_exports.string().optional(),
-  command: external_exports.string().optional(),
-  timeout: external_exports.string().optional(),
-  interactive: external_exports.boolean().optional(),
-  invalidates: external_exports.array(external_exports.string().min(1, "Invalidated suite name cannot be empty")).optional(),
-  depends_on: external_exports.array(external_exports.string().min(1, "Dependency suite name cannot be empty")).optional()
-}).strict();
-var operationalSchema = external_exports.object({
-  version: external_exports.literal(1),
-  minVersion: semverSchema.optional(),
-  settings: operationalSettingsSchema.default({}),
-  suites: external_exports.record(external_exports.string(), suiteSchema2).refine((suites) => Object.keys(suites).length >= 1, {
-    message: "At least one suite must be defined"
-  }),
-  groups: external_exports.record(external_exports.string(), external_exports.array(external_exports.string().min(1, "Suite name in group cannot be empty"))).optional()
-}).strict();
+var operationalSchema = operationalSchemaV1;
 var OperationalValidationError = class extends Error {
   constructor(message, issues) {
     super(message);
@@ -41345,10 +42513,12 @@ function parseOperationalContent(content, format) {
   return result.data;
 }
 function toSuiteConfig(suite) {
-  const result = {
-    gate: suite.gate
-  };
+  const result = {};
+  if (suite.gate !== void 0) result.gate = suite.gate;
   if (suite.description !== void 0) result.description = suite.description;
+  if (suite.packages !== void 0) result.packages = suite.packages;
+  if (suite.files !== void 0) result.files = suite.files;
+  if (suite.ignore !== void 0) result.ignore = suite.ignore;
   if (suite.command !== void 0) result.command = suite.command;
   if (suite.timeout !== void 0) result.timeout = suite.timeout;
   if (suite.interactive !== void 0) result.interactive = suite.interactive;
@@ -41457,6 +42627,9 @@ function validateSuiteGateReferences(policy, operational) {
   const team = policy.team ?? {};
   for (const [suiteName, suiteConfig] of Object.entries(operational.suites)) {
     const gateName = suiteConfig.gate;
+    if (gateName === void 0) {
+      continue;
+    }
     const gate = gates[gateName];
     if (gate === void 0) {
       errors.push({
@@ -41526,20 +42699,15 @@ async function hashFileAsync(realPath, normalizedPath, stats) {
   hash.update(content);
   return hash.digest();
 }
-function isGlobPattern(pathStr) {
-  return /[*?{}[\]]/.test(pathStr);
-}
 function validateOptions(options) {
   if (options.packages.length === 0) {
     throw new Error("packages array must not be empty");
   }
   const baseDir = options.baseDir ?? process.cwd();
   for (const pkg of options.packages) {
-    if (!isGlobPattern(pkg)) {
-      const pkgPath = path8.resolve(baseDir, pkg);
-      if (!fs2.existsSync(pkgPath)) {
-        throw new Error(`Package path does not exist: ${pkgPath}`);
-      }
+    const pkgPath = path8.resolve(baseDir, pkg);
+    if (!fs2.existsSync(pkgPath)) {
+      throw new Error(`Package path does not exist: ${pkgPath}`);
     }
   }
   return baseDir;
@@ -41587,37 +42755,19 @@ async function computeFingerprint(options) {
     fileCount: sortedFiles.length
   };
 }
-function resolvePackagePattern(pkg, baseDir) {
-  if (isGlobPattern(pkg)) {
-    return pkg;
-  }
-  const fullPath = path8.resolve(baseDir, pkg);
-  try {
-    const stats = fs2.statSync(fullPath);
-    return stats.isFile() ? pkg : `${pkg}/**/*`;
-  } catch {
-    return pkg;
-  }
-}
-var GLOB_OPTIONS = {
-  onlyFiles: true,
-  dot: true,
-  // Include dotfiles
-  absolute: false
-  // Return relative paths
-};
 async function listPackageFiles(packages, ignore = [], baseDir = process.cwd()) {
   const allFiles = [];
   for (const pkg of packages) {
-    const pattern = resolvePackagePattern(pkg, baseDir);
-    const files = await glob([pattern], {
-      ...GLOB_OPTIONS,
+    const patterns = [`${pkg}/**/*`];
+    const files = await glob(patterns, {
       cwd: baseDir,
-      ignore
+      ignore,
+      onlyFiles: true,
+      dot: true,
+      // Include dotfiles
+      absolute: false
+      // Return relative paths
     });
-    if (files.length === 0 && isGlobPattern(pkg)) {
-      throw new Error(`Glob pattern matched no files: ${pkg}`);
-    }
     allFiles.push(...files);
   }
   return allFiles;
@@ -41694,45 +42844,6 @@ var SignatureInvalidError = class extends Error {
     this.name = "SignatureInvalidError";
   }
 };
-function isBuffer(value) {
-  return Buffer.isBuffer(value);
-}
-function generateKeyPair2() {
-  try {
-    const keyPair = crypto3.generateKeyPairSync("ed25519", {
-      publicKeyEncoding: {
-        type: "spki",
-        format: "pem"
-      },
-      privateKeyEncoding: {
-        type: "pkcs8",
-        format: "pem"
-      }
-    });
-    const { publicKey, privateKey } = keyPair;
-    if (typeof publicKey !== "string" || typeof privateKey !== "string") {
-      throw new Error("Expected keypair to have string keys");
-    }
-    const publicKeyObj = crypto3.createPublicKey(publicKey);
-    const publicKeyExport = publicKeyObj.export({
-      type: "spki",
-      format: "der"
-    });
-    if (!isBuffer(publicKeyExport)) {
-      throw new Error("Expected public key export to be a Buffer");
-    }
-    const rawPublicKey = publicKeyExport.subarray(12);
-    const publicKeyBase64 = rawPublicKey.toString("base64");
-    return {
-      publicKey: publicKeyBase64,
-      privateKey
-    };
-  } catch (err) {
-    throw new Error(
-      `Failed to generate Ed25519 keypair: ${err instanceof Error ? err.message : String(err)}`
-    );
-  }
-}
 async function verifyAttestations(options) {
   const { config, repoRoot = process.cwd() } = options;
   const errors = [];
@@ -41766,7 +42877,6 @@ async function verifyAttestations(options) {
     const result = await verifySuite({
       suiteName,
       suiteConfig,
-      gates: config.gates ?? {},
       attestations,
       maxAgeDays: config.settings.maxAgeDays,
       repoRoot
@@ -41783,20 +42893,19 @@ async function verifyAttestations(options) {
   };
 }
 async function verifySuite(options) {
-  const { suiteName, suiteConfig, gates, attestations, maxAgeDays, repoRoot } = options;
-  const gate = gates[suiteConfig.gate];
-  if (!gate) {
+  const { suiteName, suiteConfig, attestations, maxAgeDays, repoRoot } = options;
+  if (!suiteConfig.packages || suiteConfig.packages.length === 0) {
     return {
       suite: suiteName,
       status: "NEEDS_ATTESTATION",
       fingerprint: "",
-      message: `Gate not found: ${suiteConfig.gate}`
+      message: "Suite configuration missing packages field"
     };
   }
   const fingerprintOptions = {
-    packages: gate.fingerprint.paths.map((p) => resolvePath(p, repoRoot)),
+    packages: suiteConfig.packages.map((p) => resolvePath(p, repoRoot)),
     baseDir: repoRoot,
-    ...gate.fingerprint.exclude && { ignore: gate.fingerprint.exclude }
+    ...suiteConfig.ignore && { ignore: suiteConfig.ignore }
   };
   const fingerprintResult = await computeFingerprint(fingerprintOptions);
   const attestation = attestations.find((a) => a.suite === suiteName);
@@ -41946,7 +43055,7 @@ var FilesystemKeyProvider = class {
 var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
   type = "1password";
   displayName = "1Password";
-  accountUuid;
+  account;
   vault;
   itemName;
   /**
@@ -41954,8 +43063,8 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
    * @param options - Provider options
    */
   constructor(options) {
-    if (options.accountUuid !== void 0) {
-      this.accountUuid = options.accountUuid;
+    if (options.account !== void 0) {
+      this.account = options.account;
     }
     this.vault = options.vault;
     this.itemName = options.itemName;
@@ -41974,110 +43083,66 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
   }
   /**
    * List all 1Password accounts.
-   * @returns Object containing accessible accounts and inaccessible accounts with reasons
+   * @returns Array of account information including human-readable names
    */
   static async listAccounts() {
-    const output = await execCommand("op", ["account", "list", "--format=json"]);
-    const parsed = JSON.parse(output);
-    if (!Array.isArray(parsed)) {
-      throw new Error("Unexpected response from 1Password: account list is not an array");
-    }
-    const basicAccounts = parsed;
-    const accountResults = [];
-    const RETRY_DELAY_MS = 500;
-    const MAX_RETRIES = 2;
-    for (const account of basicAccounts) {
-      if (!account.account_uuid) {
-        accountResults.push({
-          success: false,
-          email: account.email,
-          url: account.url,
-          reason: "Account missing account_uuid field"
-        });
-        continue;
+    try {
+      const output = await execCommand("op", ["account", "list", "--format=json"]);
+      const parsed = JSON.parse(output);
+      if (!Array.isArray(parsed)) {
+        return [];
       }
-      let lastError;
-      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-        if (attempt > 0 || accountResults.length > 0) {
-          await new Promise((resolve5) => setTimeout(resolve5, RETRY_DELAY_MS));
-        }
-        try {
-          const detailOutput = await execCommand("op", [
-            "account",
-            "get",
-            "--account",
-            account.account_uuid,
-            "--format=json"
-          ]);
-          const details = JSON.parse(detailOutput);
-          if (details !== null && typeof details === "object" && "name" in details && typeof details.name === "string") {
-            accountResults.push({
-              success: true,
-              account: { ...account, name: details.name }
-            });
-            lastError = void 0;
-            break;
+      const basicAccounts = parsed;
+      const accountsWithNames = await Promise.all(
+        basicAccounts.map(async (account) => {
+          try {
+            const detailOutput = await execCommand("op", [
+              "account",
+              "get",
+              "--account",
+              account.email,
+              "--format=json"
+            ]);
+            const details = JSON.parse(detailOutput);
+            if (details !== null && typeof details === "object" && "name" in details && typeof details.name === "string") {
+              return { ...account, name: details.name };
+            }
+          } catch {
           }
-          lastError = "Account details response missing name field";
-          break;
-        } catch (err) {
-          lastError = err instanceof Error ? err.message : String(err);
-        }
-      }
-      if (lastError !== void 0) {
-        accountResults.push({
-          success: false,
-          email: account.email,
-          url: account.url,
-          reason: lastError
-        });
-      }
-    }
-    const accounts = [];
-    const inaccessible = [];
-    for (const result of accountResults) {
-      if (result.success) {
-        accounts.push(result.account);
-      } else {
-        inaccessible.push({
-          email: result.email,
-          url: result.url,
-          reason: result.reason
-        });
-      }
-    }
-    if (accounts.length === 0 && basicAccounts.length > 0) {
-      const reasons = inaccessible.map((a) => `  - ${a.email}: ${a.reason}`).join("\n");
-      throw new Error(
-        `Could not access any 1Password accounts. All ${String(basicAccounts.length)} account(s) failed:
-${reasons}`
+          return account;
+        })
       );
+      return accountsWithNames;
+    } catch (error2) {
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Failed to list 1Password accounts:", error2);
+      }
+      return [];
     }
-    return { accounts, inaccessible };
   }
   /**
    * List vaults in a specific account.
-   * @param accountUuid - Account UUID from listAccounts() (optional if only one account)
+   * @param account - Account email (optional if only one account)
    * @returns Array of vault information
    */
-  static async listVaults(accountUuid) {
-    const args = ["vault", "list", "--format=json"];
-    if (accountUuid) {
-      args.push("--account", accountUuid);
-    }
-    let output;
+  static async listVaults(account) {
     try {
-      output = await execCommand("op", args);
+      const args = ["vault", "list", "--format=json"];
+      if (account) {
+        args.push("--account", account);
+      }
+      const output = await execCommand("op", args);
+      const parsed = JSON.parse(output);
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+      return parsed;
     } catch (error2) {
-      throw new Error(
-        `Failed to list 1Password vaults${accountUuid ? ` for account ${accountUuid}` : ""}: ${error2 instanceof Error ? error2.message : String(error2)}`
-      );
+      if (process.env.NODE_ENV !== "production") {
+        console.error("Failed to list 1Password vaults:", error2);
+      }
+      return [];
     }
-    const parsed = JSON.parse(output);
-    if (!Array.isArray(parsed)) {
-      throw new Error("Unexpected response from 1Password: vault list is not an array");
-    }
-    return parsed;
   }
   /**
    * Check if this provider is available.
@@ -42093,8 +43158,8 @@ ${reasons}`
   async keyExists(keyRef) {
     try {
       const args = ["item", "get", keyRef, "--vault", this.vault, "--format=json"];
-      if (this.accountUuid) {
-        args.push("--account", this.accountUuid);
+      if (this.account) {
+        args.push("--account", this.account);
       }
       await execCommand("op", args);
       return true;
@@ -42105,29 +43170,23 @@ ${reasons}`
   /**
    * Get the private key from 1Password for signing.
    * Downloads to a temporary file and returns a cleanup function.
-   *
-   * @remarks
-   * For security, this runs in a new PTY which requires the user to authenticate
-   * (via Touch ID, password, etc.) each time. This prevents automated agents
-   * from using cached credentials.
-   *
    * @param keyRef - Item name in 1Password
    * @throws Error if the key does not exist in 1Password
    */
   async getPrivateKey(keyRef) {
     if (!await this.keyExists(keyRef)) {
       throw new Error(
-        `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` + (this.accountUuid ? ` (accountUuid: ${this.accountUuid})` : "")
+        `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` + (this.account ? ` (account: ${this.account})` : "")
       );
     }
     const tempDir = await fs7.mkdtemp(path8.join(os2.tmpdir(), "attest-it-"));
     const tempKeyPath = path8.join(tempDir, "private.pem");
     try {
       const args = ["document", "get", keyRef, "--vault", this.vault, "--out-file", tempKeyPath];
-      if (this.accountUuid) {
-        args.push("--account", this.accountUuid);
+      if (this.account) {
+        args.push("--account", this.account);
       }
-      await execInteractiveCommand("op", args);
+      await execCommand("op", args);
       await setKeyPermissions(tempKeyPath);
       return {
         keyPath: tempKeyPath,
@@ -42154,33 +43213,20 @@ ${reasons}`
     }
   }
   /**
-   * Generate a new Ed25519 keypair and store private key in 1Password.
+   * Generate a new keypair and store private key in 1Password.
    * Public key is written to filesystem for repository commit.
    * @param options - Key generation options
    */
   async generateKeyPair(options) {
     const { publicKeyPath, force = false } = options;
-    if (!force) {
-      try {
-        await fs7.access(publicKeyPath);
-        throw new Error(
-          `Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`
-        );
-      } catch (err) {
-        if (err instanceof Error && !err.message.includes("already exists")) ;
-        else {
-          throw err;
-        }
-      }
-    }
     const tempDir = await fs7.mkdtemp(path8.join(os2.tmpdir(), "attest-it-keygen-"));
     const tempPrivateKeyPath = path8.join(tempDir, "private.pem");
     try {
-      const keyPair = generateKeyPair2();
-      await fs7.writeFile(tempPrivateKeyPath, keyPair.privateKey, "utf-8");
-      await setKeyPermissions(tempPrivateKeyPath);
-      await fs7.mkdir(path8.dirname(publicKeyPath), { recursive: true });
-      await fs7.writeFile(publicKeyPath, keyPair.publicKey, "utf-8");
+      await generateKeyPair({
+        privatePath: tempPrivateKeyPath,
+        publicPath: publicKeyPath,
+        force
+      });
       const args = [
         "document",
         "create",
@@ -42190,8 +43236,8 @@ ${reasons}`
         "--vault",
         this.vault
       ];
-      if (this.accountUuid) {
-        args.push("--account", this.accountUuid);
+      if (this.account) {
+        args.push("--account", this.account);
       }
       await execCommand("op", args);
       await fs7.unlink(tempPrivateKeyPath);
@@ -42219,70 +43265,16 @@ ${reasons}`
     return {
       type: this.type,
       options: {
-        ...this.accountUuid && { accountUuid: this.accountUuid },
+        ...this.account && { account: this.account },
         vault: this.vault,
         itemName: this.itemName
       }
     };
   }
 };
-function getCleanEnvironment() {
-  const env = {};
-  for (const [key, value] of Object.entries(process.env)) {
-    if (!key.startsWith("OP_SESSION_") && key !== "OP_SERVICE_ACCOUNT_TOKEN") {
-      env[key] = value;
-    }
-  }
-  return env;
-}
 async function execCommand(command, args) {
   return new Promise((resolve5, reject) => {
-    const proc = spawn2(command, args, {
-      stdio: ["inherit", "pipe", "pipe"],
-      env: getCleanEnvironment()
-    });
-    let stdout = "";
-    let stderr = "";
-    proc.stdout.on("data", (data) => {
-      stdout += data.toString();
-    });
-    proc.stderr.on("data", (data) => {
-      stderr += data.toString();
-    });
-    proc.on("close", (code) => {
-      if (code === 0) {
-        resolve5(stdout.trim());
-      } else {
-        reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
-      }
-    });
-    proc.on("error", (error2) => {
-      reject(error2);
-    });
-  });
-}
-async function execInteractiveCommand(command, args) {
-  return new Promise((resolve5, reject) => {
-    const platform = process.platform;
-    let proc;
-    if (platform === "win32") {
-      proc = spawn2(command, args, {
-        stdio: ["inherit", "pipe", "pipe"],
-        env: getCleanEnvironment()
-      });
-    } else if (platform === "darwin") {
-      proc = spawn2("script", ["-q", "/dev/null", command, ...args], {
-        stdio: ["inherit", "pipe", "pipe"],
-        env: getCleanEnvironment()
-      });
-    } else {
-      const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "'\\''")}'`).join(" ");
-      const fullCommand = `${command} ${quotedArgs}`;
-      proc = spawn2("script", ["-q", "/dev/null", "-c", fullCommand], {
-        stdio: ["inherit", "pipe", "pipe"],
-        env: getCleanEnvironment()
-      });
-    }
+    const proc = spawn2(command, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     proc.stdout.on("data", (data) => {
@@ -42429,56 +43421,55 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
     }
   }
   /**
-   * Generate a new Ed25519 keypair and store private key in keychain.
+   * Generate a new keypair and store private key in keychain.
    * Public key is written to filesystem for repository commit.
    * @param options - Key generation options
    */
   async generateKeyPair(options) {
     const { publicKeyPath, force = false } = options;
-    let publicKeyExists = false;
+    const tempDir = await fs7.mkdtemp(path8.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempPrivateKeyPath = path8.join(tempDir, "private.pem");
     try {
-      await fs7.access(publicKeyPath);
-      publicKeyExists = true;
-    } catch (error2) {
-      if (error2 instanceof Error && "code" in error2 && error2.code !== "ENOENT") {
-        throw error2;
+      await generateKeyPair({
+        privatePath: tempPrivateKeyPath,
+        publicPath: publicKeyPath,
+        force
+      });
+      const privateKeyContent = await fs7.readFile(tempPrivateKeyPath, "utf8");
+      const base64Key = Buffer.from(privateKeyContent, "utf8").toString("base64");
+      const addArgs = [
+        "add-generic-password",
+        "-a",
+        _MacOSKeychainKeyProvider.ACCOUNT,
+        "-s",
+        this.itemName,
+        "-w",
+        base64Key,
+        "-T",
+        "",
+        "-U"
+      ];
+      if (this.keychain) {
+        addArgs.push(this.keychain);
       }
+      await execCommand2("security", addArgs);
+      await fs7.unlink(tempPrivateKeyPath);
+      await fs7.rmdir(tempDir);
+      return {
+        privateKeyRef: this.itemName,
+        publicKeyPath,
+        storageDescription: `macOS Keychain: ${this.itemName}`
+      };
+    } catch (error2) {
+      try {
+        await fs7.rm(tempDir, { recursive: true, force: true });
+      } catch (cleanupError) {
+        console.warn(
+          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+        );
+      }
+      throw error2;
     }
-    if (publicKeyExists && !force) {
-      throw new Error(
-        `Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`
-      );
-    }
-    const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = generateKeyPair2();
-    const publicKeyDir = path8.dirname(publicKeyPath);
-    await fs7.mkdir(publicKeyDir, { recursive: true });
-    const publicKeyPem = `-----BEGIN PUBLIC KEY-----
-${publicKeyBase64}
------END PUBLIC KEY-----
-`;
-    await fs7.writeFile(publicKeyPath, publicKeyPem, { mode: 420 });
-    const base64Key = Buffer.from(privateKeyPem, "utf8").toString("base64");
-    const addArgs = [
-      "add-generic-password",
-      "-a",
-      _MacOSKeychainKeyProvider.ACCOUNT,
-      "-s",
-      this.itemName,
-      "-w",
-      base64Key,
-      "-T",
-      "",
-      "-U"
-    ];
-    if (this.keychain) {
-      addArgs.push(this.keychain);
-    }
-    await execCommand2("security", addArgs);
-    return {
-      privateKeyRef: this.itemName,
-      publicKeyPath,
-      storageDescription: `macOS Keychain: ${this.itemName}`
-    };
   }
   /**
    * Get the configuration for this provider.
@@ -42515,55 +43506,10 @@ async function execCommand2(command, args) {
     });
   });
 }
-var ATTEST_IT_HOME_ENV = "ATTEST_IT_HOME";
 var homeDirOverride = null;
-function getAttestItHomeDir() {
-  const envOverride = process.env[ATTEST_IT_HOME_ENV];
-  if (envOverride) {
-    return envOverride;
-  }
-  return homeDirOverride;
-}
-var privateKeyRefSchema = external_exports.discriminatedUnion("type", [
-  external_exports.object({
-    type: external_exports.literal("file"),
-    path: external_exports.string().min(1, "File path cannot be empty")
-  }),
-  external_exports.object({
-    type: external_exports.literal("keychain"),
-    service: external_exports.string().min(1, "Service name cannot be empty"),
-    account: external_exports.string().min(1, "Account name cannot be empty"),
-    keychain: external_exports.string().optional()
-  }),
-  external_exports.object({
-    type: external_exports.literal("1password"),
-    account: external_exports.string().optional(),
-    vault: external_exports.string().min(1, "Vault name cannot be empty"),
-    item: external_exports.string().min(1, "Item name cannot be empty"),
-    field: external_exports.string().optional()
-  })
-]);
-var identitySchema = external_exports.object({
-  name: external_exports.string().min(1, "Identity name cannot be empty"),
-  email: external_exports.string().optional(),
-  github: external_exports.string().optional(),
-  publicKey: external_exports.string().min(1, "Public key cannot be empty"),
-  privateKey: privateKeyRefSchema
-}).strict();
-var localConfigSchema = external_exports.object({
-  version: external_exports.literal(1),
-  activeIdentity: external_exports.string().min(1, "Active identity name cannot be empty"),
-  identities: external_exports.record(external_exports.string(), identitySchema).refine((identities) => Object.keys(identities).length >= 1, {
-    message: "At least one identity must be defined"
-  })
-}).strict();
-function getIdentityConfigDir(homeDir) {
-  if (homeDir) {
-    return homeDir;
-  }
-  const override = getAttestItHomeDir();
-  if (override) {
-    return override;
+function getAttestItConfigDir() {
+  if (homeDirOverride) {
+    return homeDirOverride;
   }
   return join3(homedir2(), ".config", "attest-it");
 }
@@ -42638,7 +43584,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
    */
   constructor(options) {
     const resolvedPath = path8.resolve(options.encryptedKeyPath);
-    const configDir = getIdentityConfigDir();
+    const configDir = getAttestItConfigDir();
     if (!resolvedPath.startsWith(configDir)) {
       throw new Error(
         `Encrypted key path must be within attest-it config directory (${configDir}). Got: ${resolvedPath}`
@@ -42682,13 +43628,13 @@ var YubiKeyProvider = class _YubiKeyProvider {
    */
   static async isChallengeResponseConfigured(slot = 2, serial) {
     try {
-      const testChallenge = Buffer.from("attest-it-test-challenge-12345");
-      const args = ["otp", "calculate", String(slot), testChallenge.toString("hex")];
+      const args = ["otp", "info"];
       if (serial) {
         args.unshift("--device", serial);
       }
-      await execInteractiveCommand2("ykman", args);
-      return true;
+      const output = await execCommand3("ykman", args);
+      const slotPattern = new RegExp(`Slot ${String(slot)}:\\s+programmed.*challenge-response`, "i");
+      return slotPattern.test(output);
     } catch {
       return false;
     }
@@ -42848,7 +43794,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
     const { publicKeyPath, force = false } = options;
     if (!await _YubiKeyProvider.isChallengeResponseConfigured(this.slot, this.serial)) {
       throw new Error(
-        `YubiKey slot ${String(this.slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp -t --generate 2" to configure it with touch required.`
+        `YubiKey slot ${String(this.slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp --generate 2" to configure it.`
       );
     }
     if (!force && await this.keyExists(this.encryptedKeyPath)) {
@@ -42869,47 +43815,58 @@ var YubiKeyProvider = class _YubiKeyProvider {
         );
       }
     }
-    const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = generateKeyPair2();
-    const publicKeyDir = path8.dirname(publicKeyPath);
-    await fs7.mkdir(publicKeyDir, { recursive: true });
-    const publicKeyPemFile = `-----BEGIN PUBLIC KEY-----
-${publicKeyBase64}
------END PUBLIC KEY-----
-`;
-    await fs7.writeFile(publicKeyPath, publicKeyPemFile, { mode: 420 });
-    const privateKeyContent = privateKeyPem;
-    const challenge = crypto3.randomBytes(32);
-    const salt = crypto3.randomBytes(32);
-    const iv = crypto3.randomBytes(12);
-    const response = await performChallengeResponse(challenge, this.slot, this.serial);
-    const aesKey = deriveKey(response, salt);
-    const aad = constructAAD(1, this.slot, serial);
-    const cipher = crypto3.createCipheriv("aes-256-gcm", aesKey, iv);
-    cipher.setAAD(aad);
-    const ciphertext = Buffer.concat([
-      cipher.update(Buffer.from(privateKeyContent, "utf8")),
-      cipher.final()
-    ]);
-    const authTag = cipher.getAuthTag();
-    const keyFile = {
-      version: 1,
-      iv: iv.toString("base64"),
-      authTag: authTag.toString("base64"),
-      salt: salt.toString("base64"),
-      challenge: challenge.toString("base64"),
-      ciphertext: ciphertext.toString("base64"),
-      slot: this.slot,
-      aad: aad.toString("base64"),
-      ...serial && { serial }
-    };
-    await fs7.mkdir(path8.dirname(this.encryptedKeyPath), { recursive: true });
-    await fs7.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
-    await setKeyPermissions(this.encryptedKeyPath);
-    return {
-      privateKeyRef: this.encryptedKeyPath,
-      publicKeyPath,
-      storageDescription: `YubiKey-encrypted: ${this.encryptedKeyPath}`
-    };
+    const tempDir = await fs7.mkdtemp(path8.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempPrivateKeyPath = path8.join(tempDir, "private.pem");
+    try {
+      await generateKeyPair({
+        privatePath: tempPrivateKeyPath,
+        publicPath: publicKeyPath,
+        force
+      });
+      const privateKeyContent = await fs7.readFile(tempPrivateKeyPath, "utf8");
+      const challenge = crypto3.randomBytes(32);
+      const salt = crypto3.randomBytes(32);
+      const iv = crypto3.randomBytes(12);
+      const response = await performChallengeResponse(challenge, this.slot, this.serial);
+      const aesKey = deriveKey(response, salt);
+      const aad = constructAAD(1, this.slot, serial);
+      const cipher = crypto3.createCipheriv("aes-256-gcm", aesKey, iv);
+      cipher.setAAD(aad);
+      const ciphertext = Buffer.concat([
+        cipher.update(Buffer.from(privateKeyContent, "utf8")),
+        cipher.final()
+      ]);
+      const authTag = cipher.getAuthTag();
+      const keyFile = {
+        version: 1,
+        iv: iv.toString("base64"),
+        authTag: authTag.toString("base64"),
+        salt: salt.toString("base64"),
+        challenge: challenge.toString("base64"),
+        ciphertext: ciphertext.toString("base64"),
+        slot: this.slot,
+        aad: aad.toString("base64"),
+        ...serial && { serial }
+      };
+      await fs7.mkdir(path8.dirname(this.encryptedKeyPath), { recursive: true });
+      await fs7.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
+      await setKeyPermissions(this.encryptedKeyPath);
+      const keySize = Buffer.byteLength(privateKeyContent);
+      await fs7.writeFile(tempPrivateKeyPath, crypto3.randomBytes(keySize));
+      await fs7.unlink(tempPrivateKeyPath);
+      await fs7.rmdir(tempDir);
+      return {
+        privateKeyRef: this.encryptedKeyPath,
+        publicKeyPath,
+        storageDescription: `YubiKey-encrypted: ${this.encryptedKeyPath}`
+      };
+    } catch (error2) {
+      try {
+        await fs7.rm(tempDir, { recursive: true, force: true });
+      } catch {
+      }
+      throw error2;
+    }
   }
   /**
    * Encrypt an existing private key with YubiKey challenge-response.
@@ -42928,7 +43885,7 @@ ${publicKeyBase64}
   static async encryptPrivateKey(options) {
     const { privateKey, encryptedKeyPath, slot = 2, serial } = options;
     const resolvedPath = path8.resolve(encryptedKeyPath);
-    const configDir = getIdentityConfigDir();
+    const configDir = getAttestItConfigDir();
     if (!resolvedPath.startsWith(configDir)) {
       throw new Error(
         `Encrypted key path must be within attest-it config directory (${configDir}). Got: ${resolvedPath}`
@@ -42941,7 +43898,7 @@ ${publicKeyBase64}
     }
     if (!await _YubiKeyProvider.isChallengeResponseConfigured(slot, serial)) {
       throw new Error(
-        `YubiKey slot ${String(slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp -t --generate 2" to configure it with touch required.`
+        `YubiKey slot ${String(slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp --generate 2" to configure it.`
       );
     }
     const challenge = crypto3.randomBytes(32);
@@ -43013,36 +43970,18 @@ async function execCommand3(command, args) {
     });
   });
 }
-async function execInteractiveCommand2(command, args) {
-  return new Promise((resolve5, reject) => {
-    const proc = spawn2(command, args, { stdio: ["inherit", "pipe", "inherit"] });
-    let stdout = "";
-    proc.stdout.on("data", (data) => {
-      stdout += data.toString();
-    });
-    proc.on("close", (code) => {
-      if (code === 0) {
-        resolve5(stdout.trim());
-      } else {
-        reject(new Error(`Command failed with exit code ${String(code)}`));
-      }
-    });
-    proc.on("error", (error2) => {
-      reject(error2);
-    });
-  });
-}
 async function performChallengeResponse(challenge, slot, serial) {
-  const args = ["otp", "calculate", String(slot), challenge.toString("hex")];
+  const args = ["otp", "chalresp", "--slot", String(slot)];
   if (serial) {
     args.unshift("--device", serial);
   }
+  args.push(challenge.toString("hex"));
   try {
-    const output = await execInteractiveCommand2("ykman", args);
+    const output = await execCommand3("ykman", args);
     return Buffer.from(output.trim(), "hex");
   } catch {
     throw new Error(
-      "YubiKey challenge-response failed. Verify your YubiKey is inserted, touch it if prompted, and ensure the slot is configured for challenge-response with touch required (ykman otp chalresp -t --generate <slot>)."
+      "YubiKey challenge-response failed. Verify your YubiKey is inserted and the slot is configured for challenge-response."
     );
   }
 }
@@ -43092,14 +44031,14 @@ KeyProviderRegistry.register("filesystem", (config) => {
 });
 KeyProviderRegistry.register("1password", (config) => {
   const { options } = config;
-  const accountUuid = typeof options.accountUuid === "string" ? options.accountUuid : void 0;
+  const account = typeof options.account === "string" ? options.account : void 0;
   const vault = typeof options.vault === "string" ? options.vault : "";
   const itemName = typeof options.itemName === "string" ? options.itemName : "";
   if (!vault || !itemName) {
     throw new Error("1Password provider requires vault and itemName options");
   }
-  if (accountUuid !== void 0) {
-    return new OnePasswordKeyProvider({ accountUuid, vault, itemName });
+  if (account !== void 0) {
+    return new OnePasswordKeyProvider({ account, vault, itemName });
   }
   return new OnePasswordKeyProvider({ vault, itemName });
 });
@@ -43136,19 +44075,6 @@ var cliExperienceSchema = external_exports.object({
 var userPreferencesSchema = external_exports.object({
   cliExperience: cliExperienceSchema.optional()
 }).strict();
-var sealSchema = external_exports.object({
-  gateId: external_exports.string().min(1, "Gate ID cannot be empty"),
-  // Fingerprint format: sha256:<hex> where hex is at least 1 character
-  // Full fingerprints are 64 hex chars, but tests may use shorter values
-  fingerprint: external_exports.string().regex(/^sha256:[a-f0-9]+$/i, "Invalid fingerprint format (expected sha256:<hex>)"),
-  timestamp: external_exports.string().datetime({ message: "Invalid ISO 8601 timestamp" }),
-  sealedBy: external_exports.string().min(1, "Signer slug cannot be empty"),
-  signature: external_exports.string().min(1, "Signature cannot be empty")
-});
-var sealsFileSchema = external_exports.object({
-  version: external_exports.literal(1, { errorMap: () => ({ message: "Unsupported seals file version" }) }),
-  seals: external_exports.record(external_exports.string(), sealSchema)
-});
 var version = getPackageVersion();
 
 // src/fetch-policy.ts

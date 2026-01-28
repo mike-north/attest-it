@@ -28,18 +28,11 @@ import {
   teamMemberSchema,
 } from './shared-schemas.js'
 import { checkVersionCompatibility } from '../version.js'
-
-/**
- * Zod schema for policy settings (security-critical fields only).
- */
-const policySettingsSchema = z
-  .object({
-    maxAgeDays: z.number().int().positive().default(30),
-    publicKeyPath: z.string().default('.attest-it/pubkey.pem'),
-    attestationsPath: z.string().default('.attest-it/attestations.json'),
-    sealsPath: z.string().default('.attest-it/seals.json'),
-  })
-  .strict()
+import {
+  policyMigrationGraph,
+  policySchemaV1,
+  type PolicyConfigV1,
+} from './migrations/index.js'
 
 /**
  * Zod schema for the policy configuration file.
@@ -49,23 +42,18 @@ const policySettingsSchema = z
  * - Team members and their public keys
  * - Gates with authorization rules
  *
+ * Note: The schema is defined in migrations/policy-graph.ts for versioning.
+ * This export maintains backward compatibility.
+ *
  * @public
  */
-export const policySchema = z
-  .object({
-    version: z.literal(1),
-    minVersion: semverSchema.optional(),
-    settings: policySettingsSchema.default({}),
-    team: z.record(z.string(), teamMemberSchema).optional(),
-    gates: z.record(z.string(), gateSchema).optional(),
-  })
-  .strict()
+export const policySchema = policySchemaV1
 
 /**
  * Policy configuration type inferred from the Zod schema.
  * @public
  */
-export type PolicyConfig = z.infer<typeof policySchema>
+export type PolicyConfig = PolicyConfigV1
 
 /**
  * Error thrown when policy configuration is invalid.

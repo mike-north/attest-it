@@ -421,8 +421,10 @@ export interface OnePasswordVault {
     name: string;
 }
 
+// Warning: (ae-forgotten-export) The symbol "OperationalConfigV1" needs to be exported by the entry point index.d.ts
+//
 // @public
-export type OperationalConfig = z.infer<typeof operationalSchema>;
+export type OperationalConfig = OperationalConfigV1;
 
 // @public
 export const operationalSchema: z.ZodObject<{
@@ -529,7 +531,7 @@ export const operationalSchema: z.ZodObject<{
         invalidates?: string[] | undefined;
         timeout?: string | undefined;
     }>>;
-    version: z.ZodLiteral<1>;
+    version: z.ZodEffects<z.ZodUnion<[z.ZodLiteral<1>, z.ZodLiteral<string>]>, 1, 1 | string>;
 }, "strict", z.ZodTypeAny, {
     groups?: Record<string, string[]> | undefined;
     minVersion?: string | undefined;
@@ -579,7 +581,7 @@ export const operationalSchema: z.ZodObject<{
         invalidates?: string[] | undefined;
         timeout?: string | undefined;
     }>;
-    version: 1;
+    version: 1 | string;
 }>;
 
 // @public
@@ -598,8 +600,10 @@ export function parseOperationalContent(content: string, format: 'json' | 'yaml'
 // @public
 export function parsePolicyContent(content: string, format: 'json' | 'yaml'): PolicyConfig;
 
+// Warning: (ae-forgotten-export) The symbol "PolicyConfigV1" needs to be exported by the entry point index.d.ts
+//
 // @public
-export type PolicyConfig = z.infer<typeof policySchema>;
+export type PolicyConfig = PolicyConfigV1;
 
 // @public
 export const policySchema: z.ZodObject<{
@@ -673,7 +677,7 @@ export const policySchema: z.ZodObject<{
         publicKey: string;
         publicKeyAlgorithm?: "ed25519" | undefined;
     }>>>;
-    version: z.ZodLiteral<1>;
+    version: z.ZodEffects<z.ZodUnion<[z.ZodLiteral<1>, z.ZodLiteral<string>]>, 1, 1 | string>;
 }, "strict", z.ZodTypeAny, {
     gates?: Record<string, {
         authorizedSigners: string[];
@@ -725,7 +729,7 @@ export const policySchema: z.ZodObject<{
         publicKey: string;
         publicKeyAlgorithm?: "ed25519" | undefined;
     }> | undefined;
-    version: 1;
+    version: 1 | string;
 }>;
 
 // @public

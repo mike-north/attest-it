@@ -5,36 +5,11 @@
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { z } from 'zod'
 
 import * as ed25519 from '../crypto/ed25519.js'
 import type { AttestItConfig } from '../types.js'
 import type { Seal, SealsFile } from './types.js'
-
-/**
- * Zod schema for a single seal.
- * @internal
- */
-const sealSchema = z.object({
-  gateId: z.string().min(1, 'Gate ID cannot be empty'),
-  // Fingerprint format: sha256:<hex> where hex is at least 1 character
-  // Full fingerprints are 64 hex chars, but tests may use shorter values
-  fingerprint: z
-    .string()
-    .regex(/^sha256:[a-f0-9]+$/i, 'Invalid fingerprint format (expected sha256:<hex>)'),
-  timestamp: z.string().datetime({ message: 'Invalid ISO 8601 timestamp' }),
-  sealedBy: z.string().min(1, 'Signer slug cannot be empty'),
-  signature: z.string().min(1, 'Signature cannot be empty'),
-})
-
-/**
- * Zod schema for the seals file.
- * @internal
- */
-const sealsFileSchema = z.object({
-  version: z.literal(1, { errorMap: () => ({ message: 'Unsupported seals file version' }) }),
-  seals: z.record(z.string(), sealSchema),
-})
+import { sealsFileSchemaV1, type SealsFileV1 } from '../config/migrations/index.js'
 
 /**
  * Options for creating a seal.
@@ -142,34 +117,18 @@ export function verifySeal(seal: Seal, config: AttestItConfig): SignatureVerific
 }
 
 /**
- * Parse and validate seals file content.
- *
- * @param content - JSON content to parse
- * @returns Validated SealsFile
- * @throws Error if validation fails
+ * Default empty seals file for when no seals file exists.
  * @internal
  */
-function parseSealsContent(content: string): SealsFile {
-  let rawData: unknown
-  try {
-    rawData = JSON.parse(content)
-  } catch (error) {
-    throw new Error(`Invalid JSON: ${error instanceof Error ? error.message : String(error)}`)
-  }
-
-  const result = sealsFileSchema.safeParse(rawData)
-  if (!result.success) {
-    const issues = result.error.issues
-      .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
-      .join('\n')
-    throw new Error(`Invalid seals file:\n${issues}`)
-  }
-
-  return result.data
+const EMPTY_SEALS_FILE: SealsFile = {
+  version: 1,
+  seals: {},
 }
 
 /**
  * Read seals from the seals.json file (async).
+ *
+ * Uses Zod schema from the migration graph for validation.
  *
  * @param dir - Directory containing .attest-it/seals.json
  * @param sealsPathOverride - Optional explicit path to seals file (from config.settings.sealsPath)
@@ -182,27 +141,52 @@ export async function readSeals(dir: string, sealsPathOverride?: string): Promis
     ? path.resolve(dir, sealsPathOverride)
     : path.join(dir, '.attest-it', 'seals.json')
 
+  let content: string
   try {
-    const content = await fs.promises.readFile(sealsPath, 'utf8')
-    return parseSealsContent(content)
+    content = await fs.promises.readFile(sealsPath, 'utf8')
   } catch (error) {
-    // If file doesn't exist, return empty seals file
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-      return {
-        version: 1,
-        seals: {},
-      }
+    const cause = error as NodeJS.ErrnoException
+    if (cause?.code === 'ENOENT' || cause?.code === 'ENOTDIR') {
+      return EMPTY_SEALS_FILE
     }
-
-    // Re-throw other errors (permission denied, parse errors, etc.)
     throw new Error(
       `Failed to read seals file: ${error instanceof Error ? error.message : String(error)}`,
     )
+  }
+
+  try {
+    const data = JSON.parse(content) as unknown
+
+    // Check for unsupported version before schema validation
+    if (typeof data === 'object' && data !== null && 'version' in data) {
+      const version = (data as { version: unknown }).version
+      if (version !== 1 && version !== '1') {
+        throw new Error(`Unsupported seals file version: ${version}`)
+      }
+    }
+
+    // Validate against schema (accepts both numeric and string versions)
+    const result = sealsFileSchemaV1.safeParse(data)
+    if (!result.success) {
+      const errors = result.error.issues
+        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+        .join(', ')
+      throw new Error(`Failed to read seals file: Validation failed: ${errors}`)
+    }
+
+    return result.data
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error(`Failed to read seals file: Invalid JSON`)
+    }
+    throw error instanceof Error ? error : new Error(String(error))
   }
 }
 
 /**
  * Read seals from the seals.json file (sync).
+ *
+ * Uses Zod schema from the migration graph for validation.
  *
  * @param dir - Directory containing .attest-it/seals.json
  * @param sealsPathOverride - Optional explicit path to seals file (from config.settings.sealsPath)
@@ -215,32 +199,57 @@ export function readSealsSync(dir: string, sealsPathOverride?: string): SealsFil
     ? path.resolve(dir, sealsPathOverride)
     : path.join(dir, '.attest-it', 'seals.json')
 
+  let content: string
   try {
-    const content = fs.readFileSync(sealsPath, 'utf8')
-    return parseSealsContent(content)
+    content = fs.readFileSync(sealsPath, 'utf8')
   } catch (error) {
-    // If file doesn't exist, return empty seals file
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-      return {
-        version: 1,
-        seals: {},
-      }
+    const cause = error as NodeJS.ErrnoException
+    if (cause?.code === 'ENOENT' || cause?.code === 'ENOTDIR') {
+      return EMPTY_SEALS_FILE
     }
-
-    // Re-throw other errors (permission denied, parse errors, etc.)
     throw new Error(
       `Failed to read seals file: ${error instanceof Error ? error.message : String(error)}`,
     )
+  }
+
+  try {
+    const data = JSON.parse(content) as unknown
+
+    // Check for unsupported version before schema validation
+    if (typeof data === 'object' && data !== null && 'version' in data) {
+      const version = (data as { version: unknown }).version
+      if (version !== 1 && version !== '1') {
+        throw new Error(`Unsupported seals file version: ${version}`)
+      }
+    }
+
+    // Validate against schema (accepts both numeric and string versions)
+    const result = sealsFileSchemaV1.safeParse(data)
+    if (!result.success) {
+      const errors = result.error.issues
+        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+        .join(', ')
+      throw new Error(`Failed to read seals file: Validation failed: ${errors}`)
+    }
+
+    return result.data
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error(`Failed to read seals file: Invalid JSON`)
+    }
+    throw error instanceof Error ? error : new Error(String(error))
   }
 }
 
 /**
  * Write seals to the seals.json file (async).
  *
+ * Uses Zod schema from the migration graph for validation before writing.
+ *
  * @param dir - Directory containing .attest-it/seals.json
  * @param sealsFile - The seals file to write
  * @param sealsPathOverride - Optional explicit path to seals file (from config.settings.sealsPath)
- * @throws Error if file cannot be written
+ * @throws Error if file cannot be written or validation fails
  * @public
  */
 export async function writeSeals(
@@ -253,12 +262,21 @@ export async function writeSeals(
     : path.join(dir, '.attest-it', 'seals.json')
   const sealsDir = path.dirname(sealsPath)
 
+  // Validate against the schema
+  const validationResult = sealsFileSchemaV1.safeParse(sealsFile)
+  if (!validationResult.success) {
+    const errors = validationResult.error.issues
+      .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+      .join(', ')
+    throw new Error(`Failed to write seals file: Validation failed: ${errors}`)
+  }
+
   try {
     // Ensure seals directory exists
     await fs.promises.mkdir(sealsDir, { recursive: true })
 
-    // Write seals file with pretty formatting
-    const content = JSON.stringify(sealsFile, null, 2) + '\n'
+    // Serialize and write with trailing newline
+    const content = JSON.stringify(validationResult.data, null, 2) + '\n'
     await fs.promises.writeFile(sealsPath, content, 'utf8')
   } catch (error) {
     throw new Error(
@@ -270,10 +288,12 @@ export async function writeSeals(
 /**
  * Write seals to the seals.json file (sync).
  *
+ * Uses Zod schema from the migration graph for validation before writing.
+ *
  * @param dir - Directory containing .attest-it/seals.json
  * @param sealsFile - The seals file to write
  * @param sealsPathOverride - Optional explicit path to seals file (from config.settings.sealsPath)
- * @throws Error if file cannot be written
+ * @throws Error if file cannot be written or validation fails
  * @public
  */
 export function writeSealsSync(
@@ -286,12 +306,21 @@ export function writeSealsSync(
     : path.join(dir, '.attest-it', 'seals.json')
   const sealsDir = path.dirname(sealsPath)
 
+  // Validate against the schema
+  const validationResult = sealsFileSchemaV1.safeParse(sealsFile)
+  if (!validationResult.success) {
+    const errors = validationResult.error.issues
+      .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+      .join(', ')
+    throw new Error(`Failed to write seals file: Validation failed: ${errors}`)
+  }
+
   try {
     // Ensure seals directory exists
     fs.mkdirSync(sealsDir, { recursive: true })
 
-    // Write seals file with pretty formatting
-    const content = JSON.stringify(sealsFile, null, 2) + '\n'
+    // Serialize and write with trailing newline
+    const content = JSON.stringify(validationResult.data, null, 2) + '\n'
     fs.writeFileSync(sealsPath, content, 'utf8')
   } catch (error) {
     throw new Error(
