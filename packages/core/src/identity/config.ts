@@ -3,7 +3,7 @@
  * @packageDocumentation
  */
 
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { mkdir as mkdirAsync, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -12,8 +12,16 @@ import { z } from 'zod'
 import type { Identity, LocalConfig, PrivateKeyRef } from './types.js'
 
 /**
+ * Environment variable name for overriding the attest-it home directory.
+ * When set, this takes precedence over programmatic overrides.
+ * @public
+ */
+export const ATTEST_IT_HOME_ENV = 'ATTEST_IT_HOME'
+
+/**
  * Module-level override for the attest-it home directory.
  * When set, this overrides the default ~/.config/attest-it location.
+ * Note: The ATTEST_IT_HOME environment variable takes precedence over this.
  * @internal
  */
 let homeDirOverride: string | null = null
@@ -21,6 +29,9 @@ let homeDirOverride: string | null = null
 /**
  * Set a custom home directory for attest-it configuration.
  * This is useful for testing or running with isolated state.
+ *
+ * Note: The ATTEST_IT_HOME environment variable takes precedence
+ * over this programmatic override.
  *
  * @param dir - The directory to use, or null to reset to default
  * @public
@@ -32,10 +43,20 @@ export function setAttestItHomeDir(dir: string | null): void {
 /**
  * Get the current attest-it home directory override.
  *
+ * Checks in order:
+ * 1. ATTEST_IT_HOME environment variable
+ * 2. Programmatic override via setAttestItHomeDir()
+ * 3. Returns null if using default (~/.config/attest-it)
+ *
  * @returns The override directory, or null if using default
  * @public
  */
 export function getAttestItHomeDir(): string | null {
+  // Environment variable takes precedence
+  const envOverride = process.env[ATTEST_IT_HOME_ENV]
+  if (envOverride) {
+    return envOverride
+  }
   return homeDirOverride
 }
 
@@ -80,6 +101,7 @@ const identitySchema = z
  */
 const localConfigSchema = z
   .object({
+    version: z.literal(1),
     activeIdentity: z.string().min(1, 'Active identity name cannot be empty'),
     identities: z
       .record(z.string(), identitySchema)
@@ -106,15 +128,19 @@ export class LocalConfigValidationError extends Error {
 /**
  * Get the path to the local config file.
  *
- * If a home directory override is set via setAttestItHomeDir(),
- * returns {homeDir}/config.yaml. Otherwise returns ~/.config/attest-it/config.yaml.
- *
+ * @param homeDir - Optional home directory override. If provided, returns {homeDir}/config.yaml.
+ *                  If not provided, checks ATTEST_IT_HOME env var, then programmatic override,
+ *                  then falls back to ~/.config/attest-it/config.yaml.
  * @returns Path to the local config file
  * @public
  */
-export function getLocalConfigPath(): string {
-  if (homeDirOverride) {
-    return join(homeDirOverride, 'config.yaml')
+export function getLocalConfigPath(homeDir?: string): string {
+  if (homeDir) {
+    return join(homeDir, 'config.yaml')
+  }
+  const override = getAttestItHomeDir()
+  if (override) {
+    return join(override, 'config.yaml')
   }
   const home = homedir()
   return join(home, '.config', 'attest-it', 'config.yaml')
@@ -123,15 +149,19 @@ export function getLocalConfigPath(): string {
 /**
  * Get the attest-it configuration directory.
  *
- * If a home directory override is set via setAttestItHomeDir(),
- * returns that directory. Otherwise returns ~/.config/attest-it.
- *
+ * @param homeDir - Optional home directory override. If provided, returns that directory.
+ *                  If not provided, checks ATTEST_IT_HOME env var, then programmatic override,
+ *                  then falls back to ~/.config/attest-it.
  * @returns Path to the configuration directory
  * @public
  */
-export function getAttestItConfigDir(): string {
-  if (homeDirOverride) {
-    return homeDirOverride
+export function getIdentityConfigDir(homeDir?: string): string {
+  if (homeDir) {
+    return homeDir
+  }
+  const override = getAttestItHomeDir()
+  if (override) {
+    return override
   }
   return join(homedir(), '.config', 'attest-it')
 }
@@ -209,6 +239,7 @@ function parseLocalConfigContent(content: string): LocalConfig {
   )
 
   return {
+    version: 1,
     activeIdentity: result.data.activeIdentity,
     identities,
   }
@@ -339,48 +370,25 @@ export function getActiveIdentity(config: LocalConfig): Identity | undefined {
 /**
  * Get the user's home public keys directory.
  *
- * This returns ~/.attest-it/public-keys, which is different from the
+ * This returns ~/.attest-it/public-keys by default, which is different from the
  * config directory (~/.config/attest-it). The public keys directory
  * is designed to be easily shareable and discoverable.
  *
+ * @param homeDir - Optional home directory override. If provided, returns {homeDir}/public-keys.
+ *                  If not provided, checks ATTEST_IT_HOME env var, then programmatic override,
+ *                  then falls back to ~/.attest-it/public-keys.
  * @returns Path to the user's home public keys directory
  * @public
  */
-export function getHomePublicKeysDir(): string {
-  if (homeDirOverride) {
-    return join(homeDirOverride, 'public-keys')
+export function getHomePublicKeysDir(homeDir?: string): string {
+  if (homeDir) {
+    return join(homeDir, 'public-keys')
+  }
+  const override = getAttestItHomeDir()
+  if (override) {
+    return join(override, 'public-keys')
   }
   return join(homedir(), '.attest-it', 'public-keys')
-}
-
-/**
- * Get the project public keys directory.
- *
- * @deprecated Public keys are now stored inline in the team section of config.yaml.
- * This function is kept for backward compatibility but should not be used in new code.
- *
- * @param projectRoot - The project root directory (defaults to cwd)
- * @returns Path to the project public keys directory
- * @public
- */
-export function getProjectPublicKeysDir(projectRoot: string = process.cwd()): string {
-  return join(projectRoot, '.attest-it', 'public-keys')
-}
-
-/**
- * Check if a project has attest-it configuration.
- *
- * @deprecated This function is kept for backward compatibility but is no longer used
- * by the core library. Public keys are now stored inline in config.yaml.
- *
- * @param projectRoot - The project root directory (defaults to cwd)
- * @returns True if the project has .attest-it/config.yaml or similar
- * @public
- */
-export function hasProjectConfig(projectRoot: string = process.cwd()): boolean {
-  const configDir = join(projectRoot, '.attest-it')
-  const candidates = ['config.yaml', 'config.yml', 'config.json']
-  return candidates.some((candidate) => existsSync(join(configDir, candidate)))
 }
 
 /**
@@ -390,8 +398,6 @@ export function hasProjectConfig(projectRoot: string = process.cwd()): boolean {
 export interface SavePublicKeyResult {
   /** Path where the key was saved in the user's home directory */
   homePath: string
-  /** Path where the key was saved in the project directory, if applicable */
-  projectPath?: string
 }
 
 /**
@@ -400,38 +406,18 @@ export interface SavePublicKeyResult {
  * This saves the public key as a base64-encoded string (matching the format in config.yaml)
  * to ~/.attest-it/public-keys/<slug>.pem for backup purposes.
  *
- * Public keys are now stored inline in the team section of config.yaml and no longer
- * written to the project directory.
- *
  * @param slug - The identity slug (used for the filename)
  * @param publicKey - The base64-encoded public key
- * @param projectRoot - The project root directory (deprecated, kept for backward compatibility)
- * @returns Paths where the key was saved
+ * @returns Path where the key was saved
  * @public
  */
-export async function savePublicKey(
-  slug: string,
-  publicKey: string,
-  projectRoot: string = process.cwd(),
-): Promise<SavePublicKeyResult> {
-  // projectRoot parameter is kept for backward compatibility but is no longer used
-  void projectRoot
-
-  const result: SavePublicKeyResult = {
-    homePath: '',
-  }
-
+export async function savePublicKey(slug: string, publicKey: string): Promise<SavePublicKeyResult> {
   // Save to user's home directory (~/.attest-it/public-keys/<slug>.pem)
   const homeDir = getHomePublicKeysDir()
   await mkdirAsync(homeDir, { recursive: true })
   const homePath = join(homeDir, `${slug}.pem`)
   await writeFile(homePath, publicKey, 'utf8')
-  result.homePath = homePath
-
-  // No longer write to project directory
-  // Public keys are now stored inline in the team section of config.yaml
-
-  return result
+  return { homePath }
 }
 
 /**
@@ -440,36 +426,16 @@ export async function savePublicKey(
  * This saves the public key as a base64-encoded string (matching the format in config.yaml)
  * to ~/.attest-it/public-keys/<slug>.pem for backup purposes.
  *
- * Public keys are now stored inline in the team section of config.yaml and no longer
- * written to the project directory.
- *
  * @param slug - The identity slug (used for the filename)
  * @param publicKey - The base64-encoded public key
- * @param projectRoot - The project root directory (deprecated, kept for backward compatibility)
- * @returns Paths where the key was saved
+ * @returns Path where the key was saved
  * @public
  */
-export function savePublicKeySync(
-  slug: string,
-  publicKey: string,
-  projectRoot: string = process.cwd(),
-): SavePublicKeyResult {
-  // projectRoot parameter is kept for backward compatibility but is no longer used
-  void projectRoot
-
-  const result: SavePublicKeyResult = {
-    homePath: '',
-  }
-
+export function savePublicKeySync(slug: string, publicKey: string): SavePublicKeyResult {
   // Save to user's home directory (~/.attest-it/public-keys/<slug>.pem)
   const homeDir = getHomePublicKeysDir()
   mkdirSync(homeDir, { recursive: true })
   const homePath = join(homeDir, `${slug}.pem`)
   writeFileSync(homePath, publicKey, 'utf8')
-  result.homePath = homePath
-
-  // No longer write to project directory
-  // Public keys are now stored inline in the team section of config.yaml
-
-  return result
+  return { homePath }
 }

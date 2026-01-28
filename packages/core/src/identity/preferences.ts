@@ -9,7 +9,7 @@ import { mkdir as mkdirAsync, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { z } from 'zod'
-import { getAttestItConfigDir } from './config.js'
+import { getIdentityConfigDir } from './config.js'
 
 /**
  * Zod schema for CLI experience preferences.
@@ -56,7 +56,7 @@ export interface UserPreferences {
  * @public
  */
 export function getPreferencesPath(): string {
-  return join(getAttestItConfigDir(), 'preferences.yaml')
+  return join(getIdentityConfigDir(), 'preferences.yaml')
 }
 
 /**

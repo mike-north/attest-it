@@ -20,7 +20,7 @@ Schemas are versioned in subdirectories (e.g., `v1/`) to ensure backward compati
 | `v1/identity.schema.json`       | Local identity management      | `~/.config/attest-it/config.yaml` |
 | `v1/policy.schema.json`         | Security policy (team, gates)  | Split config deployments          |
 | `v1/config.schema.json`         | Operational config (suites)    | Split config deployments          |
-| `v1/attestations.schema.json`   | Attestations file format       | `.attest-it/attestations.json`    |
+| `v1/seals.schema.json`          | Seals file format              | `.attest-it/seals.json`           |
 
 ## Editor Setup
 
@@ -39,7 +39,3 @@ Schemas are served from GitHub raw content:
 ```
 https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/<schema-name>.schema.json
 ```
-
-## Legacy Schemas (Root Level)
-
-The root-level `config.schema.json`, `policy.schema.json`, and `attestations.schema.json` are kept for backward compatibility but should not be used in new configurations. They may be removed in a future major version.

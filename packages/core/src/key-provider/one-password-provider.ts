@@ -13,7 +13,8 @@ import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { spawn } from 'node:child_process'
-import { generateKeyPair as cryptoGenerateKeyPair, setKeyPermissions } from '../crypto.js'
+import { setKeyPermissions } from '../crypto.js'
+import { generateKeyPair as ed25519GenerateKeyPair } from '../crypto/ed25519.js'
 import type {
   KeyProvider,
   KeyProviderConfig,
@@ -27,8 +28,8 @@ import type {
  * @public
  */
 export interface OnePasswordKeyProviderOptions {
-  /** 1Password account email (optional if only one account) */
-  account?: string
+  /** 1Password account UUID from listAccounts().accounts[].account_uuid (optional if only one account) */
+  accountUuid?: string
   /** Vault name or ID where the key is stored */
   vault: string
   /** Item name in 1Password */
@@ -50,6 +51,30 @@ export interface OnePasswordAccount {
   user_uuid: string
   /** Human-readable account name (e.g., "North Family") */
   name?: string
+}
+
+/**
+ * Information about an account that couldn't be accessed.
+ * @public
+ */
+export interface InaccessibleAccount {
+  /** User email address */
+  email: string
+  /** Account URL */
+  url: string
+  /** Reason the account couldn't be accessed */
+  reason: string
+}
+
+/**
+ * Result from listing 1Password accounts.
+ * @public
+ */
+export interface ListAccountsResult {
+  /** Accounts that were successfully accessed */
+  accounts: (OnePasswordAccount & { name: string })[]
+  /** Accounts that couldn't be accessed (with reasons) */
+  inaccessible: InaccessibleAccount[]
 }
 
 /**
@@ -77,7 +102,7 @@ export class OnePasswordKeyProvider implements KeyProvider {
   readonly type = '1password'
   readonly displayName = '1Password'
 
-  private readonly account?: string
+  private readonly accountUuid?: string
   private readonly vault: string
   private readonly itemName: string
 
@@ -86,9 +111,9 @@ export class OnePasswordKeyProvider implements KeyProvider {
    * @param options - Provider options
    */
   constructor(options: OnePasswordKeyProviderOptions) {
-    // Only assign account if it's defined (to satisfy exactOptionalPropertyTypes)
-    if (options.account !== undefined) {
-      this.account = options.account
+    // Only assign accountUuid if it's defined (to satisfy exactOptionalPropertyTypes)
+    if (options.accountUuid !== undefined) {
+      this.accountUuid = options.accountUuid
     }
     this.vault = options.vault
     this.itemName = options.itemName
@@ -103,91 +128,156 @@ export class OnePasswordKeyProvider implements KeyProvider {
       await execCommand('op', ['--version'])
       return true
     } catch {
+      // Command not found or failed = not installed
+      // This is expected when op CLI is not installed, so we just return false
       return false
     }
   }
 
   /**
    * List all 1Password accounts.
-   * @returns Array of account information including human-readable names
+   * @returns Object containing accessible accounts and inaccessible accounts with reasons
    */
-  static async listAccounts(): Promise<OnePasswordAccount[]> {
-    try {
-      const output = await execCommand('op', ['account', 'list', '--format=json'])
-      const parsed: unknown = JSON.parse(output)
-      if (!Array.isArray(parsed)) {
-        return []
-      }
-      // Type assertion needed: We validate it's an array, but can't validate structure
-      // at runtime without a full validation library. The op CLI output format is trusted.
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-      const basicAccounts = parsed as OnePasswordAccount[]
-
-      // Fetch account details to get human-readable names
-      const accountsWithNames = await Promise.all(
-        basicAccounts.map(async (account) => {
-          try {
-            const detailOutput = await execCommand('op', [
-              'account',
-              'get',
-              '--account',
-              account.email,
-              '--format=json',
-            ])
-            const details: unknown = JSON.parse(detailOutput)
-            // Extract the name from account details if available
-            if (
-              details !== null &&
-              typeof details === 'object' &&
-              'name' in details &&
-              typeof details.name === 'string'
-            ) {
-              return { ...account, name: details.name }
-            }
-          } catch {
-            // If we fail to get details, just return the account without a name
-          }
-          return account
-        }),
-      )
-
-      return accountsWithNames
-    } catch (error) {
-      // Log in development for debugging, but don't fail
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('Failed to list 1Password accounts:', error)
-      }
-      return []
+  static async listAccounts(): Promise<ListAccountsResult> {
+    const output = await execCommand('op', ['account', 'list', '--format=json'])
+    const parsed: unknown = JSON.parse(output)
+    if (!Array.isArray(parsed)) {
+      throw new Error('Unexpected response from 1Password: account list is not an array')
     }
+    // Type assertion needed: We validate it's an array, but can't validate structure
+    // at runtime without a full validation library. The op CLI output format is trusted.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    const basicAccounts = parsed as OnePasswordAccount[]
+
+    // Fetch account details to get human-readable names
+    // Note: op account get requires account_uuid (not user_uuid or email)
+    // Process accounts sequentially with delay to avoid race conditions with op CLI
+    type AccountResult =
+      | { success: true; account: OnePasswordAccount & { name: string } }
+      | { success: false; email: string; url: string; reason: string }
+
+    const accountResults: AccountResult[] = []
+    const RETRY_DELAY_MS = 500
+    const MAX_RETRIES = 2
+
+    for (const account of basicAccounts) {
+      // Validate account_uuid is present
+      if (!account.account_uuid) {
+        accountResults.push({
+          success: false as const,
+          email: account.email,
+          url: account.url,
+          reason: 'Account missing account_uuid field',
+        })
+        continue
+      }
+
+      let lastError: string | undefined
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        // Add delay between attempts (and between accounts) to avoid race conditions
+        if (attempt > 0 || accountResults.length > 0) {
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS))
+        }
+
+        try {
+          const detailOutput = await execCommand('op', [
+            'account',
+            'get',
+            '--account',
+            account.account_uuid,
+            '--format=json',
+          ])
+          const details: unknown = JSON.parse(detailOutput)
+          // Extract the name from account details
+          if (
+            details !== null &&
+            typeof details === 'object' &&
+            'name' in details &&
+            typeof details.name === 'string'
+          ) {
+            accountResults.push({
+              success: true as const,
+              account: { ...account, name: details.name },
+            })
+            lastError = undefined
+            break
+          }
+          // No name field - unexpected response format (not retryable)
+          lastError = 'Account details response missing name field'
+          break
+        } catch (err) {
+          // Capture the actual error reason - could be access denied, network issue, etc.
+          lastError = err instanceof Error ? err.message : String(err)
+          // Continue to retry unless we've exhausted attempts
+        }
+      }
+
+      // If we exhausted retries, add as inaccessible
+      if (lastError !== undefined) {
+        accountResults.push({
+          success: false as const,
+          email: account.email,
+          url: account.url,
+          reason: lastError,
+        })
+      }
+    }
+
+    // Separate accessible from inaccessible accounts
+    const accounts: (OnePasswordAccount & { name: string })[] = []
+    const inaccessible: InaccessibleAccount[] = []
+
+    for (const result of accountResults) {
+      if (result.success) {
+        accounts.push(result.account)
+      } else {
+        inaccessible.push({
+          email: result.email,
+          url: result.url,
+          reason: result.reason,
+        })
+      }
+    }
+
+    if (accounts.length === 0 && basicAccounts.length > 0) {
+      // Build a detailed error message with all the failure reasons
+      const reasons = inaccessible.map((a) => `  - ${a.email}: ${a.reason}`).join('\n')
+      throw new Error(
+        `Could not access any 1Password accounts. All ${String(basicAccounts.length)} account(s) failed:\n${reasons}`,
+      )
+    }
+
+    return { accounts, inaccessible }
   }
 
   /**
    * List vaults in a specific account.
-   * @param account - Account email (optional if only one account)
+   * @param accountUuid - Account UUID from listAccounts() (optional if only one account)
    * @returns Array of vault information
    */
-  static async listVaults(account?: string): Promise<OnePasswordVault[]> {
-    try {
-      const args = ['vault', 'list', '--format=json']
-      if (account) {
-        args.push('--account', account)
-      }
-      const output = await execCommand('op', args)
-      const parsed: unknown = JSON.parse(output)
-      if (!Array.isArray(parsed)) {
-        return []
-      }
-      // Type assertion needed: We validate it's an array, but can't validate structure
-      // at runtime without a full validation library. The op CLI output format is trusted.
-      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-      return parsed as OnePasswordVault[]
-    } catch (error) {
-      // Log in development for debugging, but don't fail
-      if (process.env.NODE_ENV !== 'production') {
-        console.error('Failed to list 1Password vaults:', error)
-      }
-      return []
+  static async listVaults(accountUuid?: string): Promise<OnePasswordVault[]> {
+    const args = ['vault', 'list', '--format=json']
+    if (accountUuid) {
+      args.push('--account', accountUuid)
     }
+
+    let output: string
+    try {
+      output = await execCommand('op', args)
+    } catch (error) {
+      throw new Error(
+        `Failed to list 1Password vaults${accountUuid ? ` for account ${accountUuid}` : ''}: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
+
+    const parsed: unknown = JSON.parse(output)
+    if (!Array.isArray(parsed)) {
+      throw new Error('Unexpected response from 1Password: vault list is not an array')
+    }
+    // Type assertion needed: We validate it's an array, but can't validate structure
+    // at runtime without a full validation library. The op CLI output format is trusted.
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    return parsed as OnePasswordVault[]
   }
 
   /**
@@ -205,12 +295,14 @@ export class OnePasswordKeyProvider implements KeyProvider {
   async keyExists(keyRef: string): Promise<boolean> {
     try {
       const args = ['item', 'get', keyRef, '--vault', this.vault, '--format=json']
-      if (this.account) {
-        args.push('--account', this.account)
+      if (this.accountUuid) {
+        args.push('--account', this.accountUuid)
       }
       await execCommand('op', args)
       return true
     } catch {
+      // Item not found or access denied = key doesn't exist (from our perspective)
+      // This is expected when checking for non-existent keys
       return false
     }
   }
@@ -218,6 +310,12 @@ export class OnePasswordKeyProvider implements KeyProvider {
   /**
    * Get the private key from 1Password for signing.
    * Downloads to a temporary file and returns a cleanup function.
+   *
+   * @remarks
+   * For security, this runs in a new PTY which requires the user to authenticate
+   * (via Touch ID, password, etc.) each time. This prevents automated agents
+   * from using cached credentials.
+   *
    * @param keyRef - Item name in 1Password
    * @throws Error if the key does not exist in 1Password
    */
@@ -226,7 +324,7 @@ export class OnePasswordKeyProvider implements KeyProvider {
     if (!(await this.keyExists(keyRef))) {
       throw new Error(
         `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` +
-          (this.account ? ` (account: ${this.account})` : ''),
+          (this.accountUuid ? ` (accountUuid: ${this.accountUuid})` : ''),
       )
     }
 
@@ -235,13 +333,13 @@ export class OnePasswordKeyProvider implements KeyProvider {
     const tempKeyPath = path.join(tempDir, 'private.pem')
 
     try {
-      // Download the key from 1Password
+      // Download the key from 1Password (runs in PTY to require fresh auth)
       const args = ['document', 'get', keyRef, '--vault', this.vault, '--out-file', tempKeyPath]
-      if (this.account) {
-        args.push('--account', this.account)
+      if (this.accountUuid) {
+        args.push('--account', this.accountUuid)
       }
 
-      await execCommand('op', args)
+      await execInteractiveCommand('op', args)
 
       // Set proper permissions
       await setKeyPermissions(tempKeyPath)
@@ -276,24 +374,47 @@ export class OnePasswordKeyProvider implements KeyProvider {
   }
 
   /**
-   * Generate a new keypair and store private key in 1Password.
+   * Generate a new Ed25519 keypair and store private key in 1Password.
    * Public key is written to filesystem for repository commit.
    * @param options - Key generation options
    */
   async generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult> {
     const { publicKeyPath, force = false } = options
 
+    // Check if public key file already exists
+    if (!force) {
+      try {
+        await fs.access(publicKeyPath)
+        throw new Error(
+          `Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`,
+        )
+      } catch (err) {
+        // File doesn't exist, which is what we want
+        if (err instanceof Error && !err.message.includes('already exists')) {
+          // This is an access error (file doesn't exist), continue
+        } else {
+          throw err
+        }
+      }
+    }
+
     // Create a temporary directory for key generation
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'attest-it-keygen-'))
     const tempPrivateKeyPath = path.join(tempDir, 'private.pem')
 
     try {
-      // Generate the keypair to temporary location
-      await cryptoGenerateKeyPair({
-        privatePath: tempPrivateKeyPath,
-        publicPath: publicKeyPath,
-        force,
-      })
+      // Generate Ed25519 keypair
+      const keyPair = ed25519GenerateKeyPair()
+
+      // Write private key PEM to temporary file for upload to 1Password
+      await fs.writeFile(tempPrivateKeyPath, keyPair.privateKey, 'utf-8')
+      await setKeyPermissions(tempPrivateKeyPath)
+
+      // Ensure public key directory exists
+      await fs.mkdir(path.dirname(publicKeyPath), { recursive: true })
+
+      // Write public key (base64-encoded raw key) to filesystem
+      await fs.writeFile(publicKeyPath, keyPair.publicKey, 'utf-8')
 
       // Upload the private key to 1Password as a document
       const args = [
@@ -305,8 +426,8 @@ export class OnePasswordKeyProvider implements KeyProvider {
         '--vault',
         this.vault,
       ]
-      if (this.account) {
-        args.push('--account', this.account)
+      if (this.accountUuid) {
+        args.push('--account', this.accountUuid)
       }
 
       await execCommand('op', args)
@@ -341,7 +462,7 @@ export class OnePasswordKeyProvider implements KeyProvider {
     return {
       type: this.type,
       options: {
-        ...(this.account && { account: this.account }),
+        ...(this.accountUuid && { accountUuid: this.accountUuid }),
         vault: this.vault,
         itemName: this.itemName,
       },
@@ -350,12 +471,108 @@ export class OnePasswordKeyProvider implements KeyProvider {
 }
 
 /**
+ * Filter environment variables to remove 1Password session tokens.
+ * This forces fresh authentication, requiring human interaction (Touch ID, password, etc.).
+ * @internal
+ */
+function getCleanEnvironment(): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = {}
+  for (const [key, value] of Object.entries(process.env)) {
+    // Filter out 1Password session tokens and cache-related variables
+    // This ensures the op CLI will prompt for authentication
+    if (!key.startsWith('OP_SESSION_') && key !== 'OP_SERVICE_ACCOUNT_TOKEN') {
+      // eslint-disable-next-line security/detect-object-injection
+      env[key] = value
+    }
+  }
+  return env
+}
+
+/**
  * Execute a command and return stdout.
+ *
+ * @remarks
+ * This function removes 1Password session tokens from the environment to prevent
+ * use of cached credentials. Used for non-interactive commands like account list.
+ *
  * @internal
  */
 async function execCommand(command: string, args: string[]): Promise<string> {
   return new Promise((resolve, reject) => {
-    const proc = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] })
+    const proc = spawn(command, args, {
+      stdio: ['inherit', 'pipe', 'pipe'],
+      env: getCleanEnvironment(),
+    })
+
+    let stdout = ''
+    let stderr = ''
+
+    proc.stdout.on('data', (data: Buffer) => {
+      stdout += data.toString()
+    })
+
+    proc.stderr.on('data', (data: Buffer) => {
+      stderr += data.toString()
+    })
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        resolve(stdout.trim())
+      } else {
+        reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`))
+      }
+    })
+
+    proc.on('error', (error) => {
+      reject(error)
+    })
+  })
+}
+
+/**
+ * Execute a command in a PTY for interactive authentication.
+ *
+ * @remarks
+ * This function:
+ * 1. Removes 1Password session tokens from the environment to force fresh authentication
+ * 2. Runs the command in a pseudo-terminal (PTY) so Touch ID and other interactive
+ *    prompts work correctly
+ *
+ * Used for commands that require user authentication, like document retrieval.
+ *
+ * @internal
+ */
+async function execInteractiveCommand(command: string, args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const platform = process.platform
+
+    let proc
+    if (platform === 'win32') {
+      // On Windows, spawn directly (no PTY wrapper available)
+      proc = spawn(command, args, {
+        stdio: ['inherit', 'pipe', 'pipe'],
+        env: getCleanEnvironment(),
+      })
+    } else if (platform === 'darwin') {
+      // On macOS (BSD script), pass command as positional args
+      // The -q flag suppresses "Script started/done" messages
+      // /dev/null discards the typescript file
+      proc = spawn('script', ['-q', '/dev/null', command, ...args], {
+        stdio: ['inherit', 'pipe', 'pipe'],
+        env: getCleanEnvironment(),
+      })
+    } else {
+      // On Linux (GNU script), use -c flag to specify command
+      // The -q flag suppresses "Script started/done" messages
+      // Quote args properly for shell execution
+      const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "'\\''")}'`).join(' ')
+      const fullCommand = `${command} ${quotedArgs}`
+      proc = spawn('script', ['-q', '/dev/null', '-c', fullCommand], {
+        stdio: ['inherit', 'pipe', 'pipe'],
+        env: getCleanEnvironment(),
+      })
+    }
+
     let stdout = ''
     let stderr = ''
 

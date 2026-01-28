@@ -2,8 +2,8 @@
  * Filesystem-based key provider implementation.
  *
  * @remarks
- * This provider stores private keys on the local filesystem, maintaining
- * backward compatibility with the existing attest-it key storage behavior.
+ * This provider stores private keys on the local filesystem.
+ * This is the default and most common key storage approach.
  *
  * @packageDocumentation
  */
@@ -31,8 +31,7 @@ export interface FilesystemKeyProviderOptions {
  * Key provider that stores private keys on the filesystem.
  *
  * @remarks
- * This is the default provider and maintains backward compatibility with
- * existing attest-it installations. Private keys are stored at:
+ * This is the default key provider. Private keys are stored at:
  * - macOS/Linux: ~/.config/attest-it/private.pem
  * - Windows: %APPDATA%\attest-it\private.pem
  *

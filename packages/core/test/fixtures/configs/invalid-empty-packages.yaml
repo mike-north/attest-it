@@ -1,6 +1,0 @@
-version: 1
-
-suites:
-  unit:
-    description: Unit tests with no packages
-    packages: []

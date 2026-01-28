@@ -84,8 +84,8 @@ describe('InteractiveRun component', () => {
           status: 'VALID',
           reason: 'Attested 5 days ago',
           currentFingerprint: 'abc123',
-          attestedFingerprint: 'abc123',
-          attestedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          sealedFingerprint: 'abc123',
+          sealedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
           age: 5,
         },
         {
@@ -93,8 +93,8 @@ describe('InteractiveRun component', () => {
           status: 'VALID',
           reason: 'Attested 3 days ago',
           currentFingerprint: 'def456',
-          attestedFingerprint: 'def456',
-          attestedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+          sealedFingerprint: 'def456',
+          sealedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
           age: 3,
         },
       ]
@@ -578,8 +578,8 @@ describe('InteractiveRun component', () => {
           status: 'VALID',
           reason: 'Attested 5 days ago',
           currentFingerprint: 'abc123',
-          attestedFingerprint: 'abc123',
-          attestedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+          sealedFingerprint: 'abc123',
+          sealedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
           age: 5,
         },
         {

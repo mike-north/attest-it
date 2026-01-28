@@ -182,7 +182,8 @@
       "properties": {
         "gate": {
           "type": "string",
-          "description": "The gate this suite belongs to"
+          "minLength": 1,
+          "description": "The gate this suite belongs to (required)"
         },
         "description": {
           "type": "string",
@@ -191,30 +192,6 @@
         "command": {
           "type": "string",
           "description": "Command to execute for this suite"
-        },
-        "packages": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "description": "Package paths to include in fingerprint calculation"
-        },
-        "files": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "description": "Additional file patterns to include in fingerprint"
-        },
-        "ignore": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "description": "File patterns to exclude from fingerprint"
         },
         "timeout": {
           "type": "string",
@@ -241,6 +218,7 @@
           "description": "Suites that must pass before this one can run"
         }
       },
+      "required": ["gate"],
       "additionalProperties": false
     }
   }

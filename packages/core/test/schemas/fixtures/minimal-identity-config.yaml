@@ -1,6 +1,7 @@
 # Minimal valid identity configuration.
 # Tests that only required fields are needed.
 
+version: 1
 activeIdentity: default
 
 identities:

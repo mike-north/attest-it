@@ -5,6 +5,11 @@
   "description": "Configuration schema for local attest-it identity management. Stored at ~/.config/attest-it/config.yaml",
   "type": "object",
   "properties": {
+    "version": {
+      "type": "number",
+      "const": 1,
+      "description": "Schema version for forward compatibility"
+    },
     "activeIdentity": {
       "type": "string",
       "minLength": 1,
@@ -18,7 +23,7 @@
       }
     }
   },
-  "required": ["activeIdentity", "identities"],
+  "required": ["version", "activeIdentity", "identities"],
   "additionalProperties": false,
   "definitions": {
     "identity": {

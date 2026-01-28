@@ -1,3 +1,4 @@
+version: 1
 activeIdentity: existing-user
 identities:
   existing-user:

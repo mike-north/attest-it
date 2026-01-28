@@ -13,7 +13,8 @@ import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { spawn } from 'node:child_process'
-import { generateKeyPair as cryptoGenerateKeyPair, setKeyPermissions } from '../crypto.js'
+import { generateKeyPair as ed25519GenerateKeyPair } from '../crypto/ed25519.js'
+import { setKeyPermissions } from '../crypto.js'
 import type {
   KeyProvider,
   KeyProviderConfig,
@@ -206,69 +207,70 @@ export class MacOSKeychainKeyProvider implements KeyProvider {
   }
 
   /**
-   * Generate a new keypair and store private key in keychain.
+   * Generate a new Ed25519 keypair and store private key in keychain.
    * Public key is written to filesystem for repository commit.
    * @param options - Key generation options
    */
   async generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult> {
     const { publicKeyPath, force = false } = options
 
-    // Create a temporary directory for key generation
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'attest-it-keygen-'))
-    const tempPrivateKeyPath = path.join(tempDir, 'private.pem')
-
+    // Check if public key already exists
+    let publicKeyExists = false
     try {
-      // Generate the keypair to temporary location
-      await cryptoGenerateKeyPair({
-        privatePath: tempPrivateKeyPath,
-        publicPath: publicKeyPath,
-        force,
-      })
-
-      // Read the private key and encode as base64
-      const privateKeyContent = await fs.readFile(tempPrivateKeyPath, 'utf8')
-      const base64Key = Buffer.from(privateKeyContent, 'utf8').toString('base64')
-
-      // Store in keychain
-      // The -T "" flag allows all applications to access the key
-      // The -U flag updates if the item already exists
-      const addArgs = [
-        'add-generic-password',
-        '-a',
-        MacOSKeychainKeyProvider.ACCOUNT,
-        '-s',
-        this.itemName,
-        '-w',
-        base64Key,
-        '-T',
-        '',
-        '-U',
-      ]
-      if (this.keychain) {
-        addArgs.push(this.keychain)
-      }
-      await execCommand('security', addArgs)
-
-      // Clean up temporary private key
-      await fs.unlink(tempPrivateKeyPath)
-      await fs.rmdir(tempDir)
-
-      return {
-        privateKeyRef: this.itemName,
-        publicKeyPath,
-        storageDescription: `macOS Keychain: ${this.itemName}`,
-      }
+      await fs.access(publicKeyPath)
+      publicKeyExists = true
     } catch (error) {
-      // Clean up on error
-      try {
-        await fs.rm(tempDir, { recursive: true, force: true })
-      } catch (cleanupError) {
-        // Log warning for security audit - temporary keys may not have been cleaned up
-        console.warn(
-          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
-        )
+      // File doesn't exist, which is what we want
+      if (error instanceof Error && 'code' in error && error.code !== 'ENOENT') {
+        throw error // Permission error or other unexpected error
       }
-      throw error
+    }
+
+    if (publicKeyExists && !force) {
+      throw new Error(
+        `Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`,
+      )
+    }
+
+    // Generate Ed25519 keypair using Node.js crypto (in memory)
+    const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = ed25519GenerateKeyPair()
+
+    // Ensure parent directory exists for public key
+    const publicKeyDir = path.dirname(publicKeyPath)
+    await fs.mkdir(publicKeyDir, { recursive: true })
+
+    // Write public key as PEM file
+    // Convert base64 public key back to PEM format for consistency
+    const publicKeyPem = `-----BEGIN PUBLIC KEY-----\n${publicKeyBase64}\n-----END PUBLIC KEY-----\n`
+    await fs.writeFile(publicKeyPath, publicKeyPem, { mode: 0o644 })
+
+    // Encode private key PEM as base64 for keychain storage
+    const base64Key = Buffer.from(privateKeyPem, 'utf8').toString('base64')
+
+    // Store in keychain
+    // The -T "" flag allows all applications to access the key
+    // The -U flag updates if the item already exists
+    const addArgs = [
+      'add-generic-password',
+      '-a',
+      MacOSKeychainKeyProvider.ACCOUNT,
+      '-s',
+      this.itemName,
+      '-w',
+      base64Key,
+      '-T',
+      '',
+      '-U',
+    ]
+    if (this.keychain) {
+      addArgs.push(this.keychain)
+    }
+    await execCommand('security', addArgs)
+
+    return {
+      privateKeyRef: this.itemName,
+      publicKeyPath,
+      storageDescription: `macOS Keychain: ${this.itemName}`,
     }
   }
 

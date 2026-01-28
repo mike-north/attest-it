@@ -133,6 +133,13 @@ function hashFileSync(realPath: string, normalizedPath: string): Buffer {
 }
 
 /**
+ * Check if a path contains glob pattern characters.
+ */
+function isGlobPattern(pathStr: string): boolean {
+  return /[*?{}[\]]/.test(pathStr)
+}
+
+/**
  * Validate fingerprint options and return base directory.
  */
 function validateOptions(options: FingerprintOptions): string {
@@ -142,11 +149,14 @@ function validateOptions(options: FingerprintOptions): string {
 
   const baseDir = options.baseDir ?? process.cwd()
 
-  // Verify all package paths exist
+  // Verify all non-glob package paths exist
+  // Glob patterns are validated later by tinyglobby
   for (const pkg of options.packages) {
-    const pkgPath = path.resolve(baseDir, pkg)
-    if (!fs.existsSync(pkgPath)) {
-      throw new Error(`Package path does not exist: ${pkgPath}`)
+    if (!isGlobPattern(pkg)) {
+      const pkgPath = path.resolve(baseDir, pkg)
+      if (!fs.existsSync(pkgPath)) {
+        throw new Error(`Package path does not exist: ${pkgPath}`)
+      }
     }
   }
 
@@ -323,12 +333,45 @@ export function computeFingerprintSync(options: FingerprintOptions): Fingerprint
 }
 
 /**
+ * Resolve a package path to a glob pattern.
+ *
+ * - If the path is a glob pattern, return it as-is
+ * - If the path is a file, return it as-is (to match that specific file)
+ * - If the path is a directory, append '/**\/*' to match all files within
+ * - If the path doesn't exist, return it as-is (will match 0 files)
+ */
+function resolvePackagePattern(pkg: string, baseDir: string): string {
+  if (isGlobPattern(pkg)) {
+    return pkg
+  }
+
+  const fullPath = path.resolve(baseDir, pkg)
+  try {
+    const stats = fs.statSync(fullPath)
+    return stats.isFile() ? pkg : `${pkg}/**/*`
+  } catch {
+    // Path doesn't exist - return as-is (will match 0 files)
+    return pkg
+  }
+}
+
+/**
+ * Common glob options for file listing.
+ */
+const GLOB_OPTIONS = {
+  onlyFiles: true,
+  dot: true, // Include dotfiles
+  absolute: false, // Return relative paths
+} as const
+
+/**
  * List files in packages, respecting ignore patterns (async).
  *
- * @param packages - Array of package directory paths
+ * @param packages - Array of package directory paths or glob patterns
  * @param ignore - Optional glob patterns to exclude
  * @param baseDir - Base directory for resolving paths (defaults to cwd)
  * @returns Array of relative file paths
+ * @throws Error if a glob pattern matches no files
  * @public
  */
 export async function listPackageFiles(
@@ -339,17 +382,17 @@ export async function listPackageFiles(
   const allFiles: string[] = []
 
   for (const pkg of packages) {
-    // Build glob patterns for this package
-    const patterns = [`${pkg}/**/*`]
+    const pattern = resolvePackagePattern(pkg, baseDir)
 
-    // Use tinyglobby to find files
-    const files = await glob(patterns, {
+    const files = await glob([pattern], {
+      ...GLOB_OPTIONS,
       cwd: baseDir,
       ignore,
-      onlyFiles: true,
-      dot: true, // Include dotfiles
-      absolute: false, // Return relative paths
     })
+
+    if (files.length === 0 && isGlobPattern(pkg)) {
+      throw new Error(`Glob pattern matched no files: ${pkg}`)
+    }
 
     allFiles.push(...files)
   }
@@ -358,7 +401,8 @@ export async function listPackageFiles(
 }
 
 /**
- * Synchronous version of listPackageFiles
+ * Synchronous version of listPackageFiles.
+ * @throws Error if a glob pattern matches no files
  */
 function listPackageFilesSync(
   packages: string[],
@@ -368,17 +412,17 @@ function listPackageFilesSync(
   const allFiles: string[] = []
 
   for (const pkg of packages) {
-    // Build glob patterns for this package
-    const patterns = [`${pkg}/**/*`]
+    const pattern = resolvePackagePattern(pkg, baseDir)
 
-    // Use tinyglobby to find files (sync version)
-    const files = globSync(patterns, {
+    const files = globSync([pattern], {
+      ...GLOB_OPTIONS,
       cwd: baseDir,
       ignore,
-      onlyFiles: true,
-      dot: true, // Include dotfiles
-      absolute: false, // Return relative paths
     })
+
+    if (files.length === 0 && isGlobPattern(pkg)) {
+      throw new Error(`Glob pattern matched no files: ${pkg}`)
+    }
 
     allFiles.push(...files)
   }

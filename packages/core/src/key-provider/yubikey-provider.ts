@@ -24,8 +24,9 @@ import * as path from 'node:path'
 import * as crypto from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { z } from 'zod'
-import { generateKeyPair as cryptoGenerateKeyPair, setKeyPermissions } from '../crypto.js'
-import { getAttestItConfigDir } from '../identity/config.js'
+import { generateKeyPair as ed25519GenerateKeyPair } from '../crypto/ed25519.js'
+import { setKeyPermissions } from '../crypto.js'
+import { getIdentityConfigDir } from '../identity/config.js'
 import type {
   KeyProvider,
   KeyProviderConfig,
@@ -220,7 +221,7 @@ export class YubiKeyProvider implements KeyProvider {
   constructor(options: YubiKeyProviderOptions) {
     // Validate and normalize the encrypted key path
     const resolvedPath = path.resolve(options.encryptedKeyPath)
-    const configDir = getAttestItConfigDir()
+    const configDir = getIdentityConfigDir()
 
     // Security: Ensure path is within the config directory to prevent path traversal
     if (!resolvedPath.startsWith(configDir)) {
@@ -271,14 +272,17 @@ export class YubiKeyProvider implements KeyProvider {
    */
   static async isChallengeResponseConfigured(slot: 1 | 2 = 2, serial?: string): Promise<boolean> {
     try {
-      const args = ['otp', 'info']
+      // Actually test challenge-response instead of parsing output text.
+      // This is more reliable across different ykman versions.
+      // We use execInteractiveCommand because if the slot is configured with
+      // touch required, the user needs to see the "Touch your YubiKey..." prompt.
+      const testChallenge = Buffer.from('attest-it-test-challenge-12345')
+      const args = ['otp', 'calculate', String(slot), testChallenge.toString('hex')]
       if (serial) {
         args.unshift('--device', serial)
       }
-      const output = await execCommand('ykman', args)
-      // Look for "Slot X: programmed (challenge-response)" pattern
-      const slotPattern = new RegExp(`Slot ${String(slot)}:\\s+programmed.*challenge-response`, 'i')
-      return slotPattern.test(output)
+      await execInteractiveCommand('ykman', args)
+      return true
     } catch {
       return false
     }
@@ -492,7 +496,7 @@ export class YubiKeyProvider implements KeyProvider {
     if (!(await YubiKeyProvider.isChallengeResponseConfigured(this.slot, this.serial))) {
       throw new Error(
         `YubiKey slot ${String(this.slot)} is not configured for HMAC challenge-response. ` +
-          'Ensure your YubiKey is connected and use "ykman otp chalresp --generate 2" to configure it.',
+          'Ensure your YubiKey is connected and use "ykman otp chalresp -t --generate 2" to configure it with touch required.',
       )
     }
 
@@ -520,83 +524,69 @@ export class YubiKeyProvider implements KeyProvider {
       }
     }
 
-    // Create a temporary directory for key generation
-    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'attest-it-keygen-'))
-    const tempPrivateKeyPath = path.join(tempDir, 'private.pem')
+    // Generate Ed25519 keypair using Node.js crypto (in memory)
+    const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = ed25519GenerateKeyPair()
 
-    try {
-      // Generate the keypair to temporary location
-      await cryptoGenerateKeyPair({
-        privatePath: tempPrivateKeyPath,
-        publicPath: publicKeyPath,
-        force,
-      })
+    // Ensure parent directory exists for public key
+    const publicKeyDir = path.dirname(publicKeyPath)
+    await fs.mkdir(publicKeyDir, { recursive: true })
 
-      // Read the private key
-      const privateKeyContent = await fs.readFile(tempPrivateKeyPath, 'utf8')
+    // Write public key as PEM file
+    const publicKeyPemFile = `-----BEGIN PUBLIC KEY-----\n${publicKeyBase64}\n-----END PUBLIC KEY-----\n`
+    await fs.writeFile(publicKeyPath, publicKeyPemFile, { mode: 0o644 })
 
-      // Generate random challenge and salt
-      const challenge = crypto.randomBytes(32)
-      const salt = crypto.randomBytes(32)
-      const iv = crypto.randomBytes(12) // 96 bits for GCM
+    // The private key content in PEM format
+    const privateKeyContent = privateKeyPem
 
-      // Perform challenge-response
-      const response = await performChallengeResponse(challenge, this.slot, this.serial)
+    // Generate random challenge and salt
+    const challenge = crypto.randomBytes(32)
+    const salt = crypto.randomBytes(32)
+    const iv = crypto.randomBytes(12) // 96 bits for GCM
 
-      // Derive AES-256 key from response using HKDF
-      const aesKey = deriveKey(response, salt)
+    // Perform challenge-response
+    const response = await performChallengeResponse(challenge, this.slot, this.serial)
 
-      // Construct AAD to bind metadata to ciphertext
-      const aad = constructAAD(1, this.slot, serial)
+    // Derive AES-256 key from response using HKDF
+    const aesKey = deriveKey(response, salt)
 
-      // Encrypt the private key with AES-256-GCM
-      const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv)
-      cipher.setAAD(aad)
-      const ciphertext = Buffer.concat([
-        cipher.update(Buffer.from(privateKeyContent, 'utf8')),
-        cipher.final(),
-      ])
-      const authTag = cipher.getAuthTag()
+    // Construct AAD to bind metadata to ciphertext
+    const aad = constructAAD(1, this.slot, serial)
 
-      // Create the encrypted key file
-      const keyFile: EncryptedKeyFile = {
-        version: 1,
-        iv: iv.toString('base64'),
-        authTag: authTag.toString('base64'),
-        salt: salt.toString('base64'),
-        challenge: challenge.toString('base64'),
-        ciphertext: ciphertext.toString('base64'),
-        slot: this.slot,
-        aad: aad.toString('base64'),
-        ...(serial && { serial }),
-      }
+    // Encrypt the private key with AES-256-GCM
+    const cipher = crypto.createCipheriv('aes-256-gcm', aesKey, iv)
+    cipher.setAAD(aad)
+    const ciphertext = Buffer.concat([
+      cipher.update(Buffer.from(privateKeyContent, 'utf8')),
+      cipher.final(),
+    ])
+    const authTag = cipher.getAuthTag()
 
-      // Ensure parent directory exists
-      await fs.mkdir(path.dirname(this.encryptedKeyPath), { recursive: true })
+    // Create the encrypted key file
+    const keyFile: EncryptedKeyFile = {
+      version: 1,
+      iv: iv.toString('base64'),
+      authTag: authTag.toString('base64'),
+      salt: salt.toString('base64'),
+      challenge: challenge.toString('base64'),
+      ciphertext: ciphertext.toString('base64'),
+      slot: this.slot,
+      aad: aad.toString('base64'),
+      ...(serial && { serial }),
+    }
 
-      // Write the encrypted key file
-      await fs.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 0o600 })
-      await setKeyPermissions(this.encryptedKeyPath)
+    // Ensure parent directory exists
+    await fs.mkdir(path.dirname(this.encryptedKeyPath), { recursive: true })
 
-      // Clean up temporary private key (overwrite before delete)
-      const keySize = Buffer.byteLength(privateKeyContent)
-      await fs.writeFile(tempPrivateKeyPath, crypto.randomBytes(keySize))
-      await fs.unlink(tempPrivateKeyPath)
-      await fs.rmdir(tempDir)
+    // Write the encrypted key file
+    await fs.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 0o600 })
+    await setKeyPermissions(this.encryptedKeyPath)
 
-      return {
-        privateKeyRef: this.encryptedKeyPath,
-        publicKeyPath,
-        storageDescription: `YubiKey-encrypted: ${this.encryptedKeyPath}`,
-      }
-    } catch (error) {
-      // Clean up on error
-      try {
-        await fs.rm(tempDir, { recursive: true, force: true })
-      } catch {
-        // Ignore cleanup errors
-      }
-      throw error
+    // Note: Private key was generated in memory, no temp file cleanup needed
+
+    return {
+      privateKeyRef: this.encryptedKeyPath,
+      publicKeyPath,
+      storageDescription: `YubiKey-encrypted: ${this.encryptedKeyPath}`,
     }
   }
 
@@ -628,7 +618,7 @@ export class YubiKeyProvider implements KeyProvider {
 
     // Validate path is within config directory
     const resolvedPath = path.resolve(encryptedKeyPath)
-    const configDir = getAttestItConfigDir()
+    const configDir = getIdentityConfigDir()
     if (!resolvedPath.startsWith(configDir)) {
       throw new Error(
         `Encrypted key path must be within attest-it config directory (${configDir}). ` +
@@ -649,7 +639,7 @@ export class YubiKeyProvider implements KeyProvider {
     if (!(await YubiKeyProvider.isChallengeResponseConfigured(slot, serial))) {
       throw new Error(
         `YubiKey slot ${String(slot)} is not configured for HMAC challenge-response. ` +
-          'Ensure your YubiKey is connected and use "ykman otp chalresp --generate 2" to configure it.',
+          'Ensure your YubiKey is connected and use "ykman otp chalresp -t --generate 2" to configure it with touch required.',
       )
     }
 
@@ -750,6 +740,35 @@ async function execCommand(command: string, args: string[]): Promise<string> {
 }
 
 /**
+ * Execute an interactive command that shows stderr to user (for prompts).
+ * Used for operations requiring user interaction like YubiKey touch.
+ * @internal
+ */
+async function execInteractiveCommand(command: string, args: string[]): Promise<string> {
+  return new Promise((resolve, reject) => {
+    // inherit stderr so user sees "Touch your YubiKey..." prompt
+    const proc = spawn(command, args, { stdio: ['inherit', 'pipe', 'inherit'] })
+    let stdout = ''
+
+    proc.stdout.on('data', (data: Buffer) => {
+      stdout += data.toString()
+    })
+
+    proc.on('close', (code) => {
+      if (code === 0) {
+        resolve(stdout.trim())
+      } else {
+        reject(new Error(`Command failed with exit code ${String(code)}`))
+      }
+    })
+
+    proc.on('error', (error) => {
+      reject(error)
+    })
+  })
+}
+
+/**
  * Perform HMAC-SHA1 challenge-response with YubiKey.
  * @param challenge - Challenge bytes to send
  * @param slot - YubiKey slot (1 or 2)
@@ -762,21 +781,27 @@ async function performChallengeResponse(
   slot: 1 | 2,
   serial?: string,
 ): Promise<Buffer> {
-  const args = ['otp', 'chalresp', '--slot', String(slot)]
+  // Use 'ykman otp calculate' to perform challenge-response.
+  // Touch requirement should be configured at the hardware level when setting up
+  // the slot with 'ykman otp chalresp -t --generate <slot>'. This ensures human
+  // interaction is required at the YubiKey itself.
+  // We use execInteractiveCommand so any touch prompts are visible to the user.
+  const args = ['otp', 'calculate', String(slot), challenge.toString('hex')]
   if (serial) {
     args.unshift('--device', serial)
   }
-  args.push(challenge.toString('hex'))
 
   try {
-    const output = await execCommand('ykman', args)
+    const output = await execInteractiveCommand('ykman', args)
     // Response is hex-encoded
     return Buffer.from(output.trim(), 'hex')
   } catch {
     // Sanitized error - don't leak command details
     throw new Error(
       'YubiKey challenge-response failed. ' +
-        'Verify your YubiKey is inserted and the slot is configured for challenge-response.',
+        'Verify your YubiKey is inserted, touch it if prompted, ' +
+        'and ensure the slot is configured for challenge-response with touch required ' +
+        '(ykman otp chalresp -t --generate <slot>).',
     )
   }
 }

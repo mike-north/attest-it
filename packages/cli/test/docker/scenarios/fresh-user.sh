@@ -45,6 +45,7 @@ echo "Identity list output (exit $LIST_EXIT): $LIST_OUTPUT"
 echo "Creating minimal identity config manually..."
 mkdir -p "$CONFIG_DIR"
 cat > "$CONFIG_PATH" << 'YAML'
+version: 1
 activeIdentity: docker-test
 identities:
   docker-test:

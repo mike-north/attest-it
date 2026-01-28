@@ -81,10 +81,14 @@ async function runPrune(options: PruneOptions): Promise<void> {
       let fingerprintMatches = false
       if (suiteExists) {
         const suiteConfig = config.suites[attestation.suite]
-        if (suiteConfig?.packages) {
+        // Get fingerprint config from the referenced gate (in split model, gates are in policy)
+        const gateName = suiteConfig?.gate
+        // eslint-disable-next-line security/detect-object-injection -- Safe access with validated gate name
+        const gateConfig = gateName ? config.gates?.[gateName] : undefined
+        if (gateConfig) {
           const fingerprintOptions = {
-            packages: suiteConfig.packages,
-            ...(suiteConfig.ignore && { ignore: suiteConfig.ignore }),
+            packages: gateConfig.fingerprint.paths,
+            ...(gateConfig.fingerprint.exclude && { ignore: gateConfig.fingerprint.exclude }),
           }
           const result = await computeFingerprint(fingerprintOptions)
           fingerprintMatches = result.fingerprint === attestation.fingerprint

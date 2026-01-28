@@ -25,8 +25,8 @@
  */
 
 import { OnePasswordKeyProvider } from '@attest-it/core'
-import type { OnePasswordAccount, OnePasswordVault } from '@attest-it/core'
-import { select } from '@inquirer/prompts'
+import type { OnePasswordAccount, OnePasswordVault, InaccessibleAccount } from '@attest-it/core'
+import { select, confirm } from '@inquirer/prompts'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import { execa } from 'execa'
@@ -94,6 +94,26 @@ function info(message: string): void {
 }
 
 /**
+ * Print a phase banner to distinguish test setup from user-facing flow validation.
+ */
+function phaseBanner(phase: 'setup' | 'validation', title: string, description: string): void {
+  const isSetup = phase === 'setup'
+  const bgColor = isSetup ? colors.yellow : colors.green
+  const label = isSetup ? '🔧 TEST SETUP' : '👁️  USER-FACING FLOW'
+
+  console.log()
+  console.log(`${bgColor}${colors.bright}${'█'.repeat(80)}${colors.reset}`)
+  console.log(`${bgColor}${colors.bright}█${' '.repeat(78)}█${colors.reset}`)
+  console.log(`${bgColor}${colors.bright}█  ${label.padEnd(76)}█${colors.reset}`)
+  console.log(`${bgColor}${colors.bright}█  ${title.padEnd(76)}█${colors.reset}`)
+  console.log(`${bgColor}${colors.bright}█${' '.repeat(78)}█${colors.reset}`)
+  console.log(`${bgColor}${colors.bright}${'█'.repeat(80)}${colors.reset}`)
+  console.log()
+  console.log(`${colors.dim}${description}${colors.reset}`)
+  console.log()
+}
+
+/**
  * Test context for cleanup.
  */
 interface TestContext {
@@ -124,6 +144,12 @@ async function runIntegrationTest(): Promise<boolean> {
   console.log()
 
   try {
+    phaseBanner(
+      'setup',
+      'Configuring 1Password Test Environment',
+      'The following steps configure test infrastructure. UX does not need to be polished.\nYou may see 1Password authentication prompts - this is expected.',
+    )
+
     // Step 1: Check if op CLI is installed
     step('Step 1: Checking if 1Password CLI is installed')
     const isInstalled = await OnePasswordKeyProvider.isInstalled()
@@ -136,47 +162,60 @@ async function runIntegrationTest(): Promise<boolean> {
 
     // Step 2: List accounts
     step('Step 2: Listing 1Password accounts')
-    const accounts = await OnePasswordKeyProvider.listAccounts()
+    const { accounts, inaccessible } = await OnePasswordKeyProvider.listAccounts()
     if (accounts.length === 0) {
       error('No 1Password accounts found')
       info('Sign in to 1Password CLI with: op account add')
       return false
     }
-    success(`Found ${String(accounts.length)} account(s)`)
+    success(`Found ${String(accounts.length)} accessible account(s)`)
 
-    // Display accounts for user
+    // Display accessible accounts for user
     console.log('\nAvailable accounts:')
-    accounts.forEach((account: OnePasswordAccount, index) => {
+    accounts.forEach((account, index) => {
       const accountNumber = String(index + 1)
-      console.log(`  ${accountNumber}. ${account.email} (${account.url})`)
+      console.log(`  ${accountNumber}. ${account.name} (${account.url})`)
     })
+
+    // Display inaccessible accounts with reasons (so users understand why they're not offered)
+    if (inaccessible.length > 0) {
+      console.log(
+        `\n${colors.yellow}Accounts not available (${String(inaccessible.length)}):${colors.reset}`,
+      )
+      inaccessible.forEach((account: InaccessibleAccount) => {
+        console.log(`  ${colors.dim}- ${account.email} (${account.url})${colors.reset}`)
+        console.log(`    ${colors.dim}Reason: ${account.reason}${colors.reset}`)
+      })
+    }
 
     // Step 3: Select account
     step('Step 3: Selecting account')
-    let selectedAccount: OnePasswordAccount
+    // Type assertion: accounts from listAccounts() have guaranteed `name` property
+    let selectedAccount: OnePasswordAccount & { name: string }
     if (accounts.length === 1) {
       selectedAccount = accounts[0]
-      success(`Using only account: ${selectedAccount.email}`)
+      success(`Using only account: ${selectedAccount.name}`)
     } else {
-      const accountEmail = await select({
+      // Use account_uuid as the selection value (guaranteed unique)
+      const selectedUuid = await select({
         message: 'Select a 1Password account:',
-        choices: accounts.map((account: OnePasswordAccount) => ({
-          name: `${account.email} (${account.url})`,
-          value: account.email,
+        choices: accounts.map((account) => ({
+          name: `${account.name} (${account.url})`,
+          value: account.account_uuid,
         })),
       })
-      const found = accounts.find((a: OnePasswordAccount) => a.email === accountEmail)
+      const found = accounts.find((a) => a.account_uuid === selectedUuid)
       if (!found) {
         throw new Error('Selected account not found')
       }
       selectedAccount = found
-      success(`Selected: ${selectedAccount.email}`)
+      success(`Selected: ${selectedAccount.name}`)
     }
-    ctx.account = selectedAccount.email
+    ctx.account = selectedAccount.account_uuid
 
     // Step 4: List vaults
     step('Step 4: Listing vaults')
-    const vaults = await OnePasswordKeyProvider.listVaults(selectedAccount.email)
+    const vaults = await OnePasswordKeyProvider.listVaults(selectedAccount.account_uuid)
     if (vaults.length === 0) {
       error('No vaults found in account')
       return false
@@ -225,7 +264,7 @@ async function runIntegrationTest(): Promise<boolean> {
     info(`Item name: ${itemName}`)
 
     const provider = new OnePasswordKeyProvider({
-      account: selectedAccount.email,
+      accountUuid: selectedAccount.account_uuid,
       vault: vaultName,
       itemName,
     })
@@ -265,16 +304,18 @@ async function runIntegrationTest(): Promise<boolean> {
       success('Temporary key cleaned up')
     }
 
+    phaseBanner(
+      'validation',
+      'Testing Seal Creation & Verification',
+      'The following steps exercise the actual user-facing seal workflow.\nScrutinize UX, error messages, and behavior here.',
+    )
+
     // Step 10: Create a seal using the 1Password-stored key
     step('Step 10: Creating test seal with 1Password key')
     const { computeFingerprintSync, createSeal, writeSeals } = await import('@attest-it/core')
 
-    // Read the public key we generated
-    const publicKeyContent = await fs.readFile(publicKeyPath, 'utf-8')
-    const publicKeyBase64 = publicKeyContent
-      .split('\n')
-      .filter((line) => !line.startsWith('-----'))
-      .join('')
+    // Read the public key we generated (already base64-encoded raw Ed25519 key)
+    const publicKeyBase64 = (await fs.readFile(publicKeyPath, 'utf-8')).trim()
 
     // Update the project config to use the test identity
     const configPath = path.join(project.baseDir, '.attest-it', 'config.yaml')
@@ -313,15 +354,28 @@ async function runIntegrationTest(): Promise<boolean> {
     })
     info(`Fingerprint: ${fingerprint.fingerprint}`)
 
-    // Retrieve the private key for signing
+    // Ask user for confirmation before accessing 1Password to create the seal
+    const shouldCreateSeal = await confirm({
+      message: 'Do you want to create a seal? (This will prompt you to unlock 1Password)',
+      default: true,
+    })
+
+    if (!shouldCreateSeal) {
+      warn('Seal creation skipped by user')
+      console.log()
+      console.log(`${colors.bright}${colors.yellow}`)
+      console.log('='.repeat(80))
+      console.log('Test completed without seal creation (user skipped)')
+      console.log('='.repeat(80))
+      console.log(colors.reset)
+      return true
+    }
+
+    // Retrieve the private key for signing (will prompt for 1Password unlock)
     const { keyPath, cleanup } = await provider.getPrivateKey(itemName)
     try {
-      // Read the private key (base64 format needed for createSeal)
-      const privateKeyContent = await fs.readFile(keyPath, 'utf-8')
-      const privateKeyBase64 = privateKeyContent
-        .split('\n')
-        .filter((line) => !line.startsWith('-----'))
-        .join('')
+      // Read the private key (PEM format needed for createSeal)
+      const privateKeyPem = await fs.readFile(keyPath, 'utf-8')
 
       // Create the seal
       const gateId = 'simple-test-gate'
@@ -329,7 +383,7 @@ async function runIntegrationTest(): Promise<boolean> {
         gateId,
         fingerprint: fingerprint.fingerprint,
         sealedBy: 'test-user',
-        privateKey: privateKeyBase64,
+        privateKey: privateKeyPem,
       })
       success('Seal created successfully')
 
@@ -348,7 +402,7 @@ async function runIntegrationTest(): Promise<boolean> {
     step('Step 11: Verifying the seal')
     const { verifyGateSeal, loadConfigSync, readSealsSync } = await import('@attest-it/core')
 
-    const config = loadConfigSync(project.baseDir)
+    const config = loadConfigSync(configPath)
     const gateId = 'simple-test-gate'
     const sealsPath = path.join(project.baseDir, '.attest-it', 'seals.json')
     const sealsFile = readSealsSync(sealsPath)

@@ -51,15 +51,9 @@ suites:
   example:
     description: Example test suite
     gate: example-gate
-    packages:
-      - packages/example
-    files:
-      - packages/example/test/**/*.test.ts
     command: echo "example tests passed"
 
   failing:
     description: Suite with failing tests
     gate: failing-gate
-    packages:
-      - packages/example
     command: exit 1

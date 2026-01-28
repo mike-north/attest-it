@@ -4,7 +4,7 @@ import {
   generateEd25519KeyPair,
   loadLocalConfig,
   saveLocalConfig,
-  getAttestItConfigDir,
+  getIdentityConfigDir,
   OnePasswordKeyProvider,
   MacOSKeychainKeyProvider,
   YubiKeyProvider,
@@ -91,7 +91,7 @@ async function runCreate(): Promise<void> {
     }
 
     // Build choices based on availability
-    const configDir = getAttestItConfigDir()
+    const configDir = getIdentityConfigDir()
     const storageChoices: { name: string; value: string }[] = [
       { name: `File system (${join(configDir, 'keys')})`, value: 'file' },
     ]
@@ -142,7 +142,7 @@ async function runCreate(): Promise<void> {
     }
     interface OnePasswordStorageConfig {
       type: '1password'
-      selectedAccount: string
+      selectedAccountUuid: string
       accountDisplayName: string
       selectedVault: string
       item: string
@@ -164,7 +164,7 @@ async function runCreate(): Promise<void> {
     switch (keyStorageType) {
       case 'file': {
         // Determine file path (respects --home-dir override)
-        const keysDir = join(getAttestItConfigDir(), 'keys')
+        const keysDir = join(getIdentityConfigDir(), 'keys')
         const keyPath = join(keysDir, `${slug}.pem`)
         storageConfig = { type: 'file', keyPath }
         break
@@ -236,8 +236,8 @@ async function runCreate(): Promise<void> {
           'You may see biometric prompts or be asked to unlock 1Password for each configured account.',
         )
 
-        // List available 1Password accounts
-        const accounts = await OnePasswordKeyProvider.listAccounts()
+        // List available 1Password accounts (includes friendly names from OnePasswordKeyProvider)
+        const { accounts, inaccessible } = await OnePasswordKeyProvider.listAccounts()
 
         if (accounts.length === 0) {
           throw new Error(
@@ -245,79 +245,50 @@ async function runCreate(): Promise<void> {
           )
         }
 
-        // Fetch detailed account info (including friendly name) for each account
-        const { execFile } = await import('node:child_process')
-        const { promisify } = await import('node:util')
-        const execFileAsync = promisify(execFile)
-
-        interface AccountDetails {
-          url: string
-          email: string
-          name: string // Friendly name from `op account get`
+        // Report inaccessible accounts so users understand why they're not offered
+        if (inaccessible.length > 0) {
+          log('')
+          log(theme.yellow(`Some accounts could not be accessed (${String(inaccessible.length)}):`))
+          for (const acc of inaccessible) {
+            log(theme.muted(`  - ${acc.email} (${acc.url})`))
+            log(theme.muted(`    Reason: ${acc.reason}`))
+          }
         }
 
-        const accountDetails: AccountDetails[] = await Promise.all(
-          accounts.map(async (acc) => {
-            try {
-              // Use user_uuid for unique lookup (URL can be shared by multiple accounts)
-              const { stdout } = await execFileAsync('op', [
-                'account',
-                'get',
-                '--account',
-                acc.user_uuid,
-                '--format=json',
-              ])
-              const details: unknown = JSON.parse(stdout)
-              // Extract name if it exists and is a string
-              const name =
-                details !== null &&
-                typeof details === 'object' &&
-                'name' in details &&
-                typeof details.name === 'string'
-                  ? details.name
-                  : '[Could not read account name]'
-              return {
-                url: acc.url,
-                email: acc.email,
-                name,
-              }
-            } catch {
-              // Fallback if we can't get account details (e.g., vault locked)
-              return {
-                url: acc.url,
-                email: acc.email,
-                name: '[Could not read account name]',
-              }
-            }
-          }),
-        )
-
         // Format account display with bold name and dim domain (matching `op signin` style)
-        const formatAccountChoice = (acc: AccountDetails): string => {
+        // Provider guarantees name is present for all returned accounts
+        const formatAccountChoice = (acc: { name: string; url: string }): string => {
           return `${theme.blue.bold()(acc.name)} ${theme.muted(`(${acc.url})`)}`
         }
 
         // Select account (auto-select if only one)
-        // Use URL as the account identifier (required by `op` CLI)
-        let selectedAccount: string
-        if (accountDetails.length === 1 && accountDetails[0]) {
-          selectedAccount = accountDetails[0].url
-          info(`Using 1Password account: ${formatAccountChoice(accountDetails[0])}`)
+        // Use account_uuid as the identifier (required by `op` CLI)
+        let selectedAccountUuid: string
+        let selectedAccountDisplayName: string
+        if (accounts.length === 1 && accounts[0]) {
+          selectedAccountUuid = accounts[0].account_uuid
+          selectedAccountDisplayName = accounts[0].name
+          info(`Using 1Password account: ${formatAccountChoice(accounts[0])}`)
         } else {
-          selectedAccount = await select({
+          selectedAccountUuid = await select({
             message: 'Select 1Password account:',
-            choices: accountDetails.map((acc) => ({
+            choices: accounts.map((acc) => ({
               name: formatAccountChoice(acc),
-              value: acc.url,
+              value: acc.account_uuid,
             })),
           })
+          const selectedAcc = accounts.find((acc) => acc.account_uuid === selectedAccountUuid)
+          if (!selectedAcc) {
+            throw new Error('Selected account not found')
+          }
+          selectedAccountDisplayName = selectedAcc.name
         }
 
         // List vaults for selected account
-        const vaults = await OnePasswordKeyProvider.listVaults(selectedAccount)
+        const vaults = await OnePasswordKeyProvider.listVaults(selectedAccountUuid)
 
         if (vaults.length === 0) {
-          throw new Error(`No vaults found in 1Password account: ${selectedAccount}`)
+          throw new Error(`No vaults found in 1Password account: ${selectedAccountDisplayName}`)
         }
 
         // Select vault
@@ -341,14 +312,10 @@ async function runCreate(): Promise<void> {
           },
         })
 
-        // Get account display name for description
-        const selectedAccountDetails = accountDetails.find((acc) => acc.url === selectedAccount)
-        const accountDisplayName = selectedAccountDetails?.name ?? selectedAccount
-
         storageConfig = {
           type: '1password',
-          selectedAccount,
-          accountDisplayName,
+          selectedAccountUuid,
+          accountDisplayName: selectedAccountDisplayName,
           selectedVault,
           item,
         }
@@ -429,7 +396,7 @@ async function runCreate(): Promise<void> {
         })
 
         // Determine encrypted key path
-        const keysDir = join(getAttestItConfigDir(), 'keys')
+        const keysDir = join(getIdentityConfigDir(), 'keys')
         const encryptedKeyPath = join(keysDir, encryptedKeyName)
 
         storageConfig = { type: 'yubikey', selectedSerial, slot, encryptedKeyPath }
@@ -463,7 +430,7 @@ async function runCreate(): Promise<void> {
         info('Creating private key file on disk...')
 
         // Save to filesystem (respects --home-dir override)
-        const keysDir = join(getAttestItConfigDir(), 'keys')
+        const keysDir = join(getIdentityConfigDir(), 'keys')
         await mkdir(keysDir, { recursive: true })
         await writeFile(storageConfig.keyPath, keyPair.privateKey, { mode: 0o600 })
 
@@ -535,15 +502,17 @@ async function runCreate(): Promise<void> {
             '--vault',
             storageConfig.selectedVault,
             '--account',
-            storageConfig.selectedAccount,
+            storageConfig.selectedAccountUuid,
           ]
 
           await execFileAsync('op', opArgs)
         } finally {
           // Clean up temp files
           const { rm } = await import('node:fs/promises')
-          await rm(tempDir, { recursive: true, force: true }).catch(() => {
-            // Ignore cleanup errors
+          await rm(tempDir, { recursive: true, force: true }).catch((err: unknown) => {
+            // Log cleanup errors as warnings but don't fail the operation
+            const errorMsg = err instanceof Error ? err.message : String(err)
+            console.warn(`Warning: Failed to clean up temp directory ${tempDir}: ${errorMsg}`)
           })
         }
 
@@ -551,7 +520,7 @@ async function runCreate(): Promise<void> {
           type: '1password',
           vault: storageConfig.selectedVault,
           item: storageConfig.item,
-          account: storageConfig.selectedAccount,
+          account: storageConfig.selectedAccountUuid,
         }
 
         keyStorageDescription = `1Password (${storageConfig.accountDisplayName}/${storageConfig.selectedVault}/${storageConfig.item})`
@@ -559,7 +528,7 @@ async function runCreate(): Promise<void> {
       }
       case 'yubikey': {
         // Create keys directory if needed
-        const keysDir = join(getAttestItConfigDir(), 'keys')
+        const keysDir = join(getIdentityConfigDir(), 'keys')
         await mkdir(keysDir, { recursive: true })
 
         // Encrypt the private key with YubiKey challenge-response
@@ -604,6 +573,7 @@ async function runCreate(): Promise<void> {
     } else {
       // Create new config with this identity as active
       newConfig = {
+        version: 1,
         activeIdentity: slug,
         identities: {
           [slug]: identity,

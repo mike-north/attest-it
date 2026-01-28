@@ -5,10 +5,36 @@ settings:
   attestationsPath: .attest-it/attestations.json
   defaultCommand: pnpm test
 
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
+  visual-gate:
+    name: Visual Gate
+    description: Visual test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - packages/visual
+    maxAge: 30d
+
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
     depends_on:
       - visual-effects
       - ''
+  visual-effects:
+    gate: visual-gate

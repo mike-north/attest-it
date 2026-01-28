@@ -15,7 +15,7 @@ describe('TestRunner component', () => {
   })
 
   describe('initial rendering', () => {
-    it('should show spinner while running first test', async () => {
+    it('should hide UI while test is executing', async () => {
       executeTest.mockReturnValue(new Promise(() => {})) // Never resolves
 
       const { lastFrame } = render(
@@ -30,8 +30,10 @@ describe('TestRunner component', () => {
       // Wait for effect to run (increased for CI stability)
       await new Promise((resolve) => setTimeout(resolve, 50))
 
+      // While executing, the component should return null to avoid TUI interference
+      // with child process output
       const output = lastFrame() ?? ''
-      expect(output).toContain('Running test-suite-1')
+      expect(output).toBe('')
       expect(executeTest).toHaveBeenCalledWith('test-suite-1')
     })
 
@@ -93,7 +95,7 @@ describe('TestRunner component', () => {
       const output = lastFrame() ?? ''
       expect(output).toContain('Tests passed')
       expect(output).toContain('Create attestation for test-suite-1')
-      expect(output).toContain('[Y/n]')
+      expect(output).toContain('[y/n]')
     })
 
     it('should move to next suite after test failure', async () => {

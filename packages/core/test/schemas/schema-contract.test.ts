@@ -184,15 +184,13 @@ describe('Schema Contract Tests', () => {
         version: 1,
         suites: {
           basic: {
+            gate: 'basic-gate',
             command: 'npm test',
           },
           full: {
             gate: 'my-gate',
             description: 'Full test',
             command: 'npm test',
-            packages: ['pkg-a'],
-            files: ['src/**'],
-            ignore: ['**/*.spec.ts'],
             timeout: '5m',
             interactive: true,
             invalidates: ['other-suite'],
@@ -267,6 +265,7 @@ describe('Schema Contract Tests', () => {
 
     it('should accept file-based private keys', () => {
       const config = {
+        version: 1,
         activeIdentity: 'test',
         identities: {
           test: {
@@ -284,6 +283,7 @@ describe('Schema Contract Tests', () => {
 
     it('should accept keychain-based private keys', () => {
       const config = {
+        version: 1,
         activeIdentity: 'test',
         identities: {
           test: {
@@ -302,6 +302,7 @@ describe('Schema Contract Tests', () => {
 
     it('should accept keychain with optional keychain path', () => {
       const config = {
+        version: 1,
         activeIdentity: 'test',
         identities: {
           test: {
@@ -321,6 +322,7 @@ describe('Schema Contract Tests', () => {
 
     it('should accept 1Password-based private keys', () => {
       const config = {
+        version: 1,
         activeIdentity: 'test',
         identities: {
           test: {
@@ -339,6 +341,7 @@ describe('Schema Contract Tests', () => {
 
     it('should accept 1Password with all optional fields', () => {
       const config = {
+        version: 1,
         activeIdentity: 'test',
         identities: {
           test: {
@@ -359,6 +362,7 @@ describe('Schema Contract Tests', () => {
 
     it('should accept identity with optional email and github', () => {
       const config = {
+        version: 1,
         activeIdentity: 'test',
         identities: {
           test: {
@@ -398,6 +402,7 @@ describe('Schema Contract Tests', () => {
 
     it('should reject identity missing required privateKey', () => {
       const config = {
+        version: 1,
         activeIdentity: 'test',
         identities: {
           test: {

@@ -2,6 +2,7 @@
 # Sample valid identity configuration for schema contract testing.
 # DO NOT modify this file's structure without updating the schema version!
 
+version: 1
 activeIdentity: alice
 
 identities:

@@ -10,6 +10,18 @@ interface SelectionOption {
   hint?: string
 }
 
+/**
+ * Group option with a keyboard shortcut.
+ */
+interface GroupOption {
+  /** Keyboard shortcut (e.g., "g1") */
+  name: string
+  /** Group display name */
+  label: string
+  /** Optional description (e.g., "select all in unit-tests") */
+  description?: string | undefined
+}
+
 export interface SelectionPromptProps {
   /** Question to display */
   message: string
@@ -18,7 +30,7 @@ export interface SelectionPromptProps {
   /** Callback when option selected */
   onSelect: (value: string) => void
   /** Show group options if available */
-  groups?: { name: string; label: string }[] | undefined
+  groups?: GroupOption[] | undefined
 }
 
 /**
@@ -68,12 +80,16 @@ export function SelectionPrompt({
         ))}
       </Box>
       {groups && groups.length > 0 && (
-        <Box marginTop={1} gap={2}>
-          {groups.map((group) => (
-            <Text key={group.name}>
-              <Text color="cyan">[{group.name}]</Text> {group.label}
-            </Text>
-          ))}
+        <Box marginTop={1} flexDirection="column">
+          <Text dimColor>Groups (type shortcut to select all suites in group):</Text>
+          <Box gap={3} marginTop={1}>
+            {groups.map((group) => (
+              <Text key={group.name}>
+                <Text color="cyan">[{group.name}]</Text> {group.label}
+                {group.description && <Text dimColor> - {group.description}</Text>}
+              </Text>
+            ))}
+          </Box>
         </Box>
       )}
     </Box>

@@ -32,6 +32,19 @@ gates:
       exclude:
         - '**/*.spec.ts'
     maxAge: 90d
+  unit-tests-gate:
+    name: Unit Tests Gate
+    description: Unit tests gate
+    authorizedSigners:
+      - alice
+      - bob
+    fingerprint:
+      paths:
+        - packages/core
+        - src/**/*.ts
+      exclude:
+        - '**/*.test.ts'
+    maxAge: 30d
 
 suites:
   visual-tests:
@@ -41,14 +54,9 @@ suites:
     timeout: 5m
     interactive: true
   unit-tests:
+    gate: unit-tests-gate
     description: Unit tests
     command: pnpm test
-    packages:
-      - packages/core
-    files:
-      - src/**/*.ts
-    ignore:
-      - '**/*.test.ts'
     depends_on:
       - visual-tests
 

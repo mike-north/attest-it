@@ -264,11 +264,13 @@ async function runDirectMode(options: RunOptions): Promise<void> {
     process.exit(ExitCode.CONFIG_ERROR)
   }
 
-  // Check for dirty working tree
-  const isDirty = await checkDirtyWorkingTree()
-  if (isDirty) {
-    error('Working tree has uncommitted changes. Please commit or stash before attesting.')
-    process.exit(ExitCode.CONFIG_ERROR)
+  // Check for dirty working tree (skip if ATTEST_IT_ALLOW_DIRTY is set - for dogfooding)
+  if (!process.env.ATTEST_IT_ALLOW_DIRTY) {
+    const isDirty = await checkDirtyWorkingTree()
+    if (isDirty) {
+      error('Working tree has uncommitted changes. Please commit or stash before attesting.')
+      process.exit(ExitCode.CONFIG_ERROR)
+    }
   }
 
   // Run the suite
@@ -318,11 +320,13 @@ async function runAllPending(options: RunOptions): Promise<void> {
     process.exit(ExitCode.SUCCESS)
   }
 
-  // Check for dirty working tree
-  const isDirty = await checkDirtyWorkingTree()
-  if (isDirty) {
-    error('Working tree has uncommitted changes. Please commit or stash before attesting.')
-    process.exit(ExitCode.CONFIG_ERROR)
+  // Check for dirty working tree (skip if ATTEST_IT_ALLOW_DIRTY is set - for dogfooding)
+  if (!process.env.ATTEST_IT_ALLOW_DIRTY) {
+    const isDirty = await checkDirtyWorkingTree()
+    if (isDirty) {
+      error('Working tree has uncommitted changes. Please commit or stash before attesting.')
+      process.exit(ExitCode.CONFIG_ERROR)
+    }
   }
 
   // Run each suite using existing direct mode logic
@@ -357,24 +361,28 @@ async function runSingleSuite(
     process.exit(ExitCode.CONFIG_ERROR)
   }
 
-  if (!suiteConfig.packages) {
-    error(`Suite "${suiteName}" has no packages defined`)
+  // Look up the gate configuration
+  const gateId = suiteConfig.gate
+  // eslint-disable-next-line security/detect-object-injection -- gateId is from validated config
+  const gateConfig = config.gates?.[gateId]
+  if (!gateConfig) {
+    error(`Gate "${gateId}" not found for suite "${suiteName}"`)
     process.exit(ExitCode.CONFIG_ERROR)
   }
 
   log(`\n=== Running suite: ${suiteName} ===\n`)
 
-  // Compute fingerprint before running
+  // Compute fingerprint using gate's fingerprint configuration
   const fingerprintOptions = {
-    packages: suiteConfig.packages,
-    ...(suiteConfig.ignore && { ignore: suiteConfig.ignore }),
+    packages: gateConfig.fingerprint.paths,
+    ...(gateConfig.fingerprint.exclude && { ignore: gateConfig.fingerprint.exclude }),
   }
   const fingerprintResult = await computeFingerprint(fingerprintOptions)
   verbose(`Fingerprint: ${fingerprintResult.fingerprint}`)
   verbose(`Files: ${String(fingerprintResult.fileCount)}`)
 
   // Build the test command
-  const command = buildCommand(config, suiteConfig.command, suiteConfig.files)
+  const command = buildCommand(config, suiteConfig.command)
   log(`Running: ${command}`)
   log('')
 
@@ -603,18 +611,16 @@ function createKeyProviderFromIdentity(
       return KeyProviderRegistry.create({
         type: 'macos-keychain',
         options: {
-          service: privateKey.service,
-          account: privateKey.account,
+          itemName: privateKey.service,
         },
       })
     case '1password':
       return KeyProviderRegistry.create({
         type: '1password',
         options: {
-          account: privateKey.account,
+          accountUuid: privateKey.account,
           vault: privateKey.vault,
           itemName: privateKey.item,
-          field: privateKey.field,
         },
       })
     case 'yubikey':

@@ -28,6 +28,8 @@ export type {
   OnePasswordKeyProviderOptions,
   OnePasswordAccount,
   OnePasswordVault,
+  InaccessibleAccount,
+  ListAccountsResult,
 } from './one-password-provider.js'
 
 // macOS Keychain provider

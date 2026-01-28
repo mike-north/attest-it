@@ -1,7 +1,7 @@
 import React from 'react'
 import { Box, Text } from 'ink'
 import { StatusBadge } from './StatusBadge.js'
-import type { VerificationStatus } from '@attest-it/core'
+import type { VerificationState } from '@attest-it/core'
 
 /**
  * Information about a single suite for display in the table.
@@ -11,7 +11,7 @@ export interface SuiteInfo {
   /** Suite name */
   name: string
   /** Current verification status */
-  status: VerificationStatus
+  status: VerificationState
   /** Human-readable reason (e.g., "32 days old (max: 30)") */
   reason: string
   /** Days since attestation (if exists) */
@@ -29,6 +29,8 @@ export interface SuiteTableProps {
   selectable?: boolean | undefined
   /** Currently selected suite names */
   selected?: Set<string> | undefined
+  /** Index of the currently focused row (for keyboard navigation) */
+  cursorIndex?: number | undefined
 }
 
 /**
@@ -50,14 +52,17 @@ export function SuiteTable({
   suites,
   selectable = false,
   selected = new Set(),
+  cursorIndex,
 }: SuiteTableProps): React.ReactElement {
   // Calculate column widths
   const columnWidths = calculateColumnWidths(suites, selectable)
+  const showCursor = cursorIndex !== undefined
 
   return (
     <Box flexDirection="column">
       {/* Header */}
       <Box>
+        {showCursor && <Text>{'  '}</Text>}
         {selectable && <Text>{' '.repeat(4)}</Text>}
         <Text bold>{padEnd('Status', columnWidths.status)}</Text>
         <Text> </Text>
@@ -70,24 +75,38 @@ export function SuiteTable({
       <Box>
         <Text color="gray">
           {'─'.repeat(
-            (selectable ? 4 : 0) + columnWidths.status + columnWidths.suite + columnWidths.reason,
+            (showCursor ? 2 : 0) +
+              (selectable ? 4 : 0) +
+              columnWidths.status +
+              columnWidths.suite +
+              columnWidths.reason,
           )}
         </Text>
       </Box>
 
       {/* Rows */}
-      {suites.map((suite) => (
-        <Box key={suite.name}>
-          {selectable && <Text>{selected.has(suite.name) ? '[✓] ' : '[ ] '}</Text>}
-          <Box width={columnWidths.status}>
-            <StatusBadge status={suite.status} />
+      {suites.map((suite, index) => {
+        const isCurrent = showCursor && index === cursorIndex
+        return (
+          <Box key={suite.name}>
+            {showCursor && <Text color="cyan">{isCurrent ? '› ' : '  '}</Text>}
+            {selectable && (
+              <Text {...(isCurrent ? { color: 'cyan' } : {})}>
+                {selected.has(suite.name) ? '[✓] ' : '[ ] '}
+              </Text>
+            )}
+            <Box width={columnWidths.status}>
+              <StatusBadge status={suite.status} />
+            </Box>
+            <Text> </Text>
+            <Text {...(isCurrent ? { color: 'cyan' } : {})}>
+              {padEnd(suite.name, columnWidths.suite)}
+            </Text>
+            <Text> </Text>
+            <Text color="gray">{suite.reason}</Text>
           </Box>
-          <Text> </Text>
-          <Text>{padEnd(suite.name, columnWidths.suite)}</Text>
-          <Text> </Text>
-          <Text color="gray">{suite.reason}</Text>
-        </Box>
-      ))}
+        )
+      })}
     </Box>
   )
 }

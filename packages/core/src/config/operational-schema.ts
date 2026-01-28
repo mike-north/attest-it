@@ -36,35 +36,18 @@ const operationalSettingsSchema = z
 /**
  * Zod schema for a suite configuration.
  * Suites are CLI-layer extensions of gates with command execution capabilities.
- * For backward compatibility, suites can define their own fingerprint via packages/files/ignore.
  */
 const suiteSchema = z
   .object({
-    // Gate fields (if present, this suite references a gate)
-    gate: z.string().optional(),
-    // Legacy fingerprint definition (for backward compatibility)
+    gate: z.string().min(1, 'Gate reference cannot be empty'),
     description: z.string().optional(),
-    packages: z.array(z.string().min(1, 'Package path cannot be empty')).optional(),
-    files: z.array(z.string().min(1, 'File path cannot be empty')).optional(),
-    ignore: z.array(z.string().min(1, 'Ignore pattern cannot be empty')).optional(),
-    // CLI-specific fields
     command: z.string().optional(),
     timeout: z.string().optional(),
     interactive: z.boolean().optional(),
-    // Relationship fields
     invalidates: z.array(z.string().min(1, 'Invalidated suite name cannot be empty')).optional(),
     depends_on: z.array(z.string().min(1, 'Dependency suite name cannot be empty')).optional(),
   })
   .strict()
-  .refine(
-    (suite) => {
-      // Either gate is specified, or packages is specified (for legacy compatibility)
-      return suite.gate !== undefined || (suite.packages !== undefined && suite.packages.length > 0)
-    },
-    {
-      message: 'Suite must either reference a gate or define packages for fingerprinting',
-    },
-  )
 
 /**
  * Zod schema for the operational configuration file.

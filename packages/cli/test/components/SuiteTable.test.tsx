@@ -7,13 +7,13 @@ describe('SuiteTable component', () => {
   const mockSuites: SuiteInfo[] = [
     {
       name: 'visual-effects',
-      status: 'EXPIRED',
+      status: 'STALE',
       reason: '32 days old (max: 30)',
       age: 32,
     },
     {
       name: 'focus-detection',
-      status: 'NEEDS_ATTESTATION',
+      status: 'MISSING',
       reason: 'No attestation found',
     },
     {
@@ -50,8 +50,8 @@ describe('SuiteTable component', () => {
       const output = lastFrame() ?? ''
 
       // Should contain status text
-      expect(output).toContain('STALE') // EXPIRED -> STALE
-      expect(output).toContain('MISSING') // NEEDS_ATTESTATION -> MISSING
+      expect(output).toContain('STALE')
+      expect(output).toContain('MISSING')
       expect(output).toContain('✓ VALID')
     })
 
@@ -126,7 +126,7 @@ describe('SuiteTable component', () => {
       const longReasonSuite: SuiteInfo[] = [
         {
           name: 'test-suite',
-          status: 'FINGERPRINT_CHANGED',
+          status: 'FINGERPRINT_MISMATCH',
           reason:
             'Fingerprint changed from sha256:abcdef1234567890 to sha256:1234567890abcdef due to modifications in multiple files',
         },
@@ -143,7 +143,7 @@ describe('SuiteTable component', () => {
       const noAgeSuite: SuiteInfo[] = [
         {
           name: 'no-age',
-          status: 'NEEDS_ATTESTATION',
+          status: 'MISSING',
           reason: 'Never attested',
         },
       ]
@@ -220,11 +220,11 @@ describe('SuiteTable component', () => {
     it('should render all status types correctly', () => {
       const allStatusSuites: SuiteInfo[] = [
         { name: 'valid-suite', status: 'VALID', reason: 'Valid' },
-        { name: 'missing-suite', status: 'NEEDS_ATTESTATION', reason: 'Missing' },
-        { name: 'changed-suite', status: 'FINGERPRINT_CHANGED', reason: 'Changed' },
-        { name: 'stale-suite', status: 'EXPIRED', reason: 'Stale' },
-        { name: 'invalid-suite', status: 'SIGNATURE_INVALID', reason: 'Invalid' },
-        { name: 'invalidated-suite', status: 'INVALIDATED_BY_PARENT', reason: 'Invalidated' },
+        { name: 'missing-suite', status: 'MISSING', reason: 'Missing' },
+        { name: 'changed-suite', status: 'FINGERPRINT_MISMATCH', reason: 'Changed' },
+        { name: 'stale-suite', status: 'STALE', reason: 'Stale' },
+        { name: 'invalid-suite', status: 'INVALID_SIGNATURE', reason: 'Invalid' },
+        { name: 'unauthorized-suite', status: 'UNKNOWN_SIGNER', reason: 'Unauthorized' },
       ]
 
       const { lastFrame } = render(<SuiteTable suites={allStatusSuites} />)
@@ -236,7 +236,7 @@ describe('SuiteTable component', () => {
       expect(output).toContain('changed-suite')
       expect(output).toContain('stale-suite')
       expect(output).toContain('invalid-suite')
-      expect(output).toContain('invalidated-suite')
+      expect(output).toContain('unauthorized-suite')
 
       // Check all status displays are present
       expect(output).toContain('✓ VALID')
@@ -244,14 +244,14 @@ describe('SuiteTable component', () => {
       expect(output).toContain('CHANGED')
       expect(output).toContain('STALE')
       expect(output).toContain('INVALID')
-      expect(output).toContain('INVALIDATED')
+      expect(output).toContain('UNAUTHORIZED')
     })
   })
 
   describe('component lifecycle', () => {
     it('should update when suites change', () => {
       const initial: SuiteInfo[] = [{ name: 'initial-suite', status: 'VALID', reason: 'Initial' }]
-      const updated: SuiteInfo[] = [{ name: 'updated-suite', status: 'EXPIRED', reason: 'Updated' }]
+      const updated: SuiteInfo[] = [{ name: 'updated-suite', status: 'STALE', reason: 'Updated' }]
 
       const { lastFrame, rerender } = render(<SuiteTable suites={initial} />)
 

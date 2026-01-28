@@ -7,7 +7,7 @@ import * as crypto from 'node:crypto'
 // Mock the identity config module to return our test directory as the config dir
 let mockConfigDir = '/tmp/attest-it-test'
 vi.mock('../../src/identity/config.js', () => ({
-  getAttestItConfigDir: () => mockConfigDir,
+  getIdentityConfigDir: () => mockConfigDir,
 }))
 
 // Import after mocking
@@ -416,11 +416,11 @@ describe('YubiKeyProvider', () => {
 
         // Set up spawn mock to return our fixed response for challenge-response
         // The sequence of calls will be:
-        // 1. isChallengeResponseConfigured -> otp info
-        // 2. performChallengeResponse -> otp chalresp
+        // 1. isChallengeResponseConfigured -> otp calculate (test challenge-response)
+        // 2. performChallengeResponse -> otp calculate (actual challenge-response)
         await setupSpawnMock([
-          { stdout: 'Slot 2: programmed (challenge-response)', exitCode: 0 },
-          { stdout: fixedResponseHex, exitCode: 0 },
+          { stdout: fixedResponseHex, exitCode: 0 }, // isChallengeResponseConfigured
+          { stdout: fixedResponseHex, exitCode: 0 }, // performChallengeResponse
         ])
 
         const testPrivateKey = `-----BEGIN PRIVATE KEY-----
@@ -458,7 +458,7 @@ MC4CAQAwBQYDK2VwBCIEIKgHJ1234567890abcdefghijklmnopqrstuvwxyz
         const fixedResponseHex = fixedResponse.toString('hex')
 
         await setupSpawnMock([
-          { stdout: 'Slot 2: programmed (challenge-response)', exitCode: 0 },
+          { stdout: fixedResponseHex, exitCode: 0 }, // isChallengeResponseConfigured
           { stdout: fixedResponseHex, exitCode: 0 },
         ])
 
@@ -497,7 +497,7 @@ MC4CAQAwBQYDK2VwBCIEIKgHJ1234567890abcdefghijklmnopqrstuvwxyz
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
         await setupSpawnMock([
-          { stdout: 'Slot 2: programmed (challenge-response)', exitCode: 0 },
+          { stdout: fixedResponseHex, exitCode: 0 }, // isChallengeResponseConfigured
           { stdout: fixedResponseHex, exitCode: 0 },
         ])
 
@@ -549,7 +549,7 @@ MC4CAQAwBQYDK2VwBCIEIKgHJ1234567890abcdefghijklmnopqrstuvwxyz
         const fixedResponseHex = fixedResponse.toString('hex')
 
         await setupSpawnMock([
-          { stdout: 'Slot 2: programmed (challenge-response)', exitCode: 0 },
+          { stdout: fixedResponseHex, exitCode: 0 }, // isChallengeResponseConfigured
           { stdout: fixedResponseHex, exitCode: 0 },
         ])
 
@@ -584,9 +584,10 @@ MC4CAQAwBQYDK2VwBCIEIKgHJ1234567890abcdefghijklmnopqrstuvwxyz
         // Test that encryption fails when slot is not configured for challenge-response
         const encryptedKeyPath = path.join(mockTmpDir, 'test-not-configured.enc')
 
-        // Mock: isChallengeResponseConfigured returns false (slot not programmed)
+        // Mock: isChallengeResponseConfigured returns false (otp calculate fails)
+        // Now we use 'ykman otp calculate' to test challenge-response directly
         await setupSpawnMock([
-          { stdout: 'Slot 2: empty', exitCode: 0 }, // otp info shows slot is empty
+          { stdout: '', exitCode: 1 }, // otp calculate fails when slot not configured
         ])
 
         await expect(

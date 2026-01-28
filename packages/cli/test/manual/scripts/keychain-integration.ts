@@ -22,6 +22,7 @@ import {
   readSealsSync,
   writeSealsSync,
   computeFingerprintSync,
+  getPublicKeyFromPrivate,
 } from '@attest-it/core'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
@@ -137,6 +138,18 @@ async function main(): Promise<void> {
     log(symbols.success, `Test project: ${tempDir}`, 'green')
 
     // Step 5: Generate keypair and store in Keychain
+    console.log(`\n${colors.yellow}${'─'.repeat(80)}`)
+    console.log(`${symbols.info} KEYCHAIN ACCESS WARNING`)
+    console.log(`${'─'.repeat(80)}${colors.reset}`)
+    console.log(
+      `${colors.yellow}The next step will generate an Ed25519 keypair and store the private key`,
+    )
+    console.log(`in your macOS Keychain. You may be prompted to allow access.`)
+    console.log(``)
+    console.log(`This is expected behavior for testing keychain integration.`)
+    console.log(`The test key will be deleted automatically when the test completes.`)
+    console.log(`${'─'.repeat(80)}${colors.reset}\n`)
+
     log(symbols.info, 'Generating keypair and storing in Keychain...', 'blue')
     const publicKeyPath = path.join(attestItDir, 'test-pubkey.pem')
     const keygenResult = await provider.generateKeyPair({
@@ -154,17 +167,21 @@ async function main(): Promise<void> {
     }
     log(symbols.success, 'Key verified in Keychain', 'green')
 
-    // Step 7: Read public key to get base64 format for config
-    log(symbols.info, 'Reading public key...', 'blue')
-    const publicKeyPem = await fs.readFile(publicKeyPath, 'utf8')
-    // Extract base64 content from PEM (remove header/footer)
-    const publicKeyBase64 = publicKeyPem
-      .split('\n')
-      .filter((line) => !line.startsWith('-----'))
-      .join('')
-    log(symbols.success, 'Public key read successfully', 'green')
+    // Step 7: Retrieve private key from Keychain to derive public key
+    log(symbols.info, 'Retrieving private key from Keychain...', 'blue')
+    const keyRetrieval = await provider.getPrivateKey(keygenResult.privateKeyRef)
+    const privateKeyPem = await fs.readFile(keyRetrieval.keyPath, 'utf8')
+    log(symbols.success, 'Private key retrieved from Keychain', 'green')
 
-    // Step 8: Create minimal test project config
+    // Step 8: Derive raw 32-byte public key from private key for config
+    // The team config expects the raw Ed25519 public key (32 bytes, base64 encoded)
+    // NOT the full SPKI-encoded PEM content
+    log(symbols.info, 'Deriving public key from private key...', 'blue')
+
+    const publicKeyBase64 = getPublicKeyFromPrivate(privateKeyPem)
+    log(symbols.success, 'Public key derived successfully', 'green')
+
+    // Step 9: Create minimal test project config
     log(symbols.info, 'Creating test project configuration...', 'blue')
     const config: AttestItConfig = {
       version: 1,
@@ -195,14 +212,14 @@ async function main(): Promise<void> {
     }
     log(symbols.success, 'Configuration created', 'green')
 
-    // Step 9: Create test source files for fingerprinting
+    // Step 10: Create test source files for fingerprinting
     log(symbols.info, 'Creating test source files...', 'blue')
     const srcDir = path.join(tempDir, 'src')
     await fs.mkdir(srcDir, { recursive: true })
     await fs.writeFile(path.join(srcDir, 'test.js'), 'console.log("test");\n')
     log(symbols.success, 'Test files created', 'green')
 
-    // Step 10: Compute fingerprint for the gate
+    // Step 11: Compute fingerprint for the gate
     log(symbols.info, 'Computing fingerprint...', 'blue')
     const fingerprintResult = computeFingerprintSync({
       packages: ['src'], // Package directories to include
@@ -214,24 +231,14 @@ async function main(): Promise<void> {
       'green',
     )
 
-    // Step 11: Retrieve private key from Keychain for signing
-    log(symbols.info, 'Retrieving private key from Keychain for signing...', 'blue')
-    const keyRetrieval = await provider.getPrivateKey(keygenResult.privateKeyRef)
-    const privateKeyPem = await fs.readFile(keyRetrieval.keyPath, 'utf8')
-    // Extract base64 content from PEM
-    const privateKeyBase64 = privateKeyPem
-      .split('\n')
-      .filter((line) => !line.startsWith('-----'))
-      .join('')
-    log(symbols.success, 'Private key retrieved from Keychain', 'green')
-
     // Step 12: Create a test seal using the Keychain-stored key
+    // Note: createSeal expects a PEM-encoded private key (full PEM string with headers)
     log(symbols.info, 'Creating test seal...', 'blue')
     const seal = createSeal({
       gateId: 'test-gate',
       fingerprint: fingerprintResult.fingerprint,
       sealedBy: 'test-user',
-      privateKey: privateKeyBase64,
+      privateKey: privateKeyPem,
     })
     log(symbols.success, `Seal created at ${seal.timestamp}`, 'green')
 

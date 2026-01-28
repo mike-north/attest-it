@@ -141,6 +141,8 @@ export {
   type OnePasswordKeyProviderOptions,
   type OnePasswordAccount,
   type OnePasswordVault,
+  type InaccessibleAccount,
+  type ListAccountsResult,
   type MacOSKeychainKeyProviderOptions,
   type MacOSKeychain,
   type YubiKeyProviderOptions,
@@ -150,8 +152,9 @@ export {
 
 // Identity System
 export {
+  ATTEST_IT_HOME_ENV,
   getLocalConfigPath,
-  getAttestItConfigDir,
+  getIdentityConfigDir,
   setAttestItHomeDir,
   getAttestItHomeDir,
   loadLocalConfig,
@@ -162,10 +165,6 @@ export {
   LocalConfigValidationError,
   // Public key storage
   getHomePublicKeysDir,
-  // eslint-disable-next-line @typescript-eslint/no-deprecated -- Re-exporting for backward compatibility
-  getProjectPublicKeysDir,
-  // eslint-disable-next-line @typescript-eslint/no-deprecated -- Re-exporting for backward compatibility
-  hasProjectConfig,
   savePublicKey,
   savePublicKeySync,
   type PrivateKeyRef,

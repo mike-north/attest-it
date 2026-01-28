@@ -170,6 +170,7 @@ async function runRemove(slug: string): Promise<void> {
     }
 
     const newConfig = {
+      version: 1 as const,
       activeIdentity: newActiveIdentity,
       identities: remainingIdentities,
     }

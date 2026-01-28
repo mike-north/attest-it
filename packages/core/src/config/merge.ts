@@ -24,13 +24,11 @@ import type { PolicyConfig } from './policy-schema.js'
  * Filters out undefined values to match exactOptionalPropertyTypes requirements.
  */
 function toSuiteConfig(suite: OperationalConfig['suites'][string]): SuiteConfig {
-  const result: SuiteConfig = {}
+  const result: SuiteConfig = {
+    gate: suite.gate,
+  }
 
-  if (suite.gate !== undefined) result.gate = suite.gate
   if (suite.description !== undefined) result.description = suite.description
-  if (suite.packages !== undefined) result.packages = suite.packages
-  if (suite.files !== undefined) result.files = suite.files
-  if (suite.ignore !== undefined) result.ignore = suite.ignore
   if (suite.command !== undefined) result.command = suite.command
   if (suite.timeout !== undefined) result.timeout = suite.timeout
   if (suite.interactive !== undefined) result.interactive = suite.interactive

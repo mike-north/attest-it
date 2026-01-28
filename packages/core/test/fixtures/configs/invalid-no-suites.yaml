@@ -3,4 +3,20 @@ version: 1
 settings:
   maxAgeDays: 30
 
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - src
+    maxAge: 30d
+
 suites: {}

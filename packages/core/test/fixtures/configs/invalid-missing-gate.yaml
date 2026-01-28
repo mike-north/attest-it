@@ -1,0 +1,11 @@
+version: 1
+
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+
+suites:
+  unit:
+    description: Unit tests without a gate reference
+    command: npm test

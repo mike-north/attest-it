@@ -30,16 +30,34 @@ describe('config', () => {
         expect(config.settings.attestationsPath).toBe('.attest-it/attestations.json')
         expect(config.settings.defaultCommand).toBe('pnpm test')
 
+        // Check team configuration
+        expect(config.team).toBeDefined()
+        expect(config.team?.['test-user']).toBeDefined()
+        expect(config.team?.['test-user']?.name).toBe('Test User')
+
+        // Check gate configuration
+        expect(config.gates).toBeDefined()
+        expect(config.gates?.['unit-gate']).toBeDefined()
+        expect(config.gates?.['unit-gate']?.name).toBe('Unit Gate')
+        expect(config.gates?.['unit-gate']?.fingerprint.paths).toEqual([
+          '@attest-it/core',
+          'src/**/*.test.ts',
+        ])
+        expect(config.gates?.['unit-gate']?.fingerprint.exclude).toEqual([
+          '**/node_modules/**',
+          '**/*.spec.ts',
+        ])
+
+        // Check suite configuration - suites now reference gates
         const unitSuite = config.suites.unit
         expect(unitSuite).toBeDefined()
+        expect(unitSuite?.gate).toBe('unit-gate')
         expect(unitSuite?.description).toBe('Unit tests for core functionality')
-        expect(unitSuite?.packages).toEqual(['@attest-it/core'])
-        expect(unitSuite?.files).toEqual(['src/**/*.test.ts'])
-        expect(unitSuite?.ignore).toEqual(['**/node_modules/**', '**/*.spec.ts'])
         expect(unitSuite?.command).toBe('pnpm test:unit')
 
         const integrationSuite = config.suites.integration
         expect(integrationSuite).toBeDefined()
+        expect(integrationSuite?.gate).toBe('integration-gate')
         expect(integrationSuite?.invalidates).toEqual(['unit'])
       })
 
@@ -69,7 +87,11 @@ describe('config', () => {
 
         const unitSuite = config.suites.unit
         expect(unitSuite).toBeDefined()
-        expect(unitSuite?.packages).toEqual(['@attest-it/core'])
+        expect(unitSuite?.gate).toBe('unit-gate')
+
+        // Check the gate configuration
+        expect(config.gates?.['unit-gate']).toBeDefined()
+        expect(config.gates?.['unit-gate']?.fingerprint.paths).toEqual(['@attest-it/core'])
       })
 
       it('should apply default values for missing settings', async () => {
@@ -173,13 +195,11 @@ describe('config', () => {
         await expect(loadConfig(configPath)).rejects.toThrow('At least one suite must be defined')
       })
 
-      it('should reject suite with empty packages array', async () => {
-        const configPath = path.join(FIXTURES_DIR, 'invalid-empty-packages.yaml')
+      it('should reject suite with missing gate field', async () => {
+        const configPath = path.join(FIXTURES_DIR, 'invalid-missing-gate.yaml')
 
         await expect(loadConfig(configPath)).rejects.toThrow(ConfigValidationError)
-        await expect(loadConfig(configPath)).rejects.toThrow(
-          'Suite must either reference a gate or define packages for fingerprinting',
-        )
+        await expect(loadConfig(configPath)).rejects.toThrow('Required')
       })
 
       it('should reject config with missing version', async () => {
@@ -190,10 +210,23 @@ describe('config', () => {
           fs.writeFileSync(
             configPath,
             `
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `,
           )
 
@@ -213,10 +246,23 @@ suites:
             configPath,
             `
 version: 2
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `,
           )
 
@@ -240,10 +286,23 @@ suites:
 version: 1
 settings:
   maxAgeDays: -1
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `,
           )
 
@@ -264,10 +323,23 @@ suites:
 version: 1
 settings:
   maxAgeDays: 0
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `,
           )
 
@@ -287,10 +359,23 @@ suites:
             `
 version: 1
 extraProperty: invalid
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `,
           )
 
@@ -309,10 +394,23 @@ suites:
             configPath,
             `
 version: 1
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
     extraField: invalid
 `,
           )
@@ -415,10 +513,23 @@ suites:
             configPath,
             `
 version: 1
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
     depends_on:
       - integration
     extraField: invalid
@@ -440,10 +551,23 @@ suites:
             configPath,
             `
 version: 1
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 groups:
   test-group:
     - unit
@@ -472,81 +596,8 @@ extraTopLevel: invalid
     })
 
     describe('edge cases', () => {
-      it('should reject empty strings in packages array', async () => {
-        const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-config-'))
-        const configPath = path.join(tempDir, 'config.yaml')
-
-        try {
-          fs.writeFileSync(
-            configPath,
-            `
-version: 1
-suites:
-  unit:
-    packages:
-      - '@attest-it/core'
-      - ''
-`,
-          )
-
-          await expect(loadConfig(configPath)).rejects.toThrow(ConfigValidationError)
-          await expect(loadConfig(configPath)).rejects.toThrow('Package path cannot be empty')
-        } finally {
-          fs.rmSync(tempDir, { recursive: true, force: true })
-        }
-      })
-
-      it('should reject empty strings in files array', async () => {
-        const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-config-'))
-        const configPath = path.join(tempDir, 'config.yaml')
-
-        try {
-          fs.writeFileSync(
-            configPath,
-            `
-version: 1
-suites:
-  unit:
-    packages:
-      - '@attest-it/core'
-    files:
-      - 'src/**/*.test.ts'
-      - ''
-`,
-          )
-
-          await expect(loadConfig(configPath)).rejects.toThrow(ConfigValidationError)
-          await expect(loadConfig(configPath)).rejects.toThrow('File path cannot be empty')
-        } finally {
-          fs.rmSync(tempDir, { recursive: true, force: true })
-        }
-      })
-
-      it('should reject empty strings in ignore array', async () => {
-        const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-config-'))
-        const configPath = path.join(tempDir, 'config.yaml')
-
-        try {
-          fs.writeFileSync(
-            configPath,
-            `
-version: 1
-suites:
-  unit:
-    packages:
-      - '@attest-it/core'
-    ignore:
-      - '**/node_modules/**'
-      - ''
-`,
-          )
-
-          await expect(loadConfig(configPath)).rejects.toThrow(ConfigValidationError)
-          await expect(loadConfig(configPath)).rejects.toThrow('Ignore pattern cannot be empty')
-        } finally {
-          fs.rmSync(tempDir, { recursive: true, force: true })
-        }
-      })
+      // Note: packages, files, and ignore arrays are now on gates, not suites
+      // Tests for empty strings in those arrays would be in gate validation tests
 
       it('should reject empty strings in invalidates array', async () => {
         const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-config-'))
@@ -557,13 +608,34 @@ suites:
             configPath,
             `
 version: 1
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
+  integration-gate:
+    name: Integration Gate
+    description: Integration test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/cli'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
   integration:
-    packages:
-      - '@attest-it/cli'
+    gate: integration-gate
     invalidates:
       - 'unit'
       - ''
@@ -588,10 +660,23 @@ suites:
             configPath,
             `
 version: 1
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
 suites:
   'unit-test:special@chars':
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `,
           )
 
@@ -613,10 +698,23 @@ suites:
 version: 1
 settings:
   maxAgeDays: 9999999
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `,
           )
 
@@ -636,10 +734,23 @@ suites:
             configPath,
             `
 version: 1
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
     depends_on: []
 `,
           )
@@ -660,10 +771,23 @@ suites:
             configPath,
             `
 version: 1
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 groups: {}
 `,
           )
@@ -684,10 +808,23 @@ groups: {}
             configPath,
             `
 version: 1
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 groups:
   empty-group: []
 `,
@@ -709,13 +846,34 @@ groups:
             configPath,
             `
 version: 1
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
+  integration-gate:
+    name: Integration Gate
+    description: Integration test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/cli'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
   integration:
-    packages:
-      - '@attest-it/cli'
+    gate: integration-gate
     depends_on:
       - unit
 `,
@@ -737,10 +895,23 @@ suites:
             configPath,
             `
 version: 1
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 groups:
   single-group:
     - unit
@@ -763,18 +934,47 @@ groups:
             configPath,
             `
 version: 1
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  base-gate:
+    name: Base Gate
+    description: Base test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
+  suite-a-gate:
+    name: Suite A Gate
+    description: Suite A test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/a'
+    maxAge: 30d
+  suite-b-gate:
+    name: Suite B Gate
+    description: Suite B test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/b'
+    maxAge: 30d
 suites:
   base:
-    packages:
-      - '@attest-it/core'
+    gate: base-gate
   suite-a:
-    packages:
-      - '@attest-it/a'
+    gate: suite-a-gate
     depends_on:
       - base
   suite-b:
-    packages:
-      - '@attest-it/b'
+    gate: suite-b-gate
     depends_on:
       - base
 `,
@@ -797,10 +997,23 @@ suites:
             configPath,
             `
 version: 1
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 groups:
   group-a:
     - unit
@@ -832,10 +1045,23 @@ settings:
   attestationsPath: .attest-it/attestations.json
   keyProvider:
     type: filesystem
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `,
           )
 
@@ -863,10 +1089,23 @@ settings:
   keyProvider:
     type: filesystem
     options: {}
+team:
+  test-user:
+    name: Test User
+    publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
+gates:
+  unit-gate:
+    name: Unit Gate
+    description: Unit test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - '@attest-it/core'
+    maxAge: 30d
 suites:
   unit:
-    packages:
-      - '@attest-it/core'
+    gate: unit-gate
 `,
           )
 
@@ -1004,10 +1243,11 @@ suites:
             maxAgeDays: 30,
             publicKeyPath: '.attest-it/pubkey.pem',
             attestationsPath: '.attest-it/attestations.json',
+            sealsPath: '.attest-it/seals.json',
           },
           suites: {
             unit: {
-              packages: ['@attest-it/core'],
+              gate: 'unit-gate',
             },
           },
         }
@@ -1026,10 +1266,11 @@ suites:
             maxAgeDays: 30,
             publicKeyPath: '/absolute/path/to/pubkey.pem',
             attestationsPath: '/absolute/path/to/attestations.json',
+            sealsPath: '/absolute/path/to/seals.json',
           },
           suites: {
             unit: {
-              packages: ['@attest-it/core'],
+              gate: 'unit-gate',
             },
           },
         }
@@ -1048,12 +1289,12 @@ suites:
             maxAgeDays: 30,
             publicKeyPath: '.attest-it/pubkey.pem',
             attestationsPath: '.attest-it/attestations.json',
+            sealsPath: '.attest-it/seals.json',
             defaultCommand: 'pnpm test',
-            algorithm: 'rsa',
           },
           suites: {
             unit: {
-              packages: ['@attest-it/core'],
+              gate: 'unit-gate',
             },
           },
         }
@@ -1064,8 +1305,7 @@ suites:
         expect(resolved.version).toBe(1)
         expect(resolved.settings.maxAgeDays).toBe(30)
         expect(resolved.settings.defaultCommand).toBe('pnpm test')
-        expect(resolved.settings.algorithm).toBe('rsa')
-        expect(resolved.suites.unit?.packages).toEqual(['@attest-it/core'])
+        expect(resolved.suites.unit?.gate).toBe('unit-gate')
       })
     })
 
@@ -1077,10 +1317,11 @@ suites:
             maxAgeDays: 30,
             publicKeyPath: '../keys/pubkey.pem',
             attestationsPath: '.attest-it/attestations.json',
+            sealsPath: '.attest-it/seals.json',
           },
           suites: {
             unit: {
-              packages: ['@attest-it/core'],
+              gate: 'unit-gate',
             },
           },
         }
@@ -1098,10 +1339,11 @@ suites:
             maxAgeDays: 30,
             publicKeyPath: 'keys\\pubkey.pem',
             attestationsPath: 'attestations\\data.json',
+            sealsPath: 'attestations\\seals.json',
           },
           suites: {
             unit: {
-              packages: ['@attest-it/core'],
+              gate: 'unit-gate',
             },
           },
         }
@@ -1135,7 +1377,7 @@ suites:
     })
 
     it('should have a descriptive error message', async () => {
-      const configPath = path.join(FIXTURES_DIR, 'invalid-empty-packages.yaml')
+      const configPath = path.join(FIXTURES_DIR, 'invalid-missing-gate.yaml')
 
       try {
         await loadConfig(configPath)
@@ -1144,7 +1386,7 @@ suites:
         expect(error).toBeInstanceOf(ConfigValidationError)
         if (error instanceof ConfigValidationError) {
           expect(error.message).toContain('Configuration validation failed')
-          expect(error.message).toContain('packages')
+          expect(error.message).toContain('gate')
         }
       }
     })

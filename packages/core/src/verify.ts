@@ -9,6 +9,7 @@ import type {
   AttestItConfig,
   Attestation,
   AttestationsFile,
+  GateConfig,
   SuiteVerificationResult,
 } from './types.js'
 import { computeFingerprint } from './fingerprint.js'
@@ -98,6 +99,7 @@ export async function verifyAttestations(options: VerifyOptions): Promise<Verify
     const result = await verifySuite({
       suiteName,
       suiteConfig,
+      gates: config.gates ?? {},
       attestations,
       maxAgeDays: config.settings.maxAgeDays,
       repoRoot,
@@ -127,8 +129,10 @@ export async function verifyAttestations(options: VerifyOptions): Promise<Verify
 interface VerifySuiteOptions {
   /** Name of the suite */
   suiteName: string
-  /** Suite configuration */
-  suiteConfig: { packages?: string[]; ignore?: string[] }
+  /** Suite configuration with gate reference */
+  suiteConfig: { gate: string }
+  /** Gate configurations from the config file */
+  gates: Record<string, GateConfig>
   /** All attestations from the attestations file */
   attestations: Attestation[]
   /** Maximum age in days before attestation expires */
@@ -142,24 +146,24 @@ interface VerifySuiteOptions {
  * @internal
  */
 async function verifySuite(options: VerifySuiteOptions): Promise<SuiteVerificationResult> {
-  const { suiteName, suiteConfig, attestations, maxAgeDays, repoRoot } = options
+  const { suiteName, suiteConfig, gates, attestations, maxAgeDays, repoRoot } = options
 
-  // Validate that packages is defined (required for legacy verification)
-  // Note: For gate-based verification, use the seal system functions instead
-  if (!suiteConfig.packages || suiteConfig.packages.length === 0) {
+  // Look up the gate configuration
+  const gate = gates[suiteConfig.gate]
+  if (!gate) {
     return {
       suite: suiteName,
       status: 'NEEDS_ATTESTATION',
       fingerprint: '',
-      message: 'Suite configuration missing packages field',
+      message: `Gate not found: ${suiteConfig.gate}`,
     }
   }
 
-  // Compute current fingerprint
+  // Compute current fingerprint using gate's fingerprint configuration
   const fingerprintOptions = {
-    packages: suiteConfig.packages.map((p) => resolvePath(p, repoRoot)),
+    packages: gate.fingerprint.paths.map((p) => resolvePath(p, repoRoot)),
     baseDir: repoRoot,
-    ...(suiteConfig.ignore && { ignore: suiteConfig.ignore }),
+    ...(gate.fingerprint.exclude && { ignore: gate.fingerprint.exclude }),
   }
   const fingerprintResult = await computeFingerprint(fingerprintOptions)
 

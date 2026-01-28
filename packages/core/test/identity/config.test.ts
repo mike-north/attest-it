@@ -1,7 +1,6 @@
 /**
  * Tests for identity configuration loading and validation.
  */
-/* eslint-disable @typescript-eslint/no-deprecated -- This file intentionally tests deprecated functions for backward compatibility */
 
 import * as fs from 'node:fs'
 import { homedir } from 'node:os'
@@ -16,8 +15,6 @@ import {
   saveLocalConfig,
   saveLocalConfigSync,
   getHomePublicKeysDir,
-  getProjectPublicKeysDir,
-  hasProjectConfig,
   savePublicKey,
   savePublicKeySync,
   setAttestItHomeDir,
@@ -174,6 +171,7 @@ describe('identity/config', () => {
           fs.writeFileSync(
             configPath,
             `
+version: 1
 activeIdentity: default
 identities:
   default:
@@ -195,6 +193,7 @@ identities:
           fs.writeFileSync(
             configPath,
             `
+version: 1
 activeIdentity: default
 identities:
   default:
@@ -219,6 +218,7 @@ identities:
           fs.writeFileSync(
             configPath,
             `
+version: 1
 activeIdentity: ""
 identities:
   default:
@@ -247,6 +247,7 @@ identities:
           fs.writeFileSync(
             configPath,
             `
+version: 1
 activeIdentity: default
 identities:
   default:
@@ -273,6 +274,7 @@ identities:
           fs.writeFileSync(
             configPath,
             `
+version: 1
 activeIdentity: default
 identities:
   default:
@@ -300,6 +302,7 @@ identities:
           fs.writeFileSync(
             configPath,
             `
+version: 1
 activeIdentity: default
 identities:
   default:
@@ -327,6 +330,7 @@ identities:
           fs.writeFileSync(
             configPath,
             `
+version: 1
 activeIdentity: default
 identities:
   default:
@@ -709,103 +713,21 @@ identities:
       })
     })
 
-    describe('getProjectPublicKeysDir', () => {
-      it('should return .attest-it/public-keys relative to project root', () => {
-        const dir = getProjectPublicKeysDir('/my/project')
-        expect(dir).toBe('/my/project/.attest-it/public-keys')
-      })
-
-      it('should use cwd as default project root', () => {
-        const dir = getProjectPublicKeysDir()
-        expect(dir).toBe(path.join(process.cwd(), '.attest-it', 'public-keys'))
-      })
-    })
-
-    describe('hasProjectConfig', () => {
-      it('should return true when config.yaml exists', () => {
-        const configDir = path.join(tempDir, '.attest-it')
-        fs.mkdirSync(configDir, { recursive: true })
-        fs.writeFileSync(path.join(configDir, 'config.yaml'), 'version: 1')
-
-        expect(hasProjectConfig(tempDir)).toBe(true)
-      })
-
-      it('should return true when config.yml exists', () => {
-        const configDir = path.join(tempDir, '.attest-it')
-        fs.mkdirSync(configDir, { recursive: true })
-        fs.writeFileSync(path.join(configDir, 'config.yml'), 'version: 1')
-
-        expect(hasProjectConfig(tempDir)).toBe(true)
-      })
-
-      it('should return true when config.json exists', () => {
-        const configDir = path.join(tempDir, '.attest-it')
-        fs.mkdirSync(configDir, { recursive: true })
-        fs.writeFileSync(path.join(configDir, 'config.json'), '{"version": 1}')
-
-        expect(hasProjectConfig(tempDir)).toBe(true)
-      })
-
-      it('should return false when no config exists', () => {
-        expect(hasProjectConfig(tempDir)).toBe(false)
-      })
-
-      it('should return false when .attest-it directory exists but no config file', () => {
-        const configDir = path.join(tempDir, '.attest-it')
-        fs.mkdirSync(configDir, { recursive: true })
-
-        expect(hasProjectConfig(tempDir)).toBe(false)
-      })
-    })
-
     describe('savePublicKey', () => {
       it('should save public key to home directory', async () => {
         setAttestItHomeDir(tempDir)
 
-        const result = await savePublicKey('test-identity', 'dGVzdC1wdWJsaWMta2V5', tempDir)
+        const result = await savePublicKey('test-identity', 'dGVzdC1wdWJsaWMta2V5')
 
         expect(result.homePath).toBe(path.join(tempDir, 'public-keys', 'test-identity.pem'))
         expect(fs.existsSync(result.homePath)).toBe(true)
         expect(fs.readFileSync(result.homePath, 'utf8')).toBe('dGVzdC1wdWJsaWMta2V5')
       })
 
-      it('should no longer save to project directory (keys now stored inline)', async () => {
-        setAttestItHomeDir(tempDir)
-
-        // Create project config
-        const configDir = path.join(tempDir, '.attest-it')
-        fs.mkdirSync(configDir, { recursive: true })
-        fs.writeFileSync(path.join(configDir, 'config.yaml'), 'version: 1')
-
-        const result = await savePublicKey('my-identity', 'bXktcHVibGljLWtleQ==', tempDir)
-
-        // Should save to home directory
-        expect(result.homePath).toBe(path.join(tempDir, 'public-keys', 'my-identity.pem'))
-        expect(fs.existsSync(result.homePath)).toBe(true)
-
-        // Should NOT save to project directory
-        expect(result.projectPath).toBeUndefined()
-        const projectKeyPath = path.join(tempDir, '.attest-it', 'public-keys', 'my-identity.pem')
-        expect(fs.existsSync(projectKeyPath)).toBe(false)
-      })
-
-      it('should not save to project directory when project has no config', async () => {
-        setAttestItHomeDir(tempDir)
-
-        // Create a separate project directory without config
-        const projectDir = path.join(tempDir, 'no-config-project')
-        fs.mkdirSync(projectDir, { recursive: true })
-
-        const result = await savePublicKey('no-project', 'bm8tcHJvamVjdA==', projectDir)
-
-        expect(result.homePath).toBe(path.join(tempDir, 'public-keys', 'no-project.pem'))
-        expect(result.projectPath).toBeUndefined()
-      })
-
       it('should create directories if they do not exist', async () => {
         setAttestItHomeDir(tempDir)
 
-        const result = await savePublicKey('new-identity', 'bmV3LWlkZW50aXR5', tempDir)
+        const result = await savePublicKey('new-identity', 'bmV3LWlkZW50aXR5')
 
         expect(fs.existsSync(path.dirname(result.homePath))).toBe(true)
       })
@@ -815,31 +737,11 @@ identities:
       it('should save public key to home directory synchronously', () => {
         setAttestItHomeDir(tempDir)
 
-        const result = savePublicKeySync('sync-identity', 'c3luYy1pZGVudGl0eQ==', tempDir)
+        const result = savePublicKeySync('sync-identity', 'c3luYy1pZGVudGl0eQ==')
 
         expect(result.homePath).toBe(path.join(tempDir, 'public-keys', 'sync-identity.pem'))
         expect(fs.existsSync(result.homePath)).toBe(true)
         expect(fs.readFileSync(result.homePath, 'utf8')).toBe('c3luYy1pZGVudGl0eQ==')
-      })
-
-      it('should no longer save to project directory (keys now stored inline)', () => {
-        setAttestItHomeDir(tempDir)
-
-        // Create project config
-        const configDir = path.join(tempDir, '.attest-it')
-        fs.mkdirSync(configDir, { recursive: true })
-        fs.writeFileSync(path.join(configDir, 'config.yaml'), 'version: 1')
-
-        const result = savePublicKeySync('sync-project', 'c3luYy1wcm9qZWN0', tempDir)
-
-        // Should save to home directory
-        expect(result.homePath).toBe(path.join(tempDir, 'public-keys', 'sync-project.pem'))
-        expect(fs.existsSync(result.homePath)).toBe(true)
-
-        // Should NOT save to project directory
-        expect(result.projectPath).toBeUndefined()
-        const projectKeyPath = path.join(tempDir, '.attest-it', 'public-keys', 'sync-project.pem')
-        expect(fs.existsSync(projectKeyPath)).toBe(false)
       })
     })
   })

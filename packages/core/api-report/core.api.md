@@ -7,6 +7,9 @@
 import { z } from 'zod';
 
 // @public
+export const ATTEST_IT_HOME_ENV = "ATTEST_IT_HOME";
+
+// @public
 export interface Attestation {
     attestedAt: string;
     attestedBy: string;
@@ -180,9 +183,6 @@ export function generateKeyPair(options?: KeygenOptions): Promise<KeyPaths>;
 export function getActiveIdentity(config: LocalConfig): Identity | undefined;
 
 // @public
-export function getAttestItConfigDir(): string;
-
-// @public
 export function getAttestItHomeDir(): null | string;
 
 // @public
@@ -201,10 +201,13 @@ export function getDefaultYubiKeyEncryptedKeyPath(): string;
 export function getGate(config: AttestItConfig, gateId: string): GateConfig | undefined;
 
 // @public
-export function getHomePublicKeysDir(): string;
+export function getHomePublicKeysDir(homeDir?: string): string;
 
 // @public
-export function getLocalConfigPath(): string;
+export function getIdentityConfigDir(homeDir?: string): string;
+
+// @public
+export function getLocalConfigPath(homeDir?: string): string;
 
 // @public
 export function getPackageVersion(): string;
@@ -215,14 +218,8 @@ export function getPreference<K extends keyof UserPreferences>(key: K): Promise<
 // @public
 export function getPreferencesPath(): string;
 
-// @public @deprecated
-export function getProjectPublicKeysDir(projectRoot?: string): string;
-
 // @public
 export function getPublicKeyFromPrivate(privateKeyPem: string): string;
-
-// @public @deprecated
-export function hasProjectConfig(projectRoot?: string): boolean;
 
 // @public
 export interface Identity {
@@ -231,6 +228,13 @@ export interface Identity {
     name: string;
     privateKey: PrivateKeyRef;
     publicKey: string;
+}
+
+// @public
+export interface InaccessibleAccount {
+    email: string;
+    reason: string;
+    url: string;
 }
 
 // @public
@@ -310,6 +314,12 @@ export interface KeyRetrievalResult {
 }
 
 // @public
+export interface ListAccountsResult {
+    accounts: ({ name: string } & OnePasswordAccount)[];
+    inaccessible: InaccessibleAccount[];
+}
+
+// @public
 export function listPackageFiles(packages: string[], ignore?: string[], baseDir?: string): Promise<string[]>;
 
 // @public
@@ -331,6 +341,7 @@ export function loadPreferences(): Promise<UserPreferences>;
 export interface LocalConfig {
     activeIdentity: string;
     identities: Record<string, Identity>;
+    version: 1;
 }
 
 // @public
@@ -391,15 +402,15 @@ export class OnePasswordKeyProvider implements KeyProvider {
     isAvailable(): Promise<boolean>;
     static isInstalled(): Promise<boolean>;
     keyExists(keyRef: string): Promise<boolean>;
-    static listAccounts(): Promise<OnePasswordAccount[]>;
-    static listVaults(account?: string): Promise<OnePasswordVault[]>;
+    static listAccounts(): Promise<ListAccountsResult>;
+    static listVaults(accountUuid?: string): Promise<OnePasswordVault[]>;
     // (undocumented)
     readonly type = "1password";
 }
 
 // @public
 export interface OnePasswordKeyProviderOptions {
-    account?: string;
+    accountUuid?: string;
     itemName: string;
     vault: string;
 }
@@ -477,82 +488,45 @@ export const operationalSchema: z.ZodObject<{
             type: string;
         } | undefined;
     }>>;
-    suites: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEffects<z.ZodObject<{
+    suites: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodObject<{
         command: z.ZodOptional<z.ZodString>;
         depends_on: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         description: z.ZodOptional<z.ZodString>;
-        files: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
-        gate: z.ZodOptional<z.ZodString>;
-        ignore: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        gate: z.ZodString;
         interactive: z.ZodOptional<z.ZodBoolean>;
         invalidates: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
-        packages: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         timeout: z.ZodOptional<z.ZodString>;
     }, "strict", z.ZodTypeAny, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
-        timeout?: string | undefined;
-    }>, {
-        command?: string | undefined;
-        depends_on?: string[] | undefined;
-        description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
-        interactive?: boolean | undefined;
-        invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
-        timeout?: string | undefined;
-    }, {
-        command?: string | undefined;
-        depends_on?: string[] | undefined;
-        description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
-        interactive?: boolean | undefined;
-        invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>>, Record<string, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>, Record<string, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>>;
     version: z.ZodLiteral<1>;
@@ -575,12 +549,9 @@ export const operationalSchema: z.ZodObject<{
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>;
     version: 1;
@@ -603,12 +574,9 @@ export const operationalSchema: z.ZodObject<{
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>;
     version: 1;
@@ -826,16 +794,15 @@ export function saveLocalConfigSync(config: LocalConfig, configPath?: string): v
 export function savePreferences(preferences: UserPreferences): Promise<void>;
 
 // @public
-export function savePublicKey(slug: string, publicKey: string, projectRoot?: string): Promise<SavePublicKeyResult>;
+export function savePublicKey(slug: string, publicKey: string): Promise<SavePublicKeyResult>;
 
 // @public
 export interface SavePublicKeyResult {
     homePath: string;
-    projectPath?: string;
 }
 
 // @public
-export function savePublicKeySync(slug: string, publicKey: string, projectRoot?: string): SavePublicKeyResult;
+export function savePublicKeySync(slug: string, publicKey: string): SavePublicKeyResult;
 
 // @public
 export interface Seal {
@@ -900,12 +867,9 @@ export interface SuiteConfig {
     command?: string;
     depends_on?: string[];
     description?: string;
-    files?: string[];
-    gate?: string;
-    ignore?: string[];
+    gate: string;
     interactive?: boolean;
     invalidates?: string[];
-    packages?: string[];
     timeout?: string;
 }
 

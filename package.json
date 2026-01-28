@@ -22,6 +22,7 @@
     "nx": "^22.3.3",
     "prettier": "^3.0.0",
     "syncpack": "^13.0.4",
+    "tsx": "^4.21.0",
     "typescript": "5.8.3",
     "typescript-eslint": "^8.52.0",
     "vitest": "^3.0.0"
@@ -60,6 +61,7 @@
     "collect:api-reports": "NX_TUI=false nx collect:api-reports",
     "dev": "NX_TUI=false nx run-many --target=dev --exclude=attest-it-workspace",
     "dev:cli": "NX_TUI=false nx dev @attest-it/cli",
+    "dogfood:run": "tsx scripts/dogfood-run.ts",
     "fix": "NX_TUI=false nx fix:workspace",
     "fix:dependencies": "syncpack fix-mismatches && syncpack format",
     "fix:formatting": "pnpm exec prettier --write .",
