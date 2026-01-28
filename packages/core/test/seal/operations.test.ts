@@ -333,7 +333,13 @@ describe('readSeals and writeSeals (async)', () => {
 
     expect(content).toContain('\n')
     expect(content.endsWith('\n')).toBe(true)
-    expect(JSON.parse(content)).toEqual(sealsFile)
+    // Written file includes $schema for editor support
+    const parsed = JSON.parse(content)
+    expect(parsed.$schema).toBe(
+      'https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/seals.schema.json',
+    )
+    expect(parsed.version).toBe(sealsFile.version)
+    expect(parsed.seals).toEqual(sealsFile.seals)
   })
 
   it('should throw error for invalid JSON in seals file', async () => {

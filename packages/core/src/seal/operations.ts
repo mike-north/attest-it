@@ -12,6 +12,14 @@ import type { Seal, SealsFile } from './types.js'
 import { sealsFileSchemaV1 } from '../config/migrations/index.js'
 
 /**
+ * Schema URL for seals.json files.
+ * This enables editor support (autocomplete, validation) in JSON-aware editors.
+ * @internal
+ */
+const SEALS_SCHEMA_URL =
+  'https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/seals.schema.json'
+
+/**
  * Options for creating a seal.
  * @public
  */
@@ -275,8 +283,9 @@ export async function writeSeals(
     // Ensure seals directory exists
     await fs.promises.mkdir(sealsDir, { recursive: true })
 
-    // Serialize and write with trailing newline
-    const content = JSON.stringify(validationResult.data, null, 2) + '\n'
+    // Serialize with $schema field for editor support
+    const dataWithSchema = { $schema: SEALS_SCHEMA_URL, ...validationResult.data }
+    const content = JSON.stringify(dataWithSchema, null, 2) + '\n'
     await fs.promises.writeFile(sealsPath, content, 'utf8')
   } catch (error) {
     throw new Error(
@@ -319,8 +328,9 @@ export function writeSealsSync(
     // Ensure seals directory exists
     fs.mkdirSync(sealsDir, { recursive: true })
 
-    // Serialize and write with trailing newline
-    const content = JSON.stringify(validationResult.data, null, 2) + '\n'
+    // Serialize with $schema field for editor support
+    const dataWithSchema = { $schema: SEALS_SCHEMA_URL, ...validationResult.data }
+    const content = JSON.stringify(dataWithSchema, null, 2) + '\n'
     fs.writeFileSync(sealsPath, content, 'utf8')
   } catch (error) {
     throw new Error(
