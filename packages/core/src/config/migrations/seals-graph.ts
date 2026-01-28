@@ -20,9 +20,7 @@ import { z } from 'zod'
  * @internal
  */
 function versionSchema<V extends number>(version: V) {
-  return z
-    .union([z.literal(version), z.literal(String(version))])
-    .transform((): V => version)
+  return z.union([z.literal(version), z.literal(String(version))]).transform((): V => version)
 }
 
 /**
@@ -81,4 +79,4 @@ export type SealsFileV1 = z.infer<typeof sealsFileSchemaV1>
 export type SealsFileVersions = SealsFileV1
 
 // Re-export the Zod schemas for use in operations.ts
-export { sealsFileSchemaV1, sealSchemaV1 }
+export { sealsFileSchemaV1 }

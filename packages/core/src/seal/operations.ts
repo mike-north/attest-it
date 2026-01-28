@@ -13,6 +13,18 @@ import type { Seal, SealsFile } from './types.js'
 import { sealsFileSchemaV1 } from '../config/migrations/index.js'
 
 /**
+ * Check if an error is a Node.js file not found error.
+ * @internal
+ */
+function isFileNotFoundError(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const errorWithCode: { code: unknown } = error
+    return errorWithCode.code === 'ENOENT' || errorWithCode.code === 'ENOTDIR'
+  }
+  return false
+}
+
+/**
  * Schema reference header for seals.yaml files.
  * This enables editor support (autocomplete, validation) in YAML-aware editors.
  * @internal
@@ -160,7 +172,10 @@ function parseSealsContent(content: string, format: 'yaml' | 'json'): SealsFile 
   try {
     data = format === 'yaml' ? parseYaml(content) : JSON.parse(content)
   } catch (error) {
-    if (error instanceof SyntaxError || (error instanceof Error && error.name === 'YAMLParseError')) {
+    if (
+      error instanceof SyntaxError ||
+      (error instanceof Error && error.name === 'YAMLParseError')
+    ) {
       throw new Error(`Failed to read seals file: Invalid ${format.toUpperCase()}`)
     }
     throw error
@@ -168,9 +183,10 @@ function parseSealsContent(content: string, format: 'yaml' | 'json'): SealsFile 
 
   // Check for unsupported version before schema validation
   if (typeof data === 'object' && data !== null && 'version' in data) {
-    const version = (data as { version: unknown }).version
+    const dataObj: { version: unknown } = data
+    const version = dataObj.version
     if (version !== 1 && version !== '1') {
-      throw new Error(`Unsupported seals file version: ${version}`)
+      throw new Error(`Unsupported seals file version: ${String(version)}`)
     }
   }
 
@@ -208,8 +224,7 @@ export async function readSeals(dir: string, sealsPathOverride?: string): Promis
     try {
       content = await fs.promises.readFile(sealsPath, 'utf8')
     } catch (error) {
-      const cause = error as NodeJS.ErrnoException
-      if (cause?.code === 'ENOENT' || cause?.code === 'ENOTDIR') {
+      if (isFileNotFoundError(error)) {
         return EMPTY_SEALS_FILE
       }
       throw new Error(
@@ -228,8 +243,7 @@ export async function readSeals(dir: string, sealsPathOverride?: string): Promis
     const content = await fs.promises.readFile(yamlPath, 'utf8')
     return parseSealsContent(content, 'yaml')
   } catch (error) {
-    const cause = error as NodeJS.ErrnoException
-    if (cause?.code !== 'ENOENT' && cause?.code !== 'ENOTDIR') {
+    if (!isFileNotFoundError(error)) {
       throw new Error(
         `Failed to read seals file: ${error instanceof Error ? error.message : String(error)}`,
       )
@@ -241,8 +255,7 @@ export async function readSeals(dir: string, sealsPathOverride?: string): Promis
     const content = await fs.promises.readFile(jsonPath, 'utf8')
     return parseSealsContent(content, 'json')
   } catch (error) {
-    const cause = error as NodeJS.ErrnoException
-    if (cause?.code === 'ENOENT' || cause?.code === 'ENOTDIR') {
+    if (isFileNotFoundError(error)) {
       return EMPTY_SEALS_FILE
     }
     throw new Error(
@@ -273,8 +286,7 @@ export function readSealsSync(dir: string, sealsPathOverride?: string): SealsFil
     try {
       content = fs.readFileSync(sealsPath, 'utf8')
     } catch (error) {
-      const cause = error as NodeJS.ErrnoException
-      if (cause?.code === 'ENOENT' || cause?.code === 'ENOTDIR') {
+      if (isFileNotFoundError(error)) {
         return EMPTY_SEALS_FILE
       }
       throw new Error(
@@ -293,8 +305,7 @@ export function readSealsSync(dir: string, sealsPathOverride?: string): SealsFil
     const content = fs.readFileSync(yamlPath, 'utf8')
     return parseSealsContent(content, 'yaml')
   } catch (error) {
-    const cause = error as NodeJS.ErrnoException
-    if (cause?.code !== 'ENOENT' && cause?.code !== 'ENOTDIR') {
+    if (!isFileNotFoundError(error)) {
       throw new Error(
         `Failed to read seals file: ${error instanceof Error ? error.message : String(error)}`,
       )
@@ -306,8 +317,7 @@ export function readSealsSync(dir: string, sealsPathOverride?: string): SealsFil
     const content = fs.readFileSync(jsonPath, 'utf8')
     return parseSealsContent(content, 'json')
   } catch (error) {
-    const cause = error as NodeJS.ErrnoException
-    if (cause?.code === 'ENOENT' || cause?.code === 'ENOTDIR') {
+    if (isFileNotFoundError(error)) {
       return EMPTY_SEALS_FILE
     }
     throw new Error(

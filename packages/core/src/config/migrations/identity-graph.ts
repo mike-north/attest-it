@@ -123,4 +123,4 @@ export type IdentityConfigV1 = z.infer<typeof localConfigSchemaV1>
 export type IdentityConfigVersions = IdentityConfigV1
 
 // Re-export the Zod schemas for use in config.ts
-export { localConfigSchemaV1, identitySchemaV1, privateKeyRefSchemaV1 }
+export { localConfigSchemaV1 }

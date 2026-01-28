@@ -10,13 +10,7 @@
 import { createMigrationGraph, integerStrategy } from '@migrex/core'
 import { fromZod } from '@migrex/zod'
 import { z } from 'zod'
-import {
-  durationSchema,
-  fingerprintConfigSchema,
-  gateSchema,
-  semverSchema,
-  teamMemberSchema,
-} from '../shared-schemas.js'
+import { gateSchema, semverSchema, teamMemberSchema } from '../shared-schemas.js'
 
 /**
  * Helper to create a version schema that accepts both number and string versions.
@@ -28,9 +22,7 @@ import {
  * @internal
  */
 function versionSchema<V extends number>(version: V) {
-  return z
-    .union([z.literal(version), z.literal(String(version))])
-    .transform((): V => version)
+  return z.union([z.literal(version), z.literal(String(version))]).transform((): V => version)
 }
 
 /**
@@ -93,11 +85,4 @@ export type PolicyConfigV1 = z.infer<typeof policySchemaV1>
 export type PolicyConfigVersions = PolicyConfigV1
 
 // Re-export schemas for use in policy-schema.ts
-export {
-  policySchemaV1,
-  policySettingsSchemaV1,
-  durationSchema,
-  fingerprintConfigSchema,
-  gateSchema,
-  teamMemberSchema,
-}
+export { policySchemaV1 }

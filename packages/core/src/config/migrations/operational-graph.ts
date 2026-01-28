@@ -22,9 +22,7 @@ import { keyProviderSchema, semverSchema } from '../shared-schemas.js'
  * @internal
  */
 function versionSchema<V extends number>(version: V) {
-  return z
-    .union([z.literal(version), z.literal(String(version))])
-    .transform((): V => version)
+  return z.union([z.literal(version), z.literal(String(version))]).transform((): V => version)
 }
 
 /**
@@ -79,9 +77,11 @@ const operationalSchemaV1 = z
     version: versionSchema(1),
     minVersion: semverSchema.optional(),
     settings: operationalSettingsSchemaV1.default({}),
-    suites: z.record(z.string(), suiteSchemaV1).refine((suites) => Object.keys(suites).length >= 1, {
-      message: 'At least one suite must be defined',
-    }),
+    suites: z
+      .record(z.string(), suiteSchemaV1)
+      .refine((suites) => Object.keys(suites).length >= 1, {
+        message: 'At least one suite must be defined',
+      }),
     groups: z
       .record(z.string(), z.array(z.string().min(1, 'Suite name in group cannot be empty')))
       .optional(),
@@ -121,4 +121,4 @@ export type OperationalConfigV1 = z.infer<typeof operationalSchemaV1>
 export type OperationalConfigVersions = OperationalConfigV1
 
 // Re-export schemas for use in operational-schema.ts
-export { operationalSchemaV1, operationalSettingsSchemaV1, suiteSchemaV1 }
+export { operationalSchemaV1, suiteSchemaV1 }

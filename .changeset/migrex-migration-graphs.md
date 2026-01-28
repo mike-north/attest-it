@@ -12,6 +12,7 @@ Adds migration graph infrastructure using `@migrex/core`, `@migrex/files`, and `
 - **Operational config** (`.attest-it/config.yaml`): Suite definitions and CLI settings
 
 Key features:
+
 - Version coercion accepts both numeric (`1`) and string (`"1"`) version fields for backward compatibility
 - Custom sync adapter for synchronous file operations
 - Foundation for future schema migrations when config formats evolve

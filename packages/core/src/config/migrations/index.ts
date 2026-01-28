@@ -7,46 +7,21 @@
  * @packageDocumentation
  */
 
-// Migration graphs
+// Identity config
 export {
   identityMigrationGraph,
   type IdentityConfigV1,
-  type IdentityConfigVersions,
   localConfigSchemaV1,
-  identitySchemaV1,
-  privateKeyRefSchemaV1,
 } from './identity-graph.js'
 
-export {
-  sealsMigrationGraph,
-  type SealsFileV1,
-  type SealsFileVersions,
-  sealsFileSchemaV1,
-  sealSchemaV1,
-} from './seals-graph.js'
+// Seals file
+export { sealsFileSchemaV1 } from './seals-graph.js'
 
-export {
-  policyMigrationGraph,
-  type PolicyConfigV1,
-  type PolicyConfigVersions,
-  policySchemaV1,
-  policySettingsSchemaV1,
-} from './policy-graph.js'
+// Policy config
+export { policySchemaV1 } from './policy-graph.js'
 
-export {
-  operationalMigrationGraph,
-  type OperationalConfigV1,
-  type OperationalConfigVersions,
-  operationalSchemaV1,
-  operationalSettingsSchemaV1,
-  suiteSchemaV1,
-} from './operational-graph.js'
+// Operational config
+export { operationalSchemaV1, suiteSchemaV1 } from './operational-graph.js'
 
 // Sync adapter for identity config
-export {
-  loadVersionedFileSync,
-  saveVersionedFileSync,
-  type LoadSyncOptions,
-  type SaveSyncOptions,
-  type LoadSyncResult,
-} from './sync-adapter.js'
+export { loadVersionedFileSync } from './sync-adapter.js'

@@ -202,14 +202,13 @@ export async function loadLocalConfig(configPath?: string): Promise<LocalConfig 
   let content: string
   try {
     content = await readFile(resolvedPath, 'utf8')
-  } catch (error) {
+  } catch (error: unknown) {
     // Handle file not found
     if (
       error &&
       typeof error === 'object' &&
       'code' in error &&
-      ((error as NodeJS.ErrnoException).code === 'ENOENT' ||
-        (error as NodeJS.ErrnoException).code === 'ENOTDIR')
+      (error.code === 'ENOENT' || error.code === 'ENOTDIR')
     ) {
       return null
     }
@@ -232,7 +231,9 @@ export async function loadLocalConfig(configPath?: string): Promise<LocalConfig 
 
   // Add version field if not present (treat versionless as v1)
   if (rawData && typeof rawData === 'object' && !('version' in rawData)) {
-    ;(rawData as Record<string, unknown>).version = 1
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    const mutableData = rawData as Record<string, unknown>
+    mutableData.version = 1
   }
 
   // Validate against the schema
@@ -265,11 +266,9 @@ export function loadLocalConfigSync(configPath?: string): LocalConfig | null {
   const resolvedPath = configPath ?? getLocalConfigPath()
 
   try {
-    const result = loadVersionedFileSync<IdentityConfigV1>(
-      identityMigrationGraph,
-      resolvedPath,
-      { format: 'yaml' },
-    )
+    const result = loadVersionedFileSync<IdentityConfigV1>(identityMigrationGraph, resolvedPath, {
+      format: 'yaml',
+    })
 
     if (!result) {
       return null
