@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { loadConfig, toAttestItConfig } from '@attest-it/core'
+import { loadSplitConfig } from '@attest-it/core'
 import { log, error } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
 import { getTheme } from '../../components/theme.js'
@@ -15,10 +15,9 @@ export const listCommand = new Command('list')
  */
 async function runList(): Promise<void> {
   try {
-    const config = await loadConfig()
-    const attestItConfig = toAttestItConfig(config)
+    const config = await loadSplitConfig()
 
-    if (!attestItConfig.team || Object.keys(attestItConfig.team).length === 0) {
+    if (!config.team || Object.keys(config.team).length === 0) {
       error('No team members configured')
       log('')
       log('Run: attest-it team add')
@@ -26,7 +25,7 @@ async function runList(): Promise<void> {
     }
 
     const theme = getTheme()
-    const teamMembers = Object.entries(attestItConfig.team)
+    const teamMembers = Object.entries(config.team)
 
     log('')
     log(theme.blue.bold()('Team Members:'))
@@ -48,8 +47,8 @@ async function runList(): Promise<void> {
 
       // Show gate authorizations
       const authorizedGates: string[] = []
-      if (attestItConfig.gates) {
-        for (const [gateId, gate] of Object.entries(attestItConfig.gates)) {
+      if (config.gates) {
+        for (const [gateId, gate] of Object.entries(config.gates)) {
           if (gate.authorizedSigners.includes(slug)) {
             authorizedGates.push(gateId)
           }

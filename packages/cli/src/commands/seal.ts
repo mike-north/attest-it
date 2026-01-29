@@ -5,8 +5,7 @@
 
 import { Command } from 'commander'
 import {
-  loadConfig,
-  toAttestItConfig,
+  loadSplitConfig,
   loadLocalConfigSync,
   getActiveIdentity,
   computeFingerprintSync,
@@ -58,12 +57,11 @@ interface SealSummary {
  */
 async function runSeal(gates: string[], options: SealOptions): Promise<void> {
   try {
-    // Load project config
-    const config = await loadConfig()
-    const attestItConfig = toAttestItConfig(config)
+    // Load split config (policy + operational, merged)
+    const config = await loadSplitConfig()
 
     // Check if gates are defined
-    if (!attestItConfig.gates || Object.keys(attestItConfig.gates).length === 0) {
+    if (!config.gates || Object.keys(config.gates).length === 0) {
       error('No gates defined in configuration')
       process.exit(ExitCode.CONFIG_ERROR)
     }
@@ -85,14 +83,14 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
 
     // Read existing seals
     const projectRoot = process.cwd()
-    const sealsFile = readSealsSync(projectRoot, attestItConfig.settings.sealsPath)
+    const sealsFile = readSealsSync(projectRoot, config.settings.sealsPath)
 
     // Determine which gates to seal
-    const gatesToSeal = gates.length > 0 ? gates : getAllGateIds(attestItConfig)
+    const gatesToSeal = gates.length > 0 ? gates : getAllGateIds(config)
 
     // Validate that specified gates exist
     for (const gateId of gatesToSeal) {
-      if (!attestItConfig.gates[gateId]) {
+      if (!config.gates[gateId]) {
         error(`Gate '${gateId}' not found in configuration`)
         process.exit(ExitCode.CONFIG_ERROR)
       }
@@ -112,7 +110,7 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
       try {
         const result = await processSingleGate(
           gateId,
-          attestItConfig,
+          config,
           identity,
           identitySlug,
           sealsFile,
@@ -132,7 +130,7 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
 
     // Write seals file if not dry run and we sealed anything
     if (!options.dryRun && summary.sealed.length > 0) {
-      writeSealsSync(projectRoot, sealsFile, attestItConfig.settings.sealsPath)
+      writeSealsSync(projectRoot, sealsFile, config.settings.sealsPath)
     }
 
     // Display summary

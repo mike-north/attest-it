@@ -9,6 +9,7 @@ vi.mock('@attest-it/core', async () => {
     ...actual,
     loadConfig: vi.fn(),
     toAttestItConfig: vi.fn(),
+    loadSplitConfig: vi.fn(),
     computeFingerprintSync: vi.fn(),
     readSealsSync: vi.fn(),
     verifyAllSeals: vi.fn(),
@@ -33,6 +34,7 @@ const mockProcessExit = vi
 const {
   loadConfig,
   toAttestItConfig,
+  loadSplitConfig,
   computeFingerprintSync,
   readSealsSync,
   verifyAllSeals,
@@ -131,10 +133,8 @@ describe('status command', () => {
 
   describe('positive cases', () => {
     it('should show VALID status when seal matches', async () => {
-      const mockConfig = createMockConfig()
       const mockAttestItConfig = createMockAttestItConfig()
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(loadSplitConfig).mockResolvedValue(mockAttestItConfig)
       vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
       vi.mocked(computeFingerprintSync).mockReturnValue({
         fingerprint: 'sha256:abc123def456',
@@ -150,7 +150,6 @@ describe('status command', () => {
     })
 
     it('should show status for all gates when no gates specified', async () => {
-      const mockConfig = createMockConfig()
       const mockAttestItConfig = {
         ...createMockAttestItConfig(),
         gates: {
@@ -171,8 +170,7 @@ describe('status command', () => {
         },
       }
 
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(loadSplitConfig).mockResolvedValue(mockAttestItConfig)
       vi.mocked(readSealsSync).mockReturnValue({ version: 1, seals: {} })
       vi.mocked(computeFingerprintSync).mockReturnValue({
         fingerprint: 'sha256:abc123def456',
@@ -191,10 +189,8 @@ describe('status command', () => {
     })
 
     it('should output JSON with --json flag', async () => {
-      const mockConfig = createMockConfig()
       const mockAttestItConfig = createMockAttestItConfig()
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(loadSplitConfig).mockResolvedValue(mockAttestItConfig)
       vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
       vi.mocked(computeFingerprintSync).mockReturnValue({
         fingerprint: 'sha256:abc123def456',
@@ -212,10 +208,8 @@ describe('status command', () => {
 
   describe('negative cases', () => {
     it('should show MISSING status when no seal exists', async () => {
-      const mockConfig = createMockConfig()
       const mockAttestItConfig = createMockAttestItConfig()
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(loadSplitConfig).mockResolvedValue(mockAttestItConfig)
       vi.mocked(readSealsSync).mockReturnValue({ version: 1, seals: {} })
       vi.mocked(computeFingerprintSync).mockReturnValue({
         fingerprint: 'sha256:abc123def456',
@@ -237,10 +231,8 @@ describe('status command', () => {
     })
 
     it('should show FINGERPRINT_MISMATCH when code changed', async () => {
-      const mockConfig = createMockConfig()
       const mockAttestItConfig = createMockAttestItConfig()
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(loadSplitConfig).mockResolvedValue(mockAttestItConfig)
       vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
       vi.mocked(computeFingerprintSync).mockReturnValue({
         fingerprint: 'sha256:different-fingerprint',
@@ -261,10 +253,8 @@ describe('status command', () => {
     })
 
     it('should show STALE when seal exceeds maxAge', async () => {
-      const mockConfig = createMockConfig()
       const mockAttestItConfig = createMockAttestItConfig()
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(loadSplitConfig).mockResolvedValue(mockAttestItConfig)
       vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
       vi.mocked(computeFingerprintSync).mockReturnValue({
         fingerprint: 'sha256:abc123def456',
@@ -285,7 +275,7 @@ describe('status command', () => {
     })
 
     it('should return exit code 3 when config not found', async () => {
-      vi.mocked(loadConfig).mockRejectedValue(new Error('Config not found'))
+      vi.mocked(loadSplitConfig).mockRejectedValue(new Error('Config not found'))
 
       await runStatus([], {})
 
@@ -294,10 +284,8 @@ describe('status command', () => {
     })
 
     it('should return exit code 3 when gate does not exist', async () => {
-      const mockConfig = createMockConfig()
       const mockAttestItConfig = createMockAttestItConfig()
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(loadSplitConfig).mockResolvedValue(mockAttestItConfig)
 
       await runStatus(['nonexistent-gate'], {})
 
@@ -308,7 +296,6 @@ describe('status command', () => {
 
   describe('edge cases', () => {
     it('should filter by specific gates when provided', async () => {
-      const mockConfig = createMockConfig()
       const mockAttestItConfig = {
         ...createMockAttestItConfig(),
         gates: {
@@ -329,8 +316,7 @@ describe('status command', () => {
         },
       }
 
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(loadSplitConfig).mockResolvedValue(mockAttestItConfig)
       vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
       vi.mocked(computeFingerprintSync).mockReturnValue({
         fingerprint: 'sha256:abc123def456',
@@ -350,10 +336,8 @@ describe('status command', () => {
     })
 
     it('should return exit code 3 when no gates defined', async () => {
-      const mockConfig = createMockConfig()
       const mockAttestItConfig = { ...createMockAttestItConfig(), gates: {} }
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(loadSplitConfig).mockResolvedValue(mockAttestItConfig)
 
       await runStatus([], {})
 
@@ -364,10 +348,8 @@ describe('status command', () => {
     })
 
     it('should return exit code 3 when gates is undefined', async () => {
-      const mockConfig = createMockConfig()
       const mockAttestItConfig = { ...createMockAttestItConfig(), gates: undefined }
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(loadSplitConfig).mockResolvedValue(mockAttestItConfig)
 
       await runStatus([], {})
 
@@ -378,7 +360,7 @@ describe('status command', () => {
     })
 
     it('should handle unknown error types', async () => {
-      vi.mocked(loadConfig).mockRejectedValue('string error')
+      vi.mocked(loadSplitConfig).mockRejectedValue('string error')
 
       await runStatus([], {})
 
@@ -387,10 +369,8 @@ describe('status command', () => {
     })
 
     it('should show INVALID_SIGNATURE status', async () => {
-      const mockConfig = createMockConfig()
       const mockAttestItConfig = createMockAttestItConfig()
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(loadSplitConfig).mockResolvedValue(mockAttestItConfig)
       vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
       vi.mocked(computeFingerprintSync).mockReturnValue({
         fingerprint: 'sha256:abc123def456',
@@ -411,10 +391,8 @@ describe('status command', () => {
     })
 
     it('should show UNKNOWN_SIGNER status', async () => {
-      const mockConfig = createMockConfig()
       const mockAttestItConfig = createMockAttestItConfig()
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(loadSplitConfig).mockResolvedValue(mockAttestItConfig)
       vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
       vi.mocked(computeFingerprintSync).mockReturnValue({
         fingerprint: 'sha256:abc123def456',
@@ -435,7 +413,6 @@ describe('status command', () => {
     })
 
     it('should handle multiple gates with mixed statuses', async () => {
-      const mockConfig = createMockConfig()
       const mockAttestItConfig = {
         ...createMockAttestItConfig(),
         gates: {
@@ -455,8 +432,7 @@ describe('status command', () => {
           },
         },
       }
-      vi.mocked(loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(toAttestItConfig).mockReturnValue(mockAttestItConfig)
+      vi.mocked(loadSplitConfig).mockResolvedValue(mockAttestItConfig)
       vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
       vi.mocked(computeFingerprintSync).mockReturnValue({
         fingerprint: 'sha256:abc123def456',

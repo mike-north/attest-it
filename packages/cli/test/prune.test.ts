@@ -13,6 +13,7 @@ vi.mock('@attest-it/core', async () => {
   return {
     ...actual,
     loadConfig: vi.fn(),
+    loadSplitConfig: vi.fn(),
     readAttestations: vi.fn(),
     writeSignedAttestations: vi.fn(),
     computeFingerprint: vi.fn(),
@@ -40,6 +41,7 @@ const mockProcessExit = vi
 const { existsSync } = await import('node:fs')
 const {
   loadConfig,
+  loadSplitConfig,
   readAttestations,
   writeSignedAttestations,
   computeFingerprint,
@@ -117,7 +119,7 @@ describe('runPrune', () => {
       })
       const file = createMockAttestationsFile([staleAttestation])
 
-      vi.mocked(loadConfig).mockResolvedValue(config)
+      vi.mocked(loadSplitConfig).mockResolvedValue(config)
       vi.mocked(readAttestations).mockResolvedValue(file)
       vi.mocked(computeFingerprint).mockResolvedValue({
         fingerprint: 'sha256:different', // Different fingerprint = changed
@@ -144,7 +146,7 @@ describe('runPrune', () => {
       })
       const file = createMockAttestationsFile([recentAttestation])
 
-      vi.mocked(loadConfig).mockResolvedValue(config)
+      vi.mocked(loadSplitConfig).mockResolvedValue(config)
       vi.mocked(readAttestations).mockResolvedValue(file)
       vi.mocked(computeFingerprint).mockResolvedValue({
         fingerprint: 'sha256:abc123', // Same fingerprint = unchanged
@@ -167,7 +169,7 @@ describe('runPrune', () => {
       })
       const file = createMockAttestationsFile([oldAttestation])
 
-      vi.mocked(loadConfig).mockResolvedValue(config)
+      vi.mocked(loadSplitConfig).mockResolvedValue(config)
       vi.mocked(readAttestations).mockResolvedValue(file)
       vi.mocked(computeFingerprint).mockResolvedValue({
         fingerprint: 'sha256:abc123', // Same fingerprint = unchanged
@@ -192,7 +194,7 @@ describe('runPrune', () => {
       })
       const file = createMockAttestationsFile([staleAttestation])
 
-      vi.mocked(loadConfig).mockResolvedValue(config)
+      vi.mocked(loadSplitConfig).mockResolvedValue(config)
       vi.mocked(readAttestations).mockResolvedValue(file)
       vi.mocked(computeFingerprint).mockResolvedValue({
         fingerprint: 'sha256:different',
@@ -233,7 +235,7 @@ describe('runPrune', () => {
       })
       const file = createMockAttestationsFile([staleAttestation])
 
-      vi.mocked(loadConfig).mockResolvedValue(config)
+      vi.mocked(loadSplitConfig).mockResolvedValue(config)
       vi.mocked(readAttestations).mockResolvedValue(file)
       vi.mocked(computeFingerprint).mockResolvedValue({
         fingerprint: 'sha256:different',
@@ -255,7 +257,7 @@ describe('runPrune', () => {
       const config = createMockConfig()
       const file = createMockAttestationsFile([])
 
-      vi.mocked(loadConfig).mockResolvedValue(config)
+      vi.mocked(loadSplitConfig).mockResolvedValue(config)
       vi.mocked(readAttestations).mockResolvedValue(file)
       vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
       vi.mocked(existsSync).mockReturnValue(true)
@@ -269,7 +271,7 @@ describe('runPrune', () => {
     it('should handle missing attestations file', async () => {
       const config = createMockConfig()
 
-      vi.mocked(loadConfig).mockResolvedValue(config)
+      vi.mocked(loadSplitConfig).mockResolvedValue(config)
       vi.mocked(readAttestations).mockResolvedValue(null)
       vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
       vi.mocked(existsSync).mockReturnValue(true)
@@ -293,7 +295,7 @@ describe('runPrune', () => {
       })
       const file = createMockAttestationsFile([orphanedAttestation])
 
-      vi.mocked(loadConfig).mockResolvedValue(config)
+      vi.mocked(loadSplitConfig).mockResolvedValue(config)
       vi.mocked(readAttestations).mockResolvedValue(file)
       vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
       vi.mocked(existsSync).mockReturnValue(true)
@@ -315,7 +317,7 @@ describe('runPrune', () => {
       })
       const file = createMockAttestationsFile([attestation])
 
-      vi.mocked(loadConfig).mockResolvedValue(config)
+      vi.mocked(loadSplitConfig).mockResolvedValue(config)
       vi.mocked(readAttestations).mockResolvedValue(file)
       vi.mocked(computeFingerprint).mockResolvedValue({
         fingerprint: 'sha256:different',
@@ -354,7 +356,7 @@ describe('runPrune', () => {
       })
       const file = createMockAttestationsFile([staleAttestation, validAttestation])
 
-      vi.mocked(loadConfig).mockResolvedValue(config)
+      vi.mocked(loadSplitConfig).mockResolvedValue(config)
       vi.mocked(readAttestations).mockResolvedValue(file)
       vi.mocked(computeFingerprint).mockImplementation((options) => {
         // Return different fingerprints for different suites
@@ -394,7 +396,7 @@ describe('runPrune', () => {
     })
 
     it('should handle errors gracefully', async () => {
-      vi.mocked(loadConfig).mockRejectedValue(new Error('Config load failed'))
+      vi.mocked(loadSplitConfig).mockRejectedValue(new Error('Config load failed'))
 
       await runPrune({ keepDays: '30', dryRun: false })
 

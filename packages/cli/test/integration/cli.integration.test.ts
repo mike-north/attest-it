@@ -610,7 +610,7 @@ describe('CLI Integration Tests', () => {
       try {
         const result = await runCli(['status'], emptyDir)
         expect(result.exitCode).toBe(3) // CONFIG_ERROR
-        expect(result.stderr).toContain('config')
+        expect(result.stderr).toContain('Policy file not found')
       } finally {
         await fs.promises.rm(emptyDir, { recursive: true, force: true })
       }

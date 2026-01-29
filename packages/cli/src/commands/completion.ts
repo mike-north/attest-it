@@ -1,6 +1,6 @@
 import { Command } from 'commander'
 import tabtab from '@pnpm/tabtab'
-import { loadLocalConfig, loadConfig } from '@attest-it/core'
+import { loadLocalConfig, loadSplitConfig } from '@attest-it/core'
 import { success, error, log, info } from '../utils/output.js'
 import { ExitCode } from '../utils/exit-codes.js'
 
@@ -212,7 +212,7 @@ async function getIdentitySlugs(): Promise<string[]> {
  */
 async function getGateNames(): Promise<string[]> {
   try {
-    const config = await loadConfig()
+    const config = await loadSplitConfig()
     if (config.gates) {
       return Object.keys(config.gates)
     }
@@ -227,7 +227,7 @@ async function getGateNames(): Promise<string[]> {
  */
 async function getSuiteNames(): Promise<string[]> {
   try {
-    const config = await loadConfig()
+    const config = await loadSplitConfig()
     return Object.keys(config.suites)
   } catch {
     // Ignore errors - completions should fail silently

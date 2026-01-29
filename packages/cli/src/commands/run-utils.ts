@@ -7,14 +7,8 @@
  * @packageDocumentation
  */
 
-import type { Config } from '@attest-it/core'
-import {
-  computeFingerprint,
-  readSealsSync,
-  verifyGateSeal,
-  toAttestItConfig,
-} from '@attest-it/core'
-import type { VerificationState, SealsFile } from '@attest-it/core'
+import type { AttestItConfig, VerificationState, SealsFile } from '@attest-it/core'
+import { computeFingerprint, readSealsSync, verifyGateSeal } from '@attest-it/core'
 
 /**
  * Information about a suite's current status.
@@ -40,11 +34,11 @@ export interface SuiteStatus {
 /**
  * Get status information for all suites.
  *
- * @param config - Configuration object
+ * @param config - Configuration object (merged policy + operational)
  * @returns Array of suite statuses
  * @public
  */
-export async function getAllSuiteStatuses(config: Config): Promise<SuiteStatus[]> {
+export async function getAllSuiteStatuses(config: AttestItConfig): Promise<SuiteStatus[]> {
   // Load seals file (may not exist)
   let sealsFile: SealsFile
   try {
@@ -85,7 +79,7 @@ export async function getAllSuiteStatuses(config: Config): Promise<SuiteStatus[]
 
     // Verify the seal for this gate using the new seal verification system
     const verificationResult = verifyGateSeal(
-      toAttestItConfig(config),
+      config,
       suiteConfig.gate,
       sealsFile,
       fingerprintResult.fingerprint,
@@ -115,11 +109,11 @@ export async function getAllSuiteStatuses(config: Config): Promise<SuiteStatus[]
 /**
  * Get suites that need attestation (not VALID).
  *
- * @param config - Configuration object
+ * @param config - Configuration object (merged policy + operational)
  * @returns Array of suite statuses that are not valid
  * @public
  */
-export async function getSuitesNeedingAttestation(config: Config): Promise<SuiteStatus[]> {
+export async function getSuitesNeedingAttestation(config: AttestItConfig): Promise<SuiteStatus[]> {
   const allStatuses = await getAllSuiteStatuses(config)
   return allStatuses.filter((s) => s.status !== 'VALID')
 }
@@ -143,11 +137,11 @@ export function filterByPattern(suites: SuiteStatus[], pattern: string): SuiteSt
  * Get suites belonging to a group.
  *
  * @param groupName - Name of the group
- * @param config - Configuration object
+ * @param config - Configuration object (merged policy + operational)
  * @returns Array of suite names in the group
  * @public
  */
-export function getSuitesInGroup(groupName: string, config: Config): string[] {
+export function getSuitesInGroup(groupName: string, config: AttestItConfig): string[] {
   // eslint-disable-next-line security/detect-object-injection -- groupName is a user parameter, but we safely return empty array if not found
   return config.groups?.[groupName] ?? []
 }

@@ -23,6 +23,7 @@ vi.mock('@attest-it/core', () => ({
   parseOperationalContent: vi.fn(),
   mergeConfigs: vi.fn(),
   validateSuiteGateReferences: vi.fn(),
+  loadSplitConfig: vi.fn(),
   PolicyValidationError: class PolicyValidationError extends Error {
     constructor(message: string) {
       super(message)
@@ -33,6 +34,22 @@ vi.mock('@attest-it/core', () => ({
     constructor(message: string) {
       super(message)
       this.name = 'OperationalValidationError'
+    }
+  },
+  SplitConfigNotFoundError: class SplitConfigNotFoundError extends Error {
+    configType: string
+    constructor(message: string, configType: 'policy' | 'operational') {
+      super(message)
+      this.name = 'SplitConfigNotFoundError'
+      this.configType = configType
+    }
+  },
+  CrossConfigValidationError: class CrossConfigValidationError extends Error {
+    errors: Array<{ type: string; message: string }>
+    constructor(message: string, errors: Array<{ type: string; message: string }>) {
+      super(message)
+      this.name = 'CrossConfigValidationError'
+      this.errors = errors
     }
   },
 }))
@@ -70,6 +87,7 @@ const mockCore = {
 }
 
 const mockVerifyAttestations = vi.mocked(mockAttestItCoreModule.verifyAttestations)
+const mockLoadSplitConfig = vi.mocked(mockAttestItCoreModule.loadSplitConfig)
 const mockParsePolicyContent = vi.mocked(mockAttestItCoreModule.parsePolicyContent)
 const mockParseOperationalContent = vi.mocked(mockAttestItCoreModule.parseOperationalContent)
 const mockMergeConfigs = vi.mocked(mockAttestItCoreModule.mergeConfigs)
@@ -131,19 +149,9 @@ describe('GitHub Action', () => {
   describe('Successful verification', () => {
     beforeEach(() => {
       // Setup valid config and verification
-      const mockPolicy = { version: 1, team: {}, gates: {} }
-      const mockOperational = {
-        version: 1,
-        settings: { maxAgeDays: 30 },
-        suites: { 'unit-tests': { packages: ['src'] } },
-      }
       const mockConfig = createMockConfig()
 
-      mockReadFile.mockResolvedValue('version: 1')
-      mockParsePolicyContent.mockReturnValue(mockPolicy as never)
-      mockParseOperationalContent.mockReturnValue(mockOperational as never)
-      mockMergeConfigs.mockReturnValue(mockConfig)
-      mockValidateSuiteGateReferences.mockReturnValue([])
+      mockLoadSplitConfig.mockResolvedValue(mockConfig)
     })
 
     it('should succeed when all attestations are valid', async () => {
@@ -180,15 +188,6 @@ describe('GitHub Action', () => {
 
   describe('Suite filtering', () => {
     beforeEach(() => {
-      const mockPolicy = { version: 1, team: {}, gates: {} }
-      const mockOperational = {
-        version: 1,
-        settings: { maxAgeDays: 30 },
-        suites: {
-          'unit-tests': { packages: ['src'] },
-          'integration-tests': { packages: ['tests'] },
-        },
-      }
       const mockConfig = createMockConfig({
         suites: {
           'unit-tests': { packages: ['src'] },
@@ -196,11 +195,7 @@ describe('GitHub Action', () => {
         },
       })
 
-      mockReadFile.mockResolvedValue('version: 1')
-      mockParsePolicyContent.mockReturnValue(mockPolicy as never)
-      mockParseOperationalContent.mockReturnValue(mockOperational as never)
-      mockMergeConfigs.mockReturnValue(mockConfig)
-      mockValidateSuiteGateReferences.mockReturnValue([])
+      mockLoadSplitConfig.mockResolvedValue(mockConfig)
     })
 
     it('should filter to specific suite when requested', async () => {
@@ -240,19 +235,9 @@ describe('GitHub Action', () => {
 
   describe('Failure cases', () => {
     beforeEach(() => {
-      const mockPolicy = { version: 1, team: {}, gates: {} }
-      const mockOperational = {
-        version: 1,
-        settings: { maxAgeDays: 30 },
-        suites: { 'unit-tests': { packages: ['src'] } },
-      }
       const mockConfig = createMockConfig()
 
-      mockReadFile.mockResolvedValue('version: 1')
-      mockParsePolicyContent.mockReturnValue(mockPolicy as never)
-      mockParseOperationalContent.mockReturnValue(mockOperational as never)
-      mockMergeConfigs.mockReturnValue(mockConfig)
-      mockValidateSuiteGateReferences.mockReturnValue([])
+      mockLoadSplitConfig.mockResolvedValue(mockConfig)
     })
 
     it('should fail when signature is invalid', async () => {
@@ -318,19 +303,9 @@ describe('GitHub Action', () => {
 
   describe('Strict mode', () => {
     beforeEach(() => {
-      const mockPolicy = { version: 1, team: {}, gates: {} }
-      const mockOperational = {
-        version: 1,
-        settings: { maxAgeDays: 30 },
-        suites: { 'unit-tests': { packages: ['src'] } },
-      }
       const mockConfig = createMockConfig({ settings: { maxAgeDays: 30 } })
 
-      mockReadFile.mockResolvedValue('version: 1')
-      mockParsePolicyContent.mockReturnValue(mockPolicy as never)
-      mockParseOperationalContent.mockReturnValue(mockOperational as never)
-      mockMergeConfigs.mockReturnValue(mockConfig)
-      mockValidateSuiteGateReferences.mockReturnValue([])
+      mockLoadSplitConfig.mockResolvedValue(mockConfig)
     })
 
     it('should fail in strict mode when attestation is approaching expiry', async () => {
@@ -383,23 +358,13 @@ describe('GitHub Action', () => {
       mockFetchPolicy.getBaseBranch.mockReturnValue('main')
       mockFetchPolicy.getRepoInfo.mockReturnValue({ owner: 'test-org', repo: 'test-repo' })
 
-      const mockPolicy = { version: 1, team: {}, gates: {} }
-      const mockOperational = {
-        version: 1,
-        settings: { maxAgeDays: 30 },
-        suites: { 'unit-tests': { packages: ['src'] } },
-      }
       const mockConfig = createMockConfig()
 
       mockFetchPolicy.fetchPolicyFromRef.mockResolvedValue({
         content: 'version: 1',
         sha: 'abc123',
       })
-      mockReadFile.mockResolvedValue('version: 1')
-      mockParsePolicyContent.mockReturnValue(mockPolicy as never)
-      mockParseOperationalContent.mockReturnValue(mockOperational as never)
-      mockMergeConfigs.mockReturnValue(mockConfig)
-      mockValidateSuiteGateReferences.mockReturnValue([])
+      mockLoadSplitConfig.mockResolvedValue(mockConfig)
     })
 
     it('should fetch policy from base branch in PR context', async () => {
@@ -435,28 +400,16 @@ describe('GitHub Action', () => {
   })
 
   describe('Validation errors', () => {
-    beforeEach(() => {
-      const mockPolicy = { version: 1, team: {}, gates: {} }
-      const mockOperational = {
-        version: 1,
-        settings: { maxAgeDays: 30 },
-        suites: { 'unit-tests': { gate: 'nonexistent' } },
-      }
-
-      mockReadFile.mockResolvedValue('version: 1')
-      mockParsePolicyContent.mockReturnValue(mockPolicy as never)
-      mockParseOperationalContent.mockReturnValue(mockOperational as never)
-    })
-
     it('should fail when suite references non-existent gate', async () => {
-      mockValidateSuiteGateReferences.mockReturnValue([
+      // Import the mock class from the mock module
+      const { CrossConfigValidationError } = await import('@attest-it/core')
+      const validationError = new CrossConfigValidationError('Configuration validation failed', [
         {
           type: 'UNKNOWN_GATE',
-          suite: 'unit-tests',
-          gate: 'nonexistent',
           message: 'Suite "unit-tests" references unknown gate "nonexistent"',
         },
       ])
+      mockLoadSplitConfig.mockRejectedValue(validationError)
 
       await run()
 
@@ -471,12 +424,6 @@ describe('GitHub Action', () => {
 
   describe('policy-ref input', () => {
     beforeEach(() => {
-      const mockPolicy = { version: 1, team: {}, gates: {} }
-      const mockOperational = {
-        version: 1,
-        settings: { maxAgeDays: 30 },
-        suites: { 'unit-tests': { packages: ['src'] } },
-      }
       const mockConfig = createMockConfig()
 
       mockFetchPolicy.getRepoInfo.mockReturnValue({ owner: 'test-org', repo: 'test-repo' })
@@ -484,11 +431,7 @@ describe('GitHub Action', () => {
         content: 'version: 1',
         sha: 'abc123',
       })
-      mockReadFile.mockResolvedValue('version: 1')
-      mockParsePolicyContent.mockReturnValue(mockPolicy as never)
-      mockParseOperationalContent.mockReturnValue(mockOperational as never)
-      mockMergeConfigs.mockReturnValue(mockConfig)
-      mockValidateSuiteGateReferences.mockReturnValue([])
+      mockLoadSplitConfig.mockResolvedValue(mockConfig)
     })
 
     it('should fetch policy from specified ref in non-PR context', async () => {

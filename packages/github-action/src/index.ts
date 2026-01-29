@@ -1,17 +1,16 @@
 import * as core from '@actions/core'
-import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import {
-  toAttestItConfig,
   verifyAttestations,
   type VerifyResult,
   type SuiteVerificationResult,
-  parsePolicyContent,
-  parseOperationalContent,
-  mergeConfigs,
-  validateSuiteGateReferences,
+  type AttestItConfig,
+  loadSplitConfig,
+  SplitConfigNotFoundError,
+  CrossConfigValidationError,
   PolicyValidationError,
   OperationalValidationError,
+  parsePolicyContent,
 } from '@attest-it/core'
 import { fetchPolicyFromRef, getRepoInfo, getBaseBranch, isPullRequest } from './fetch-policy.js'
 
@@ -52,7 +51,7 @@ export async function run(): Promise<void> {
 
     core.info('Loading configuration...')
 
-    let config: ReturnType<typeof toAttestItConfig>
+    let config: AttestItConfig
 
     // Determine the policy ref to use:
     // 1. If policy-ref is explicitly specified, always use it
@@ -68,11 +67,13 @@ export async function run(): Promise<void> {
       return
     }
 
-    if (effectivePolicyRef) {
-      // Fetch policy from specified ref (or base branch for PRs)
-      core.info(`Fetching policy from ref: ${effectivePolicyRef}`)
+    const operationalConfigPath = configPath || '.attest-it/config.yaml'
 
-      try {
+    try {
+      if (effectivePolicyRef) {
+        // Fetch policy from specified ref (or base branch for PRs)
+        core.info(`Fetching policy from ref: ${effectivePolicyRef}`)
+
         const { owner, repo } = getRepoInfo()
 
         // Fetch policy from the specified ref
@@ -87,95 +88,60 @@ export async function run(): Promise<void> {
 
         core.info(`Fetched policy from ${effectivePolicyRef} (SHA: ${policyResult.sha})`)
 
-        // Parse policy (determine format from path)
+        // Determine format from path
         const policyFormat = policyPath.endsWith('.json') ? 'json' : 'yaml'
-        const policyConfig = parsePolicyContent(policyResult.content, policyFormat)
 
-        // Load operational config from filesystem
-        const operationalConfigPath = configPath || '.attest-it/config.yaml'
-        const operationalContent = await readFile(
-          resolve(process.cwd(), operationalConfigPath),
-          'utf8',
-        )
-        const operationalFormat = operationalConfigPath.endsWith('.json') ? 'json' : 'yaml'
-        const operationalConfig = parseOperationalContent(operationalContent, operationalFormat)
-
-        // Validate cross-references
+        // Use shared loadSplitConfig with policy content from API
         core.info('Validating configuration...')
-        const validationErrors = validateSuiteGateReferences(policyConfig, operationalConfig)
+        config = await loadSplitConfig({
+          policySource: {
+            type: 'content',
+            content: policyResult.content,
+            format: policyFormat,
+          },
+          operationalPath: resolve(process.cwd(), operationalConfigPath),
+        })
+      } else {
+        // Non-PR context without policy-ref: load both from filesystem
+        core.info('Loading configuration from filesystem')
 
-        if (validationErrors.length > 0) {
-          core.error('Configuration validation failed:')
-          for (const error of validationErrors) {
-            core.error(`- ${error.message}`)
-          }
-          core.setFailed('Configuration validation failed. See errors above.')
-          return
-        }
-
-        // Merge configurations
-        config = mergeConfigs(policyConfig, operationalConfig)
-      } catch (err: unknown) {
-        if (err instanceof PolicyValidationError) {
-          core.setFailed(`Policy validation failed: ${err.message}`)
-          return
-        }
-        if (err instanceof OperationalValidationError) {
-          core.setFailed(`Operational config validation failed: ${err.message}`)
-          return
-        }
-        throw err
-      }
-    } else {
-      // Non-PR context without policy-ref: load both from filesystem
-      core.info('Loading configuration from filesystem')
-
-      try {
-        // Read policy file
-        const policyContent = await readFile(resolve(process.cwd(), policyPath), 'utf8')
-        const policyFormat = policyPath.endsWith('.json') ? 'json' : 'yaml'
-        const policyConfig = parsePolicyContent(policyContent, policyFormat)
-
-        // Read operational config
-        const operationalConfigPath = configPath || '.attest-it/config.yaml'
-        const operationalContent = await readFile(
-          resolve(process.cwd(), operationalConfigPath),
-          'utf8',
-        )
-        const operationalFormat = operationalConfigPath.endsWith('.json') ? 'json' : 'yaml'
-        const operationalConfig = parseOperationalContent(operationalContent, operationalFormat)
-
-        // Validate cross-references
+        // Use shared loadSplitConfig for filesystem loading
         core.info('Validating configuration...')
-        const validationErrors = validateSuiteGateReferences(policyConfig, operationalConfig)
-
-        if (validationErrors.length > 0) {
-          core.error('Configuration validation failed:')
-          for (const error of validationErrors) {
-            core.error(`- ${error.message}`)
-          }
-          core.setFailed('Configuration validation failed. See errors above.')
-          return
-        }
-
-        // Merge configurations
-        config = mergeConfigs(policyConfig, operationalConfig)
-      } catch (err: unknown) {
-        if (err instanceof PolicyValidationError) {
-          core.setFailed(`Policy validation failed: ${err.message}`)
-          return
-        }
-        if (err instanceof OperationalValidationError) {
-          core.setFailed(`Operational config validation failed: ${err.message}`)
-          return
-        }
-        // Handle file not found errors
-        if (isFileNotFoundError(err)) {
-          core.setFailed(`Configuration file not found: ${err.path ?? 'unknown'}`)
-          return
-        }
-        throw err
+        config = await loadSplitConfig({
+          policySource: {
+            type: 'filesystem',
+            path: resolve(process.cwd(), policyPath),
+          },
+          operationalPath: resolve(process.cwd(), operationalConfigPath),
+        })
       }
+    } catch (err: unknown) {
+      if (err instanceof PolicyValidationError) {
+        core.setFailed(`Policy validation failed: ${err.message}`)
+        return
+      }
+      if (err instanceof OperationalValidationError) {
+        core.setFailed(`Operational config validation failed: ${err.message}`)
+        return
+      }
+      if (err instanceof CrossConfigValidationError) {
+        core.error('Configuration validation failed:')
+        for (const error of err.errors) {
+          core.error(`- ${error.message}`)
+        }
+        core.setFailed('Configuration validation failed. See errors above.')
+        return
+      }
+      if (err instanceof SplitConfigNotFoundError) {
+        core.setFailed(`Configuration file not found: ${err.message}`)
+        return
+      }
+      // Handle file not found errors (legacy)
+      if (isFileNotFoundError(err)) {
+        core.setFailed(`Configuration file not found: ${err.path ?? 'unknown'}`)
+        return
+      }
+      throw err
     }
 
     // Filter to specific suite if requested

@@ -1,33 +1,34 @@
 {
+  "$schema": "https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/seals.schema.json",
   "version": 1,
   "seals": {
     "1password-integration": {
       "gateId": "1password-integration",
-      "fingerprint": "sha256:581c68b8ebd53101871b09298af9842b50c933920385cadd3769647adcc8249f",
-      "timestamp": "2026-01-26T05:46:59.464Z",
+      "fingerprint": "sha256:8fabd806dbf30c6fb4b79ab2633074bb41267223db776474f93f48e09f698bc7",
+      "timestamp": "2026-01-29T02:27:07.057Z",
       "sealedBy": "mike-north",
-      "signature": "apTlD+ZeeHKwtettxVKC5qy1xl7TW/HD6EID6mwp+vZK3eiKNuwTUsr2NgudAkeAx8ya6STBBzHGKJoJqunCBQ=="
+      "signature": "ThslNk88NhBLC3b6OufcMk8ecqmb9T3g5Sq3VpO8PZfIlJ3JOQTMzSvknaT07vdXIXT6+GQAoCu/gmN7FsWuCg=="
     },
     "yubikey-integration": {
       "gateId": "yubikey-integration",
-      "fingerprint": "sha256:48a27c8a889ff25c17836d2ba41af8869856c6964e95fbd5c6f555c33a235f9c",
-      "timestamp": "2026-01-26T05:21:43.749Z",
+      "fingerprint": "sha256:52e44fa66a81f9356bb8bf667bea19df45c9cb6e84ea26740be83cd7c8423c72",
+      "timestamp": "2026-01-29T02:29:27.369Z",
       "sealedBy": "mike-north",
-      "signature": "i8vONIlr8z0H4cQF6FHA4pQ5kTNeUH1HZkt7aPe4VTHqIT2Ql8gjPGhFyy93H2d25bV9PzQDCaM8kb/+eqslDg=="
+      "signature": "3Q4EsiQiwLtkb0aZbOxaxLGU6eiGWTqoXJgKwp1Ng/T33orKAjyKKXgjm/DULJLfAy7pd0aSRzUERvyJzpOkBQ=="
     },
     "keychain-integration": {
       "gateId": "keychain-integration",
-      "fingerprint": "sha256:7fa386820f145a46737290fd6a5ed9c8fdaac0f62a32546b29ede3a21ff3aaf0",
-      "timestamp": "2026-01-25T23:41:28.481Z",
+      "fingerprint": "sha256:ace1426a0fc39566e0eec717b96b6e98468ca116cb7ce771ef9d1ded84c9f297",
+      "timestamp": "2026-01-29T02:27:25.078Z",
       "sealedBy": "mike-north",
-      "signature": "FY79OMZCsAinQZMao0hqXgQDdlbl43ytgOYiABYIjHKSGQgbAepwKq/bsxrftePrfQhP4gxCsjEq48IeRNVRCA=="
+      "signature": "lH/ubAhPzK0vU40D3aVZf6CihvieDPh7Fe1Ga84GqGwmXPQiaq/bTaQs79ksT/LUQtGOvdUneh0+Do784XuIDA=="
     },
     "cli-interactive": {
       "gateId": "cli-interactive",
-      "fingerprint": "sha256:7b17b37a4d97d772aee7e0052ded99919730c2562ff2caf750d2c12e5a2da843",
-      "timestamp": "2026-01-26T05:47:44.300Z",
+      "fingerprint": "sha256:6c8a043e3d567ea78e49b57679ccfc6cb3868c630c29540a853183c4aa05fb8e",
+      "timestamp": "2026-01-29T02:28:55.759Z",
       "sealedBy": "mike-north",
-      "signature": "g4mFnZ+iW1/Le8XjuFwuJE10D85kbq8CAHAZE1ra7ubiILQUIclK+o7z6ya2wZ4BuFKnGZRNgfM/HON4X/rVBQ=="
+      "signature": "90DUs4amHVKVj/ewpmaDHHi1VyCFnWHFVgCIBL0EKEdPHtz5OYrDnZOioO0V54FI3jUybByhVMXPnGc/JmJfCQ=="
     }
   }
 }

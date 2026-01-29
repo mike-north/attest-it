@@ -18269,7 +18269,7 @@ var require_summary = __commonJS({
     exports2.summary = exports2.markdownSummary = exports2.SUMMARY_DOCS_URL = exports2.SUMMARY_ENV_VAR = void 0;
     var os_1 = require("os");
     var fs_1 = require("fs");
-    var { access: access3, appendFile, writeFile: writeFile3 } = fs_1.promises;
+    var { access: access3, appendFile, writeFile: writeFile4 } = fs_1.promises;
     exports2.SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY";
     exports2.SUMMARY_DOCS_URL = "https://docs.github.com/actions/using-workflows/workflow-commands-for-github-actions#adding-a-job-summary";
     var Summary = class {
@@ -18327,7 +18327,7 @@ var require_summary = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           const overwrite = !!(options === null || options === void 0 ? void 0 : options.overwrite);
           const filePath = yield this.filePath();
-          const writeFunc = overwrite ? writeFile3 : appendFile;
+          const writeFunc = overwrite ? writeFile4 : appendFile;
           yield writeFunc(filePath, this._buffer, { encoding: "utf8" });
           return this.emptyBuffer();
         });
@@ -36249,7 +36249,6 @@ __export(index_exports, {
 module.exports = __toCommonJS(index_exports);
 init_cjs_shims();
 var core = __toESM(require_core(), 1);
-var import_promises = require("fs/promises");
 var import_node_path = require("path");
 
 // ../core/dist/index.js
@@ -36257,7 +36256,9 @@ init_cjs_shims();
 init_chunk_FGYLU2HL();
 init_chunk_FGYLU2HL();
 var fs2 = __toESM(require("fs"), 1);
+var import_fs2 = require("fs");
 var fs7 = __toESM(require("fs/promises"), 1);
+var import_promises = require("fs/promises");
 var path8 = __toESM(require("path"), 1);
 var import_path3 = require("path");
 var import_ms = __toESM(require_ms(), 1);
@@ -42292,6 +42293,139 @@ var configSchema = external_exports.object({
   }),
   groups: external_exports.record(external_exports.string(), external_exports.array(external_exports.string().min(1, "Suite name in group cannot be empty"))).optional()
 }).strict();
+var ConfigValidationError = class extends Error {
+  constructor(message, issues) {
+    super(message);
+    this.issues = issues;
+    this.name = "ConfigValidationError";
+  }
+};
+var ConfigNotFoundError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "ConfigNotFoundError";
+  }
+};
+function parseConfigContent(content, format) {
+  let rawConfig;
+  try {
+    if (format === "yaml") {
+      rawConfig = (0, import_yaml.parse)(content);
+    } else {
+      rawConfig = JSON.parse(content);
+    }
+  } catch (error2) {
+    throw new ConfigValidationError(
+      `Failed to parse ${format.toUpperCase()}: ${error2 instanceof Error ? error2.message : String(error2)}`,
+      []
+    );
+  }
+  const result = configSchema.safeParse(rawConfig);
+  if (!result.success) {
+    throw new ConfigValidationError(
+      "Configuration validation failed:\n" + result.error.issues.map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`).join("\n"),
+      result.error.issues
+    );
+  }
+  if (result.data.minVersion !== void 0) {
+    checkVersionCompatibility(result.data.minVersion);
+  }
+  return result.data;
+}
+function getConfigFormat(filePath) {
+  const ext = filePath.toLowerCase();
+  if (ext.endsWith(".yaml") || ext.endsWith(".yml")) {
+    return "yaml";
+  }
+  if (ext.endsWith(".json")) {
+    return "json";
+  }
+  return "yaml";
+}
+function findConfigPath(startDir = process.cwd()) {
+  const configDir = (0, import_path3.join)(startDir, ".attest-it");
+  const candidates = ["config.yaml", "config.yml", "config.json"];
+  for (const candidate of candidates) {
+    const configPath = (0, import_path3.join)(configDir, candidate);
+    try {
+      (0, import_fs2.readFileSync)(configPath, "utf8");
+      return configPath;
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+async function loadConfig(configPath) {
+  const resolvedPath = configPath ?? findConfigPath();
+  if (!resolvedPath) {
+    throw new ConfigNotFoundError(
+      "Configuration file not found. Expected .attest-it/config.yaml, .attest-it/config.yml, or .attest-it/config.json"
+    );
+  }
+  try {
+    const content = await (0, import_promises.readFile)(resolvedPath, "utf8");
+    const format = getConfigFormat(resolvedPath);
+    return parseConfigContent(content, format);
+  } catch (error2) {
+    if (error2 instanceof ConfigValidationError || error2 instanceof VersionIncompatibleError) {
+      throw error2;
+    }
+    throw new ConfigNotFoundError(
+      `Failed to read configuration file at ${resolvedPath}: ${String(error2)}`
+    );
+  }
+}
+function toAttestItConfig(config) {
+  const result = {
+    version: config.version,
+    settings: {
+      maxAgeDays: config.settings.maxAgeDays,
+      publicKeyPath: config.settings.publicKeyPath,
+      attestationsPath: config.settings.attestationsPath,
+      sealsPath: config.settings.sealsPath
+    },
+    suites: {}
+  };
+  if (config.minVersion !== void 0) {
+    result.minVersion = config.minVersion;
+  }
+  if (config.settings.defaultCommand !== void 0) {
+    result.settings.defaultCommand = config.settings.defaultCommand;
+  }
+  if (config.settings.keyProvider !== void 0) {
+    result.settings.keyProvider = {
+      type: config.settings.keyProvider.type,
+      ...config.settings.keyProvider.options !== void 0 && {
+        options: config.settings.keyProvider.options
+      }
+    };
+  }
+  if (config.team !== void 0) {
+    result.team = config.team;
+  }
+  if (config.gates !== void 0) {
+    result.gates = config.gates;
+  }
+  if (config.groups !== void 0) {
+    result.groups = config.groups;
+  }
+  result.suites = Object.fromEntries(
+    Object.entries(config.suites).map(([name, suite]) => {
+      const mappedSuite = {
+        gate: suite.gate
+      };
+      if (suite.description !== void 0) mappedSuite.description = suite.description;
+      if (suite.command !== void 0) mappedSuite.command = suite.command;
+      if (suite.timeout !== void 0) mappedSuite.timeout = suite.timeout;
+      if (suite.interactive !== void 0) mappedSuite.interactive = suite.interactive;
+      if (suite.invalidates !== void 0) mappedSuite.invalidates = suite.invalidates;
+      if (suite.depends_on !== void 0) mappedSuite.depends_on = suite.depends_on;
+      return [name, mappedSuite];
+    })
+  );
+  return result;
+}
 function optionalVersionSchema(version2) {
   return external_exports.union([external_exports.literal(version2), external_exports.literal(String(version2)), external_exports.undefined()]).transform((v) => v === void 0 ? void 0 : version2);
 }
@@ -42638,6 +42772,142 @@ function validateSuiteGateReferences(policy, operational) {
     }
   }
   return errors;
+}
+var SplitConfigNotFoundError = class extends Error {
+  constructor(message, configType) {
+    super(message);
+    this.configType = configType;
+    this.name = "SplitConfigNotFoundError";
+  }
+};
+var CrossConfigValidationError = class extends Error {
+  constructor(message, errors) {
+    super(message);
+    this.errors = errors;
+    this.name = "CrossConfigValidationError";
+  }
+};
+function findPolicyPath(startDir = process.cwd()) {
+  const configDir = (0, import_path3.join)(startDir, ".attest-it");
+  const candidates = ["policy.yaml", "policy.yml", "policy.json"];
+  for (const candidate of candidates) {
+    const configPath = (0, import_path3.join)(configDir, candidate);
+    try {
+      (0, import_fs2.readFileSync)(configPath, "utf8");
+      return configPath;
+    } catch {
+    }
+  }
+  return null;
+}
+function findOperationalPath(startDir = process.cwd()) {
+  const configDir = (0, import_path3.join)(startDir, ".attest-it");
+  const candidates = ["config.yaml", "config.yml", "config.json"];
+  for (const candidate of candidates) {
+    const configPath = (0, import_path3.join)(configDir, candidate);
+    try {
+      (0, import_fs2.readFileSync)(configPath, "utf8");
+      return configPath;
+    } catch {
+    }
+  }
+  return null;
+}
+function getConfigFormat2(filePath) {
+  return filePath.endsWith(".json") ? "json" : "yaml";
+}
+async function loadPolicyAsync(source, baseDir) {
+  if (source.type === "content") {
+    if (!source.content) {
+      throw new SplitConfigNotFoundError(
+        'Policy content is required when type is "content"',
+        "policy"
+      );
+    }
+    if (!source.format) {
+      throw new SplitConfigNotFoundError(
+        'Policy format is required when type is "content"',
+        "policy"
+      );
+    }
+    return parsePolicyContent(source.content, source.format);
+  }
+  const policyPath = source.path ?? findPolicyPath(baseDir);
+  if (!policyPath) {
+    throw new SplitConfigNotFoundError(
+      "Policy file not found. Expected .attest-it/policy.yaml, .attest-it/policy.yml, or .attest-it/policy.json",
+      "policy"
+    );
+  }
+  try {
+    const content = await (0, import_promises.readFile)(policyPath, "utf8");
+    const format = getConfigFormat2(policyPath);
+    return parsePolicyContent(content, format);
+  } catch (error2) {
+    if (error2 instanceof PolicyValidationError) {
+      throw error2;
+    }
+    throw new SplitConfigNotFoundError(
+      `Failed to read policy file at ${policyPath}: ${String(error2)}`,
+      "policy"
+    );
+  }
+}
+async function loadOperationalAsync(operationalPath, baseDir) {
+  const resolvedPath = operationalPath ?? findOperationalPath(baseDir);
+  if (!resolvedPath) {
+    throw new SplitConfigNotFoundError(
+      "Operational config file not found. Expected .attest-it/config.yaml, .attest-it/config.yml, or .attest-it/config.json",
+      "operational"
+    );
+  }
+  try {
+    const content = await (0, import_promises.readFile)(resolvedPath, "utf8");
+    const format = getConfigFormat2(resolvedPath);
+    return parseOperationalContent(content, format);
+  } catch (error2) {
+    if (error2 instanceof OperationalValidationError) {
+      throw error2;
+    }
+    throw new SplitConfigNotFoundError(
+      `Failed to read operational config file at ${resolvedPath}: ${String(error2)}`,
+      "operational"
+    );
+  }
+}
+function validateAndMerge(policy, operational) {
+  const validationErrors = validateSuiteGateReferences(policy, operational);
+  if (validationErrors.length > 0) {
+    const messages = validationErrors.map((e) => e.message).join("; ");
+    throw new CrossConfigValidationError(
+      `Configuration validation failed: ${messages}`,
+      validationErrors.map((e) => ({ type: e.type, message: e.message }))
+    );
+  }
+  return mergeConfigs(policy, operational);
+}
+async function loadSplitConfig(options = {}) {
+  const baseDir = options.baseDir ?? process.cwd();
+  const policySource = options.policySource ?? { type: "filesystem" };
+  if (policySource.type === "content" || policySource.path) {
+    const policy = await loadPolicyAsync(policySource, baseDir);
+    const operational = await loadOperationalAsync(options.operationalPath, baseDir);
+    return validateAndMerge(policy, operational);
+  }
+  try {
+    const policy = await loadPolicyAsync(policySource, baseDir);
+    const operational = await loadOperationalAsync(options.operationalPath, baseDir);
+    return validateAndMerge(policy, operational);
+  } catch (error2) {
+    if (error2 instanceof SplitConfigNotFoundError && error2.configType === "policy") {
+      const unifiedPath = findConfigPath(baseDir);
+      if (unifiedPath) {
+        const config = await loadConfig(unifiedPath);
+        return toAttestItConfig(config);
+      }
+    }
+    throw error2;
+  }
 }
 var LARGE_FILE_THRESHOLD = 50 * 1024 * 1024;
 function sortFiles(files) {
@@ -44338,9 +44608,10 @@ async function run() {
       core.setFailed("Running in PR context but base branch not detected");
       return;
     }
-    if (effectivePolicyRef) {
-      core.info(`Fetching policy from ref: ${effectivePolicyRef}`);
-      try {
+    const operationalConfigPath = configPath || ".attest-it/config.yaml";
+    try {
+      if (effectivePolicyRef) {
+        core.info(`Fetching policy from ref: ${effectivePolicyRef}`);
         const { owner, repo } = getRepoInfo();
         const policyResult = await fetchPolicyFromRef({
           token: githubToken,
@@ -44351,75 +44622,52 @@ async function run() {
         });
         core.info(`Fetched policy from ${effectivePolicyRef} (SHA: ${policyResult.sha})`);
         const policyFormat = policyPath.endsWith(".json") ? "json" : "yaml";
-        const policyConfig = parsePolicyContent(policyResult.content, policyFormat);
-        const operationalConfigPath = configPath || ".attest-it/config.yaml";
-        const operationalContent = await (0, import_promises.readFile)(
-          (0, import_node_path.resolve)(process.cwd(), operationalConfigPath),
-          "utf8"
-        );
-        const operationalFormat = operationalConfigPath.endsWith(".json") ? "json" : "yaml";
-        const operationalConfig = parseOperationalContent(operationalContent, operationalFormat);
         core.info("Validating configuration...");
-        const validationErrors = validateSuiteGateReferences(policyConfig, operationalConfig);
-        if (validationErrors.length > 0) {
-          core.error("Configuration validation failed:");
-          for (const error2 of validationErrors) {
-            core.error(`- ${error2.message}`);
-          }
-          core.setFailed("Configuration validation failed. See errors above.");
-          return;
-        }
-        config = mergeConfigs(policyConfig, operationalConfig);
-      } catch (err) {
-        if (err instanceof PolicyValidationError) {
-          core.setFailed(`Policy validation failed: ${err.message}`);
-          return;
-        }
-        if (err instanceof OperationalValidationError) {
-          core.setFailed(`Operational config validation failed: ${err.message}`);
-          return;
-        }
-        throw err;
-      }
-    } else {
-      core.info("Loading configuration from filesystem");
-      try {
-        const policyContent = await (0, import_promises.readFile)((0, import_node_path.resolve)(process.cwd(), policyPath), "utf8");
-        const policyFormat = policyPath.endsWith(".json") ? "json" : "yaml";
-        const policyConfig = parsePolicyContent(policyContent, policyFormat);
-        const operationalConfigPath = configPath || ".attest-it/config.yaml";
-        const operationalContent = await (0, import_promises.readFile)(
-          (0, import_node_path.resolve)(process.cwd(), operationalConfigPath),
-          "utf8"
-        );
-        const operationalFormat = operationalConfigPath.endsWith(".json") ? "json" : "yaml";
-        const operationalConfig = parseOperationalContent(operationalContent, operationalFormat);
+        config = await loadSplitConfig({
+          policySource: {
+            type: "content",
+            content: policyResult.content,
+            format: policyFormat
+          },
+          operationalPath: (0, import_node_path.resolve)(process.cwd(), operationalConfigPath)
+        });
+      } else {
+        core.info("Loading configuration from filesystem");
         core.info("Validating configuration...");
-        const validationErrors = validateSuiteGateReferences(policyConfig, operationalConfig);
-        if (validationErrors.length > 0) {
-          core.error("Configuration validation failed:");
-          for (const error2 of validationErrors) {
-            core.error(`- ${error2.message}`);
-          }
-          core.setFailed("Configuration validation failed. See errors above.");
-          return;
-        }
-        config = mergeConfigs(policyConfig, operationalConfig);
-      } catch (err) {
-        if (err instanceof PolicyValidationError) {
-          core.setFailed(`Policy validation failed: ${err.message}`);
-          return;
-        }
-        if (err instanceof OperationalValidationError) {
-          core.setFailed(`Operational config validation failed: ${err.message}`);
-          return;
-        }
-        if (isFileNotFoundError(err)) {
-          core.setFailed(`Configuration file not found: ${err.path ?? "unknown"}`);
-          return;
-        }
-        throw err;
+        config = await loadSplitConfig({
+          policySource: {
+            type: "filesystem",
+            path: (0, import_node_path.resolve)(process.cwd(), policyPath)
+          },
+          operationalPath: (0, import_node_path.resolve)(process.cwd(), operationalConfigPath)
+        });
       }
+    } catch (err) {
+      if (err instanceof PolicyValidationError) {
+        core.setFailed(`Policy validation failed: ${err.message}`);
+        return;
+      }
+      if (err instanceof OperationalValidationError) {
+        core.setFailed(`Operational config validation failed: ${err.message}`);
+        return;
+      }
+      if (err instanceof CrossConfigValidationError) {
+        core.error("Configuration validation failed:");
+        for (const error2 of err.errors) {
+          core.error(`- ${error2.message}`);
+        }
+        core.setFailed("Configuration validation failed. See errors above.");
+        return;
+      }
+      if (err instanceof SplitConfigNotFoundError) {
+        core.setFailed(`Configuration file not found: ${err.message}`);
+        return;
+      }
+      if (isFileNotFoundError(err)) {
+        core.setFailed(`Configuration file not found: ${err.path ?? "unknown"}`);
+        return;
+      }
+      throw err;
     }
     if (suite) {
       const suiteConfig = config.suites[suite];

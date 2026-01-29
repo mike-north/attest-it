@@ -104,6 +104,19 @@ export interface CreateSealOptions {
 }
 
 // @public
+export class CrossConfigValidationError extends Error {
+    constructor(message: string, errors: {
+        message: string;
+        type: string;
+    }[]);
+    // (undocumented)
+    readonly errors: {
+        message: string;
+        type: string;
+    }[];
+}
+
+// @public
 export interface CryptoVerifyOptions {
     data: Buffer | string;
     publicKeyPath: string;
@@ -140,6 +153,12 @@ export function findAttestation(attestations: AttestationsFile, suite: string): 
 
 // @public
 export function findConfigPath(startDir?: string): null | string;
+
+// @public
+export function findOperationalPath(startDir?: string): null | string;
+
+// @public
+export function findPolicyPath(startDir?: string): null | string;
 
 // @public
 export function findTeamMemberByPublicKey(config: AttestItConfig, publicKey: string): TeamMember | undefined;
@@ -336,6 +355,19 @@ export function loadLocalConfigSync(configPath?: string): LocalConfig | null;
 
 // @public
 export function loadPreferences(): Promise<UserPreferences>;
+
+// @public
+export function loadSplitConfig(options?: LoadSplitConfigOptions): Promise<AttestItConfig>;
+
+// @public
+export interface LoadSplitConfigOptions {
+    baseDir?: string;
+    operationalPath?: string;
+    policySource?: PolicySource;
+}
+
+// @public
+export function loadSplitConfigSync(options?: LoadSplitConfigOptions): AttestItConfig;
 
 // @public
 export interface LocalConfig {
@@ -772,6 +804,14 @@ export const policySchema: z.ZodObject<{
 }>;
 
 // @public
+export interface PolicySource {
+    content?: string;
+    format?: 'json' | 'yaml';
+    path?: string;
+    type: 'content' | 'filesystem';
+}
+
+// @public
 export class PolicyValidationError extends Error {
     constructor(message: string, issues: z.ZodIssue[]);
     // (undocumented)
@@ -903,6 +943,13 @@ export interface SignOptions {
     keyRef?: string;
     passphrase?: string;
     privateKeyPath?: string;
+}
+
+// @public
+export class SplitConfigNotFoundError extends Error {
+    constructor(message: string, configType: 'operational' | 'policy');
+    // (undocumented)
+    readonly configType: 'operational' | 'policy';
 }
 
 // @public

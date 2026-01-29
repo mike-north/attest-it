@@ -1,7 +1,6 @@
 import { Command } from 'commander'
 import {
-  loadConfig,
-  toAttestItConfig,
+  loadSplitConfig,
   computeFingerprintSync,
   readSealsSync,
   verifyGateSeal,
@@ -56,27 +55,26 @@ interface GateStatus {
  */
 async function runStatus(gates: string[], options: StatusOptions): Promise<void> {
   try {
-    // Load config
-    const config = await loadConfig()
-    const attestItConfig = toAttestItConfig(config)
+    // Load split config (policy + operational, merged)
+    const config = await loadSplitConfig()
 
     // Check if gates are defined
-    if (!attestItConfig.gates || Object.keys(attestItConfig.gates).length === 0) {
+    if (!config.gates || Object.keys(config.gates).length === 0) {
       error('No gates defined in configuration')
       process.exit(ExitCode.CONFIG_ERROR)
     }
 
     // Read seals
     const projectRoot = process.cwd()
-    const sealsFile = readSealsSync(projectRoot, attestItConfig.settings.sealsPath)
+    const sealsFile = readSealsSync(projectRoot, config.settings.sealsPath)
 
     // Determine which gates to check
-    const gatesToCheck = gates.length > 0 ? gates : Object.keys(attestItConfig.gates)
+    const gatesToCheck = gates.length > 0 ? gates : Object.keys(config.gates)
 
     // Validate that specified gates exist
     for (const gateId of gatesToCheck) {
       // eslint-disable-next-line security/detect-object-injection
-      if (!attestItConfig.gates[gateId]) {
+      if (!config.gates[gateId]) {
         error(`Gate '${gateId}' not found in configuration`)
         process.exit(ExitCode.CONFIG_ERROR)
       }
@@ -86,7 +84,7 @@ async function runStatus(gates: string[], options: StatusOptions): Promise<void>
     const fingerprints: Record<string, string> = {}
     for (const gateId of gatesToCheck) {
       // eslint-disable-next-line security/detect-object-injection
-      const gate = attestItConfig.gates[gateId]
+      const gate = config.gates[gateId]
       if (!gate) continue
 
       const result = computeFingerprintSync({
@@ -102,9 +100,9 @@ async function runStatus(gates: string[], options: StatusOptions): Promise<void>
       gates.length > 0
         ? gatesToCheck.map((gateId) =>
             // eslint-disable-next-line security/detect-object-injection
-            verifyGateSeal(attestItConfig, gateId, sealsFile, fingerprints[gateId] ?? ''),
+            verifyGateSeal(config, gateId, sealsFile, fingerprints[gateId] ?? ''),
           )
-        : verifyAllSeals(attestItConfig, sealsFile, fingerprints)
+        : verifyAllSeals(config, sealsFile, fingerprints)
 
     // Build status results
     const results: GateStatus[] = verificationResults.map((result: SealVerificationResult) => {
