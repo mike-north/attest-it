@@ -104,6 +104,19 @@ export interface CreateSealOptions {
 }
 
 // @public
+export class CrossConfigValidationError extends Error {
+    constructor(message: string, errors: {
+        message: string;
+        type: string;
+    }[]);
+    // (undocumented)
+    readonly errors: {
+        message: string;
+        type: string;
+    }[];
+}
+
+// @public
 export interface CryptoVerifyOptions {
     data: Buffer | string;
     publicKeyPath: string;
@@ -140,6 +153,12 @@ export function findAttestation(attestations: AttestationsFile, suite: string): 
 
 // @public
 export function findConfigPath(startDir?: string): null | string;
+
+// @public
+export function findOperationalPath(startDir?: string): null | string;
+
+// @public
+export function findPolicyPath(startDir?: string): null | string;
 
 // @public
 export function findTeamMemberByPublicKey(config: AttestItConfig, publicKey: string): TeamMember | undefined;
@@ -338,6 +357,19 @@ export function loadLocalConfigSync(configPath?: string): LocalConfig | null;
 export function loadPreferences(): Promise<UserPreferences>;
 
 // @public
+export function loadSplitConfig(options?: LoadSplitConfigOptions): Promise<AttestItConfig>;
+
+// @public
+export interface LoadSplitConfigOptions {
+    baseDir?: string;
+    operationalPath?: string;
+    policySource?: PolicySource;
+}
+
+// @public
+export function loadSplitConfigSync(options?: LoadSplitConfigOptions): AttestItConfig;
+
+// @public
 export interface LocalConfig {
     activeIdentity: string;
     identities: Record<string, Identity>;
@@ -488,48 +520,85 @@ export const operationalSchema: z.ZodObject<{
             type: string;
         } | undefined;
     }>>;
-    suites: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodObject<{
+    suites: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEffects<z.ZodObject<{
         command: z.ZodOptional<z.ZodString>;
         depends_on: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         description: z.ZodOptional<z.ZodString>;
-        gate: z.ZodString;
+        files: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        gate: z.ZodOptional<z.ZodString>;
+        ignore: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         interactive: z.ZodOptional<z.ZodBoolean>;
         invalidates: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        packages: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         timeout: z.ZodOptional<z.ZodString>;
     }, "strict", z.ZodTypeAny, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        gate: string;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
         timeout?: string | undefined;
     }, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        gate: string;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
+        timeout?: string | undefined;
+    }>, {
+        command?: string | undefined;
+        depends_on?: string[] | undefined;
+        description?: string | undefined;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
+        interactive?: boolean | undefined;
+        invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
+        timeout?: string | undefined;
+    }, {
+        command?: string | undefined;
+        depends_on?: string[] | undefined;
+        description?: string | undefined;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
+        interactive?: boolean | undefined;
+        invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>>, Record<string, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        gate: string;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>, Record<string, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        gate: string;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>>;
-    version: z.ZodLiteral<1>;
+    version: z.ZodEffects<z.ZodUnion<[z.ZodLiteral<1>, z.ZodLiteral<string>]>, 1, 1 | string>;
 }, "strict", z.ZodTypeAny, {
     groups?: Record<string, string[]> | undefined;
     minVersion?: string | undefined;
@@ -549,9 +618,12 @@ export const operationalSchema: z.ZodObject<{
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        gate: string;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>;
     version: 1;
@@ -574,12 +646,15 @@ export const operationalSchema: z.ZodObject<{
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        gate: string;
+        files?: string[] | undefined;
+        gate?: string | undefined;
+        ignore?: string[] | undefined;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
+        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>;
-    version: 1;
+    version: 1 | string;
 }>;
 
 // @public
@@ -673,7 +748,7 @@ export const policySchema: z.ZodObject<{
         publicKey: string;
         publicKeyAlgorithm?: "ed25519" | undefined;
     }>>>;
-    version: z.ZodLiteral<1>;
+    version: z.ZodEffects<z.ZodUnion<[z.ZodLiteral<1>, z.ZodLiteral<string>]>, 1, 1 | string>;
 }, "strict", z.ZodTypeAny, {
     gates?: Record<string, {
         authorizedSigners: string[];
@@ -725,8 +800,16 @@ export const policySchema: z.ZodObject<{
         publicKey: string;
         publicKeyAlgorithm?: "ed25519" | undefined;
     }> | undefined;
-    version: 1;
+    version: 1 | string;
 }>;
+
+// @public
+export interface PolicySource {
+    content?: string;
+    format?: 'json' | 'yaml';
+    path?: string;
+    type: 'content' | 'filesystem';
+}
 
 // @public
 export class PolicyValidationError extends Error {
@@ -860,6 +943,13 @@ export interface SignOptions {
     keyRef?: string;
     passphrase?: string;
     privateKeyPath?: string;
+}
+
+// @public
+export class SplitConfigNotFoundError extends Error {
+    constructor(message: string, configType: 'operational' | 'policy');
+    // (undocumented)
+    readonly configType: 'operational' | 'policy';
 }
 
 // @public

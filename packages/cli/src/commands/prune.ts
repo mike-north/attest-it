@@ -5,7 +5,7 @@
 import { Command } from 'commander'
 import * as fs from 'node:fs'
 import {
-  loadConfig,
+  loadSplitConfig,
   readAttestations,
   writeSignedAttestations,
   computeFingerprint,
@@ -49,8 +49,8 @@ async function runPrune(options: PruneOptions): Promise<void> {
       return
     }
 
-    // Load config
-    const config = await loadConfig()
+    // Load split config (policy + operational, merged)
+    const config = await loadSplitConfig()
 
     // Load attestations
     const attestationsPath = config.settings.attestationsPath

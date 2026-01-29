@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/config.schema.json",
+  "$id": "https://attest-it.dev/schemas/v1/config.schema.json",
   "title": "attest-it Operational Configuration",
   "description": "Operational configuration schema for attest-it. Contains suite definitions and command execution settings.",
   "$ref": "#/definitions/config",
@@ -9,8 +9,12 @@
       "type": "object",
       "properties": {
         "version": {
-          "type": "number",
-          "const": 1
+          "type": ["number", "string"],
+          "enum": [1, "1"]
+        },
+        "minVersion": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(-[\\w.]+)?(\\+[\\w.]+)?$"
         },
         "settings": {
           "type": "object",
@@ -70,6 +74,27 @@
               "description": {
                 "type": "string"
               },
+              "packages": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "files": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "ignore": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
               "command": {
                 "type": "string"
               },
@@ -94,7 +119,6 @@
                 }
               }
             },
-            "required": ["gate"],
             "additionalProperties": false
           }
         },

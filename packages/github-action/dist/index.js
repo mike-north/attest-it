@@ -18273,7 +18273,7 @@ var require_summary = __commonJS({
     exports.summary = exports.markdownSummary = exports.SUMMARY_DOCS_URL = exports.SUMMARY_ENV_VAR = void 0;
     var os_1 = __require("os");
     var fs_1 = __require("fs");
-    var { access: access3, appendFile, writeFile: writeFile3 } = fs_1.promises;
+    var { access: access3, appendFile, writeFile: writeFile4 } = fs_1.promises;
     exports.SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY";
     exports.SUMMARY_DOCS_URL = "https://docs.github.com/actions/using-workflows/workflow-commands-for-github-actions#adding-a-job-summary";
     var Summary = class {
@@ -18331,7 +18331,7 @@ var require_summary = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           const overwrite = !!(options === null || options === void 0 ? void 0 : options.overwrite);
           const filePath = yield this.filePath();
-          const writeFunc = overwrite ? writeFile3 : appendFile;
+          const writeFunc = overwrite ? writeFile4 : appendFile;
           yield writeFunc(filePath, this._buffer, { encoding: "utf8" });
           return this.emptyBuffer();
         });
@@ -20013,14 +20013,6 @@ function getDefaultPrivateKeyPath() {
 function getDefaultPublicKeyPath() {
   return path2.join(process.cwd(), "attest-it-public.pem");
 }
-function getDefaultYubiKeyEncryptedKeyPath() {
-  const homeDir = os.homedir();
-  if (process.platform === "win32") {
-    const appData = process.env.APPDATA ?? path2.join(homeDir, "AppData", "Roaming");
-    return path2.join(appData, "attest-it", "yubikey-private.enc");
-  }
-  return path2.join(homeDir, ".config", "attest-it", "yubikey-private.enc");
-}
 async function ensureDir(dirPath) {
   try {
     await fs.mkdir(dirPath, { recursive: true });
@@ -20105,98 +20097,6 @@ async function generateKeyPair(options = {}) {
   } catch (err) {
     await cleanupFiles(privatePath, publicPath);
     throw err;
-  }
-}
-async function sign(options) {
-  await ensureOpenSSLAvailable();
-  const { privateKeyPath, keyProvider, keyRef, data, passphrase } = options;
-  let effectiveKeyPath;
-  let cleanup;
-  if (keyProvider && keyRef) {
-    const result = await keyProvider.getPrivateKey(keyRef);
-    effectiveKeyPath = result.keyPath;
-    cleanup = result.cleanup;
-  } else if (privateKeyPath) {
-    effectiveKeyPath = privateKeyPath;
-  } else {
-    throw new Error(
-      "Either privateKeyPath or both keyProvider and keyRef must be provided for signing"
-    );
-  }
-  try {
-    if (!await fileExists(effectiveKeyPath)) {
-      throw new Error(`Private key not found: ${effectiveKeyPath}`);
-    }
-    const dataBuffer = typeof data === "string" ? Buffer.from(data, "utf8") : data;
-    const processBuffer = dataBuffer.length === 0 ? Buffer.from([0]) : dataBuffer;
-    const tmpDir = await fs.mkdtemp(path2.join(os.tmpdir(), "attest-it-"));
-    const dataFile = path2.join(tmpDir, "data.bin");
-    const sigFile = path2.join(tmpDir, "sig.bin");
-    try {
-      await fs.writeFile(dataFile, processBuffer);
-      const signArgs = ["dgst", "-sha256"];
-      if (passphrase) {
-        signArgs.push("-passin", "stdin");
-      }
-      signArgs.push("-sign", effectiveKeyPath, "-out", sigFile, dataFile);
-      const result = await runOpenSSL(
-        signArgs,
-        passphrase ? Buffer.from(passphrase + "\n") : void 0
-      );
-      if (result.exitCode !== 0) {
-        const stderr = result.stderr.toLowerCase();
-        if (stderr.includes("bad decrypt") || stderr.includes("bad password") || stderr.includes("unable to load key") || stderr.includes("wrong password")) {
-          throw new Error(
-            "Failed to decrypt private key. Please check that the passphrase is correct."
-          );
-        }
-        throw new Error(`Failed to sign data: ${result.stderr}`);
-      }
-      const sigBuffer = await fs.readFile(sigFile);
-      return sigBuffer.toString("base64");
-    } finally {
-      try {
-        await fs.rm(tmpDir, { recursive: true, force: true });
-      } catch {
-      }
-    }
-  } finally {
-    if (cleanup) {
-      await cleanup();
-    }
-  }
-}
-async function verify(options) {
-  await ensureOpenSSLAvailable();
-  const { publicKeyPath, data, signature } = options;
-  if (!await fileExists(publicKeyPath)) {
-    throw new Error(`Public key not found: ${publicKeyPath}`);
-  }
-  const dataBuffer = typeof data === "string" ? Buffer.from(data, "utf8") : data;
-  const processBuffer = dataBuffer.length === 0 ? Buffer.from([0]) : dataBuffer;
-  const sigBuffer = Buffer.from(signature, "base64");
-  const tmpDir = await fs.mkdtemp(path2.join(os.tmpdir(), "attest-it-"));
-  const dataFile = path2.join(tmpDir, "data.bin");
-  const sigFile = path2.join(tmpDir, "sig.bin");
-  try {
-    await fs.writeFile(dataFile, processBuffer);
-    await fs.writeFile(sigFile, sigBuffer);
-    const verifyArgs = [
-      "dgst",
-      "-sha256",
-      "-verify",
-      publicKeyPath,
-      "-signature",
-      sigFile,
-      dataFile
-    ];
-    const result = await runOpenSSL(verifyArgs);
-    return result.exitCode === 0 && result.stdout.toString().includes("Verified OK");
-  } finally {
-    try {
-      await fs.rm(tmpDir, { recursive: true, force: true });
-    } catch {
-    }
   }
 }
 async function setKeyPermissions(keyPath) {
@@ -29669,6 +29569,42 @@ var require_semver2 = __commonJS({
   }
 });
 
+// ../../node_modules/.pnpm/fast-deep-equal@3.1.3/node_modules/fast-deep-equal/index.js
+var require_fast_deep_equal = __commonJS({
+  "../../node_modules/.pnpm/fast-deep-equal@3.1.3/node_modules/fast-deep-equal/index.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    module.exports = function equal(a, b) {
+      if (a === b) return true;
+      if (a && b && typeof a == "object" && typeof b == "object") {
+        if (a.constructor !== b.constructor) return false;
+        var length, i, keys;
+        if (Array.isArray(a)) {
+          length = a.length;
+          if (length != b.length) return false;
+          for (i = length; i-- !== 0; )
+            if (!equal(a[i], b[i])) return false;
+          return true;
+        }
+        if (a.constructor === RegExp) return a.source === b.source && a.flags === b.flags;
+        if (a.valueOf !== Object.prototype.valueOf) return a.valueOf() === b.valueOf();
+        if (a.toString !== Object.prototype.toString) return a.toString() === b.toString();
+        keys = Object.keys(a);
+        length = keys.length;
+        if (length !== Object.keys(b).length) return false;
+        for (i = length; i-- !== 0; )
+          if (!Object.prototype.hasOwnProperty.call(b, keys[i])) return false;
+        for (i = length; i-- !== 0; ) {
+          var key = keys[i];
+          if (!equal(a[key], b[key])) return false;
+        }
+        return true;
+      }
+      return a !== a && b !== b;
+    };
+  }
+});
+
 // ../../node_modules/.pnpm/picomatch@4.0.3/node_modules/picomatch/lib/constants.js
 var require_constants7 = __commonJS({
   "../../node_modules/.pnpm/picomatch@4.0.3/node_modules/picomatch/lib/constants.js"(exports, module) {
@@ -31228,26 +31164,6 @@ var require_canonicalize = __commonJS({
       }, "");
       return `{${values}}`;
     };
-  }
-});
-
-// ../core/dist/crypto-SSL7OBY2.js
-var crypto_SSL7OBY2_exports = {};
-__export(crypto_SSL7OBY2_exports, {
-  checkOpenSSL: () => checkOpenSSL,
-  generateKeyPair: () => generateKeyPair,
-  getDefaultPrivateKeyPath: () => getDefaultPrivateKeyPath,
-  getDefaultPublicKeyPath: () => getDefaultPublicKeyPath,
-  getDefaultYubiKeyEncryptedKeyPath: () => getDefaultYubiKeyEncryptedKeyPath,
-  setKeyPermissions: () => setKeyPermissions,
-  sign: () => sign,
-  verify: () => verify
-});
-var init_crypto_SSL7OBY2 = __esm({
-  "../core/dist/crypto-SSL7OBY2.js"() {
-    "use strict";
-    init_esm_shims();
-    init_chunk_FGYLU2HL();
   }
 });
 
@@ -36212,17 +36128,18 @@ var require_github = __commonJS({
 // src/index.ts
 init_esm_shims();
 var core = __toESM(require_core(), 1);
-import { readFile as readFile3 } from "fs/promises";
 import { resolve as resolve4 } from "path";
 
 // ../core/dist/index.js
 init_esm_shims();
 init_chunk_FGYLU2HL();
 init_chunk_FGYLU2HL();
-import * as fs2 from "fs";
-import * as fs7 from "fs/promises";
 var import_ms = __toESM(require_ms(), 1);
 var import_yaml = __toESM(require_dist(), 1);
+import * as fs2 from "fs";
+import { readFileSync as readFileSync2, mkdirSync as mkdirSync2, writeFileSync as writeFileSync2 } from "fs";
+import * as fs7 from "fs/promises";
+import { readFile as readFile3, mkdir as mkdir3, writeFile as writeFile3 } from "fs/promises";
 import * as path8 from "path";
 import { join as join3, resolve as resolve3, dirname as dirname4 } from "path";
 
@@ -40288,6 +40205,1018 @@ var NEVER = INVALID;
 
 // ../core/dist/index.js
 var import_semver = __toESM(require_semver2(), 1);
+
+// ../../node_modules/.pnpm/@migrex+core@0.2.0-alpha.1/node_modules/@migrex/core/dist/index.js
+init_esm_shims();
+var import_fast_deep_equal = __toESM(require_fast_deep_equal(), 1);
+var MigrationError = class extends Error {
+  code;
+  details;
+  constructor(message, code, details) {
+    super(message);
+    this.name = "MigrationError";
+    this.code = code;
+    if (details !== void 0) {
+      this.details = details;
+    }
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+};
+var NoPathError = class extends MigrationError {
+  constructor(fromVersion, toVersion) {
+    super(
+      `No migration path exists from version "${fromVersion}" to "${toVersion}"`,
+      "NO_PATH",
+      { fromVersion, toVersion }
+    );
+    this.name = "NoPathError";
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+};
+var SchemaValidationError = class extends MigrationError {
+  validationErrors;
+  constructor(version2, validationErrors) {
+    super(
+      `Validation failed for version "${version2}": ${validationErrors.map((e) => e.message).join(", ")}`,
+      "VALIDATION_FAILED",
+      { version: version2, validationErrors }
+    );
+    this.name = "SchemaValidationError";
+    this.validationErrors = validationErrors;
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+};
+var INTEGER_REGEX = /^(0|[1-9]\d*)$/;
+var integerStrategy = {
+  id: "integer",
+  compare(a, b) {
+    const numA = parseInt(a, 10);
+    const numB = parseInt(b, 10);
+    if (numA < numB) return -1;
+    if (numA > numB) return 1;
+    return 0;
+  },
+  isValid(version2) {
+    return INTEGER_REGEX.test(version2);
+  },
+  normalize(version2) {
+    if (!this.isValid(version2)) {
+      throw new Error(`Invalid integer version: ${version2}`);
+    }
+    return version2;
+  },
+  parse(version2) {
+    if (!this.isValid(version2)) {
+      throw new Error(`Invalid integer version: ${version2}`);
+    }
+    return { parts: [parseInt(version2, 10)] };
+  },
+  increment(version2, _type) {
+    const num = parseInt(version2, 10);
+    return String(num + 1);
+  }
+};
+var PreservationStash = class {
+  fields = /* @__PURE__ */ new Map();
+  eventLog = [];
+  /**
+   * Create a new stash, optionally initialized with existing preserved fields.
+   */
+  constructor(initialFields) {
+    if (initialFields) {
+      for (const field of initialFields) {
+        if (field.kind === "single") {
+          const internal = {
+            path: field.path,
+            values: [
+              {
+                value: field.value,
+                event: field.history[0],
+                ...field.metadata !== void 0 && { metadata: field.metadata }
+              }
+            ]
+          };
+          this.fields.set(field.path, internal);
+        } else {
+          const internal = {
+            path: field.path,
+            values: field.entries.map((e) => ({
+              value: e.value,
+              event: e.event,
+              ...e.metadata !== void 0 && { metadata: e.metadata }
+            }))
+          };
+          this.fields.set(field.path, internal);
+        }
+      }
+    }
+  }
+  /**
+   * Preserve a field value for later restoration.
+   * Handles idempotent preservations and multi-value scenarios.
+   */
+  preserve(field, value, currentStep, metadata) {
+    const event = {
+      type: "preserved",
+      version: currentStep.version,
+      direction: currentStep.direction,
+      stepIndex: currentStep.index,
+      timestamp: Date.now(),
+      ...metadata !== void 0 && { metadata }
+    };
+    const existing = this.fields.get(field);
+    if (!existing) {
+      const preserved = {
+        path: field,
+        values: [{ value, event, ...metadata !== void 0 && { metadata } }]
+      };
+      this.fields.set(field, preserved);
+      this.eventLog.push(event);
+      return {
+        status: "preserved",
+        field: this.toPreservedField(preserved)
+      };
+    }
+    const lastValue = existing.values[existing.values.length - 1].value;
+    if (this.valuesEquivalent(lastValue, value)) {
+      return {
+        status: "already_preserved",
+        field: this.toPreservedField(existing),
+        note: "Same value already preserved"
+      };
+    }
+    const rePreserveEvent = {
+      ...event,
+      type: "re-preserved"
+    };
+    existing.values.push({ value, event: rePreserveEvent, ...metadata !== void 0 && { metadata } });
+    this.eventLog.push(rePreserveEvent);
+    return {
+      status: "preserved",
+      field: this.toPreservedField(existing)
+    };
+  }
+  /**
+   * Consume (retrieve and remove) a preserved field.
+   * Records the consumption event in the audit trail.
+   */
+  consume(field, currentStep) {
+    const preserved = this.fields.get(field);
+    if (!preserved || preserved.consumed) {
+      return void 0;
+    }
+    const event = {
+      type: "consumed",
+      version: currentStep.version,
+      direction: currentStep.direction,
+      stepIndex: currentStep.index,
+      timestamp: Date.now()
+    };
+    this.eventLog.push(event);
+    preserved.consumed = true;
+    preserved.consumedAt = currentStep.version;
+    return this.toPreservedField(preserved);
+  }
+  /**
+   * Peek at a preserved field without consuming it.
+   */
+  peek(field) {
+    const preserved = this.fields.get(field);
+    if (!preserved || preserved.consumed) {
+      return void 0;
+    }
+    return this.toPreservedField(preserved);
+  }
+  /**
+   * Check if a field is currently preserved (and not consumed).
+   */
+  has(field) {
+    const preserved = this.fields.get(field);
+    return preserved !== void 0 && !preserved.consumed;
+  }
+  /**
+   * List all currently preserved (unconsumed) fields.
+   */
+  listAll() {
+    return Array.from(this.fields.values()).filter((f) => !f.consumed).map((f) => this.toPreservedField(f));
+  }
+  /**
+   * Get a summary of all preserved fields and their lifecycle.
+   */
+  getSummary() {
+    const consumed = [];
+    const unconsumed = [];
+    for (const field of this.fields.values()) {
+      const history = field.values.flatMap((v) => [v.event]);
+      const preservedAt = field.values[0].event.version;
+      if (field.consumed) {
+        consumed.push({
+          path: field.path,
+          preservedAt,
+          history,
+          ...field.consumedAt !== void 0 && { consumedAt: field.consumedAt }
+        });
+      } else {
+        unconsumed.push({
+          path: field.path,
+          preservedAt,
+          history
+        });
+      }
+    }
+    return {
+      consumed,
+      unconsumed,
+      lossless: unconsumed.length === 0
+    };
+  }
+  /**
+   * Get a human-readable audit log of all preservation events.
+   */
+  getAuditLog() {
+    const lines = ["=== Preservation Audit Log ==="];
+    for (const event of this.eventLog) {
+      const direction = event.direction === "up" ? "\u2191" : "\u2193";
+      lines.push(
+        `[${event.type}] ${direction} step ${event.stepIndex} @ ${event.version}`
+      );
+    }
+    lines.push("");
+    lines.push("=== Current State ===");
+    for (const [field, preserved] of this.fields) {
+      const status = preserved.consumed ? "(consumed)" : "(active)";
+      const valueCount = preserved.values.length;
+      lines.push(`${field}: ${valueCount} value(s) ${status}`);
+    }
+    return lines.join("\n");
+  }
+  /**
+   * Convert internal representation to public PreservedField type.
+   */
+  toPreservedField(internal) {
+    if (internal.values.length === 1) {
+      const entry = internal.values[0];
+      const single = {
+        kind: "single",
+        path: internal.path,
+        value: entry.value,
+        history: [entry.event],
+        ...entry.metadata !== void 0 && { metadata: entry.metadata }
+      };
+      return single;
+    }
+    const multi = {
+      kind: "multi",
+      path: internal.path,
+      entries: internal.values.map((v) => ({
+        value: v.value,
+        event: v.event,
+        ...v.metadata !== void 0 && { metadata: v.metadata }
+      })),
+      valuesEquivalent: this.allValuesEquivalent(
+        internal.values.map((v) => v.value)
+      )
+    };
+    return multi;
+  }
+  /**
+   * Deep equality check for values using fast-deep-equal.
+   * Handles edge cases like NaN, undefined, circular references better than JSON.stringify.
+   */
+  valuesEquivalent(a, b) {
+    return (0, import_fast_deep_equal.default)(a, b);
+  }
+  /**
+   * Check if all values in an array are equivalent.
+   */
+  allValuesEquivalent(values) {
+    if (values.length <= 1) return true;
+    const first = values[0];
+    return values.every((v) => this.valuesEquivalent(v, first));
+  }
+};
+var MigrationContextImplClass = class {
+  stash;
+  _currentStep;
+  constructor(totalSteps, initialStash) {
+    this.stash = new PreservationStash(initialStash);
+    this._currentStep = {
+      from: "",
+      to: "",
+      direction: "up",
+      index: 0,
+      totalSteps
+    };
+  }
+  get currentStep() {
+    return { ...this._currentStep };
+  }
+  setCurrentStep(step) {
+    this._currentStep = step;
+  }
+  preserve(field, value, metadata) {
+    return this.stash.preserve(
+      field,
+      value,
+      {
+        version: this._currentStep.from,
+        direction: this._currentStep.direction,
+        index: this._currentStep.index
+      },
+      metadata
+    );
+  }
+  hasPreserved(field) {
+    return this.stash.has(field);
+  }
+  consume(field) {
+    return this.stash.consume(field, {
+      version: this._currentStep.to,
+      direction: this._currentStep.direction,
+      index: this._currentStep.index
+    });
+  }
+  peek(field) {
+    return this.stash.peek(field);
+  }
+  listPreserved() {
+    return this.stash.listAll();
+  }
+  getAuditLog() {
+    return this.stash.getAuditLog();
+  }
+  getSummary() {
+    const summary = this.stash.getSummary();
+    return {
+      consumed: summary.consumed,
+      unconsumed: summary.unconsumed,
+      lossless: summary.lossless
+    };
+  }
+  getPreservedFields() {
+    return this.stash.listAll();
+  }
+};
+function createMigrationContext(totalSteps, initialStash) {
+  return new MigrationContextImplClass(totalSteps, initialStash);
+}
+function findPath(from, to, adjacencyList, migrations, versionStrategy, getMigrationKey) {
+  const visited = /* @__PURE__ */ new Set();
+  const queue = [
+    { version: from, path: [from] }
+  ];
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (current.version === to) {
+      return buildMigrationPath(
+        current.path,
+        migrations,
+        versionStrategy,
+        getMigrationKey
+      );
+    }
+    if (visited.has(current.version)) {
+      continue;
+    }
+    visited.add(current.version);
+    const neighbors = adjacencyList.get(current.version);
+    if (neighbors) {
+      for (const neighbor of neighbors) {
+        if (!visited.has(neighbor)) {
+          queue.push({
+            version: neighbor,
+            path: [...current.path, neighbor]
+          });
+        }
+      }
+    }
+  }
+  return null;
+}
+function buildMigrationPath(versionPath, migrations, versionStrategy, getMigrationKey) {
+  const steps = [];
+  let hasIrreversibleStep = false;
+  let overallDirection = "up";
+  let hasUp = false;
+  let hasDown = false;
+  for (let i = 0; i < versionPath.length - 1; i++) {
+    const fromVersion = versionPath[i];
+    const toVersion = versionPath[i + 1];
+    const key = getMigrationKey(fromVersion, toVersion);
+    const migration = migrations.get(key);
+    if (!migration) {
+      throw new Error(`Migration not found for ${fromVersion} -> ${toVersion}`);
+    }
+    const comparison = versionStrategy.compare(fromVersion, toVersion);
+    const direction = comparison < 0 ? "up" : "down";
+    if (direction === "up") {
+      hasUp = true;
+    } else {
+      hasDown = true;
+    }
+    if (direction === "down" && !("down" in migration)) {
+      hasIrreversibleStep = true;
+    }
+    steps.push({
+      fromVersion,
+      toVersion,
+      direction,
+      migration
+    });
+  }
+  if (hasUp && hasDown) {
+    overallDirection = "mixed";
+  } else if (hasDown) {
+    overallDirection = "down";
+  }
+  return {
+    steps,
+    direction: overallDirection,
+    hasIrreversibleStep
+  };
+}
+var MigrationGraphImpl = class {
+  schemas = /* @__PURE__ */ new Map();
+  migrations = /* @__PURE__ */ new Map();
+  adjacencyList = /* @__PURE__ */ new Map();
+  versionStrategy;
+  telemetry;
+  id;
+  constructor(options) {
+    this.id = options.id;
+    this.versionStrategy = options.versionStrategy;
+    if (options.telemetry) {
+      this.telemetry = options.telemetry;
+    }
+  }
+  registerSchema(schema) {
+    const version2 = this.normalizeVersion(schema.version);
+    if (this.schemas.has(version2)) {
+      throw new MigrationError(
+        `Schema for version "${version2}" already registered`,
+        "DUPLICATE_SCHEMA",
+        { version: version2 }
+      );
+    }
+    this.schemas.set(version2, schema);
+    if (!this.adjacencyList.has(version2)) {
+      this.adjacencyList.set(version2, /* @__PURE__ */ new Set());
+    }
+  }
+  registerMigration(migration) {
+    const fromVersion = this.normalizeVersion(migration.fromVersion);
+    const toVersion = this.normalizeVersion(migration.toVersion);
+    const key = this.getMigrationKey(fromVersion, toVersion);
+    if (this.migrations.has(key)) {
+      throw new MigrationError(
+        `Migration from "${fromVersion}" to "${toVersion}" already registered`,
+        "DUPLICATE_MIGRATION",
+        { fromVersion, toVersion }
+      );
+    }
+    this.migrations.set(key, migration);
+    if (!this.adjacencyList.has(fromVersion)) {
+      this.adjacencyList.set(fromVersion, /* @__PURE__ */ new Set());
+    }
+    if (!this.adjacencyList.has(toVersion)) {
+      this.adjacencyList.set(toVersion, /* @__PURE__ */ new Set());
+    }
+    this.adjacencyList.get(fromVersion).add(toVersion);
+    this.adjacencyList.get(toVersion).add(fromVersion);
+  }
+  hasPath(fromVersion, toVersion) {
+    try {
+      this.getPath(fromVersion, toVersion);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  getPath(fromVersion, toVersion) {
+    const normalizedFrom = this.normalizeVersion(fromVersion);
+    const normalizedTo = this.normalizeVersion(toVersion);
+    if (normalizedFrom === normalizedTo) {
+      return {
+        steps: [],
+        direction: "up",
+        hasIrreversibleStep: false
+      };
+    }
+    const path4 = findPath(
+      normalizedFrom,
+      normalizedTo,
+      this.adjacencyList,
+      this.migrations,
+      this.versionStrategy,
+      (from, to) => this.getMigrationKey(from, to)
+    );
+    if (!path4) {
+      throw new NoPathError(fromVersion, toVersion);
+    }
+    return path4;
+  }
+  migrate(data, fromVersion, toVersion, options = {}) {
+    const startTime = performance.now();
+    const normalizedFrom = this.normalizeVersion(fromVersion);
+    const normalizedTo = this.normalizeVersion(toVersion);
+    const sourceSchema = this.schemas.get(normalizedFrom);
+    if (sourceSchema && !options.skipValidation) {
+      const validation2 = sourceSchema.schema(data);
+      if (!validation2.success) {
+        const error2 = new SchemaValidationError(
+          normalizedFrom,
+          validation2.errors ?? []
+        );
+        const dummyContext = createMigrationContext(0, options.initialStash);
+        this.telemetry?.onError?.(error2, null, dummyContext);
+        const result2 = {
+          success: false,
+          path: { steps: [], direction: "up", hasIrreversibleStep: false },
+          stash: { consumed: [], unconsumed: [], lossless: true },
+          preservedFields: options.initialStash ?? [],
+          error: error2
+        };
+        const totalDuration2 = performance.now() - startTime;
+        this.telemetry?.onMigrationComplete?.(result2, totalDuration2);
+        return result2;
+      }
+      data = validation2.data;
+    }
+    let path4;
+    try {
+      const pathStartTime = performance.now();
+      path4 = this.getPath(normalizedFrom, normalizedTo);
+      const pathDuration = performance.now() - pathStartTime;
+      this.telemetry?.onPathComputed?.(path4, pathDuration);
+    } catch (err) {
+      return {
+        success: false,
+        path: { steps: [], direction: "up", hasIrreversibleStep: false },
+        stash: { consumed: [], unconsumed: [], lossless: true },
+        preservedFields: options.initialStash ?? [],
+        error: err
+      };
+    }
+    if (path4.steps.length === 0) {
+      return {
+        success: true,
+        data,
+        path: path4,
+        stash: { consumed: [], unconsumed: [], lossless: true },
+        preservedFields: options.initialStash ?? []
+      };
+    }
+    const context = createMigrationContext(path4.steps.length, options.initialStash);
+    let currentData = data;
+    for (let i = 0; i < path4.steps.length; i++) {
+      const step = path4.steps[i];
+      context.setCurrentStep({
+        from: step.fromVersion,
+        to: step.toVersion,
+        direction: step.direction,
+        index: i,
+        totalSteps: path4.steps.length
+      });
+      this.telemetry?.onStepStart?.(step, i, path4.steps.length);
+      const stepStartTime = performance.now();
+      try {
+        if (step.direction === "up") {
+          currentData = step.migration.up(currentData, context);
+        } else {
+          const reversibleMigration = step.migration;
+          currentData = reversibleMigration.down(currentData, context);
+        }
+        const stepDuration = performance.now() - stepStartTime;
+        this.telemetry?.onStepComplete?.(step, i, stepDuration);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        const error2 = new MigrationError(
+          `Migration failed at step ${i + 1}: ${errorMessage}`,
+          "MIGRATION_FAILED",
+          {
+            step: i,
+            fromVersion: step.fromVersion,
+            toVersion: step.toVersion
+          }
+        );
+        this.telemetry?.onError?.(error2, step, context);
+        return {
+          success: false,
+          path: path4,
+          stash: context.getSummary(),
+          preservedFields: context.getPreservedFields(),
+          error: error2
+        };
+      }
+      if (options.validateIntermediate && i < path4.steps.length - 1) {
+        const intermediateSchema = this.schemas.get(step.toVersion);
+        if (intermediateSchema) {
+          const validation2 = intermediateSchema.schema(currentData);
+          if (!validation2.success) {
+            return {
+              success: false,
+              path: path4,
+              stash: context.getSummary(),
+              preservedFields: context.getPreservedFields(),
+              error: new SchemaValidationError(
+                step.toVersion,
+                validation2.errors ?? []
+              )
+            };
+          }
+        }
+      }
+    }
+    const destSchema = this.schemas.get(normalizedTo);
+    let validation;
+    if (destSchema && !options.skipValidation) {
+      validation = destSchema.schema(currentData);
+      if (!validation.success) {
+        const error2 = new SchemaValidationError(
+          normalizedTo,
+          validation.errors ?? []
+        );
+        this.telemetry?.onError?.(error2, null, context);
+        const result2 = {
+          success: false,
+          path: path4,
+          stash: context.getSummary(),
+          preservedFields: context.getPreservedFields(),
+          validation,
+          error: error2
+        };
+        const totalDuration2 = performance.now() - startTime;
+        this.telemetry?.onMigrationComplete?.(result2, totalDuration2);
+        return result2;
+      }
+      if (destSchema.validate) {
+        validation = destSchema.validate(validation.data);
+        if (!validation.success) {
+          const error2 = new SchemaValidationError(
+            normalizedTo,
+            validation.errors ?? []
+          );
+          this.telemetry?.onError?.(error2, null, context);
+          const result2 = {
+            success: false,
+            path: path4,
+            stash: context.getSummary(),
+            preservedFields: context.getPreservedFields(),
+            validation,
+            error: error2
+          };
+          const totalDuration2 = performance.now() - startTime;
+          this.telemetry?.onMigrationComplete?.(result2, totalDuration2);
+          return result2;
+        }
+      }
+      currentData = validation.data;
+    }
+    const result = {
+      success: true,
+      data: currentData,
+      path: path4,
+      stash: context.getSummary(),
+      preservedFields: context.getPreservedFields(),
+      ...validation !== void 0 && { validation }
+    };
+    const totalDuration = performance.now() - startTime;
+    this.telemetry?.onMigrationComplete?.(result, totalDuration);
+    return result;
+  }
+  async migrateAsync(data, fromVersion, toVersion, options = {}) {
+    const startTime = performance.now();
+    const normalizedFrom = this.normalizeVersion(fromVersion);
+    const normalizedTo = this.normalizeVersion(toVersion);
+    const sourceSchema = this.schemas.get(normalizedFrom);
+    if (sourceSchema && !options.skipValidation) {
+      const validation2 = sourceSchema.schema(data);
+      if (!validation2.success) {
+        const result2 = {
+          success: false,
+          path: { steps: [], direction: "up", hasIrreversibleStep: false },
+          stash: { consumed: [], unconsumed: [], lossless: true },
+          preservedFields: options.initialStash ?? [],
+          error: new SchemaValidationError(
+            normalizedFrom,
+            validation2.errors ?? []
+          )
+        };
+        this.telemetry?.onMigrationComplete?.(result2, performance.now() - startTime);
+        return result2;
+      }
+      data = validation2.data;
+    }
+    let path4;
+    try {
+      const pathStartTime = performance.now();
+      path4 = this.getPath(normalizedFrom, normalizedTo);
+      this.telemetry?.onPathComputed?.(path4, performance.now() - pathStartTime);
+    } catch (err) {
+      const result2 = {
+        success: false,
+        path: { steps: [], direction: "up", hasIrreversibleStep: false },
+        stash: { consumed: [], unconsumed: [], lossless: true },
+        preservedFields: options.initialStash ?? [],
+        error: err
+      };
+      this.telemetry?.onMigrationComplete?.(result2, performance.now() - startTime);
+      return result2;
+    }
+    if (path4.steps.length === 0) {
+      const result2 = {
+        success: true,
+        data,
+        path: path4,
+        stash: { consumed: [], unconsumed: [], lossless: true },
+        preservedFields: options.initialStash ?? []
+      };
+      this.telemetry?.onMigrationComplete?.(result2, performance.now() - startTime);
+      return result2;
+    }
+    const context = createMigrationContext(path4.steps.length, options.initialStash);
+    let currentData = data;
+    for (let i = 0; i < path4.steps.length; i++) {
+      const step = path4.steps[i];
+      context.setCurrentStep({
+        from: step.fromVersion,
+        to: step.toVersion,
+        direction: step.direction,
+        index: i,
+        totalSteps: path4.steps.length
+      });
+      const stepStartTime = performance.now();
+      this.telemetry?.onStepStart?.(step, i, path4.steps.length);
+      try {
+        if (step.direction === "up") {
+          const result2 = step.migration.up(currentData, context);
+          currentData = result2 instanceof Promise ? await result2 : result2;
+        } else {
+          const reversibleMigration = step.migration;
+          const result2 = reversibleMigration.down(currentData, context);
+          currentData = result2 instanceof Promise ? await result2 : result2;
+        }
+        this.telemetry?.onStepComplete?.(step, i, performance.now() - stepStartTime);
+      } catch (err) {
+        this.telemetry?.onError?.(err, step, context);
+        const result2 = {
+          success: false,
+          path: path4,
+          stash: context.getSummary(),
+          preservedFields: context.getPreservedFields(),
+          error: new MigrationError(
+            `Migration failed at step ${i + 1}: ${err instanceof Error ? err.message : String(err)}`,
+            "MIGRATION_FAILED",
+            {
+              step: i,
+              fromVersion: step.fromVersion,
+              toVersion: step.toVersion
+            }
+          )
+        };
+        this.telemetry?.onMigrationComplete?.(result2, performance.now() - startTime);
+        return result2;
+      }
+      if (options.validateIntermediate && i < path4.steps.length - 1) {
+        const intermediateSchema = this.schemas.get(step.toVersion);
+        if (intermediateSchema) {
+          const validation2 = intermediateSchema.schema(currentData);
+          if (!validation2.success) {
+            const result2 = {
+              success: false,
+              path: path4,
+              stash: context.getSummary(),
+              preservedFields: context.getPreservedFields(),
+              error: new SchemaValidationError(
+                step.toVersion,
+                validation2.errors ?? []
+              )
+            };
+            this.telemetry?.onMigrationComplete?.(result2, performance.now() - startTime);
+            return result2;
+          }
+        }
+      }
+    }
+    const destSchema = this.schemas.get(normalizedTo);
+    let validation;
+    if (destSchema && !options.skipValidation) {
+      validation = destSchema.schema(currentData);
+      if (!validation.success) {
+        const result2 = {
+          success: false,
+          path: path4,
+          stash: context.getSummary(),
+          preservedFields: context.getPreservedFields(),
+          validation,
+          error: new SchemaValidationError(
+            normalizedTo,
+            validation.errors ?? []
+          )
+        };
+        this.telemetry?.onMigrationComplete?.(result2, performance.now() - startTime);
+        return result2;
+      }
+      if (destSchema.validate) {
+        validation = destSchema.validate(validation.data);
+        if (!validation.success) {
+          const result2 = {
+            success: false,
+            path: path4,
+            stash: context.getSummary(),
+            preservedFields: context.getPreservedFields(),
+            validation,
+            error: new SchemaValidationError(
+              normalizedTo,
+              validation.errors ?? []
+            )
+          };
+          this.telemetry?.onMigrationComplete?.(result2, performance.now() - startTime);
+          return result2;
+        }
+      }
+      currentData = validation.data;
+    }
+    const result = {
+      success: true,
+      data: currentData,
+      path: path4,
+      stash: context.getSummary(),
+      preservedFields: context.getPreservedFields(),
+      ...validation !== void 0 && { validation }
+    };
+    const totalDuration = performance.now() - startTime;
+    this.telemetry?.onMigrationComplete?.(result, totalDuration);
+    return result;
+  }
+  migrateMany(data, fromVersion, toVersion, options = {}) {
+    const normalizedFrom = this.normalizeVersion(fromVersion);
+    const normalizedTo = this.normalizeVersion(toVersion);
+    let path4;
+    try {
+      const pathStartTime = performance.now();
+      path4 = this.getPath(normalizedFrom, normalizedTo);
+      const pathDuration = performance.now() - pathStartTime;
+      this.telemetry?.onPathComputed?.(path4, pathDuration);
+    } catch {
+      return {
+        total: 0,
+        succeeded: 0,
+        failed: 0,
+        results: [],
+        path: { steps: [], direction: "up", hasIrreversibleStep: false }
+      };
+    }
+    const items = Array.from(data);
+    const results = [];
+    let succeeded = 0;
+    let failed = 0;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      const result = this.migrate(item, fromVersion, toVersion, options);
+      results.push(result);
+      if (result.success) {
+        succeeded++;
+      } else {
+        failed++;
+        if (!options.continueOnError) {
+          for (let j = i + 1; j < items.length; j++) {
+            results.push({
+              success: false,
+              path: path4,
+              stash: { consumed: [], unconsumed: [], lossless: true },
+              preservedFields: [],
+              error: new MigrationError(
+                "Batch migration stopped due to previous error",
+                "MIGRATION_FAILED",
+                { skipped: true }
+              )
+            });
+            failed++;
+          }
+          break;
+        }
+      }
+      options.onProgress?.(i + 1, items.length, result);
+    }
+    return {
+      total: items.length,
+      succeeded,
+      failed,
+      results,
+      path: path4
+    };
+  }
+  getVersions() {
+    const allVersions = /* @__PURE__ */ new Set();
+    for (const version2 of this.schemas.keys()) {
+      allVersions.add(version2);
+    }
+    for (const migration of this.migrations.values()) {
+      allVersions.add(migration.fromVersion);
+      allVersions.add(migration.toVersion);
+    }
+    return Array.from(allVersions).sort(
+      (a, b) => this.versionStrategy.compare(a, b)
+    );
+  }
+  getSchema(version2) {
+    return this.schemas.get(this.normalizeVersion(version2));
+  }
+  getMigrations() {
+    return Array.from(this.migrations.values());
+  }
+  /**
+   * Normalize a version string using the version strategy.
+   * @throws {MigrationError} If version is invalid
+   */
+  normalizeVersion(version2) {
+    if (!this.versionStrategy.isValid(version2)) {
+      if (this.versionStrategy.normalize) {
+        try {
+          return this.versionStrategy.normalize(version2);
+        } catch {
+          throw new MigrationError(
+            `Invalid version "${version2}" for strategy "${this.versionStrategy.id}"`,
+            "INVALID_VERSION",
+            { version: version2, strategy: this.versionStrategy.id }
+          );
+        }
+      }
+      throw new MigrationError(
+        `Invalid version "${version2}" for strategy "${this.versionStrategy.id}"`,
+        "INVALID_VERSION",
+        { version: version2, strategy: this.versionStrategy.id }
+      );
+    }
+    return this.versionStrategy.normalize?.(version2) ?? version2;
+  }
+  /**
+   * Generate a consistent key for looking up migrations.
+   * Always uses the migration's registered direction (from -> to).
+   */
+  getMigrationKey(from, to) {
+    const key1 = `${from}:${to}`;
+    const key2 = `${to}:${from}`;
+    if (this.migrations.has(key1)) {
+      return key1;
+    }
+    if (this.migrations.has(key2)) {
+      return key2;
+    }
+    return key1;
+  }
+};
+function createMigrationGraph(options) {
+  const graph = new MigrationGraphImpl(options);
+  if (options.schemas) {
+    for (const schema of options.schemas) {
+      graph.registerSchema(schema);
+    }
+  }
+  if (options.migrations) {
+    for (const migration of options.migrations) {
+      graph.registerMigration(migration);
+    }
+  }
+  return graph;
+}
+
+// ../../node_modules/.pnpm/@migrex+zod@1.0.0-alpha.1_@migrex+core@0.2.0-alpha.1_zod@3.25.76/node_modules/@migrex/zod/dist/index.js
+init_esm_shims();
+function pathToStringArray(path4) {
+  return path4.map((p) => String(p));
+}
+function zodErrorToValidationErrors(error2) {
+  return error2.issues.map((issue) => ({
+    path: pathToStringArray(issue.path),
+    message: issue.message,
+    code: issue.code
+  }));
+}
+function fromZod(version2, zodSchema, options) {
+  return {
+    version: version2,
+    schema(data) {
+      const result = zodSchema.safeParse(data);
+      if (!result.success) {
+        return {
+          success: false,
+          errors: zodErrorToValidationErrors(result.error)
+        };
+      }
+      return {
+        success: true,
+        data: result.data
+      };
+    },
+    ...options?.validate !== void 0 && { validate: options.validate },
+    ...options?.deprecated !== void 0 && { deprecated: options.deprecated },
+    ...options?.releaseDate !== void 0 && { releaseDate: options.releaseDate }
+  };
+}
+
+// ../core/dist/index.js
 import * as crypto3 from "crypto";
 
 // ../../node_modules/.pnpm/tinyglobby@0.2.15/node_modules/tinyglobby/dist/index.mjs
@@ -41243,19 +42172,279 @@ var configSchema = external_exports.object({
   }),
   groups: external_exports.record(external_exports.string(), external_exports.array(external_exports.string().min(1, "Suite name in group cannot be empty"))).optional()
 }).strict();
-var policySettingsSchema = external_exports.object({
+var ConfigValidationError = class extends Error {
+  constructor(message, issues) {
+    super(message);
+    this.issues = issues;
+    this.name = "ConfigValidationError";
+  }
+};
+var ConfigNotFoundError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "ConfigNotFoundError";
+  }
+};
+function parseConfigContent(content, format) {
+  let rawConfig;
+  try {
+    if (format === "yaml") {
+      rawConfig = (0, import_yaml.parse)(content);
+    } else {
+      rawConfig = JSON.parse(content);
+    }
+  } catch (error2) {
+    throw new ConfigValidationError(
+      `Failed to parse ${format.toUpperCase()}: ${error2 instanceof Error ? error2.message : String(error2)}`,
+      []
+    );
+  }
+  const result = configSchema.safeParse(rawConfig);
+  if (!result.success) {
+    throw new ConfigValidationError(
+      "Configuration validation failed:\n" + result.error.issues.map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`).join("\n"),
+      result.error.issues
+    );
+  }
+  if (result.data.minVersion !== void 0) {
+    checkVersionCompatibility(result.data.minVersion);
+  }
+  return result.data;
+}
+function getConfigFormat(filePath) {
+  const ext = filePath.toLowerCase();
+  if (ext.endsWith(".yaml") || ext.endsWith(".yml")) {
+    return "yaml";
+  }
+  if (ext.endsWith(".json")) {
+    return "json";
+  }
+  return "yaml";
+}
+function findConfigPath(startDir = process.cwd()) {
+  const configDir = join3(startDir, ".attest-it");
+  const candidates = ["config.yaml", "config.yml", "config.json"];
+  for (const candidate of candidates) {
+    const configPath = join3(configDir, candidate);
+    try {
+      readFileSync2(configPath, "utf8");
+      return configPath;
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+async function loadConfig(configPath) {
+  const resolvedPath = configPath ?? findConfigPath();
+  if (!resolvedPath) {
+    throw new ConfigNotFoundError(
+      "Configuration file not found. Expected .attest-it/config.yaml, .attest-it/config.yml, or .attest-it/config.json"
+    );
+  }
+  try {
+    const content = await readFile3(resolvedPath, "utf8");
+    const format = getConfigFormat(resolvedPath);
+    return parseConfigContent(content, format);
+  } catch (error2) {
+    if (error2 instanceof ConfigValidationError || error2 instanceof VersionIncompatibleError) {
+      throw error2;
+    }
+    throw new ConfigNotFoundError(
+      `Failed to read configuration file at ${resolvedPath}: ${String(error2)}`
+    );
+  }
+}
+function toAttestItConfig(config) {
+  const result = {
+    version: config.version,
+    settings: {
+      maxAgeDays: config.settings.maxAgeDays,
+      publicKeyPath: config.settings.publicKeyPath,
+      attestationsPath: config.settings.attestationsPath,
+      sealsPath: config.settings.sealsPath
+    },
+    suites: {}
+  };
+  if (config.minVersion !== void 0) {
+    result.minVersion = config.minVersion;
+  }
+  if (config.settings.defaultCommand !== void 0) {
+    result.settings.defaultCommand = config.settings.defaultCommand;
+  }
+  if (config.settings.keyProvider !== void 0) {
+    result.settings.keyProvider = {
+      type: config.settings.keyProvider.type,
+      ...config.settings.keyProvider.options !== void 0 && {
+        options: config.settings.keyProvider.options
+      }
+    };
+  }
+  if (config.team !== void 0) {
+    result.team = config.team;
+  }
+  if (config.gates !== void 0) {
+    result.gates = config.gates;
+  }
+  if (config.groups !== void 0) {
+    result.groups = config.groups;
+  }
+  result.suites = Object.fromEntries(
+    Object.entries(config.suites).map(([name, suite]) => {
+      const mappedSuite = {
+        gate: suite.gate
+      };
+      if (suite.description !== void 0) mappedSuite.description = suite.description;
+      if (suite.command !== void 0) mappedSuite.command = suite.command;
+      if (suite.timeout !== void 0) mappedSuite.timeout = suite.timeout;
+      if (suite.interactive !== void 0) mappedSuite.interactive = suite.interactive;
+      if (suite.invalidates !== void 0) mappedSuite.invalidates = suite.invalidates;
+      if (suite.depends_on !== void 0) mappedSuite.depends_on = suite.depends_on;
+      return [name, mappedSuite];
+    })
+  );
+  return result;
+}
+function optionalVersionSchema(version2) {
+  return external_exports.union([external_exports.literal(version2), external_exports.literal(String(version2)), external_exports.undefined()]).transform((v) => v === void 0 ? void 0 : version2);
+}
+var privateKeyRefSchemaV1 = external_exports.discriminatedUnion("type", [
+  external_exports.object({
+    type: external_exports.literal("file"),
+    path: external_exports.string().min(1, "File path cannot be empty")
+  }),
+  external_exports.object({
+    type: external_exports.literal("keychain"),
+    service: external_exports.string().min(1, "Service name cannot be empty"),
+    account: external_exports.string().min(1, "Account name cannot be empty"),
+    keychain: external_exports.string().optional()
+  }),
+  external_exports.object({
+    type: external_exports.literal("1password"),
+    account: external_exports.string().optional(),
+    vault: external_exports.string().min(1, "Vault name cannot be empty"),
+    item: external_exports.string().min(1, "Item name cannot be empty"),
+    field: external_exports.string().optional()
+  }),
+  external_exports.object({
+    type: external_exports.literal("yubikey"),
+    encryptedKeyPath: external_exports.string().min(1, "Encrypted key path cannot be empty"),
+    slot: external_exports.union([external_exports.literal(1), external_exports.literal(2)]).optional(),
+    serial: external_exports.string().optional()
+  })
+]);
+var identitySchemaV1 = external_exports.object({
+  name: external_exports.string().min(1, "Identity name cannot be empty"),
+  email: external_exports.string().optional(),
+  github: external_exports.string().optional(),
+  publicKey: external_exports.string().min(1, "Public key cannot be empty"),
+  privateKey: privateKeyRefSchemaV1
+}).strict();
+var localConfigSchemaV1 = external_exports.object({
+  version: optionalVersionSchema(1),
+  activeIdentity: external_exports.string().min(1, "Active identity name cannot be empty"),
+  identities: external_exports.record(external_exports.string(), identitySchemaV1).refine((identities) => Object.keys(identities).length >= 1, {
+    message: "At least one identity must be defined"
+  })
+}).strict();
+var schemaV1 = fromZod("1", localConfigSchemaV1);
+var identityMigrationGraph = createMigrationGraph({
+  id: "attest-it-identity-config",
+  versionStrategy: integerStrategy,
+  schemas: [schemaV1],
+  migrations: []
+});
+function versionSchema(version2) {
+  return external_exports.union([external_exports.literal(version2), external_exports.literal(String(version2))]).transform(() => version2);
+}
+var sealSchemaV1 = external_exports.object({
+  gateId: external_exports.string().min(1, "Gate ID cannot be empty"),
+  fingerprint: external_exports.string().regex(/^sha256:[a-f0-9]+$/i, "Invalid fingerprint format (expected sha256:<hex>)"),
+  timestamp: external_exports.string().datetime({ message: "Invalid ISO 8601 timestamp" }),
+  sealedBy: external_exports.string().min(1, "Signer slug cannot be empty"),
+  signature: external_exports.string().min(1, "Signature cannot be empty")
+});
+var sealsFileSchemaV1 = external_exports.object({
+  version: versionSchema(1),
+  seals: external_exports.record(external_exports.string(), sealSchemaV1)
+});
+var schemaV12 = fromZod("1", sealsFileSchemaV1);
+createMigrationGraph({
+  id: "attest-it-seals",
+  versionStrategy: integerStrategy,
+  schemas: [schemaV12],
+  migrations: []
+});
+function versionSchema2(version2) {
+  return external_exports.union([external_exports.literal(version2), external_exports.literal(String(version2))]).transform(() => version2);
+}
+var policySettingsSchemaV1 = external_exports.object({
   maxAgeDays: external_exports.number().int().positive().default(30),
   publicKeyPath: external_exports.string().default(".attest-it/pubkey.pem"),
   attestationsPath: external_exports.string().default(".attest-it/attestations.json"),
   sealsPath: external_exports.string().default(".attest-it/seals.json")
 }).strict();
-var policySchema = external_exports.object({
-  version: external_exports.literal(1),
+var policySchemaV1 = external_exports.object({
+  version: versionSchema2(1),
   minVersion: semverSchema.optional(),
-  settings: policySettingsSchema.default({}),
+  settings: policySettingsSchemaV1.default({}),
   team: external_exports.record(external_exports.string(), teamMemberSchema).optional(),
   gates: external_exports.record(external_exports.string(), gateSchema).optional()
 }).strict();
+var schemaV13 = fromZod("1", policySchemaV1);
+createMigrationGraph({
+  id: "attest-it-policy",
+  versionStrategy: integerStrategy,
+  schemas: [schemaV13],
+  migrations: []
+});
+function versionSchema3(version2) {
+  return external_exports.union([external_exports.literal(version2), external_exports.literal(String(version2))]).transform(() => version2);
+}
+var operationalSettingsSchemaV1 = external_exports.object({
+  defaultCommand: external_exports.string().optional(),
+  keyProvider: keyProviderSchema.optional()
+}).strict();
+var suiteSchemaV1 = external_exports.object({
+  // Gate fields (if present, this suite references a gate)
+  gate: external_exports.string().min(1, "Gate reference cannot be empty").optional(),
+  // Legacy fingerprint definition (for backward compatibility)
+  description: external_exports.string().optional(),
+  packages: external_exports.array(external_exports.string().min(1, "Package path cannot be empty")).optional(),
+  files: external_exports.array(external_exports.string().min(1, "File path cannot be empty")).optional(),
+  ignore: external_exports.array(external_exports.string().min(1, "Ignore pattern cannot be empty")).optional(),
+  // CLI-specific fields
+  command: external_exports.string().optional(),
+  timeout: external_exports.string().optional(),
+  interactive: external_exports.boolean().optional(),
+  // Relationship fields
+  invalidates: external_exports.array(external_exports.string().min(1, "Invalidated suite name cannot be empty")).optional(),
+  depends_on: external_exports.array(external_exports.string().min(1, "Dependency suite name cannot be empty")).optional()
+}).strict().refine(
+  (suite) => {
+    return suite.gate !== void 0 || suite.packages !== void 0 && suite.packages.length > 0;
+  },
+  {
+    message: "Suite must either reference a gate or define packages for fingerprinting"
+  }
+);
+var operationalSchemaV1 = external_exports.object({
+  version: versionSchema3(1),
+  minVersion: semverSchema.optional(),
+  settings: operationalSettingsSchemaV1.default({}),
+  suites: external_exports.record(external_exports.string(), suiteSchemaV1).refine((suites) => Object.keys(suites).length >= 1, {
+    message: "At least one suite must be defined"
+  }),
+  groups: external_exports.record(external_exports.string(), external_exports.array(external_exports.string().min(1, "Suite name in group cannot be empty"))).optional()
+}).strict();
+var schemaV14 = fromZod("1", operationalSchemaV1);
+createMigrationGraph({
+  id: "attest-it-operational",
+  versionStrategy: integerStrategy,
+  schemas: [schemaV14],
+  migrations: []
+});
+var policySchema = policySchemaV1;
 var PolicyValidationError = class extends Error {
   constructor(message, issues) {
     super(message);
@@ -41289,28 +42478,7 @@ function parsePolicyContent(content, format) {
   }
   return result.data;
 }
-var operationalSettingsSchema = external_exports.object({
-  defaultCommand: external_exports.string().optional(),
-  keyProvider: keyProviderSchema.optional()
-}).strict();
-var suiteSchema2 = external_exports.object({
-  gate: external_exports.string().min(1, "Gate reference cannot be empty"),
-  description: external_exports.string().optional(),
-  command: external_exports.string().optional(),
-  timeout: external_exports.string().optional(),
-  interactive: external_exports.boolean().optional(),
-  invalidates: external_exports.array(external_exports.string().min(1, "Invalidated suite name cannot be empty")).optional(),
-  depends_on: external_exports.array(external_exports.string().min(1, "Dependency suite name cannot be empty")).optional()
-}).strict();
-var operationalSchema = external_exports.object({
-  version: external_exports.literal(1),
-  minVersion: semverSchema.optional(),
-  settings: operationalSettingsSchema.default({}),
-  suites: external_exports.record(external_exports.string(), suiteSchema2).refine((suites) => Object.keys(suites).length >= 1, {
-    message: "At least one suite must be defined"
-  }),
-  groups: external_exports.record(external_exports.string(), external_exports.array(external_exports.string().min(1, "Suite name in group cannot be empty"))).optional()
-}).strict();
+var operationalSchema = operationalSchemaV1;
 var OperationalValidationError = class extends Error {
   constructor(message, issues) {
     super(message);
@@ -41344,9 +42512,9 @@ function parseOperationalContent(content, format) {
   }
   return result.data;
 }
-function toSuiteConfig(suite) {
+function toSuiteConfig(suiteName, suite) {
   const result = {
-    gate: suite.gate
+    gate: suite.gate ?? suiteName
   };
   if (suite.description !== void 0) result.description = suite.description;
   if (suite.command !== void 0) result.command = suite.command;
@@ -41425,7 +42593,7 @@ function mergeConfigs(policy, operational) {
   }
   const suites = {};
   for (const [name, suite] of Object.entries(operational.suites)) {
-    suites[name] = toSuiteConfig(suite);
+    suites[name] = toSuiteConfig(name, suite);
   }
   const config = {
     version: 1,
@@ -41457,6 +42625,9 @@ function validateSuiteGateReferences(policy, operational) {
   const team = policy.team ?? {};
   for (const [suiteName, suiteConfig] of Object.entries(operational.suites)) {
     const gateName = suiteConfig.gate;
+    if (gateName === void 0) {
+      continue;
+    }
     const gate = gates[gateName];
     if (gate === void 0) {
       errors.push({
@@ -41480,6 +42651,142 @@ function validateSuiteGateReferences(policy, operational) {
     }
   }
   return errors;
+}
+var SplitConfigNotFoundError = class extends Error {
+  constructor(message, configType) {
+    super(message);
+    this.configType = configType;
+    this.name = "SplitConfigNotFoundError";
+  }
+};
+var CrossConfigValidationError = class extends Error {
+  constructor(message, errors) {
+    super(message);
+    this.errors = errors;
+    this.name = "CrossConfigValidationError";
+  }
+};
+function findPolicyPath(startDir = process.cwd()) {
+  const configDir = join3(startDir, ".attest-it");
+  const candidates = ["policy.yaml", "policy.yml", "policy.json"];
+  for (const candidate of candidates) {
+    const configPath = join3(configDir, candidate);
+    try {
+      readFileSync2(configPath, "utf8");
+      return configPath;
+    } catch {
+    }
+  }
+  return null;
+}
+function findOperationalPath(startDir = process.cwd()) {
+  const configDir = join3(startDir, ".attest-it");
+  const candidates = ["config.yaml", "config.yml", "config.json"];
+  for (const candidate of candidates) {
+    const configPath = join3(configDir, candidate);
+    try {
+      readFileSync2(configPath, "utf8");
+      return configPath;
+    } catch {
+    }
+  }
+  return null;
+}
+function getConfigFormat2(filePath) {
+  return filePath.endsWith(".json") ? "json" : "yaml";
+}
+async function loadPolicyAsync(source, baseDir) {
+  if (source.type === "content") {
+    if (!source.content) {
+      throw new SplitConfigNotFoundError(
+        'Policy content is required when type is "content"',
+        "policy"
+      );
+    }
+    if (!source.format) {
+      throw new SplitConfigNotFoundError(
+        'Policy format is required when type is "content"',
+        "policy"
+      );
+    }
+    return parsePolicyContent(source.content, source.format);
+  }
+  const policyPath = source.path ?? findPolicyPath(baseDir);
+  if (!policyPath) {
+    throw new SplitConfigNotFoundError(
+      "Policy file not found. Expected .attest-it/policy.yaml, .attest-it/policy.yml, or .attest-it/policy.json",
+      "policy"
+    );
+  }
+  try {
+    const content = await readFile3(policyPath, "utf8");
+    const format = getConfigFormat2(policyPath);
+    return parsePolicyContent(content, format);
+  } catch (error2) {
+    if (error2 instanceof PolicyValidationError) {
+      throw error2;
+    }
+    throw new SplitConfigNotFoundError(
+      `Failed to read policy file at ${policyPath}: ${String(error2)}`,
+      "policy"
+    );
+  }
+}
+async function loadOperationalAsync(operationalPath, baseDir) {
+  const resolvedPath = operationalPath ?? findOperationalPath(baseDir);
+  if (!resolvedPath) {
+    throw new SplitConfigNotFoundError(
+      "Operational config file not found. Expected .attest-it/config.yaml, .attest-it/config.yml, or .attest-it/config.json",
+      "operational"
+    );
+  }
+  try {
+    const content = await readFile3(resolvedPath, "utf8");
+    const format = getConfigFormat2(resolvedPath);
+    return parseOperationalContent(content, format);
+  } catch (error2) {
+    if (error2 instanceof OperationalValidationError) {
+      throw error2;
+    }
+    throw new SplitConfigNotFoundError(
+      `Failed to read operational config file at ${resolvedPath}: ${String(error2)}`,
+      "operational"
+    );
+  }
+}
+function validateAndMerge(policy, operational) {
+  const validationErrors = validateSuiteGateReferences(policy, operational);
+  if (validationErrors.length > 0) {
+    const messages = validationErrors.map((e) => e.message).join("; ");
+    throw new CrossConfigValidationError(
+      `Configuration validation failed: ${messages}`,
+      validationErrors.map((e) => ({ type: e.type, message: e.message }))
+    );
+  }
+  return mergeConfigs(policy, operational);
+}
+async function loadSplitConfig(options = {}) {
+  const baseDir = options.baseDir ?? process.cwd();
+  const policySource = options.policySource ?? { type: "filesystem" };
+  if (policySource.type === "content" || policySource.path) {
+    const policy = await loadPolicyAsync(policySource, baseDir);
+    const operational = await loadOperationalAsync(options.operationalPath, baseDir);
+    return validateAndMerge(policy, operational);
+  }
+  try {
+    const policy = await loadPolicyAsync(policySource, baseDir);
+    const operational = await loadOperationalAsync(options.operationalPath, baseDir);
+    return validateAndMerge(policy, operational);
+  } catch (error2) {
+    if (error2 instanceof SplitConfigNotFoundError && error2.configType === "policy") {
+      const unifiedPath = findConfigPath(baseDir);
+      if (unifiedPath) {
+        const config = await loadConfig(unifiedPath);
+        return toAttestItConfig(config);
+      }
+    }
+    throw error2;
+  }
 }
 var LARGE_FILE_THRESHOLD = 50 * 1024 * 1024;
 function sortFiles(files) {
@@ -41638,62 +42945,6 @@ var attestationsFileSchema = external_exports.object({
   signature: external_exports.string()
   // Will be validated by crypto module
 });
-function isNodeError(error2) {
-  if (error2 === null || typeof error2 !== "object") {
-    return false;
-  }
-  if (!("code" in error2)) {
-    return false;
-  }
-  const errorObj = error2;
-  return typeof errorObj.code === "string";
-}
-async function readAttestations(filePath) {
-  try {
-    const content = await fs2.promises.readFile(filePath, "utf-8");
-    const parsed = JSON.parse(content);
-    return attestationsFileSchema.parse(parsed);
-  } catch (error2) {
-    if (isNodeError(error2) && error2.code === "ENOENT") {
-      return null;
-    }
-    throw error2;
-  }
-}
-function canonicalizeAttestations(attestations) {
-  const canonical = serialize(attestations);
-  if (canonical === void 0) {
-    throw new Error("Failed to canonicalize attestations");
-  }
-  return canonical;
-}
-async function readAndVerifyAttestations(options) {
-  const { verify: verify4 } = await Promise.resolve().then(() => (init_crypto_SSL7OBY2(), crypto_SSL7OBY2_exports));
-  const file = await readAttestations(options.filePath);
-  if (!file) {
-    throw new Error(`Attestations file not found: ${options.filePath}`);
-  }
-  const canonical = canonicalizeAttestations(file.attestations);
-  const isValid2 = await verify4({
-    publicKeyPath: options.publicKeyPath,
-    data: canonical,
-    signature: file.signature
-  });
-  if (!isValid2) {
-    throw new SignatureInvalidError(options.filePath);
-  }
-  return file;
-}
-var SignatureInvalidError = class extends Error {
-  /**
-   * Create a new SignatureInvalidError.
-   * @param filePath - Path to the file that failed verification
-   */
-  constructor(filePath) {
-    super(`Signature verification failed for: ${filePath}`);
-    this.name = "SignatureInvalidError";
-  }
-};
 function isBuffer(value) {
   return Buffer.isBuffer(value);
 }
@@ -41733,133 +42984,49 @@ function generateKeyPair2() {
     );
   }
 }
-async function verifyAttestations(options) {
-  const { config, repoRoot = process.cwd() } = options;
-  const errors = [];
-  const suiteResults = [];
-  let signatureValid = true;
-  let attestationsFile = null;
-  const attestationsPath = resolvePath(config.settings.attestationsPath, repoRoot);
-  const publicKeyPath = resolvePath(config.settings.publicKeyPath, repoRoot);
+function verify3(data, signature, publicKeyBase64) {
   try {
-    if (!fs2.existsSync(attestationsPath)) {
-      attestationsFile = null;
-    } else if (!fs2.existsSync(publicKeyPath)) {
-      errors.push(`Public key not found: ${publicKeyPath}`);
-      signatureValid = false;
-    } else {
-      attestationsFile = await readAndVerifyAttestations({
-        filePath: attestationsPath,
-        publicKeyPath
-      });
+    const dataBuffer = typeof data === "string" ? Buffer.from(data, "utf8") : data;
+    const signatureBuffer = Buffer.from(signature, "base64");
+    const rawPublicKey = Buffer.from(publicKeyBase64, "base64");
+    if (rawPublicKey.length !== 32) {
+      throw new Error(
+        `Invalid Ed25519 public key length: expected 32 bytes, got ${rawPublicKey.length.toString()}`
+      );
     }
-  } catch (err) {
-    if (err instanceof SignatureInvalidError) {
-      signatureValid = false;
-      errors.push(err.message);
-    } else if (err instanceof Error) {
-      errors.push(err.message);
-    }
-  }
-  const attestations = attestationsFile?.attestations ?? [];
-  for (const [suiteName, suiteConfig] of Object.entries(config.suites)) {
-    const result = await verifySuite({
-      suiteName,
-      suiteConfig,
-      gates: config.gates ?? {},
-      attestations,
-      maxAgeDays: config.settings.maxAgeDays,
-      repoRoot
+    const spkiHeader = Buffer.from([
+      48,
+      42,
+      // SEQUENCE, 42 bytes
+      48,
+      5,
+      // SEQUENCE, 5 bytes
+      6,
+      3,
+      43,
+      101,
+      112,
+      // OID 1.3.101.112 (Ed25519)
+      3,
+      33,
+      0
+      // BIT STRING, 33 bytes (32 key + 1 padding)
+    ]);
+    const spkiBuffer = Buffer.concat([spkiHeader, rawPublicKey]);
+    const publicKeyObj = crypto3.createPublicKey({
+      key: spkiBuffer,
+      format: "der",
+      type: "spki"
     });
-    suiteResults.push(result);
-  }
-  checkInvalidationChains(config, suiteResults);
-  const allValid = signatureValid && suiteResults.every((r) => r.status === "VALID") && errors.length === 0;
-  return {
-    success: allValid,
-    signatureValid,
-    suites: suiteResults,
-    errors
-  };
-}
-async function verifySuite(options) {
-  const { suiteName, suiteConfig, gates, attestations, maxAgeDays, repoRoot } = options;
-  const gate = gates[suiteConfig.gate];
-  if (!gate) {
-    return {
-      suite: suiteName,
-      status: "NEEDS_ATTESTATION",
-      fingerprint: "",
-      message: `Gate not found: ${suiteConfig.gate}`
-    };
-  }
-  const fingerprintOptions = {
-    packages: gate.fingerprint.paths.map((p) => resolvePath(p, repoRoot)),
-    baseDir: repoRoot,
-    ...gate.fingerprint.exclude && { ignore: gate.fingerprint.exclude }
-  };
-  const fingerprintResult = await computeFingerprint(fingerprintOptions);
-  const attestation = attestations.find((a) => a.suite === suiteName);
-  if (!attestation) {
-    return {
-      suite: suiteName,
-      status: "NEEDS_ATTESTATION",
-      fingerprint: fingerprintResult.fingerprint,
-      message: "No attestation found for this suite"
-    };
-  }
-  if (attestation.fingerprint !== fingerprintResult.fingerprint) {
-    return {
-      suite: suiteName,
-      status: "FINGERPRINT_CHANGED",
-      fingerprint: fingerprintResult.fingerprint,
-      attestation,
-      message: `Fingerprint changed from ${attestation.fingerprint.slice(0, 20)}... to ${fingerprintResult.fingerprint.slice(0, 20)}...`
-    };
-  }
-  const attestedAt = new Date(attestation.attestedAt);
-  const ageMs = Date.now() - attestedAt.getTime();
-  const ageDays = Math.floor(ageMs / (1e3 * 60 * 60 * 24));
-  if (ageDays > maxAgeDays) {
-    return {
-      suite: suiteName,
-      status: "EXPIRED",
-      fingerprint: fingerprintResult.fingerprint,
-      attestation,
-      age: ageDays,
-      message: `Attestation expired (${String(ageDays)} days old, max ${String(maxAgeDays)} days)`
-    };
-  }
-  return {
-    suite: suiteName,
-    status: "VALID",
-    fingerprint: fingerprintResult.fingerprint,
-    attestation,
-    age: ageDays
-  };
-}
-function checkInvalidationChains(config, results) {
-  for (const [parentName, parentConfig] of Object.entries(config.suites)) {
-    const invalidates = parentConfig.invalidates ?? [];
-    const parentResult = results.find((r) => r.suite === parentName);
-    if (!parentResult?.attestation) continue;
-    const parentTime = new Date(parentResult.attestation.attestedAt).getTime();
-    for (const childName of invalidates) {
-      const childResult = results.find((r) => r.suite === childName);
-      if (!childResult?.attestation) continue;
-      const childTime = new Date(childResult.attestation.attestedAt).getTime();
-      if (parentTime > childTime && childResult.status === "VALID") {
-        childResult.status = "INVALIDATED_BY_PARENT";
-        childResult.message = `Invalidated by ${parentName} (attested later)`;
-      }
+    return crypto3.verify(null, dataBuffer, publicKeyObj, signatureBuffer);
+  } catch (err) {
+    if (err instanceof Error && err.message.includes("verification failed")) {
+      return false;
     }
+    throw new Error(
+      `Failed to verify Ed25519 signature: ${err instanceof Error ? err.message : String(err)}`
+    );
   }
-}
-function resolvePath(relativePath, baseDir) {
-  if (path8.isAbsolute(relativePath)) {
-    return relativePath;
-  }
-  return path8.join(baseDir, relativePath);
 }
 var FilesystemKeyProvider = class {
   type = "filesystem";
@@ -42524,39 +43691,6 @@ function getAttestItHomeDir() {
   }
   return homeDirOverride;
 }
-var privateKeyRefSchema = external_exports.discriminatedUnion("type", [
-  external_exports.object({
-    type: external_exports.literal("file"),
-    path: external_exports.string().min(1, "File path cannot be empty")
-  }),
-  external_exports.object({
-    type: external_exports.literal("keychain"),
-    service: external_exports.string().min(1, "Service name cannot be empty"),
-    account: external_exports.string().min(1, "Account name cannot be empty"),
-    keychain: external_exports.string().optional()
-  }),
-  external_exports.object({
-    type: external_exports.literal("1password"),
-    account: external_exports.string().optional(),
-    vault: external_exports.string().min(1, "Vault name cannot be empty"),
-    item: external_exports.string().min(1, "Item name cannot be empty"),
-    field: external_exports.string().optional()
-  })
-]);
-var identitySchema = external_exports.object({
-  name: external_exports.string().min(1, "Identity name cannot be empty"),
-  email: external_exports.string().optional(),
-  github: external_exports.string().optional(),
-  publicKey: external_exports.string().min(1, "Public key cannot be empty"),
-  privateKey: privateKeyRefSchema
-}).strict();
-var localConfigSchema = external_exports.object({
-  version: external_exports.literal(1),
-  activeIdentity: external_exports.string().min(1, "Active identity name cannot be empty"),
-  identities: external_exports.record(external_exports.string(), identitySchema).refine((identities) => Object.keys(identities).length >= 1, {
-    message: "At least one identity must be defined"
-  })
-}).strict();
 function getIdentityConfigDir(homeDir) {
   if (homeDir) {
     return homeDir;
@@ -43136,19 +44270,281 @@ var cliExperienceSchema = external_exports.object({
 var userPreferencesSchema = external_exports.object({
   cliExperience: cliExperienceSchema.optional()
 }).strict();
-var sealSchema = external_exports.object({
-  gateId: external_exports.string().min(1, "Gate ID cannot be empty"),
-  // Fingerprint format: sha256:<hex> where hex is at least 1 character
-  // Full fingerprints are 64 hex chars, but tests may use shorter values
-  fingerprint: external_exports.string().regex(/^sha256:[a-f0-9]+$/i, "Invalid fingerprint format (expected sha256:<hex>)"),
-  timestamp: external_exports.string().datetime({ message: "Invalid ISO 8601 timestamp" }),
-  sealedBy: external_exports.string().min(1, "Signer slug cannot be empty"),
-  signature: external_exports.string().min(1, "Signature cannot be empty")
-});
-var sealsFileSchema = external_exports.object({
-  version: external_exports.literal(1, { errorMap: () => ({ message: "Unsupported seals file version" }) }),
-  seals: external_exports.record(external_exports.string(), sealSchema)
-});
+function isAuthorizedSigner(config, gateId, publicKey) {
+  const gate = config.gates?.[gateId];
+  if (!gate) {
+    return false;
+  }
+  const teamMember = findTeamMemberByPublicKey(config, publicKey);
+  if (!teamMember) {
+    return false;
+  }
+  const teamMemberSlug = findTeamMemberSlug(config, teamMember);
+  if (!teamMemberSlug) {
+    return false;
+  }
+  return gate.authorizedSigners.includes(teamMemberSlug);
+}
+function findTeamMemberByPublicKey(config, publicKey) {
+  if (!config.team) {
+    return void 0;
+  }
+  for (const member of Object.values(config.team)) {
+    if (member.publicKey === publicKey) {
+      return member;
+    }
+  }
+  return void 0;
+}
+function findTeamMemberSlug(config, teamMember) {
+  if (!config.team) {
+    return void 0;
+  }
+  for (const [slug, member] of Object.entries(config.team)) {
+    if (member === teamMember || member.publicKey === teamMember.publicKey) {
+      return slug;
+    }
+  }
+  return void 0;
+}
+function getGate(config, gateId) {
+  return config.gates?.[gateId];
+}
+var DURATION_PATTERN = /^\d+(\.\d+)?\s*(ms|s|m|h|d|w|y)$/i;
+function isValidDurationFormat(value) {
+  return DURATION_PATTERN.test(value.trim());
+}
+function parseDuration(duration) {
+  if (!isValidDurationFormat(duration)) {
+    throw new Error(`Invalid duration string: ${duration}`);
+  }
+  const result = (0, import_ms.default)(duration);
+  if (typeof result !== "number" || result <= 0) {
+    throw new Error(`Invalid duration string: ${duration}`);
+  }
+  return result;
+}
+function isFileNotFoundError(error2) {
+  if (error2 && typeof error2 === "object" && "code" in error2) {
+    const errorWithCode = error2;
+    return errorWithCode.code === "ENOENT" || errorWithCode.code === "ENOTDIR";
+  }
+  return false;
+}
+function verifySeal(seal, config) {
+  const { gateId, fingerprint, timestamp, sealedBy, signature } = seal;
+  if (!config.team) {
+    return {
+      valid: false,
+      error: `No team configuration found`
+    };
+  }
+  const teamMember = config.team[sealedBy];
+  if (!teamMember) {
+    return {
+      valid: false,
+      error: `Team member '${sealedBy}' not found in configuration`
+    };
+  }
+  const canonicalString = `${gateId}:${fingerprint}:${timestamp}`;
+  try {
+    const isValid2 = verify3(canonicalString, signature, teamMember.publicKey);
+    if (!isValid2) {
+      return {
+        valid: false,
+        error: "Signature verification failed"
+      };
+    }
+    return { valid: true };
+  } catch (error2) {
+    return {
+      valid: false,
+      error: `Signature verification error: ${error2 instanceof Error ? error2.message : String(error2)}`
+    };
+  }
+}
+var EMPTY_SEALS_FILE = {
+  version: 1,
+  seals: {}
+};
+function detectFormat2(filepath) {
+  const ext = filepath.split(".").pop()?.toLowerCase();
+  if (ext === "json") return "json";
+  return "yaml";
+}
+function parseSealsContent(content, format) {
+  let data;
+  try {
+    data = format === "yaml" ? (0, import_yaml.parse)(content) : JSON.parse(content);
+  } catch (error2) {
+    if (error2 instanceof SyntaxError || error2 instanceof Error && error2.name === "YAMLParseError") {
+      throw new Error(`Failed to read seals file: Invalid ${format.toUpperCase()}`);
+    }
+    throw error2;
+  }
+  if (typeof data === "object" && data !== null && "version" in data) {
+    const dataObj = data;
+    const version2 = dataObj.version;
+    if (version2 !== 1 && version2 !== "1") {
+      throw new Error(`Unsupported seals file version: ${String(version2)}`);
+    }
+  }
+  const result = sealsFileSchemaV1.safeParse(data);
+  if (!result.success) {
+    const errors = result.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join(", ");
+    throw new Error(`Failed to read seals file: Validation failed: ${errors}`);
+  }
+  return result.data;
+}
+async function readSeals(dir, sealsPathOverride) {
+  if (sealsPathOverride) {
+    const sealsPath = path8.resolve(dir, sealsPathOverride);
+    let content;
+    try {
+      content = await fs2.promises.readFile(sealsPath, "utf8");
+    } catch (error2) {
+      if (isFileNotFoundError(error2)) {
+        return EMPTY_SEALS_FILE;
+      }
+      throw new Error(
+        `Failed to read seals file: ${error2 instanceof Error ? error2.message : String(error2)}`
+      );
+    }
+    return parseSealsContent(content, detectFormat2(sealsPath));
+  }
+  const yamlPath = path8.join(dir, ".attest-it", "seals.yaml");
+  const jsonPath = path8.join(dir, ".attest-it", "seals.json");
+  try {
+    const content = await fs2.promises.readFile(yamlPath, "utf8");
+    return parseSealsContent(content, "yaml");
+  } catch (error2) {
+    if (!isFileNotFoundError(error2)) {
+      throw new Error(
+        `Failed to read seals file: ${error2 instanceof Error ? error2.message : String(error2)}`
+      );
+    }
+  }
+  try {
+    const content = await fs2.promises.readFile(jsonPath, "utf8");
+    return parseSealsContent(content, "json");
+  } catch (error2) {
+    if (isFileNotFoundError(error2)) {
+      return EMPTY_SEALS_FILE;
+    }
+    throw new Error(
+      `Failed to read seals file: ${error2 instanceof Error ? error2.message : String(error2)}`
+    );
+  }
+}
+function verifyGateSeal(config, gateId, seals, currentFingerprint) {
+  const gate = getGate(config, gateId);
+  if (!gate) {
+    return {
+      gateId,
+      state: "MISSING",
+      message: `Gate '${gateId}' not found in configuration`
+    };
+  }
+  const seal = seals.seals[gateId];
+  if (!seal) {
+    return {
+      gateId,
+      state: "MISSING",
+      message: `No seal found for gate '${gateId}'`
+    };
+  }
+  if (seal.fingerprint !== currentFingerprint) {
+    return {
+      gateId,
+      state: "FINGERPRINT_MISMATCH",
+      seal,
+      message: `Fingerprint changed since seal was created`
+    };
+  }
+  if (!config.team) {
+    return {
+      gateId,
+      state: "UNKNOWN_SIGNER",
+      seal,
+      message: `No team configuration found`
+    };
+  }
+  const teamMember = config.team[seal.sealedBy];
+  if (!teamMember) {
+    return {
+      gateId,
+      state: "UNKNOWN_SIGNER",
+      seal,
+      message: `Signer '${seal.sealedBy}' not found in team`
+    };
+  }
+  const authorized = isAuthorizedSigner(config, gateId, teamMember.publicKey);
+  if (!authorized) {
+    return {
+      gateId,
+      state: "UNKNOWN_SIGNER",
+      seal,
+      message: `Signer '${seal.sealedBy}' is not authorized for gate '${gateId}'`
+    };
+  }
+  const verificationResult = verifySeal(seal, config);
+  if (!verificationResult.valid) {
+    return {
+      gateId,
+      state: "INVALID_SIGNATURE",
+      seal,
+      message: verificationResult.error ?? "Signature verification failed"
+    };
+  }
+  try {
+    const maxAgeMs = parseDuration(gate.maxAge);
+    const sealTimestamp = new Date(seal.timestamp).getTime();
+    const now = Date.now();
+    const ageMs = now - sealTimestamp;
+    if (ageMs > maxAgeMs) {
+      const ageDays = Math.floor(ageMs / (1e3 * 60 * 60 * 24));
+      const maxAgeDays = Math.floor(maxAgeMs / (1e3 * 60 * 60 * 24));
+      return {
+        gateId,
+        state: "STALE",
+        seal,
+        message: `Seal is ${ageDays.toString()} days old, exceeds maxAge of ${maxAgeDays.toString()} days`
+      };
+    }
+  } catch (error2) {
+    return {
+      gateId,
+      state: "STALE",
+      seal,
+      message: `Cannot verify freshness: invalid maxAge format: ${error2 instanceof Error ? error2.message : String(error2)}`
+    };
+  }
+  return {
+    gateId,
+    state: "VALID",
+    seal
+  };
+}
+function verifyAllSeals(config, seals, fingerprints) {
+  if (!config.gates) {
+    return [];
+  }
+  const results = [];
+  for (const gateId of Object.keys(config.gates)) {
+    const fingerprint = fingerprints[gateId];
+    if (!fingerprint) {
+      results.push({
+        gateId,
+        state: "MISSING",
+        message: `No fingerprint computed for gate '${gateId}'`
+      });
+      continue;
+    }
+    const result = verifyGateSeal(config, gateId, seals, fingerprint);
+    results.push(result);
+  }
+  return results;
+}
 var version = getPackageVersion();
 
 // src/fetch-policy.ts
@@ -43197,7 +44593,7 @@ function isPullRequest() {
 }
 
 // src/index.ts
-function isFileNotFoundError(err) {
+function isFileNotFoundError2(err) {
   if (!(err instanceof Error)) return false;
   const errWithCode = err;
   return "code" in err && errWithCode.code === "ENOENT";
@@ -43226,9 +44622,10 @@ async function run() {
       core.setFailed("Running in PR context but base branch not detected");
       return;
     }
-    if (effectivePolicyRef) {
-      core.info(`Fetching policy from ref: ${effectivePolicyRef}`);
-      try {
+    const operationalConfigPath = configPath || ".attest-it/config.yaml";
+    try {
+      if (effectivePolicyRef) {
+        core.info(`Fetching policy from ref: ${effectivePolicyRef}`);
         const { owner, repo } = getRepoInfo();
         const policyResult = await fetchPolicyFromRef({
           token: githubToken,
@@ -43239,75 +44636,52 @@ async function run() {
         });
         core.info(`Fetched policy from ${effectivePolicyRef} (SHA: ${policyResult.sha})`);
         const policyFormat = policyPath.endsWith(".json") ? "json" : "yaml";
-        const policyConfig = parsePolicyContent(policyResult.content, policyFormat);
-        const operationalConfigPath = configPath || ".attest-it/config.yaml";
-        const operationalContent = await readFile3(
-          resolve4(process.cwd(), operationalConfigPath),
-          "utf8"
-        );
-        const operationalFormat = operationalConfigPath.endsWith(".json") ? "json" : "yaml";
-        const operationalConfig = parseOperationalContent(operationalContent, operationalFormat);
         core.info("Validating configuration...");
-        const validationErrors = validateSuiteGateReferences(policyConfig, operationalConfig);
-        if (validationErrors.length > 0) {
-          core.error("Configuration validation failed:");
-          for (const error2 of validationErrors) {
-            core.error(`- ${error2.message}`);
-          }
-          core.setFailed("Configuration validation failed. See errors above.");
-          return;
-        }
-        config = mergeConfigs(policyConfig, operationalConfig);
-      } catch (err) {
-        if (err instanceof PolicyValidationError) {
-          core.setFailed(`Policy validation failed: ${err.message}`);
-          return;
-        }
-        if (err instanceof OperationalValidationError) {
-          core.setFailed(`Operational config validation failed: ${err.message}`);
-          return;
-        }
-        throw err;
-      }
-    } else {
-      core.info("Loading configuration from filesystem");
-      try {
-        const policyContent = await readFile3(resolve4(process.cwd(), policyPath), "utf8");
-        const policyFormat = policyPath.endsWith(".json") ? "json" : "yaml";
-        const policyConfig = parsePolicyContent(policyContent, policyFormat);
-        const operationalConfigPath = configPath || ".attest-it/config.yaml";
-        const operationalContent = await readFile3(
-          resolve4(process.cwd(), operationalConfigPath),
-          "utf8"
-        );
-        const operationalFormat = operationalConfigPath.endsWith(".json") ? "json" : "yaml";
-        const operationalConfig = parseOperationalContent(operationalContent, operationalFormat);
+        config = await loadSplitConfig({
+          policySource: {
+            type: "content",
+            content: policyResult.content,
+            format: policyFormat
+          },
+          operationalPath: resolve4(process.cwd(), operationalConfigPath)
+        });
+      } else {
+        core.info("Loading configuration from filesystem");
         core.info("Validating configuration...");
-        const validationErrors = validateSuiteGateReferences(policyConfig, operationalConfig);
-        if (validationErrors.length > 0) {
-          core.error("Configuration validation failed:");
-          for (const error2 of validationErrors) {
-            core.error(`- ${error2.message}`);
-          }
-          core.setFailed("Configuration validation failed. See errors above.");
-          return;
-        }
-        config = mergeConfigs(policyConfig, operationalConfig);
-      } catch (err) {
-        if (err instanceof PolicyValidationError) {
-          core.setFailed(`Policy validation failed: ${err.message}`);
-          return;
-        }
-        if (err instanceof OperationalValidationError) {
-          core.setFailed(`Operational config validation failed: ${err.message}`);
-          return;
-        }
-        if (isFileNotFoundError(err)) {
-          core.setFailed(`Configuration file not found: ${err.path ?? "unknown"}`);
-          return;
-        }
-        throw err;
+        config = await loadSplitConfig({
+          policySource: {
+            type: "filesystem",
+            path: resolve4(process.cwd(), policyPath)
+          },
+          operationalPath: resolve4(process.cwd(), operationalConfigPath)
+        });
       }
+    } catch (err) {
+      if (err instanceof PolicyValidationError) {
+        core.setFailed(`Policy validation failed: ${err.message}`);
+        return;
+      }
+      if (err instanceof OperationalValidationError) {
+        core.setFailed(`Operational config validation failed: ${err.message}`);
+        return;
+      }
+      if (err instanceof CrossConfigValidationError) {
+        core.error("Configuration validation failed:");
+        for (const error2 of err.errors) {
+          core.error(`- ${error2.message}`);
+        }
+        core.setFailed("Configuration validation failed. See errors above.");
+        return;
+      }
+      if (err instanceof SplitConfigNotFoundError) {
+        core.setFailed(`Configuration file not found: ${err.message}`);
+        return;
+      }
+      if (isFileNotFoundError2(err)) {
+        core.setFailed(`Configuration file not found: ${err.path ?? "unknown"}`);
+        return;
+      }
+      throw err;
     }
     if (suite) {
       const suiteConfig = config.suites[suite];
@@ -43317,28 +44691,47 @@ async function run() {
       }
       config = { ...config, suites: { [suite]: suiteConfig } };
     }
-    core.info("Verifying attestations...");
-    const result = await verifyAttestations({ config });
-    core.setOutput("valid", result.success.toString());
-    core.setOutput("suites", JSON.stringify(result.suites));
-    logResults(result);
-    if (!result.signatureValid) {
+    core.info("Verifying seals...");
+    const sealsPath = config.settings.sealsPath ?? ".attest-it/seals.json";
+    let seals;
+    try {
+      seals = await readSeals(process.cwd(), sealsPath);
+    } catch (err) {
+      if (isFileNotFoundError2(err)) {
+        seals = { version: 1, seals: {} };
+      } else {
+        throw err;
+      }
+    }
+    const fingerprints = {};
+    if (config.gates) {
+      for (const [gateId, gateConfig] of Object.entries(config.gates)) {
+        const result = await computeFingerprint({
+          packages: gateConfig.fingerprint.paths,
+          ...gateConfig.fingerprint.exclude && { ignore: gateConfig.fingerprint.exclude }
+        });
+        fingerprints[gateId] = result.fingerprint;
+      }
+    }
+    const sealResults = verifyAllSeals(config, seals, fingerprints);
+    const suiteResults = mapSealResultsToSuites(config, sealResults);
+    const signatureInvalid = sealResults.some((r) => r.state === "INVALID_SIGNATURE");
+    const allValid = sealResults.every((r) => r.state === "VALID");
+    core.setOutput("valid", allValid.toString());
+    core.setOutput("suites", JSON.stringify(suiteResults));
+    logResults(sealResults);
+    if (signatureInvalid) {
       core.setFailed("Attestation signature verification failed");
       return;
     }
-    if (result.errors.length > 0) {
-      for (const errorMsg of result.errors) {
-        core.error(errorMsg);
-      }
-    }
-    const invalid = result.suites.filter((s) => s.status !== "VALID");
+    const invalid = sealResults.filter((r) => r.state !== "VALID");
     if (invalid.length > 0 && failOnMissing) {
       core.setFailed(`${String(invalid.length)} suite(s) have invalid attestations`);
       core.startGroup("Remediation steps");
-      for (const s of invalid) {
-        core.info(`Run: attest-it run --suite ${s.suite}`);
-        if (s.message) {
-          core.info(`  Reason: ${s.message}`);
+      for (const r of invalid) {
+        core.info(`Run: attest-it run --suite ${r.gateId}`);
+        if (r.message) {
+          core.info(`  Reason: ${r.message}`);
         }
       }
       core.endGroup();
@@ -43346,14 +44739,23 @@ async function run() {
     }
     if (strict) {
       const warningThreshold = 7;
-      const nearExpiry = result.suites.filter(
-        (s) => s.status === "VALID" && (s.age ?? 0) > config.settings.maxAgeDays - warningThreshold
-      );
+      const warningThresholdMs = warningThreshold * 24 * 60 * 60 * 1e3;
+      const now = Date.now();
+      const nearExpiry = sealResults.filter((r) => {
+        if (r.state !== "VALID" || !r.seal) return false;
+        const sealTime = new Date(r.seal.timestamp).getTime();
+        const ageMs = now - sealTime;
+        const maxAgeMs = config.settings.maxAgeDays * 24 * 60 * 60 * 1e3;
+        return ageMs > maxAgeMs - warningThresholdMs;
+      });
       if (nearExpiry.length > 0) {
         core.setFailed("Attestations approaching expiry (strict mode)");
-        for (const s of nearExpiry) {
-          const age = s.age ?? 0;
-          core.warning(`${s.suite} is ${String(age)} days old`);
+        for (const r of nearExpiry) {
+          if (r.seal) {
+            const ageMs = now - new Date(r.seal.timestamp).getTime();
+            const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1e3));
+            core.warning(`${r.gateId} is ${String(ageDays)} days old`);
+          }
         }
         return;
       }
@@ -43367,12 +44769,49 @@ async function run() {
     }
   }
 }
-function logResults(result) {
+function mapSealStateToStatus(state) {
+  switch (state) {
+    case "VALID":
+      return "VALID";
+    case "MISSING":
+    case "UNKNOWN_SIGNER":
+    case "INVALID_SIGNATURE":
+      return "NEEDS_ATTESTATION";
+    case "FINGERPRINT_MISMATCH":
+      return "FINGERPRINT_CHANGED";
+    case "STALE":
+      return "EXPIRED";
+    default:
+      return "NEEDS_ATTESTATION";
+  }
+}
+function mapSealResultsToSuites(config, sealResults) {
+  const results = [];
+  for (const [suiteName, suiteConfig] of Object.entries(config.suites)) {
+    const gateId = suiteConfig.gate;
+    const sealResult = sealResults.find((r) => r.gateId === gateId);
+    if (!sealResult) {
+      results.push({
+        suite: suiteName,
+        status: "NEEDS_ATTESTATION",
+        message: `No gate '${gateId}' found`
+      });
+    } else {
+      results.push({
+        suite: suiteName,
+        status: mapSealStateToStatus(sealResult.state),
+        message: sealResult.message
+      });
+    }
+  }
+  return results;
+}
+function logResults(results) {
   core.startGroup("Attestation status");
-  for (const suite of result.suites) {
-    const icon = suite.status === "VALID" ? "\u2713" : "\u2717";
-    const age = suite.age !== void 0 ? ` (${String(suite.age)} days)` : "";
-    core.info(`${icon} ${suite.suite}: ${suite.status}${age}`);
+  for (const result of results) {
+    const icon = result.state === "VALID" ? "\u2713" : "\u2717";
+    const status = mapSealStateToStatus(result.state);
+    core.info(`${icon} ${result.gateId}: ${status}`);
   }
   core.endGroup();
 }

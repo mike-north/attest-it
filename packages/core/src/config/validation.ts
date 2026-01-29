@@ -75,7 +75,11 @@ export function validateSuiteGateReferences(
   // Validate each suite that references a gate
   for (const [suiteName, suiteConfig] of Object.entries(operational.suites)) {
     const gateName = suiteConfig.gate
-    // gate is required by schema, so gateName is always defined
+
+    // Skip suites without explicit gate references (legacy suites with packages)
+    if (gateName === undefined) {
+      continue
+    }
 
     // Check if the referenced gate exists in the policy
     // eslint-disable-next-line security/detect-object-injection

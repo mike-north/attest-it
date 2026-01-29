@@ -14,9 +14,10 @@ import { fileURLToPath } from 'node:url'
 import { zodToJsonSchema } from 'zod-to-json-schema'
 import { policySchema } from '../src/config/policy-schema.js'
 import { operationalSchema } from '../src/config/operational-schema.js'
+import { localConfigSchemaV1, sealsFileSchemaV1 } from '../src/config/migrations/index.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const schemasDir = join(__dirname, '../../../schemas')
+const schemasDir = join(__dirname, '../../../schemas/v1')
 
 // Ensure schemas directory exists
 mkdirSync(schemasDir, { recursive: true })
@@ -39,7 +40,7 @@ function generateSchema(
   // Add metadata
   const schemaWithMeta = {
     $schema: 'http://json-schema.org/draft-07/schema#',
-    $id: `https://attest-it.dev/schemas/${name}.schema.json`,
+    $id: `https://attest-it.dev/schemas/v1/${name}.schema.json`,
     title,
     description,
     ...jsonSchema,
@@ -64,6 +65,22 @@ generateSchema(
   operationalSchema,
   'attest-it Operational Configuration',
   'Operational configuration schema for attest-it. Contains suite definitions and command execution settings.',
+)
+
+// Generate identity config schema
+generateSchema(
+  'identity',
+  localConfigSchemaV1,
+  'attest-it Identity Configuration',
+  'Local identity configuration schema for attest-it. Contains user identity and key management settings.',
+)
+
+// Generate seals file schema
+generateSchema(
+  'seals',
+  sealsFileSchemaV1,
+  'attest-it Seals File',
+  'Seals file schema for attest-it. Contains cryptographic signatures for gate attestations.',
 )
 
 console.log('\nJSON schemas generated successfully!')

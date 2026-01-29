@@ -37,3 +37,15 @@ export { mergeConfigs } from './merge.js'
 // Cross-configuration validation
 export type { ValidationError, ValidationErrorType } from './validation.js'
 export { validateSuiteGateReferences } from './validation.js'
+
+// Split config loading (unified for CLI and GitHub Action)
+export {
+  loadSplitConfig,
+  loadSplitConfigSync,
+  findPolicyPath,
+  findOperationalPath,
+  SplitConfigNotFoundError,
+  CrossConfigValidationError,
+  type PolicySource,
+  type LoadSplitConfigOptions,
+} from './load-split.js'

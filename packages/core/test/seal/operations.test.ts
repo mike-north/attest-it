@@ -310,7 +310,7 @@ describe('readSeals and writeSeals (async)', () => {
     expect(fs.statSync(attestItDir).isDirectory()).toBe(true)
   })
 
-  it('should write formatted JSON with newline', async () => {
+  it('should write formatted YAML with schema header', async () => {
     const { privateKey } = generateKeyPair()
     const seal = createSeal({
       gateId: 'unit-tests',
@@ -328,36 +328,95 @@ describe('readSeals and writeSeals (async)', () => {
 
     await writeSeals(tmpDir, sealsFile)
 
-    const sealsPath = path.join(tmpDir, '.attest-it', 'seals.json')
+    const sealsPath = path.join(tmpDir, '.attest-it', 'seals.yaml')
     const content = fs.readFileSync(sealsPath, 'utf8')
 
     expect(content).toContain('\n')
     expect(content.endsWith('\n')).toBe(true)
-    expect(JSON.parse(content)).toEqual(sealsFile)
+    // Written file includes yaml-language-server schema header for editor support
+    expect(content).toContain('# yaml-language-server: $schema=')
+    expect(content).toContain('schemas/v1/seals.schema.json')
   })
 
-  it('should throw error for invalid JSON in seals file', async () => {
-    const sealsPath = path.join(tmpDir, '.attest-it', 'seals.json')
+  it('should throw error for invalid YAML in seals file', async () => {
+    const sealsPath = path.join(tmpDir, '.attest-it', 'seals.yaml')
     fs.mkdirSync(path.dirname(sealsPath), { recursive: true })
-    fs.writeFileSync(sealsPath, 'invalid json', 'utf8')
+    fs.writeFileSync(sealsPath, 'invalid: yaml: content:', 'utf8')
 
     await expect(readSeals(tmpDir)).rejects.toThrow('Failed to read seals file')
   })
 
   it('should throw error for invalid version in seals file', async () => {
-    const sealsPath = path.join(tmpDir, '.attest-it', 'seals.json')
+    const sealsPath = path.join(tmpDir, '.attest-it', 'seals.yaml')
     fs.mkdirSync(path.dirname(sealsPath), { recursive: true })
-    fs.writeFileSync(sealsPath, JSON.stringify({ version: 999, seals: {} }), 'utf8')
+    fs.writeFileSync(sealsPath, 'version: 999\nseals: {}', 'utf8')
 
     await expect(readSeals(tmpDir)).rejects.toThrow('Unsupported seals file version')
   })
 
   it('should throw error for missing seals field', async () => {
-    const sealsPath = path.join(tmpDir, '.attest-it', 'seals.json')
+    const sealsPath = path.join(tmpDir, '.attest-it', 'seals.yaml')
     fs.mkdirSync(path.dirname(sealsPath), { recursive: true })
-    fs.writeFileSync(sealsPath, JSON.stringify({ version: 1 }), 'utf8')
+    fs.writeFileSync(sealsPath, 'version: 1', 'utf8')
 
     await expect(readSeals(tmpDir)).rejects.toThrow('seals: Required')
+  })
+
+  it('should read legacy JSON seals file', async () => {
+    const { privateKey } = generateKeyPair()
+    const seal = createSeal({
+      gateId: 'unit-tests',
+      fingerprint: 'sha256:abc123',
+      sealedBy: 'alice',
+      privateKey,
+    })
+
+    // Write JSON file directly (legacy format)
+    const sealsPath = path.join(tmpDir, '.attest-it', 'seals.json')
+    fs.mkdirSync(path.dirname(sealsPath), { recursive: true })
+    fs.writeFileSync(
+      sealsPath,
+      JSON.stringify({ version: 1, seals: { 'unit-tests': seal } }, null, 2),
+      'utf8',
+    )
+
+    // Should be able to read legacy JSON
+    const readBack = await readSeals(tmpDir)
+    expect(readBack.seals['unit-tests']).toEqual(seal)
+  })
+
+  it('should prefer YAML over JSON when both exist', async () => {
+    const { privateKey } = generateKeyPair()
+    const yamlSeal = createSeal({
+      gateId: 'yaml-test',
+      fingerprint: 'sha256:abc123def456',
+      sealedBy: 'alice',
+      privateKey,
+    })
+    const jsonSeal = createSeal({
+      gateId: 'json-test',
+      fingerprint: 'sha256:789abc012def',
+      sealedBy: 'bob',
+      privateKey,
+    })
+
+    const attestItDir = path.join(tmpDir, '.attest-it')
+    fs.mkdirSync(attestItDir, { recursive: true })
+
+    // Write both files - use writeSeals for YAML to ensure proper formatting
+    await writeSeals(tmpDir, { version: 1, seals: { 'yaml-test': yamlSeal } })
+
+    // Write JSON manually (simulating legacy file)
+    fs.writeFileSync(
+      path.join(attestItDir, 'seals.json'),
+      JSON.stringify({ version: 1, seals: { 'json-test': jsonSeal } }, null, 2),
+      'utf8',
+    )
+
+    // Should read YAML, not JSON
+    const readBack = await readSeals(tmpDir)
+    expect(readBack.seals).toHaveProperty('yaml-test')
+    expect(readBack.seals).not.toHaveProperty('json-test')
   })
 
   it('should handle multiple seals', async () => {
@@ -449,20 +508,43 @@ describe('readSealsSync and writeSealsSync', () => {
     expect(fs.statSync(attestItDir).isDirectory()).toBe(true)
   })
 
-  it('should throw error for invalid JSON in seals file', () => {
-    const sealsPath = path.join(tmpDir, '.attest-it', 'seals.json')
+  it('should throw error for invalid YAML in seals file', () => {
+    const sealsPath = path.join(tmpDir, '.attest-it', 'seals.yaml')
     fs.mkdirSync(path.dirname(sealsPath), { recursive: true })
-    fs.writeFileSync(sealsPath, 'invalid json', 'utf8')
+    fs.writeFileSync(sealsPath, 'invalid: yaml: content:', 'utf8')
 
     expect(() => readSealsSync(tmpDir)).toThrow('Failed to read seals file')
   })
 
   it('should throw error for invalid version in seals file', () => {
-    const sealsPath = path.join(tmpDir, '.attest-it', 'seals.json')
+    const sealsPath = path.join(tmpDir, '.attest-it', 'seals.yaml')
     fs.mkdirSync(path.dirname(sealsPath), { recursive: true })
-    fs.writeFileSync(sealsPath, JSON.stringify({ version: 999, seals: {} }), 'utf8')
+    fs.writeFileSync(sealsPath, 'version: 999\nseals: {}', 'utf8')
 
     expect(() => readSealsSync(tmpDir)).toThrow('Unsupported seals file version')
+  })
+
+  it('should read legacy JSON seals file sync', () => {
+    const { privateKey } = generateKeyPair()
+    const seal = createSeal({
+      gateId: 'unit-tests',
+      fingerprint: 'sha256:abc123',
+      sealedBy: 'alice',
+      privateKey,
+    })
+
+    // Write JSON file directly (legacy format)
+    const sealsPath = path.join(tmpDir, '.attest-it', 'seals.json')
+    fs.mkdirSync(path.dirname(sealsPath), { recursive: true })
+    fs.writeFileSync(
+      sealsPath,
+      JSON.stringify({ version: 1, seals: { 'unit-tests': seal } }, null, 2),
+      'utf8',
+    )
+
+    // Should be able to read legacy JSON
+    const readBack = readSealsSync(tmpDir)
+    expect(readBack.seals['unit-tests']).toEqual(seal)
   })
 })
 
@@ -604,9 +686,11 @@ describe('sealsPath config option (Bug 3 regression)', () => {
     const expectedPath = path.join(tmpDir, customPath)
     expect(fs.existsSync(expectedPath)).toBe(true)
 
-    // Verify default path was NOT created
-    const defaultPath = path.join(tmpDir, '.attest-it', 'seals.json')
-    expect(fs.existsSync(defaultPath)).toBe(false)
+    // Verify default path was NOT created (now seals.yaml)
+    const defaultYamlPath = path.join(tmpDir, '.attest-it', 'seals.yaml')
+    const defaultJsonPath = path.join(tmpDir, '.attest-it', 'seals.json')
+    expect(fs.existsSync(defaultYamlPath)).toBe(false)
+    expect(fs.existsSync(defaultJsonPath)).toBe(false)
   })
 
   it('should read seals from custom path when sealsPathOverride is provided', async () => {
@@ -649,8 +733,8 @@ describe('sealsPath config option (Bug 3 regression)', () => {
     // Write without custom path (uses default)
     await writeSeals(tmpDir, sealsFile)
 
-    // Verify file was created at default path
-    const defaultPath = path.join(tmpDir, '.attest-it', 'seals.json')
+    // Verify file was created at default path (now seals.yaml)
+    const defaultPath = path.join(tmpDir, '.attest-it', 'seals.yaml')
     expect(fs.existsSync(defaultPath)).toBe(true)
   })
 

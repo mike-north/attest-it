@@ -4,7 +4,7 @@ import { SuiteSelector } from './SuiteSelector.js'
 import { TestRunner } from './TestRunner.js'
 import { ProgressSummary } from './ProgressSummary.js'
 import type { SuiteStatus } from '../commands/run-utils.js'
-import type { Config } from '@attest-it/core'
+import type { AttestItConfig } from '@attest-it/core'
 
 /**
  * Current phase of the interactive run.
@@ -18,7 +18,7 @@ export interface InteractiveRunProps {
   /** All suite statuses */
   allSuites: SuiteStatus[]
   /** Config for groups and settings */
-  config: Config
+  config: AttestItConfig
   /** Execute test for a suite */
   executeTest: (suite: string) => Promise<boolean>
   /** Create attestation for a suite */

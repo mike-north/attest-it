@@ -5,36 +5,39 @@
 
 import * as fs from 'node:fs'
 import * as path from 'node:path'
-import { z } from 'zod'
 
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import * as ed25519 from '../crypto/ed25519.js'
 import type { AttestItConfig } from '../types.js'
 import type { Seal, SealsFile } from './types.js'
+import { sealsFileSchemaV1 } from '../config/migrations/index.js'
 
 /**
- * Zod schema for a single seal.
+ * Check if an error is a Node.js file not found error.
  * @internal
  */
-const sealSchema = z.object({
-  gateId: z.string().min(1, 'Gate ID cannot be empty'),
-  // Fingerprint format: sha256:<hex> where hex is at least 1 character
-  // Full fingerprints are 64 hex chars, but tests may use shorter values
-  fingerprint: z
-    .string()
-    .regex(/^sha256:[a-f0-9]+$/i, 'Invalid fingerprint format (expected sha256:<hex>)'),
-  timestamp: z.string().datetime({ message: 'Invalid ISO 8601 timestamp' }),
-  sealedBy: z.string().min(1, 'Signer slug cannot be empty'),
-  signature: z.string().min(1, 'Signature cannot be empty'),
-})
+function isFileNotFoundError(error: unknown): boolean {
+  if (error && typeof error === 'object' && 'code' in error) {
+    const errorWithCode: { code: unknown } = error
+    return errorWithCode.code === 'ENOENT' || errorWithCode.code === 'ENOTDIR'
+  }
+  return false
+}
 
 /**
- * Zod schema for the seals file.
+ * Schema reference header for seals.yaml files.
+ * This enables editor support (autocomplete, validation) in YAML-aware editors.
  * @internal
  */
-const sealsFileSchema = z.object({
-  version: z.literal(1, { errorMap: () => ({ message: 'Unsupported seals file version' }) }),
-  seals: z.record(z.string(), sealSchema),
-})
+const SEALS_SCHEMA_HEADER =
+  '# yaml-language-server: $schema=https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/seals.schema.json\n'
+
+/**
+ * Schema URL for seals.json files (legacy format).
+ * @internal
+ */
+const SEALS_SCHEMA_URL =
+  'https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/seals.schema.json'
 
 /**
  * Options for creating a seal.
@@ -142,59 +145,119 @@ export function verifySeal(seal: Seal, config: AttestItConfig): SignatureVerific
 }
 
 /**
- * Parse and validate seals file content.
- *
- * @param content - JSON content to parse
- * @returns Validated SealsFile
- * @throws Error if validation fails
+ * Default empty seals file for when no seals file exists.
  * @internal
  */
-function parseSealsContent(content: string): SealsFile {
-  let rawData: unknown
+const EMPTY_SEALS_FILE: SealsFile = {
+  version: 1,
+  seals: {},
+}
+
+/**
+ * Detect file format from extension.
+ * @internal
+ */
+function detectFormat(filepath: string): 'yaml' | 'json' {
+  const ext = filepath.split('.').pop()?.toLowerCase()
+  if (ext === 'json') return 'json'
+  return 'yaml'
+}
+
+/**
+ * Parse seals file content based on format.
+ * @internal
+ */
+function parseSealsContent(content: string, format: 'yaml' | 'json'): SealsFile {
+  let data: unknown
   try {
-    rawData = JSON.parse(content)
+    data = format === 'yaml' ? parseYaml(content) : JSON.parse(content)
   } catch (error) {
-    throw new Error(`Invalid JSON: ${error instanceof Error ? error.message : String(error)}`)
+    if (
+      error instanceof SyntaxError ||
+      (error instanceof Error && error.name === 'YAMLParseError')
+    ) {
+      throw new Error(`Failed to read seals file: Invalid ${format.toUpperCase()}`)
+    }
+    throw error
   }
 
-  const result = sealsFileSchema.safeParse(rawData)
+  // Check for unsupported version before schema validation
+  if (typeof data === 'object' && data !== null && 'version' in data) {
+    const dataObj: { version: unknown } = data
+    const version = dataObj.version
+    if (version !== 1 && version !== '1') {
+      throw new Error(`Unsupported seals file version: ${String(version)}`)
+    }
+  }
+
+  // Validate against schema (accepts both numeric and string versions)
+  const result = sealsFileSchemaV1.safeParse(data)
   if (!result.success) {
-    const issues = result.error.issues
-      .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
-      .join('\n')
-    throw new Error(`Invalid seals file:\n${issues}`)
+    const errors = result.error.issues
+      .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+      .join(', ')
+    throw new Error(`Failed to read seals file: Validation failed: ${errors}`)
   }
 
   return result.data
 }
 
 /**
- * Read seals from the seals.json file (async).
+ * Read seals from the seals file (async).
  *
- * @param dir - Directory containing .attest-it/seals.json
+ * Supports both YAML (.yaml) and JSON (.json) formats.
+ * When no override path is provided, prefers seals.yaml over seals.json.
+ *
+ * Uses Zod schema from the migration graph for validation.
+ *
+ * @param dir - Directory containing .attest-it/seals.yaml or seals.json
  * @param sealsPathOverride - Optional explicit path to seals file (from config.settings.sealsPath)
  * @returns The seals file contents, or an empty seals file if the file doesn't exist
  * @throws Error if file exists but cannot be read or parsed
  * @public
  */
 export async function readSeals(dir: string, sealsPathOverride?: string): Promise<SealsFile> {
-  const sealsPath = sealsPathOverride
-    ? path.resolve(dir, sealsPathOverride)
-    : path.join(dir, '.attest-it', 'seals.json')
-
-  try {
-    const content = await fs.promises.readFile(sealsPath, 'utf8')
-    return parseSealsContent(content)
-  } catch (error) {
-    // If file doesn't exist, return empty seals file
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-      return {
-        version: 1,
-        seals: {},
+  // If override path is provided, use it directly
+  if (sealsPathOverride) {
+    const sealsPath = path.resolve(dir, sealsPathOverride)
+    let content: string
+    try {
+      content = await fs.promises.readFile(sealsPath, 'utf8')
+    } catch (error) {
+      if (isFileNotFoundError(error)) {
+        return EMPTY_SEALS_FILE
       }
+      throw new Error(
+        `Failed to read seals file: ${error instanceof Error ? error.message : String(error)}`,
+      )
     }
+    return parseSealsContent(content, detectFormat(sealsPath))
+  }
 
-    // Re-throw other errors (permission denied, parse errors, etc.)
+  // Try seals.yaml first (preferred), then fall back to seals.json (legacy)
+  const yamlPath = path.join(dir, '.attest-it', 'seals.yaml')
+  const jsonPath = path.join(dir, '.attest-it', 'seals.json')
+
+  // Try YAML first
+  try {
+    const content = await fs.promises.readFile(yamlPath, 'utf8')
+    return parseSealsContent(content, 'yaml')
+  } catch (error) {
+    if (!isFileNotFoundError(error)) {
+      throw new Error(
+        `Failed to read seals file: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
+  }
+
+  // Fall back to JSON
+  try {
+    const content = await fs.promises.readFile(jsonPath, 'utf8')
+    return parseSealsContent(content, 'json')
+  } catch (error) {
+    if (isFileNotFoundError(error)) {
+      return EMPTY_SEALS_FILE
+    }
     throw new Error(
       `Failed to read seals file: ${error instanceof Error ? error.message : String(error)}`,
     )
@@ -202,32 +265,61 @@ export async function readSeals(dir: string, sealsPathOverride?: string): Promis
 }
 
 /**
- * Read seals from the seals.json file (sync).
+ * Read seals from the seals file (sync).
  *
- * @param dir - Directory containing .attest-it/seals.json
+ * Supports both YAML (.yaml) and JSON (.json) formats.
+ * When no override path is provided, prefers seals.yaml over seals.json.
+ *
+ * Uses Zod schema from the migration graph for validation.
+ *
+ * @param dir - Directory containing .attest-it/seals.yaml or seals.json
  * @param sealsPathOverride - Optional explicit path to seals file (from config.settings.sealsPath)
  * @returns The seals file contents, or an empty seals file if the file doesn't exist
  * @throws Error if file exists but cannot be read or parsed
  * @public
  */
 export function readSealsSync(dir: string, sealsPathOverride?: string): SealsFile {
-  const sealsPath = sealsPathOverride
-    ? path.resolve(dir, sealsPathOverride)
-    : path.join(dir, '.attest-it', 'seals.json')
-
-  try {
-    const content = fs.readFileSync(sealsPath, 'utf8')
-    return parseSealsContent(content)
-  } catch (error) {
-    // If file doesn't exist, return empty seals file
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-      return {
-        version: 1,
-        seals: {},
+  // If override path is provided, use it directly
+  if (sealsPathOverride) {
+    const sealsPath = path.resolve(dir, sealsPathOverride)
+    let content: string
+    try {
+      content = fs.readFileSync(sealsPath, 'utf8')
+    } catch (error) {
+      if (isFileNotFoundError(error)) {
+        return EMPTY_SEALS_FILE
       }
+      throw new Error(
+        `Failed to read seals file: ${error instanceof Error ? error.message : String(error)}`,
+      )
     }
+    return parseSealsContent(content, detectFormat(sealsPath))
+  }
 
-    // Re-throw other errors (permission denied, parse errors, etc.)
+  // Try seals.yaml first (preferred), then fall back to seals.json (legacy)
+  const yamlPath = path.join(dir, '.attest-it', 'seals.yaml')
+  const jsonPath = path.join(dir, '.attest-it', 'seals.json')
+
+  // Try YAML first
+  try {
+    const content = fs.readFileSync(yamlPath, 'utf8')
+    return parseSealsContent(content, 'yaml')
+  } catch (error) {
+    if (!isFileNotFoundError(error)) {
+      throw new Error(
+        `Failed to read seals file: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
+  }
+
+  // Fall back to JSON
+  try {
+    const content = fs.readFileSync(jsonPath, 'utf8')
+    return parseSealsContent(content, 'json')
+  } catch (error) {
+    if (isFileNotFoundError(error)) {
+      return EMPTY_SEALS_FILE
+    }
     throw new Error(
       `Failed to read seals file: ${error instanceof Error ? error.message : String(error)}`,
     )
@@ -235,12 +327,31 @@ export function readSealsSync(dir: string, sealsPathOverride?: string): SealsFil
 }
 
 /**
- * Write seals to the seals.json file (async).
+ * Serialize seals file content based on format.
+ * @internal
+ */
+function serializeSealsContent(data: SealsFile, format: 'yaml' | 'json'): string {
+  if (format === 'json') {
+    // JSON with $schema for editor support
+    const dataWithSchema = { $schema: SEALS_SCHEMA_URL, ...data }
+    return JSON.stringify(dataWithSchema, null, 2) + '\n'
+  }
+  // YAML with schema header for editor support
+  return SEALS_SCHEMA_HEADER + stringifyYaml(data)
+}
+
+/**
+ * Write seals to the seals file (async).
  *
- * @param dir - Directory containing .attest-it/seals.json
+ * Defaults to YAML format (seals.yaml). When a custom path is provided,
+ * the format is inferred from the file extension (.json = JSON, otherwise YAML).
+ *
+ * Uses Zod schema from the migration graph for validation before writing.
+ *
+ * @param dir - Directory containing .attest-it/seals.yaml
  * @param sealsFile - The seals file to write
  * @param sealsPathOverride - Optional explicit path to seals file (from config.settings.sealsPath)
- * @throws Error if file cannot be written
+ * @throws Error if file cannot be written or validation fails
  * @public
  */
 export async function writeSeals(
@@ -250,15 +361,25 @@ export async function writeSeals(
 ): Promise<void> {
   const sealsPath = sealsPathOverride
     ? path.resolve(dir, sealsPathOverride)
-    : path.join(dir, '.attest-it', 'seals.json')
+    : path.join(dir, '.attest-it', 'seals.yaml')
   const sealsDir = path.dirname(sealsPath)
+  const format = detectFormat(sealsPath)
+
+  // Validate against the schema
+  const validationResult = sealsFileSchemaV1.safeParse(sealsFile)
+  if (!validationResult.success) {
+    const errors = validationResult.error.issues
+      .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+      .join(', ')
+    throw new Error(`Failed to write seals file: Validation failed: ${errors}`)
+  }
 
   try {
     // Ensure seals directory exists
     await fs.promises.mkdir(sealsDir, { recursive: true })
 
-    // Write seals file with pretty formatting
-    const content = JSON.stringify(sealsFile, null, 2) + '\n'
+    // Serialize based on format
+    const content = serializeSealsContent(validationResult.data, format)
     await fs.promises.writeFile(sealsPath, content, 'utf8')
   } catch (error) {
     throw new Error(
@@ -268,12 +389,17 @@ export async function writeSeals(
 }
 
 /**
- * Write seals to the seals.json file (sync).
+ * Write seals to the seals file (sync).
  *
- * @param dir - Directory containing .attest-it/seals.json
+ * Defaults to YAML format (seals.yaml). When a custom path is provided,
+ * the format is inferred from the file extension (.json = JSON, otherwise YAML).
+ *
+ * Uses Zod schema from the migration graph for validation before writing.
+ *
+ * @param dir - Directory containing .attest-it/seals.yaml
  * @param sealsFile - The seals file to write
  * @param sealsPathOverride - Optional explicit path to seals file (from config.settings.sealsPath)
- * @throws Error if file cannot be written
+ * @throws Error if file cannot be written or validation fails
  * @public
  */
 export function writeSealsSync(
@@ -283,15 +409,25 @@ export function writeSealsSync(
 ): void {
   const sealsPath = sealsPathOverride
     ? path.resolve(dir, sealsPathOverride)
-    : path.join(dir, '.attest-it', 'seals.json')
+    : path.join(dir, '.attest-it', 'seals.yaml')
   const sealsDir = path.dirname(sealsPath)
+  const format = detectFormat(sealsPath)
+
+  // Validate against the schema
+  const validationResult = sealsFileSchemaV1.safeParse(sealsFile)
+  if (!validationResult.success) {
+    const errors = validationResult.error.issues
+      .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+      .join(', ')
+    throw new Error(`Failed to write seals file: Validation failed: ${errors}`)
+  }
 
   try {
     // Ensure seals directory exists
     fs.mkdirSync(sealsDir, { recursive: true })
 
-    // Write seals file with pretty formatting
-    const content = JSON.stringify(sealsFile, null, 2) + '\n'
+    // Serialize based on format
+    const content = serializeSealsContent(validationResult.data, format)
     fs.writeFileSync(sealsPath, content, 'utf8')
   } catch (error) {
     throw new Error(

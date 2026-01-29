@@ -68,6 +68,15 @@ export {
   validateSuiteGateReferences,
   type ValidationError,
   type ValidationErrorType,
+  // Unified split config loading (CLI and GitHub Action use this)
+  loadSplitConfig,
+  loadSplitConfigSync,
+  findPolicyPath,
+  findOperationalPath,
+  SplitConfigNotFoundError,
+  CrossConfigValidationError,
+  type PolicySource,
+  type LoadSplitConfigOptions,
 } from './config/index.js'
 
 // Fingerprinting

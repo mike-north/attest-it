@@ -4,11 +4,12 @@ settings:
   maxAgeDays: 3650
   publicKeyPath: .attest-it/pubkey.pem
   attestationsPath: .attest-it/attestations.json
+  sealsPath: .attest-it/seals.yaml
 
 team:
   developer:
     name: Test Developer
-    publicKey: MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqT6D0YNP5MVFx3+5BRDAXMc4WPixJHxSm/Rm2aHk5TH92crtplHhC8fggu3KWPa/3XKYY55uQlVPgKCjBBT7T7EHkmm8LJGadYQ5z5Td/BtGaAZrMsXtwNG3mdF66OV8HV8S0rXjAY9CKQ46sx6F/hnH5QRccLL2PxKUq4E63Ie8qsqy7OyLQK5YL/H9AA0dSn0TR+vDG2H1Sx7bVTPtG5IXTSj9j2cyHflY7REtNfHlRKHPwGiLL+P5QRnNmMS+ofQ5wgBK/HxzwwXX2hYBnWfJUehnXLCNGF1nSwfngkWEhcbb8G657Ab6YAkbmNu/lLdOIL4wZEiKBZ435aXcoQIDAQAB
+    publicKey: iYgZvA3KKjsqESF+dknDlAhhRsWVczsQXBRiVF8JTrk=
 
 gates:
   unit-tests:

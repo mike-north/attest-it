@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/seals.schema.json
+version: 1
+seals:
+  unit-tests:
+    gateId: unit-tests
+    fingerprint: sha256:744f086a6836bec6695a6d8e8038a88237c9813205e164060fbbfdf8cce699fb
+    timestamp: 2026-01-29T03:02:23.466Z
+    sealedBy: developer
+    signature: yJiddBkiwjgEJW+oi1ZZtea1bdLE5ogDZ1+jioJXx5mYiMlj0W/2RvnFbcuK52h1e6OvSK4kTrUO7Pnw+U/oCQ==

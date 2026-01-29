@@ -3,13 +3,19 @@
  * @packageDocumentation
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import { mkdir as mkdirAsync, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
+import { stringify as stringifyYaml, parse as parseYaml } from 'yaml'
 import { z } from 'zod'
 import type { Identity, LocalConfig, PrivateKeyRef } from './types.js'
+import {
+  identityMigrationGraph,
+  localConfigSchemaV1,
+  loadVersionedFileSync,
+  type IdentityConfigV1,
+} from '../config/migrations/index.js'
 
 /**
  * Environment variable name for overriding the attest-it home directory.
@@ -59,57 +65,6 @@ export function getAttestItHomeDir(): string | null {
   }
   return homeDirOverride
 }
-
-/**
- * Zod schema for private key references.
- */
-const privateKeyRefSchema = z.discriminatedUnion('type', [
-  z.object({
-    type: z.literal('file'),
-    path: z.string().min(1, 'File path cannot be empty'),
-  }),
-  z.object({
-    type: z.literal('keychain'),
-    service: z.string().min(1, 'Service name cannot be empty'),
-    account: z.string().min(1, 'Account name cannot be empty'),
-    keychain: z.string().optional(),
-  }),
-  z.object({
-    type: z.literal('1password'),
-    account: z.string().optional(),
-    vault: z.string().min(1, 'Vault name cannot be empty'),
-    item: z.string().min(1, 'Item name cannot be empty'),
-    field: z.string().optional(),
-  }),
-])
-
-/**
- * Zod schema for a single identity.
- */
-const identitySchema = z
-  .object({
-    name: z.string().min(1, 'Identity name cannot be empty'),
-    email: z.string().optional(),
-    github: z.string().optional(),
-    publicKey: z.string().min(1, 'Public key cannot be empty'),
-    privateKey: privateKeyRefSchema,
-  })
-  .strict()
-
-/**
- * Zod schema for the local config file.
- */
-const localConfigSchema = z
-  .object({
-    version: z.literal(1),
-    activeIdentity: z.string().min(1, 'Active identity name cannot be empty'),
-    identities: z
-      .record(z.string(), identitySchema)
-      .refine((identities) => Object.keys(identities).length >= 1, {
-        message: 'At least one identity must be defined',
-      }),
-  })
-  .strict()
 
 /**
  * Error thrown when local config validation fails.
@@ -167,39 +122,16 @@ export function getIdentityConfigDir(homeDir?: string): string {
 }
 
 /**
- * Parse and validate local config content.
+ * Transform validated config data to match LocalConfig interface.
+ * Removes undefined optional fields for cleaner serialization.
  *
- * @param content - YAML content to parse
- * @returns Validated LocalConfig object
- * @throws {LocalConfigValidationError} If validation fails
+ * @param data - Validated config data from Zod/migrex
+ * @returns Transformed LocalConfig object
+ * @internal
  */
-function parseLocalConfigContent(content: string): LocalConfig {
-  let rawConfig: unknown
-
-  try {
-    rawConfig = parseYaml(content)
-  } catch (error) {
-    throw new LocalConfigValidationError(
-      `Failed to parse YAML: ${error instanceof Error ? error.message : String(error)}`,
-      [],
-    )
-  }
-
-  const result = localConfigSchema.safeParse(rawConfig)
-
-  if (!result.success) {
-    throw new LocalConfigValidationError(
-      'Local configuration validation failed:\n' +
-        result.error.issues
-          .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
-          .join('\n'),
-      result.error.issues,
-    )
-  }
-
-  // Transform Zod output to match LocalConfig interface by removing undefined values
+function transformToLocalConfig(data: IdentityConfigV1): LocalConfig {
   const identities: Record<string, Identity> = Object.fromEntries(
-    Object.entries(result.data.identities).map(([key, identity]) => {
+    Object.entries(data.identities).map(([key, identity]) => {
       // Transform private key ref to remove undefined optional fields
       let privateKey: PrivateKeyRef
       if (identity.privateKey.type === '1password') {
@@ -221,6 +153,13 @@ function parseLocalConfigContent(content: string): LocalConfig {
             keychain: identity.privateKey.keychain,
           }),
         }
+      } else if (identity.privateKey.type === 'yubikey') {
+        privateKey = {
+          type: 'yubikey',
+          encryptedKeyPath: identity.privateKey.encryptedKeyPath,
+          ...(identity.privateKey.slot !== undefined && { slot: identity.privateKey.slot }),
+          ...(identity.privateKey.serial !== undefined && { serial: identity.privateKey.serial }),
+        }
       } else {
         privateKey = identity.privateKey
       }
@@ -240,13 +179,16 @@ function parseLocalConfigContent(content: string): LocalConfig {
 
   return {
     version: 1,
-    activeIdentity: result.data.activeIdentity,
+    activeIdentity: data.activeIdentity,
     identities,
   }
 }
 
 /**
  * Load and validate local config from file (async).
+ *
+ * Uses migrex for versioned schema validation and migration.
+ * Files without a version field are treated as version 1.
  *
  * @param configPath - Optional path to config file. If not provided, uses default location.
  * @returns Validated LocalConfig object, or null if file does not exist
@@ -256,14 +198,12 @@ function parseLocalConfigContent(content: string): LocalConfig {
 export async function loadLocalConfig(configPath?: string): Promise<LocalConfig | null> {
   const resolvedPath = configPath ?? getLocalConfigPath()
 
+  // Read file
+  let content: string
   try {
-    const content = await readFile(resolvedPath, 'utf8')
-    return parseLocalConfigContent(content)
-  } catch (error) {
-    if (error instanceof LocalConfigValidationError) {
-      throw error
-    }
-    // Check if it's a file not found error
+    content = await readFile(resolvedPath, 'utf8')
+  } catch (error: unknown) {
+    // Handle file not found
     if (
       error &&
       typeof error === 'object' &&
@@ -272,13 +212,50 @@ export async function loadLocalConfig(configPath?: string): Promise<LocalConfig 
     ) {
       return null
     }
-    // Re-throw other errors
-    throw error
+    throw new LocalConfigValidationError(
+      `Failed to read config: ${error instanceof Error ? error.message : String(error)}`,
+      [],
+    )
   }
+
+  // Parse YAML
+  let rawData: unknown
+  try {
+    rawData = parseYaml(content)
+  } catch (error) {
+    throw new LocalConfigValidationError(
+      `Failed to parse YAML: ${error instanceof Error ? error.message : String(error)}`,
+      [],
+    )
+  }
+
+  // Add version field if not present (treat versionless as v1)
+  if (rawData && typeof rawData === 'object' && !('version' in rawData)) {
+    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+    const mutableData = rawData as Record<string, unknown>
+    mutableData.version = 1
+  }
+
+  // Validate against the schema
+  const validationResult = localConfigSchemaV1.safeParse(rawData)
+  if (!validationResult.success) {
+    throw new LocalConfigValidationError(
+      'Local configuration validation failed:\n' +
+        validationResult.error.issues
+          .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
+          .join('\n'),
+      validationResult.error.issues,
+    )
+  }
+
+  return transformToLocalConfig(validationResult.data)
 }
 
 /**
  * Load and validate local config from file (sync).
+ *
+ * Uses migrex for versioned schema validation and migration.
+ * Files without a version field are treated as version 1.
  *
  * @param configPath - Optional path to config file. If not provided, uses default location.
  * @returns Validated LocalConfig object, or null if file does not exist
@@ -289,22 +266,20 @@ export function loadLocalConfigSync(configPath?: string): LocalConfig | null {
   const resolvedPath = configPath ?? getLocalConfigPath()
 
   try {
-    const content = readFileSync(resolvedPath, 'utf8')
-    return parseLocalConfigContent(content)
-  } catch (error) {
-    if (error instanceof LocalConfigValidationError) {
-      throw error
-    }
-    // Check if it's a file not found error
-    if (
-      error &&
-      typeof error === 'object' &&
-      'code' in error &&
-      (error.code === 'ENOENT' || error.code === 'ENOTDIR')
-    ) {
+    const result = loadVersionedFileSync<IdentityConfigV1>(identityMigrationGraph, resolvedPath, {
+      format: 'yaml',
+    })
+
+    if (!result) {
       return null
     }
-    // Re-throw other errors
+
+    return transformToLocalConfig(result.data)
+  } catch (error) {
+    // Wrap errors in LocalConfigValidationError for API compatibility
+    if (error instanceof Error) {
+      throw new LocalConfigValidationError(error.message, [])
+    }
     throw error
   }
 }
@@ -319,40 +294,84 @@ const IDENTITY_SCHEMA_HEADER =
 /**
  * Save local config to file (async).
  *
+ * Adds version field (version: 1) if not present for forward compatibility.
+ * Validates using the migrex migration graph before saving.
+ *
  * @param config - LocalConfig object to save
  * @param configPath - Optional path to config file. If not provided, uses default location.
- * @throws {Error} If write fails
+ * @throws {Error} If write fails or validation fails
  * @public
  */
 export async function saveLocalConfig(config: LocalConfig, configPath?: string): Promise<void> {
   const resolvedPath = configPath ?? getLocalConfigPath()
-  const yamlContent = stringifyYaml(config)
+
+  // Add version field for migrex compatibility (spread config first, then version to ensure it's always 1)
+  const versionedConfig: IdentityConfigV1 = {
+    ...config,
+    version: 1,
+  }
+
+  // Validate using the schema
+  const validationResult = localConfigSchemaV1.safeParse(versionedConfig)
+  if (!validationResult.success) {
+    throw new LocalConfigValidationError(
+      'Local configuration validation failed:\n' +
+        validationResult.error.issues
+          .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
+          .join('\n'),
+      validationResult.error.issues,
+    )
+  }
+
+  // Serialize with schema header
+  const yamlContent = stringifyYaml(validationResult.data)
   const content = IDENTITY_SCHEMA_HEADER + yamlContent
 
-  // Ensure parent directory exists
+  // Ensure parent directory exists and write
   const dir = dirname(resolvedPath)
   await mkdirAsync(dir, { recursive: true })
-
   await writeFile(resolvedPath, content, 'utf8')
 }
 
 /**
  * Save local config to file (sync).
  *
+ * Adds version field (version: 1) if not present for forward compatibility.
+ * Validates using the migrex migration graph before saving.
+ *
  * @param config - LocalConfig object to save
  * @param configPath - Optional path to config file. If not provided, uses default location.
- * @throws {Error} If write fails
+ * @throws {Error} If write fails or validation fails
  * @public
  */
 export function saveLocalConfigSync(config: LocalConfig, configPath?: string): void {
   const resolvedPath = configPath ?? getLocalConfigPath()
-  const yamlContent = stringifyYaml(config)
+
+  // Add version field for migrex compatibility (spread config first, then version to ensure it's always 1)
+  const versionedConfig: IdentityConfigV1 = {
+    ...config,
+    version: 1,
+  }
+
+  // Validate using the schema
+  const validationResult = localConfigSchemaV1.safeParse(versionedConfig)
+  if (!validationResult.success) {
+    throw new LocalConfigValidationError(
+      'Local configuration validation failed:\n' +
+        validationResult.error.issues
+          .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
+          .join('\n'),
+      validationResult.error.issues,
+    )
+  }
+
+  // Serialize with schema header
+  const yamlContent = stringifyYaml(validationResult.data)
   const content = IDENTITY_SCHEMA_HEADER + yamlContent
 
-  // Ensure parent directory exists
+  // Ensure parent directory exists and write
   const dir = dirname(resolvedPath)
   mkdirSync(dir, { recursive: true })
-
   writeFileSync(resolvedPath, content, 'utf8')
 }
 

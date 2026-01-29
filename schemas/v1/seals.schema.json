@@ -1,57 +1,49 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/seals.schema.json",
+  "$id": "https://attest-it.dev/schemas/v1/seals.schema.json",
   "title": "attest-it Seals File",
-  "description": "Schema for the seals file stored at .attest-it/seals.json. Each seal represents a cryptographic attestation that a gate's fingerprint was signed by an authorized team member.",
-  "type": "object",
-  "required": ["version", "seals"],
-  "properties": {
-    "version": {
-      "type": "number",
-      "const": 1,
-      "description": "Schema version for forward compatibility"
-    },
+  "description": "Seals file schema for attest-it. Contains cryptographic signatures for gate attestations.",
+  "$ref": "#/definitions/seals",
+  "definitions": {
     "seals": {
       "type": "object",
-      "description": "Map of gate slugs to their seals",
-      "additionalProperties": {
-        "$ref": "#/definitions/seal"
-      }
-    }
-  },
-  "additionalProperties": false,
-  "definitions": {
-    "seal": {
-      "type": "object",
-      "description": "A seal represents a cryptographic attestation that a gate's fingerprint was signed by an authorized team member",
-      "required": ["gateId", "fingerprint", "timestamp", "sealedBy", "signature"],
       "properties": {
-        "gateId": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Gate identifier (slug)"
+        "version": {
+          "type": ["number", "string"],
+          "enum": [1, "1"]
         },
-        "fingerprint": {
-          "type": "string",
-          "pattern": "^sha256:[a-f0-9]{64}$",
-          "description": "SHA-256 fingerprint of the gate's content in format 'sha256:...'"
-        },
-        "timestamp": {
-          "type": "string",
-          "format": "date-time",
-          "description": "ISO 8601 timestamp when the seal was created"
-        },
-        "sealedBy": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Team member slug who created the seal"
-        },
-        "signature": {
-          "type": "string",
-          "minLength": 1,
-          "description": "Base64-encoded Ed25519 signature of gateId:fingerprint:timestamp"
+        "seals": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "gateId": {
+                "type": "string",
+                "minLength": 1
+              },
+              "fingerprint": {
+                "type": "string",
+                "pattern": "^sha256:[a-f0-9]+$"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "sealedBy": {
+                "type": "string",
+                "minLength": 1
+              },
+              "signature": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["gateId", "fingerprint", "timestamp", "sealedBy", "signature"],
+            "additionalProperties": false
+          }
         }
       },
+      "required": ["version", "seals"],
       "additionalProperties": false
     }
   }

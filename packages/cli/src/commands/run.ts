@@ -7,8 +7,7 @@ import { spawn } from 'node:child_process'
 import * as os from 'node:os'
 import { parse as parseShellCommand } from 'shell-quote'
 import {
-  loadConfig,
-  toAttestItConfig,
+  loadSplitConfig,
   computeFingerprint,
   computeFingerprintSync,
   readAttestations,
@@ -24,7 +23,7 @@ import {
   createSeal,
   readSealsSync,
   writeSealsSync,
-  type Config,
+  type AttestItConfig,
   type KeyProvider,
   type Identity,
 } from '@attest-it/core'
@@ -116,7 +115,11 @@ async function runTests(options: RunOptions): Promise<void> {
  * @returns Constructed command string
  * @public
  */
-function buildCommand(config: Config, suiteCommand?: string, suiteFiles?: string[]): string {
+function buildCommand(
+  config: AttestItConfig,
+  suiteCommand?: string,
+  suiteFiles?: string[],
+): string {
   // Use suite command if specified, otherwise default
   let command = suiteCommand ?? config.settings.defaultCommand
 
@@ -256,7 +259,7 @@ async function runDirectMode(options: RunOptions): Promise<void> {
   }
 
   // Load config
-  const config = await loadConfig()
+  const config = await loadSplitConfig()
 
   // Validate suite exists
   if (!config.suites[options.suite]) {
@@ -290,7 +293,7 @@ async function runDirectMode(options: RunOptions): Promise<void> {
  * @public
  */
 async function runAllPending(options: RunOptions): Promise<void> {
-  const config = await loadConfig()
+  const config = await loadSplitConfig()
   const allSuites = await getAllSuiteStatuses(config)
   const pendingSuites = allSuites.filter((s) => s.status !== 'VALID')
 
@@ -351,7 +354,7 @@ async function runAllPending(options: RunOptions): Promise<void> {
  */
 async function runSingleSuite(
   suiteName: string,
-  config: Config,
+  config: AttestItConfig,
   options: RunOptions,
 ): Promise<void> {
   // eslint-disable-next-line security/detect-object-injection -- suiteName is from validated config keys
@@ -488,7 +491,11 @@ async function runSingleSuite(
  * @param gateId - ID of the gate linked to the suite
  * @param config - Configuration object
  */
-async function promptForSeal(suiteName: string, gateId: string, config: Config): Promise<void> {
+async function promptForSeal(
+  suiteName: string,
+  gateId: string,
+  config: AttestItConfig,
+): Promise<void> {
   log('')
   log(`Suite '${suiteName}' is linked to gate '${gateId}'`)
 
@@ -507,11 +514,8 @@ async function promptForSeal(suiteName: string, gateId: string, config: Config):
     return
   }
 
-  // Convert to AttestItConfig
-  const attestItConfig = toAttestItConfig(config)
-
   // Check if user is authorized to seal this gate
-  const authorized = isAuthorizedSigner(attestItConfig, gateId, identity.publicKey)
+  const authorized = isAuthorizedSigner(config, gateId, identity.publicKey)
   if (!authorized) {
     warn(`You are not authorized to seal gate '${gateId}'`)
     return
@@ -530,13 +534,13 @@ async function promptForSeal(suiteName: string, gateId: string, config: Config):
 
   try {
     // Get gate config
-    if (!attestItConfig.gates?.[gateId]) {
+    if (!config.gates?.[gateId]) {
       error(`Gate '${gateId}' not found in configuration`)
       return
     }
 
     // eslint-disable-next-line security/detect-object-injection
-    const gate = attestItConfig.gates[gateId]
+    const gate = config.gates[gateId]
 
     // Compute fingerprint for the gate
     const gateFingerprint = computeFingerprintSync({
@@ -569,14 +573,14 @@ async function promptForSeal(suiteName: string, gateId: string, config: Config):
 
     // Read existing seals
     const projectRoot = process.cwd()
-    const sealsFile = readSealsSync(projectRoot, attestItConfig.settings.sealsPath)
+    const sealsFile = readSealsSync(projectRoot, config.settings.sealsPath)
 
     // Add seal to seals file
     // eslint-disable-next-line security/detect-object-injection
     sealsFile.seals[gateId] = seal
 
     // Write seals file
-    writeSealsSync(projectRoot, sealsFile, attestItConfig.settings.sealsPath)
+    writeSealsSync(projectRoot, sealsFile, config.settings.sealsPath)
 
     success(`Seal created for gate '${gateId}'`)
     log(`  Sealed by: ${identitySlug} (${identity.name})`)

@@ -17,8 +17,7 @@ import { render } from 'ink'
 import { spawn } from 'node:child_process'
 import { parse as parseShellCommand } from 'shell-quote'
 import {
-  loadConfig,
-  toAttestItConfig,
+  loadSplitConfig,
   computeFingerprintSync,
   KeyProviderRegistry,
   loadLocalConfigSync,
@@ -28,7 +27,7 @@ import {
   createSeal,
   readSealsSync,
   writeSealsSync,
-  type Config,
+  type AttestItConfig,
   type KeyProvider,
 } from '@attest-it/core'
 import { InteractiveRun } from '../components/InteractiveRun.js'
@@ -60,7 +59,7 @@ export interface InteractiveOptions {
  */
 export async function runInteractive(options: InteractiveOptions): Promise<void> {
   // Load config
-  const config = await loadConfig()
+  const config = await loadSplitConfig()
 
   // Get all suite statuses
   const allSuites = await getAllSuiteStatuses(config)
@@ -131,7 +130,11 @@ export async function runInteractive(options: InteractiveOptions): Promise<void>
  * @param filterPattern - Optional filter pattern
  * @internal
  */
-function handleDryRun(allSuites: SuiteStatus[], config: Config, filterPattern?: string): void {
+function handleDryRun(
+  allSuites: SuiteStatus[],
+  config: AttestItConfig,
+  filterPattern?: string,
+): void {
   let pendingSuites = allSuites.filter((s) => s.status !== 'VALID')
 
   if (filterPattern) {
@@ -160,7 +163,7 @@ function handleDryRun(allSuites: SuiteStatus[], config: Config, filterPattern?: 
  * @returns Function that executes a suite's test command
  * @internal
  */
-function createTestExecutor(config: Config): (suite: string) => Promise<boolean> {
+function createTestExecutor(config: AttestItConfig): (suite: string) => Promise<boolean> {
   return async (suiteName: string): Promise<boolean> => {
     // eslint-disable-next-line security/detect-object-injection -- Safe access with validated suite name
     const suiteConfig = config.suites[suiteName]
@@ -197,7 +200,7 @@ function createTestExecutor(config: Config): (suite: string) => Promise<boolean>
  * @internal
  */
 function createAttestationCreator(
-  config: Config,
+  config: AttestItConfig,
   homeDir: string = getIdentityConfigDir(),
 ): (suite: string) => Promise<void> {
   return async (suiteName: string): Promise<void> => {
@@ -227,7 +230,7 @@ function createAttestationCreator(
 async function createSealForGate(
   suiteName: string,
   gateId: string,
-  config: Config,
+  config: AttestItConfig,
   homeDir: string = getIdentityConfigDir(),
 ): Promise<void> {
   log('')
@@ -247,11 +250,8 @@ async function createSealForGate(
     throw new Error(`Active identity '${localConfig.activeIdentity}' not found in local config`)
   }
 
-  // Convert to AttestItConfig for authorization check
-  const attestItConfig = toAttestItConfig(config)
-
   // Check if user is authorized to seal this gate
-  const authorized = isAuthorizedSigner(attestItConfig, gateId, identity.publicKey)
+  const authorized = isAuthorizedSigner(config, gateId, identity.publicKey)
   if (!authorized) {
     throw new Error(
       `You are not authorized to seal gate '${gateId}'. ` +
@@ -300,14 +300,14 @@ async function createSealForGate(
 
   // Read existing seals
   const projectRoot = process.cwd()
-  const sealsFile = readSealsSync(projectRoot, attestItConfig.settings.sealsPath)
+  const sealsFile = readSealsSync(projectRoot, config.settings.sealsPath)
 
   // Add seal to seals file
   // eslint-disable-next-line security/detect-object-injection -- gate name from validated config
   sealsFile.seals[gateId] = seal
 
   // Write seals file
-  writeSealsSync(projectRoot, sealsFile, attestItConfig.settings.sealsPath)
+  writeSealsSync(projectRoot, sealsFile, config.settings.sealsPath)
 
   log(`✓ Seal created for gate '${gateId}'`)
   log(`  Sealed by: ${identitySlug} (${identity.name})`)

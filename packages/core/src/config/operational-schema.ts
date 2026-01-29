@@ -20,34 +20,8 @@
 
 import { parse as parseYaml } from 'yaml'
 import { z } from 'zod'
-import { keyProviderSchema, semverSchema } from './shared-schemas.js'
 import { checkVersionCompatibility } from '../version.js'
-
-/**
- * Zod schema for operational settings (non-security-critical fields only).
- */
-const operationalSettingsSchema = z
-  .object({
-    defaultCommand: z.string().optional(),
-    keyProvider: keyProviderSchema.optional(),
-  })
-  .strict()
-
-/**
- * Zod schema for a suite configuration.
- * Suites are CLI-layer extensions of gates with command execution capabilities.
- */
-const suiteSchema = z
-  .object({
-    gate: z.string().min(1, 'Gate reference cannot be empty'),
-    description: z.string().optional(),
-    command: z.string().optional(),
-    timeout: z.string().optional(),
-    interactive: z.boolean().optional(),
-    invalidates: z.array(z.string().min(1, 'Invalidated suite name cannot be empty')).optional(),
-    depends_on: z.array(z.string().min(1, 'Dependency suite name cannot be empty')).optional(),
-  })
-  .strict()
+import { operationalSchemaV1, suiteSchemaV1 } from './migrations/index.js'
 
 /**
  * Zod schema for the operational configuration file.
@@ -57,21 +31,12 @@ const suiteSchema = z
  * - Suite definitions with command execution details
  * - Suite groups for organizational purposes
  *
+ * Note: The schema is defined in migrations/operational-graph.ts for versioning.
+ * This export maintains backward compatibility.
+ *
  * @public
  */
-export const operationalSchema = z
-  .object({
-    version: z.literal(1),
-    minVersion: semverSchema.optional(),
-    settings: operationalSettingsSchema.default({}),
-    suites: z.record(z.string(), suiteSchema).refine((suites) => Object.keys(suites).length >= 1, {
-      message: 'At least one suite must be defined',
-    }),
-    groups: z
-      .record(z.string(), z.array(z.string().min(1, 'Suite name in group cannot be empty')))
-      .optional(),
-  })
-  .strict()
+export const operationalSchema = operationalSchemaV1
 
 /**
  * Operational configuration type inferred from the Zod schema.
@@ -142,4 +107,4 @@ export function parseOperationalContent(
 }
 
 // Re-export suite schema for convenience
-export { suiteSchema }
+export { suiteSchemaV1 as suiteSchema }
