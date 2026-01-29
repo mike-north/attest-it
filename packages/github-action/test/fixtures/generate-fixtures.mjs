@@ -13,6 +13,8 @@ import {
   computeFingerprint,
   createAttestation,
   writeSignedAttestations,
+  createSeal,
+  writeSealsSync,
 } from '../../../core/dist/index.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -60,6 +62,7 @@ settings:
   maxAgeDays: 3650
   publicKeyPath: .attest-it/pubkey.pem
   attestationsPath: .attest-it/attestations.json
+  sealsPath: .attest-it/seals.yaml
 
 team:
   developer:
@@ -129,6 +132,30 @@ for (const fixture of [validFixture, splitConfigFixture]) {
 
 // For missing-attestation fixture, don't create attestations.json
 // (the config exists but no attestations)
+
+// Create seals.json using the new seal format
+const privateKeyPem = readFileSync(privateKeyPath, 'utf8')
+
+const seal = createSeal({
+  gateId: 'unit-tests',
+  fingerprint: fingerprintResult.fingerprint,
+  sealedBy: 'developer',
+  privateKey: privateKeyPem,
+})
+
+console.log('Created seal:', JSON.stringify(seal, null, 2))
+
+// Write seals.yaml for valid fixtures (matching policy sealsPath)
+for (const fixture of [validFixture, splitConfigFixture]) {
+  const sealsFile = {
+    version: 1,
+    seals: {
+      'unit-tests': seal,
+    },
+  }
+  writeSealsSync(fixture, sealsFile, '.attest-it/seals.yaml')
+  console.log('Wrote seals to:', join(fixture, '.attest-it', 'seals.yaml'))
+}
 
 console.log('\nFixtures generated successfully!')
 console.log('- Valid attestation:', validFixture)
