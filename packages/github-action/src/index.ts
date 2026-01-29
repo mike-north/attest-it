@@ -1,16 +1,17 @@
 import * as core from '@actions/core'
 import { resolve } from 'node:path'
 import {
-  verifyAttestations,
-  type VerifyResult,
-  type SuiteVerificationResult,
+  readSeals,
+  verifyAllSeals,
+  computeFingerprint,
+  type SealVerificationResult,
   type AttestItConfig,
+  type SealsFile,
   loadSplitConfig,
   SplitConfigNotFoundError,
   CrossConfigValidationError,
   PolicyValidationError,
   OperationalValidationError,
-  parsePolicyContent,
 } from '@attest-it/core'
 import { fetchPolicyFromRef, getRepoInfo, getBaseBranch, isPullRequest } from './fetch-policy.js'
 
@@ -155,40 +156,67 @@ export async function run(): Promise<void> {
       config = { ...config, suites: { [suite]: suiteConfig } }
     }
 
-    core.info('Verifying attestations...')
+    core.info('Verifying seals...')
 
-    // Run verification
-    const result = await verifyAttestations({ config })
+    // Load seals file
+    const sealsPath = config.settings.sealsPath ?? '.attest-it/seals.json'
+    let seals: SealsFile
+    try {
+      seals = await readSeals(process.cwd(), sealsPath)
+    } catch (err) {
+      if (isFileNotFoundError(err)) {
+        // No seals file means all gates need attestation
+        seals = { version: 1, seals: {} }
+      } else {
+        throw err
+      }
+    }
+
+    // Compute fingerprints for all gates
+    const fingerprints: Record<string, string> = {}
+    if (config.gates) {
+      for (const [gateId, gateConfig] of Object.entries(config.gates)) {
+        const result = await computeFingerprint({
+          packages: gateConfig.fingerprint.paths,
+          ...(gateConfig.fingerprint.exclude && { ignore: gateConfig.fingerprint.exclude }),
+        })
+        fingerprints[gateId] = result.fingerprint
+      }
+    }
+
+    // Run verification using seal system
+    const sealResults = verifyAllSeals(config, seals, fingerprints)
+
+    // Map results to suite-based format for compatibility
+    const suiteResults = mapSealResultsToSuites(config, sealResults)
+
+    // Check for any invalid seals (signature verification failures)
+    const signatureInvalid = sealResults.some((r) => r.state === 'INVALID_SIGNATURE')
 
     // Set outputs
-    core.setOutput('valid', result.success.toString())
-    core.setOutput('suites', JSON.stringify(result.suites))
+    const allValid = sealResults.every((r) => r.state === 'VALID')
+    core.setOutput('valid', allValid.toString())
+    core.setOutput('suites', JSON.stringify(suiteResults))
 
     // Log results
-    logResults(result)
+    logResults(sealResults)
 
     // Determine success/failure
-    if (!result.signatureValid) {
+    if (signatureInvalid) {
       core.setFailed('Attestation signature verification failed')
       return
     }
 
-    if (result.errors.length > 0) {
-      for (const errorMsg of result.errors) {
-        core.error(errorMsg)
-      }
-    }
-
-    const invalid = result.suites.filter((s: SuiteVerificationResult) => s.status !== 'VALID')
+    const invalid = sealResults.filter((r) => r.state !== 'VALID')
 
     if (invalid.length > 0 && failOnMissing) {
       core.setFailed(`${String(invalid.length)} suite(s) have invalid attestations`)
 
       core.startGroup('Remediation steps')
-      for (const s of invalid) {
-        core.info(`Run: attest-it run --suite ${s.suite}`)
-        if (s.message) {
-          core.info(`  Reason: ${s.message}`)
+      for (const r of invalid) {
+        core.info(`Run: attest-it run --suite ${r.gateId}`)
+        if (r.message) {
+          core.info(`  Reason: ${r.message}`)
         }
       }
       core.endGroup()
@@ -198,15 +226,25 @@ export async function run(): Promise<void> {
     // Check for warnings in strict mode
     if (strict) {
       const warningThreshold = 7 // days before expiry to warn
-      const nearExpiry = result.suites.filter(
-        (s: SuiteVerificationResult) =>
-          s.status === 'VALID' && (s.age ?? 0) > config.settings.maxAgeDays - warningThreshold,
-      )
+      const warningThresholdMs = warningThreshold * 24 * 60 * 60 * 1000
+      const now = Date.now()
+
+      const nearExpiry = sealResults.filter((r) => {
+        if (r.state !== 'VALID' || !r.seal) return false
+        const sealTime = new Date(r.seal.timestamp).getTime()
+        const ageMs = now - sealTime
+        const maxAgeMs = config.settings.maxAgeDays * 24 * 60 * 60 * 1000
+        return ageMs > maxAgeMs - warningThresholdMs
+      })
+
       if (nearExpiry.length > 0) {
         core.setFailed('Attestations approaching expiry (strict mode)')
-        for (const s of nearExpiry) {
-          const age = s.age ?? 0
-          core.warning(`${s.suite} is ${String(age)} days old`)
+        for (const r of nearExpiry) {
+          if (r.seal) {
+            const ageMs = now - new Date(r.seal.timestamp).getTime()
+            const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000))
+            core.warning(`${r.gateId} is ${String(ageDays)} days old`)
+          }
         }
         return
       }
@@ -222,13 +260,67 @@ export async function run(): Promise<void> {
   }
 }
 
-function logResults(result: VerifyResult): void {
+/**
+ * Map seal verification states to suite status strings for output compatibility.
+ */
+function mapSealStateToStatus(
+  state: SealVerificationResult['state'],
+): 'VALID' | 'NEEDS_ATTESTATION' | 'FINGERPRINT_CHANGED' | 'EXPIRED' {
+  switch (state) {
+    case 'VALID':
+      return 'VALID'
+    case 'MISSING':
+    case 'UNKNOWN_SIGNER':
+    case 'INVALID_SIGNATURE':
+      return 'NEEDS_ATTESTATION'
+    case 'FINGERPRINT_MISMATCH':
+      return 'FINGERPRINT_CHANGED'
+    case 'STALE':
+      return 'EXPIRED'
+    default:
+      return 'NEEDS_ATTESTATION'
+  }
+}
+
+/**
+ * Map seal verification results to suite-based format for output compatibility.
+ */
+function mapSealResultsToSuites(
+  config: AttestItConfig,
+  sealResults: SealVerificationResult[],
+): { suite: string; status: string; message?: string }[] {
+  // For each suite, find its gate and get the seal result
+  const results: { suite: string; status: string; message?: string }[] = []
+
+  for (const [suiteName, suiteConfig] of Object.entries(config.suites)) {
+    const gateId = suiteConfig.gate
+    const sealResult = sealResults.find((r) => r.gateId === gateId)
+
+    if (!sealResult) {
+      results.push({
+        suite: suiteName,
+        status: 'NEEDS_ATTESTATION',
+        message: `No gate '${gateId}' found`,
+      })
+    } else {
+      results.push({
+        suite: suiteName,
+        status: mapSealStateToStatus(sealResult.state),
+        message: sealResult.message,
+      })
+    }
+  }
+
+  return results
+}
+
+function logResults(results: SealVerificationResult[]): void {
   core.startGroup('Attestation status')
 
-  for (const suite of result.suites) {
-    const icon = suite.status === 'VALID' ? '✓' : '✗'
-    const age = suite.age !== undefined ? ` (${String(suite.age)} days)` : ''
-    core.info(`${icon} ${suite.suite}: ${suite.status}${age}`)
+  for (const result of results) {
+    const icon = result.state === 'VALID' ? '✓' : '✗'
+    const status = mapSealStateToStatus(result.state)
+    core.info(`${icon} ${result.gateId}: ${status}`)
   }
 
   core.endGroup()

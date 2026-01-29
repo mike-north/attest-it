@@ -1,6 +1,13 @@
 /* eslint-disable @typescript-eslint/consistent-type-assertions -- Type assertions are necessary for mocking in tests */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
-import { createMockVerifyResult, createMockSuiteStatus, createMockConfig } from './test-helpers.js'
+import {
+  createMockVerifyResult,
+  createMockSuiteStatus,
+  createMockConfig,
+  createMockSealResult,
+  createMockSealsFile,
+  createMockSeal,
+} from './test-helpers.js'
 
 // Mock @actions/core
 vi.mock('@actions/core', () => ({
@@ -24,6 +31,10 @@ vi.mock('@attest-it/core', () => ({
   mergeConfigs: vi.fn(),
   validateSuiteGateReferences: vi.fn(),
   loadSplitConfig: vi.fn(),
+  // New seal-based verification functions
+  readSeals: vi.fn(),
+  verifyAllSeals: vi.fn(),
+  computeFingerprint: vi.fn(),
   PolicyValidationError: class PolicyValidationError extends Error {
     constructor(message: string) {
       super(message)
@@ -94,6 +105,10 @@ const mockMergeConfigs = vi.mocked(mockAttestItCoreModule.mergeConfigs)
 const mockValidateSuiteGateReferences = vi.mocked(
   mockAttestItCoreModule.validateSuiteGateReferences,
 )
+// New seal-based mocks
+const mockReadSeals = vi.mocked(mockAttestItCoreModule.readSeals)
+const mockVerifyAllSeals = vi.mocked(mockAttestItCoreModule.verifyAllSeals)
+const mockComputeFingerprint = vi.mocked(mockAttestItCoreModule.computeFingerprint)
 
 const mockFetchPolicy = {
   fetchPolicyFromRef: vi.mocked(mockFetchPolicyModule.fetchPolicyFromRef),
@@ -135,6 +150,14 @@ describe('GitHub Action', () => {
     // Default: non-PR context (simpler to test)
     mockFetchPolicy.isPullRequest.mockReturnValue(false)
     mockFetchPolicy.getBaseBranch.mockReturnValue(undefined)
+
+    // Default seal-based mocks
+    mockReadSeals.mockResolvedValue(createMockSealsFile())
+    mockComputeFingerprint.mockResolvedValue({
+      fingerprint: 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
+      fileHashes: [],
+    })
+    mockVerifyAllSeals.mockReturnValue([])
   })
 
   afterEach(() => {
@@ -155,13 +178,9 @@ describe('GitHub Action', () => {
     })
 
     it('should succeed when all attestations are valid', async () => {
-      const mockResult = createMockVerifyResult({
-        success: true,
-        signatureValid: true,
-        suites: [createMockSuiteStatus({ suite: 'unit-tests', status: 'VALID', age: 5 })],
-      })
-
-      mockVerifyAttestations.mockResolvedValue(mockResult)
+      mockVerifyAllSeals.mockReturnValue([
+        createMockSealResult({ gateId: 'test-gate', state: 'VALID' }),
+      ])
 
       await run()
 
@@ -171,27 +190,40 @@ describe('GitHub Action', () => {
     })
 
     it('should set suite output as JSON', async () => {
-      const suites = [createMockSuiteStatus({ suite: 'unit-tests', status: 'VALID', age: 5 })]
-      const mockResult = createMockVerifyResult({
-        success: true,
-        signatureValid: true,
-        suites,
-      })
-
-      mockVerifyAttestations.mockResolvedValue(mockResult)
+      mockVerifyAllSeals.mockReturnValue([
+        createMockSealResult({ gateId: 'test-gate', state: 'VALID' }),
+      ])
 
       await run()
 
-      expect(mockCore.setOutput).toHaveBeenCalledWith('suites', JSON.stringify(suites))
+      // The output is now mapped suite results, not raw seal results
+      expect(mockCore.setOutput).toHaveBeenCalledWith(
+        'suites',
+        expect.stringContaining('test-suite'),
+      )
     })
   })
 
   describe('Suite filtering', () => {
     beforeEach(() => {
       const mockConfig = createMockConfig({
+        gates: {
+          'unit-gate': {
+            name: 'Unit Tests Gate',
+            authorizedSigners: ['test-user'],
+            fingerprint: { paths: ['src'] },
+            maxAge: '30d',
+          },
+          'integration-gate': {
+            name: 'Integration Tests Gate',
+            authorizedSigners: ['test-user'],
+            fingerprint: { paths: ['tests'] },
+            maxAge: '30d',
+          },
+        },
         suites: {
-          'unit-tests': { packages: ['src'] },
-          'integration-tests': { packages: ['tests'] },
+          'unit-tests': { gate: 'unit-gate' },
+          'integration-tests': { gate: 'integration-gate' },
         },
       })
 
@@ -205,18 +237,14 @@ describe('GitHub Action', () => {
         return ''
       })
 
-      const mockResult = createMockVerifyResult({
-        success: true,
-        signatureValid: true,
-        suites: [createMockSuiteStatus({ suite: 'unit-tests', status: 'VALID' })],
-      })
-
-      mockVerifyAttestations.mockResolvedValue(mockResult)
+      mockVerifyAllSeals.mockReturnValue([
+        createMockSealResult({ gateId: 'unit-gate', state: 'VALID' }),
+      ])
 
       await run()
 
-      // Verify that verifyAttestations was called
-      expect(mockVerifyAttestations).toHaveBeenCalled()
+      // Verify that verifyAllSeals was called
+      expect(mockVerifyAllSeals).toHaveBeenCalled()
       expect(mockCore.setFailed).not.toHaveBeenCalled()
     })
 
@@ -241,13 +269,9 @@ describe('GitHub Action', () => {
     })
 
     it('should fail when signature is invalid', async () => {
-      const mockResult = createMockVerifyResult({
-        success: false,
-        signatureValid: false,
-        suites: [createMockSuiteStatus({ suite: 'unit-tests', status: 'INVALID' })],
-      })
-
-      mockVerifyAttestations.mockResolvedValue(mockResult)
+      mockVerifyAllSeals.mockReturnValue([
+        createMockSealResult({ gateId: 'test-gate', state: 'INVALID_SIGNATURE' }),
+      ])
 
       await run()
 
@@ -261,19 +285,14 @@ describe('GitHub Action', () => {
         return ''
       })
 
-      const mockResult = createMockVerifyResult({
-        success: false,
-        signatureValid: true,
-        suites: [
-          createMockSuiteStatus({
-            suite: 'unit-tests',
-            status: 'MISSING',
-            message: 'No attestation found',
-          }),
-        ],
-      })
-
-      mockVerifyAttestations.mockResolvedValue(mockResult)
+      mockVerifyAllSeals.mockReturnValue([
+        createMockSealResult({
+          gateId: 'test-gate',
+          state: 'MISSING',
+          seal: undefined,
+          message: 'No seal found',
+        }),
+      ])
 
       await run()
 
@@ -287,13 +306,9 @@ describe('GitHub Action', () => {
         return ''
       })
 
-      const mockResult = createMockVerifyResult({
-        success: false,
-        signatureValid: true,
-        suites: [createMockSuiteStatus({ suite: 'unit-tests', status: 'MISSING' })],
-      })
-
-      mockVerifyAttestations.mockResolvedValue(mockResult)
+      mockVerifyAllSeals.mockReturnValue([
+        createMockSealResult({ gateId: 'test-gate', state: 'MISSING', seal: undefined }),
+      ])
 
       await run()
 
@@ -315,14 +330,14 @@ describe('GitHub Action', () => {
         return ''
       })
 
-      // Age of 25 with maxAgeDays of 30 is within 7-day warning threshold
-      const mockResult = createMockVerifyResult({
-        success: true,
-        signatureValid: true,
-        suites: [createMockSuiteStatus({ suite: 'unit-tests', status: 'VALID', age: 25 })],
+      // Age of 25 days with maxAgeDays of 30 is within 7-day warning threshold
+      const oldSeal = createMockSeal({
+        timestamp: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
       })
 
-      mockVerifyAttestations.mockResolvedValue(mockResult)
+      mockVerifyAllSeals.mockReturnValue([
+        createMockSealResult({ gateId: 'test-gate', state: 'VALID', seal: oldSeal }),
+      ])
 
       await run()
 
@@ -338,13 +353,14 @@ describe('GitHub Action', () => {
         return ''
       })
 
-      const mockResult = createMockVerifyResult({
-        success: true,
-        signatureValid: true,
-        suites: [createMockSuiteStatus({ suite: 'unit-tests', status: 'VALID', age: 5 })],
+      // Fresh seal (5 days old)
+      const freshSeal = createMockSeal({
+        timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
       })
 
-      mockVerifyAttestations.mockResolvedValue(mockResult)
+      mockVerifyAllSeals.mockReturnValue([
+        createMockSealResult({ gateId: 'test-gate', state: 'VALID', seal: freshSeal }),
+      ])
 
       await run()
 
@@ -368,13 +384,9 @@ describe('GitHub Action', () => {
     })
 
     it('should fetch policy from base branch in PR context', async () => {
-      const mockResult = createMockVerifyResult({
-        success: true,
-        signatureValid: true,
-        suites: [createMockSuiteStatus({ suite: 'unit-tests', status: 'VALID' })],
-      })
-
-      mockVerifyAttestations.mockResolvedValue(mockResult)
+      mockVerifyAllSeals.mockReturnValue([
+        createMockSealResult({ gateId: 'test-gate', state: 'VALID' }),
+      ])
 
       await run()
 
@@ -446,12 +458,9 @@ describe('GitHub Action', () => {
         return ''
       })
 
-      const mockResult = createMockVerifyResult({
-        success: true,
-        signatureValid: true,
-        suites: [createMockSuiteStatus({ suite: 'unit-tests', status: 'VALID' })],
-      })
-      mockVerifyAttestations.mockResolvedValue(mockResult)
+      mockVerifyAllSeals.mockReturnValue([
+        createMockSealResult({ gateId: 'test-gate', state: 'VALID' }),
+      ])
 
       await run()
 
@@ -478,12 +487,9 @@ describe('GitHub Action', () => {
         return ''
       })
 
-      const mockResult = createMockVerifyResult({
-        success: true,
-        signatureValid: true,
-        suites: [createMockSuiteStatus({ suite: 'unit-tests', status: 'VALID' })],
-      })
-      mockVerifyAttestations.mockResolvedValue(mockResult)
+      mockVerifyAllSeals.mockReturnValue([
+        createMockSealResult({ gateId: 'test-gate', state: 'VALID' }),
+      ])
 
       await run()
 
@@ -508,12 +514,9 @@ describe('GitHub Action', () => {
         return ''
       })
 
-      const mockResult = createMockVerifyResult({
-        success: true,
-        signatureValid: true,
-        suites: [createMockSuiteStatus({ suite: 'unit-tests', status: 'VALID' })],
-      })
-      mockVerifyAttestations.mockResolvedValue(mockResult)
+      mockVerifyAllSeals.mockReturnValue([
+        createMockSealResult({ gateId: 'test-gate', state: 'VALID' }),
+      ])
 
       await run()
 
