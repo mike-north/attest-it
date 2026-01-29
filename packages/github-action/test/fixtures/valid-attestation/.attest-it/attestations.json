@@ -4,11 +4,11 @@
     {
       "suite": "unit-tests",
       "fingerprint": "sha256:744f086a6836bec6695a6d8e8038a88237c9813205e164060fbbfdf8cce699fb",
-      "attestedAt": "2026-01-29T02:56:48.212Z",
+      "attestedAt": "2026-01-29T03:02:23.407Z",
       "attestedBy": "developer",
       "command": "echo \"tests passed\"",
       "exitCode": 0
     }
   ],
-  "signature": "W7AVMNagb8T5OrpHUlv0Ntf0x35tAcr++89zNiWEa8pvOyX6Vo+cHPOmlWFAD3HjQBbQtUZYGqX3sV6VYuGHX93gtpYfVVe7yTG6LEC0kUjxSdZ4rZ9G39WELRWsrAeFVjs86fNe3lgo1WoQG5hfrbUOf/8QBUcA2erfKKBWvui5kNnMH4Thblv6orx1xt4zmH0a+VsUcJ7IE7bK6vBoJXMD35qfTByyK6opRpTKNhtQIJKtl08ZSRlrIwfuLFbPdSV6JKBjh1VKishkdn9rlhzF26lAnx2fcjJ/QPN8NhR+pu2881F2SF/FtoOjDrtYZ43kB2CdI7Vd1ykjnWDodg=="
+  "signature": "PXT6BGaqlLvRMrOv1A1lgVmEbpJlRdv5ES9d1BzV908MsHo3SbQSj3TgjsxhHnv/Zk1PpYZmPdCkzI1z7rWr9DHwjZP80Xn2D6w0mjBCVwbH8lCO9Axwi7vLkoi7H/go7bOPdKtmcuvXyLZd5J+VTZdWQtZQAB8o1LQ/FGOdxGCRTPyqPclRpuPtEh3CwyZjaRra3gWFm7i8u595LMYqkKkPQ2lQxofPV8iHNqeZafgf7Lp7NuePuWhXQYna1HqIKNR84WIo0YY7G1T5CoNat2JB0L/RPMVXkzmy9/w5Z2VL106z7jh6t6CLQgWf7mzNFJ+cGZXDHkxmmbUzUiOM3Q=="
 }

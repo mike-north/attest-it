@@ -15,6 +15,7 @@ import {
   writeSignedAttestations,
   createSeal,
   writeSealsSync,
+  generateEd25519KeyPair,
 } from '../../../core/dist/index.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -25,10 +26,15 @@ const validFixture = join(__dirname, 'valid-attestation')
 const missingFixture = join(__dirname, 'missing-attestation')
 const splitConfigFixture = join(__dirname, 'split-config-valid')
 
-// Read the public key in base64 format for policy files
-const pubKeyPem = readFileSync(join(coreTestKeys, 'test-rsa-public.pem'), 'utf8')
+// Generate Ed25519 keypair for seals
+const ed25519KeyPair = generateEd25519KeyPair()
+console.log('Generated Ed25519 keypair')
+console.log('Public key (base64):', ed25519KeyPair.publicKey)
+
+// Read RSA public key for attestations (legacy system)
+const rsaPubKeyPem = readFileSync(join(coreTestKeys, 'test-rsa-public.pem'), 'utf8')
 // Extract the base64 content (remove header/footer and newlines)
-const pubKeyBase64 = pubKeyPem
+const rsaPubKeyBase64 = rsaPubKeyPem
   .replace(/-----BEGIN PUBLIC KEY-----/, '')
   .replace(/-----END PUBLIC KEY-----/, '')
   .replace(/\n/g, '')
@@ -40,7 +46,7 @@ for (const fixture of [validFixture, missingFixture, splitConfigFixture]) {
   mkdirSync(join(fixture, 'src'), { recursive: true })
 }
 
-// Copy test keys to fixtures (using RSA keys for broader OpenSSL compatibility)
+// Copy RSA test keys to fixtures (used for attestations.json legacy system)
 for (const fixture of [validFixture, missingFixture, splitConfigFixture]) {
   copyFileSync(join(coreTestKeys, 'test-rsa-public.pem'), join(fixture, '.attest-it', 'pubkey.pem'))
 }
@@ -56,6 +62,7 @@ for (const fixture of [validFixture, missingFixture, splitConfigFixture]) {
 }
 
 // Policy config (security-critical settings)
+// Note: team.developer.publicKey uses Ed25519 base64 key for seal verification
 const policyConfig = `version: 1
 
 settings:
@@ -67,7 +74,7 @@ settings:
 team:
   developer:
     name: Test Developer
-    publicKey: ${pubKeyBase64}
+    publicKey: ${ed25519KeyPair.publicKey}
 
 gates:
   unit-tests:
@@ -118,13 +125,14 @@ const attestation = createAttestation({
 console.log('Created attestation:', JSON.stringify(attestation, null, 2))
 
 // Write signed attestations using the core library for valid fixtures
-const privateKeyPath = join(coreTestKeys, 'test-rsa-private.pem')
+// Note: attestations still use RSA keys
+const rsaPrivateKeyPath = join(coreTestKeys, 'test-rsa-private.pem')
 
 for (const fixture of [validFixture, splitConfigFixture]) {
   const attestationsPath = join(fixture, '.attest-it', 'attestations.json')
   await writeSignedAttestations({
     attestations: [attestation],
-    privateKeyPath,
+    privateKeyPath: rsaPrivateKeyPath,
     filePath: attestationsPath,
   })
   console.log('Wrote signed attestations to:', attestationsPath)
@@ -133,14 +141,12 @@ for (const fixture of [validFixture, splitConfigFixture]) {
 // For missing-attestation fixture, don't create attestations.json
 // (the config exists but no attestations)
 
-// Create seals.json using the new seal format
-const privateKeyPem = readFileSync(privateKeyPath, 'utf8')
-
+// Create seals using Ed25519 keys (new seal format)
 const seal = createSeal({
   gateId: 'unit-tests',
   fingerprint: fingerprintResult.fingerprint,
   sealedBy: 'developer',
-  privateKey: privateKeyPem,
+  privateKey: ed25519KeyPair.privateKey,
 })
 
 console.log('Created seal:', JSON.stringify(seal, null, 2))
