@@ -25,10 +25,10 @@
     },
     "cli-interactive": {
       "gateId": "cli-interactive",
-      "fingerprint": "sha256:6c8a043e3d567ea78e49b57679ccfc6cb3868c630c29540a853183c4aa05fb8e",
-      "timestamp": "2026-01-29T02:28:55.759Z",
+      "fingerprint": "sha256:25f729fc43d4c97377ba6be92f0d7398791d9bf1ce46743b42eb392ae6ece0d4",
+      "timestamp": "2026-01-29T02:42:53.991Z",
       "sealedBy": "mike-north",
-      "signature": "90DUs4amHVKVj/ewpmaDHHi1VyCFnWHFVgCIBL0EKEdPHtz5OYrDnZOioO0V54FI3jUybByhVMXPnGc/JmJfCQ=="
+      "signature": "6MR/T+/yogX5K+popA9rNu53iB82vkC25elw8MGVPpWigyl1Basf2EfhE3+Ju3WBYIe5dNpPhVu2rMjs7I8jDA=="
     }
   }
 }
