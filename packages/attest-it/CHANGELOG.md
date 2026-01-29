@@ -1,5 +1,19 @@
 # attest-it
 
+## 0.10.0
+
+### Patch Changes
+
+- Updated dependencies [aa25ddc]
+- Updated dependencies [a0291f8]
+- Updated dependencies [a0291f8]
+- Updated dependencies [a0291f8]
+- Updated dependencies [a0291f8]
+- Updated dependencies [a0291f8]
+- Updated dependencies [a0291f8]
+  - @attest-it/cli@0.10.0
+  - @attest-it/core@0.10.0
+
 ## 0.9.1
 
 ### Patch Changes
