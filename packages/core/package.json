@@ -1,7 +1,7 @@
 {
   "name": "@attest-it/core",
   "description": "Core functionality for attest-it",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "author": "Mike North <michael.l.north@gmail.com>",
   "dependencies": {
     "@migrex/core": "0.2.0-alpha.1",
