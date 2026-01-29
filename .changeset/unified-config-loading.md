@@ -1,7 +1,6 @@
 ---
 '@attest-it/core': patch
 '@attest-it/cli': patch
-'@attest-it/github-action': patch
 ---
 
 Unify configuration loading between CLI and GitHub Action.
