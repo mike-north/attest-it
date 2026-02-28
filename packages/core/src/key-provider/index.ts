@@ -18,33 +18,11 @@ export type {
   KeyProvider,
 } from './types.js'
 
-// Filesystem provider
-export { FilesystemKeyProvider } from './filesystem-provider.js'
-export type { FilesystemKeyProviderOptions } from './filesystem-provider.js'
-
-// 1Password provider
-export { OnePasswordKeyProvider } from './one-password-provider.js'
-export type {
-  OnePasswordKeyProviderOptions,
-  OnePasswordAccount,
-  OnePasswordVault,
-  InaccessibleAccount,
-  ListAccountsResult,
-} from './one-password-provider.js'
-
-// macOS Keychain provider
-export { MacOSKeychainKeyProvider } from './macos-keychain-provider.js'
-export type { MacOSKeychainKeyProviderOptions, MacOSKeychain } from './macos-keychain-provider.js'
-
-// YubiKey provider
-export { YubiKeyProvider } from './yubikey-provider.js'
-export type { YubiKeyProviderOptions, YubiKeyInfo } from './yubikey-provider.js'
-
 // VaultKeeper provider
 export { VaultKeyProvider } from './vault-key-provider.js'
 export type { VaultKeyProviderOptions } from './vault-key-provider.js'
 
-// Discovery functions
+// Discovery functions and their associated types
 export {
   isOnePasswordInstalled,
   listOnePasswordAccounts,
@@ -55,6 +33,14 @@ export {
   isYubiKeyConnected,
   listYubiKeyDevices,
   isYubiKeyChallengeResponseConfigured,
+} from './discovery.js'
+export type {
+  OnePasswordAccount,
+  OnePasswordVault,
+  InaccessibleAccount,
+  ListAccountsResult,
+  MacOSKeychain,
+  YubiKeyInfo,
 } from './discovery.js'
 
 // Registry

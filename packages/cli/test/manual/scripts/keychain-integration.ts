@@ -4,8 +4,8 @@
  *
  * This script exercises the full end-to-end flow with the real macOS Keychain:
  * 1. Checks platform is macOS
- * 2. Creates ephemeral test identity with Keychain as key provider
- * 3. Generates keypair and stores private key in Keychain
+ * 2. Creates ephemeral test identity with VaultKeeper keychain backend
+ * 3. Generates keypair and stores private key in Keychain via VaultKeeper
  * 4. Sets up minimal test project config
  * 5. Creates a test seal using the Keychain-stored key
  * 6. Verifies the test seal passes validation
@@ -16,7 +16,8 @@
  */
 
 import {
-  MacOSKeychainKeyProvider,
+  isMacOSKeychainAvailable,
+  VaultKeyProvider,
   createSeal,
   verifyGateSeal,
   readSealsSync,
@@ -24,6 +25,7 @@ import {
   computeFingerprintSync,
   getPublicKeyFromPrivate,
 } from '@attest-it/core'
+import { BackendRegistry } from 'vaultkeeper'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import * as os from 'node:os'
@@ -108,43 +110,39 @@ async function main(): Promise<void> {
   console.log(`${'='.repeat(80)}${colors.reset}\n`)
 
   let tempDir: string | null = null
-  let testItemName: string | null = null
+  let testSecretId: string | null = null
   let exitCode = 0
 
   try {
     // Step 1: Check platform is macOS
     log(symbols.info, 'Checking platform compatibility...', 'blue')
-    if (!MacOSKeychainKeyProvider.isAvailable()) {
+    if (!isMacOSKeychainAvailable()) {
       log(symbols.skip, 'Not running on macOS - skipping test', 'yellow')
       process.exit(78) // EX_CONFIG - system configuration does not allow this
     }
     log(symbols.success, 'Running on macOS', 'green')
 
-    // Step 2: Generate unique test item name
-    const timestamp = Date.now()
-    testItemName = `attest-it-test-${timestamp.toString()}`
-    log(symbols.info, `Using test item name: ${testItemName}`, 'cyan')
-
-    // Step 3: Create test identity with Keychain provider
-    log(symbols.info, 'Creating MacOS Keychain key provider...', 'blue')
-    const provider = new MacOSKeychainKeyProvider({ itemName: testItemName })
+    // Step 2: Create VaultKeyProvider backed by macOS Keychain backend
+    log(symbols.info, 'Creating VaultKeyProvider with macOS Keychain backend...', 'blue')
+    const backend = BackendRegistry.create('keychain')
+    const provider = new VaultKeyProvider({ backend, displayName: 'macOS Keychain' })
     log(symbols.success, 'Key provider created', 'green')
 
-    // Step 4: Create temporary directory for test project
+    // Step 3: Create temporary directory for test project
     log(symbols.info, 'Creating temporary test project...', 'blue')
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'attest-it-keychain-test-'))
     const attestItDir = path.join(tempDir, '.attest-it')
     await fs.mkdir(attestItDir, { recursive: true })
     log(symbols.success, `Test project: ${tempDir}`, 'green')
 
-    // Step 5: Generate keypair and store in Keychain
+    // Step 4: Generate keypair and store in Keychain via VaultKeeper
     console.log(`\n${colors.yellow}${'─'.repeat(80)}`)
     console.log(`${symbols.info} KEYCHAIN ACCESS WARNING`)
     console.log(`${'─'.repeat(80)}${colors.reset}`)
     console.log(
       `${colors.yellow}The next step will generate an Ed25519 keypair and store the private key`,
     )
-    console.log(`in your macOS Keychain. You may be prompted to allow access.`)
+    console.log(`in your macOS Keychain via VaultKeeper. You may be prompted to allow access.`)
     console.log(``)
     console.log(`This is expected behavior for testing keychain integration.`)
     console.log(`The test key will be deleted automatically when the test completes.`)
@@ -156,24 +154,25 @@ async function main(): Promise<void> {
       publicKeyPath,
       force: true,
     })
+    testSecretId = keygenResult.privateKeyRef
     log(symbols.success, `Public key: ${keygenResult.publicKeyPath}`, 'green')
     log(symbols.success, `Private key: ${keygenResult.storageDescription}`, 'green')
 
-    // Step 6: Verify key exists in Keychain
-    log(symbols.info, 'Verifying key exists in Keychain...', 'blue')
+    // Step 5: Verify key exists in Keychain
+    log(symbols.info, 'Verifying key exists in VaultKeeper Keychain backend...', 'blue')
     const keyExists = await provider.keyExists(keygenResult.privateKeyRef)
     if (!keyExists) {
-      throw new Error('Key was not stored in Keychain')
+      throw new Error('Key was not stored in Keychain via VaultKeeper')
     }
-    log(symbols.success, 'Key verified in Keychain', 'green')
+    log(symbols.success, 'Key verified in VaultKeeper', 'green')
 
-    // Step 7: Retrieve private key from Keychain to derive public key
+    // Step 6: Retrieve private key from Keychain to derive public key
     log(symbols.info, 'Retrieving private key from Keychain...', 'blue')
     const keyRetrieval = await provider.getPrivateKey(keygenResult.privateKeyRef)
     const privateKeyPem = await fs.readFile(keyRetrieval.keyPath, 'utf8')
     log(symbols.success, 'Private key retrieved from Keychain', 'green')
 
-    // Step 8: Derive raw 32-byte public key from private key for config
+    // Step 7: Derive raw 32-byte public key from private key for config
     // The team config expects the raw Ed25519 public key (32 bytes, base64 encoded)
     // NOT the full SPKI-encoded PEM content
     log(symbols.info, 'Deriving public key from private key...', 'blue')
@@ -181,7 +180,7 @@ async function main(): Promise<void> {
     const publicKeyBase64 = getPublicKeyFromPrivate(privateKeyPem)
     log(symbols.success, 'Public key derived successfully', 'green')
 
-    // Step 9: Create minimal test project config
+    // Step 8: Create minimal test project config
     log(symbols.info, 'Creating test project configuration...', 'blue')
     const config: AttestItConfig = {
       version: 1,
@@ -212,14 +211,14 @@ async function main(): Promise<void> {
     }
     log(symbols.success, 'Configuration created', 'green')
 
-    // Step 10: Create test source files for fingerprinting
+    // Step 9: Create test source files for fingerprinting
     log(symbols.info, 'Creating test source files...', 'blue')
     const srcDir = path.join(tempDir, 'src')
     await fs.mkdir(srcDir, { recursive: true })
     await fs.writeFile(path.join(srcDir, 'test.js'), 'console.log("test");\n')
     log(symbols.success, 'Test files created', 'green')
 
-    // Step 11: Compute fingerprint for the gate
+    // Step 10: Compute fingerprint for the gate
     log(symbols.info, 'Computing fingerprint...', 'blue')
     const fingerprintResult = computeFingerprintSync({
       packages: ['src'], // Package directories to include
@@ -231,7 +230,7 @@ async function main(): Promise<void> {
       'green',
     )
 
-    // Step 12: Create a test seal using the Keychain-stored key
+    // Step 11: Create a test seal using the Keychain-stored key
     // Note: createSeal expects a PEM-encoded private key (full PEM string with headers)
     log(symbols.info, 'Creating test seal...', 'blue')
     const seal = createSeal({
@@ -242,7 +241,7 @@ async function main(): Promise<void> {
     })
     log(symbols.success, `Seal created at ${seal.timestamp}`, 'green')
 
-    // Step 13: Write seal to seals.json
+    // Step 12: Write seal to seals.json
     log(symbols.info, 'Writing seal to seals.json...', 'blue')
     const sealsFile: SealsFile = {
       version: 1,
@@ -253,7 +252,7 @@ async function main(): Promise<void> {
     writeSealsSync(tempDir, sealsFile)
     log(symbols.success, 'Seal written to file', 'green')
 
-    // Step 14: Verify the seal
+    // Step 13: Verify the seal
     log(symbols.info, 'Verifying seal...', 'blue')
     const loadedSeals = readSealsSync(tempDir)
     const verificationResult = verifyGateSeal(
@@ -270,7 +269,7 @@ async function main(): Promise<void> {
     }
     log(symbols.success, 'Seal verification passed', 'green')
 
-    // Step 15: Clean up private key cleanup callback
+    // Step 14: Clean up private key cleanup callback
     log(symbols.info, 'Cleaning up temporary private key file...', 'blue')
     await keyRetrieval.cleanup()
     log(symbols.success, 'Temporary key file cleaned up', 'green')
@@ -299,11 +298,12 @@ async function main(): Promise<void> {
     // Cleanup
     console.log(`\n${colors.blue}Cleaning up...${colors.reset}`)
 
-    // Delete test key from Keychain
-    if (testItemName) {
+    // Delete test key from Keychain (best effort — the secret ID is opaque to us now)
+    // VaultKeeper manages the actual keychain item; we attempt to clean by item name pattern
+    if (testSecretId) {
       log(symbols.info, 'Deleting test key from Keychain...', 'blue')
-      await deleteKeychainKey(testItemName)
-      log(symbols.success, 'Test key deleted from Keychain', 'green')
+      await deleteKeychainKey(testSecretId)
+      log(symbols.success, 'Test key cleanup attempted', 'green')
     }
 
     // Remove temporary directory

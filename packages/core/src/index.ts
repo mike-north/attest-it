@@ -102,10 +102,6 @@ export type { KeyPair as Ed25519KeyPair } from './crypto/ed25519.js'
 
 // Key Providers
 export {
-  FilesystemKeyProvider,
-  OnePasswordKeyProvider,
-  MacOSKeychainKeyProvider,
-  YubiKeyProvider,
   VaultKeyProvider,
   KeyProviderRegistry,
   // Discovery functions
@@ -123,15 +119,11 @@ export {
   type KeyRetrievalResult,
   type KeyGenerationResult,
   type KeygenProviderOptions,
-  type FilesystemKeyProviderOptions,
-  type OnePasswordKeyProviderOptions,
   type OnePasswordAccount,
   type OnePasswordVault,
   type InaccessibleAccount,
   type ListAccountsResult,
-  type MacOSKeychainKeyProviderOptions,
   type MacOSKeychain,
-  type YubiKeyProviderOptions,
   type YubiKeyInfo,
   type VaultKeyProviderOptions,
   type KeyProviderFactory,

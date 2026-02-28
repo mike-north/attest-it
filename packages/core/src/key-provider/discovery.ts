@@ -11,14 +11,84 @@
  */
 
 import { spawn } from 'node:child_process'
-import type {
-  OnePasswordAccount,
-  InaccessibleAccount,
-  ListAccountsResult,
-  OnePasswordVault,
-} from './one-password-provider.js'
-import type { MacOSKeychain } from './macos-keychain-provider.js'
-import type { YubiKeyInfo } from './yubikey-provider.js'
+
+// ─── Types ────────────────────────────────────────────────────────────
+
+/**
+ * Information about a 1Password account.
+ * @public
+ */
+export interface OnePasswordAccount {
+  /** Account UUID */
+  account_uuid: string
+  /** User email address */
+  email: string
+  /** Account URL */
+  url: string
+  /** User UUID */
+  user_uuid: string
+  /** Human-readable account name (e.g., "North Family") */
+  name?: string
+}
+
+/**
+ * Information about an account that couldn't be accessed.
+ * @public
+ */
+export interface InaccessibleAccount {
+  /** User email address */
+  email: string
+  /** Account URL */
+  url: string
+  /** Reason the account couldn't be accessed */
+  reason: string
+}
+
+/**
+ * Result from listing 1Password accounts.
+ * @public
+ */
+export interface ListAccountsResult {
+  /** Accounts that were successfully accessed */
+  accounts: (OnePasswordAccount & { name: string })[]
+  /** Accounts that couldn't be accessed (with reasons) */
+  inaccessible: InaccessibleAccount[]
+}
+
+/**
+ * Information about a 1Password vault.
+ * @public
+ */
+export interface OnePasswordVault {
+  /** Vault UUID */
+  id: string
+  /** Vault name */
+  name: string
+}
+
+/**
+ * Information about a macOS keychain.
+ * @public
+ */
+export interface MacOSKeychain {
+  /** Full path to the keychain file */
+  path: string
+  /** Display name (filename without extension) */
+  name: string
+}
+
+/**
+ * Information about a connected YubiKey.
+ * @public
+ */
+export interface YubiKeyInfo {
+  /** Device serial number */
+  serial: string
+  /** Device type (e.g., "YubiKey 5 NFC") */
+  type: string
+  /** Firmware version */
+  firmware: string
+}
 
 // ─── 1Password ───────────────────────────────────────────────────────
 
