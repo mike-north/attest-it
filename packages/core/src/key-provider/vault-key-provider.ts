@@ -5,7 +5,6 @@
  * This provider delegates secret storage to a VaultKeeper SecretBackend,
  * enabling unified policy-enforced key storage across OS credential backends.
  *
- * @packageDocumentation
  */
 
 import * as crypto from 'node:crypto'
@@ -31,7 +30,7 @@ export interface VaultKeyProviderOptions {
   /** The VaultKeeper backend to use for storage */
   backend: SecretBackend
   /** Human-readable name for display (e.g., "1Password via VaultKeeper") */
-  displayName?: string
+  displayName: string
 }
 
 /**
@@ -58,7 +57,7 @@ export class VaultKeyProvider implements KeyProvider {
   constructor(options: VaultKeyProviderOptions) {
     this.backend = options.backend
     this.type = 'vaultkeeper'
-    this.displayName = options.displayName ?? `VaultKeeper (${options.backend.displayName})`
+    this.displayName = options.displayName
   }
 
   /**
@@ -90,7 +89,9 @@ export class VaultKeyProvider implements KeyProvider {
     // Retrieve PEM content from VaultKeeper backend
     const pemContent = await this.backend.retrieve(keyRef)
 
-    // Write to secure temp file
+    // Write to a secure temp file because OpenSSL `dgst -sign` requires a file path.
+    // TODO: If VaultKeeper adds an `exec` API that can pipe secrets via stdin,
+    // we could avoid touching disk entirely.
     const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'attest-it-vk-'))
     const tempKeyPath = path.join(tempDir, 'private.pem')
 

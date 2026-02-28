@@ -36139,7 +36139,7 @@ var fs2 = __toESM(require("fs"), 1);
 var import_fs2 = require("fs");
 var fs7 = __toESM(require("fs/promises"), 1);
 var import_promises = require("fs/promises");
-var path8 = __toESM(require("path"), 1);
+var path9 = __toESM(require("path"), 1);
 var import_path3 = require("path");
 var import_ms = __toESM(require_ms(), 1);
 var import_yaml = __toESM(require_dist(), 1);
@@ -41347,10 +41347,10 @@ var resolveSymlinksAsync = function(path3, state, callback$1) {
   queue.enqueue();
   fs3.realpath(path3, (error2, resolvedPath) => {
     if (error2) return queue.dequeue(suppressErrors ? null : error2, state);
-    fs3.stat(resolvedPath, (error$1, stat) => {
+    fs3.stat(resolvedPath, (error$1, stat2) => {
       if (error$1) return queue.dequeue(suppressErrors ? null : error$1, state);
-      if (stat.isDirectory() && isRecursive(path3, resolvedPath, state)) return queue.dequeue(null, state);
-      callback$1(stat, resolvedPath);
+      if (stat2.isDirectory() && isRecursive(path3, resolvedPath, state)) return queue.dequeue(null, state);
+      callback$1(stat2, resolvedPath);
       queue.dequeue(null, state);
     });
   });
@@ -41360,9 +41360,9 @@ var resolveSymlinks = function(path3, state, callback$1) {
   queue.enqueue();
   try {
     const resolvedPath = fs3.realpathSync(path3);
-    const stat = fs3.statSync(resolvedPath);
-    if (stat.isDirectory() && isRecursive(path3, resolvedPath, state)) return;
-    callback$1(stat, resolvedPath);
+    const stat2 = fs3.statSync(resolvedPath);
+    if (stat2.isDirectory() && isRecursive(path3, resolvedPath, state)) return;
+    callback$1(stat2, resolvedPath);
   } catch (e) {
     if (!suppressErrors) throw e;
   }
@@ -41559,8 +41559,8 @@ var Walker = class {
         this.walkDirectory(this.state, path3, path3, depth - 1, this.walk);
       } else if (this.resolveSymlink && entry.isSymbolicLink()) {
         let path3 = joinPathWithBasePath(entry.name, directoryPath);
-        this.resolveSymlink(path3, this.state, (stat, resolvedPath) => {
-          if (stat.isDirectory()) {
+        this.resolveSymlink(path3, this.state, (stat2, resolvedPath) => {
+          if (stat2.isDirectory()) {
             resolvedPath = normalizePath(resolvedPath, this.state.options);
             if (exclude && exclude(entry.name, useRealPaths ? resolvedPath : path3 + pathSeparator)) return;
             this.walkDirectory(this.state, resolvedPath, useRealPaths ? resolvedPath : path3 + pathSeparator, depth - 1, this.walk);
@@ -42059,7 +42059,7 @@ function getPackageVersion() {
     return cachedVersion;
   }
   {
-    cachedVersion = "0.9.0";
+    cachedVersion = "0.10.1";
     return cachedVersion;
   }
 }
@@ -42798,7 +42798,7 @@ function sortFiles(files) {
   });
 }
 function normalizePath2(filePath) {
-  return filePath.split(path8.sep).join("/");
+  return filePath.split(path9.sep).join("/");
 }
 function computeFinalFingerprint(fileHashes) {
   const sorted = [...fileHashes].sort((a, b) => {
@@ -42844,7 +42844,7 @@ function validateOptions(options) {
   const baseDir = options.baseDir ?? process.cwd();
   for (const pkg of options.packages) {
     if (!isGlobPattern(pkg)) {
-      const pkgPath = path8.resolve(baseDir, pkg);
+      const pkgPath = path9.resolve(baseDir, pkg);
       if (!fs2.existsSync(pkgPath)) {
         throw new Error(`Package path does not exist: ${pkgPath}`);
       }
@@ -42859,7 +42859,7 @@ async function computeFingerprint(options) {
   const fileHashCache = /* @__PURE__ */ new Map();
   const fileHashInputs = [];
   for (const file of sortedFiles) {
-    const filePath = path8.resolve(baseDir, file);
+    const filePath = path9.resolve(baseDir, file);
     let realPath = filePath;
     let stats = await fs2.promises.lstat(filePath);
     if (stats.isSymbolicLink()) {
@@ -42899,7 +42899,7 @@ function resolvePackagePattern(pkg, baseDir) {
   if (isGlobPattern(pkg)) {
     return pkg;
   }
-  const fullPath = path8.resolve(baseDir, pkg);
+  const fullPath = path9.resolve(baseDir, pkg);
   try {
     const stats = fs2.statSync(fullPath);
     return stats.isFile() ? pkg : `${pkg}/**/*`;
@@ -43288,8 +43288,8 @@ ${reasons}`
         `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` + (this.accountUuid ? ` (accountUuid: ${this.accountUuid})` : "")
       );
     }
-    const tempDir = await fs7.mkdtemp(path8.join(os2.tmpdir(), "attest-it-"));
-    const tempKeyPath = path8.join(tempDir, "private.pem");
+    const tempDir = await fs7.mkdtemp(path9.join(os2.tmpdir(), "attest-it-"));
+    const tempKeyPath = path9.join(tempDir, "private.pem");
     try {
       const args = ["document", "get", keyRef, "--vault", this.vault, "--out-file", tempKeyPath];
       if (this.accountUuid) {
@@ -43341,13 +43341,13 @@ ${reasons}`
         }
       }
     }
-    const tempDir = await fs7.mkdtemp(path8.join(os2.tmpdir(), "attest-it-keygen-"));
-    const tempPrivateKeyPath = path8.join(tempDir, "private.pem");
+    const tempDir = await fs7.mkdtemp(path9.join(os2.tmpdir(), "attest-it-keygen-"));
+    const tempPrivateKeyPath = path9.join(tempDir, "private.pem");
     try {
       const keyPair = generateKeyPair2();
       await fs7.writeFile(tempPrivateKeyPath, keyPair.privateKey, "utf-8");
       await setKeyPermissions(tempPrivateKeyPath);
-      await fs7.mkdir(path8.dirname(publicKeyPath), { recursive: true });
+      await fs7.mkdir(path9.dirname(publicKeyPath), { recursive: true });
       await fs7.writeFile(publicKeyPath, keyPair.publicKey, "utf-8");
       const args = [
         "document",
@@ -43554,8 +43554,8 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
         `Key not found in macOS Keychain: "${keyRef}" (account: ${_MacOSKeychainKeyProvider.ACCOUNT})`
       );
     }
-    const tempDir = await fs7.mkdtemp(path8.join(os2.tmpdir(), "attest-it-"));
-    const tempKeyPath = path8.join(tempDir, "private.pem");
+    const tempDir = await fs7.mkdtemp(path9.join(os2.tmpdir(), "attest-it-"));
+    const tempKeyPath = path9.join(tempDir, "private.pem");
     try {
       const findArgs = [
         "find-generic-password",
@@ -43618,7 +43618,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
       );
     }
     const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = generateKeyPair2();
-    const publicKeyDir = path8.dirname(publicKeyPath);
+    const publicKeyDir = path9.dirname(publicKeyPath);
     await fs7.mkdir(publicKeyDir, { recursive: true });
     const publicKeyPem = `-----BEGIN PUBLIC KEY-----
 ${publicKeyBase64}
@@ -43772,7 +43772,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
    * @throws Error if encryptedKeyPath is outside the attest-it config directory
    */
   constructor(options) {
-    const resolvedPath = path8.resolve(options.encryptedKeyPath);
+    const resolvedPath = path9.resolve(options.encryptedKeyPath);
     const configDir = getIdentityConfigDir();
     if (!resolvedPath.startsWith(configDir)) {
       throw new Error(
@@ -43946,8 +43946,8 @@ var YubiKeyProvider = class _YubiKeyProvider {
         "Failed to decrypt private key. Verify you are using the correct YubiKey and the encrypted key file has not been corrupted or tampered with."
       );
     }
-    const tempDir = await fs7.mkdtemp(path8.join(os2.tmpdir(), "attest-it-"));
-    const tempKeyPath = path8.join(tempDir, "private.pem");
+    const tempDir = await fs7.mkdtemp(path9.join(os2.tmpdir(), "attest-it-"));
+    const tempKeyPath = path9.join(tempDir, "private.pem");
     const cleanup = async () => {
       activeCleanupHandlers.delete(cleanup);
       try {
@@ -44005,7 +44005,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
       }
     }
     const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = generateKeyPair2();
-    const publicKeyDir = path8.dirname(publicKeyPath);
+    const publicKeyDir = path9.dirname(publicKeyPath);
     await fs7.mkdir(publicKeyDir, { recursive: true });
     const publicKeyPemFile = `-----BEGIN PUBLIC KEY-----
 ${publicKeyBase64}
@@ -44037,7 +44037,7 @@ ${publicKeyBase64}
       aad: aad.toString("base64"),
       ...serial && { serial }
     };
-    await fs7.mkdir(path8.dirname(this.encryptedKeyPath), { recursive: true });
+    await fs7.mkdir(path9.dirname(this.encryptedKeyPath), { recursive: true });
     await fs7.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
     await setKeyPermissions(this.encryptedKeyPath);
     return {
@@ -44062,7 +44062,7 @@ ${publicKeyBase64}
    */
   static async encryptPrivateKey(options) {
     const { privateKey, encryptedKeyPath, slot = 2, serial } = options;
-    const resolvedPath = path8.resolve(encryptedKeyPath);
+    const resolvedPath = path9.resolve(encryptedKeyPath);
     const configDir = getIdentityConfigDir();
     if (!resolvedPath.startsWith(configDir)) {
       throw new Error(
@@ -44103,7 +44103,7 @@ ${publicKeyBase64}
       aad: aad.toString("base64"),
       ...serial && { serial }
     };
-    await fs7.mkdir(path8.dirname(resolvedPath), { recursive: true });
+    await fs7.mkdir(path9.dirname(resolvedPath), { recursive: true });
     await fs7.writeFile(resolvedPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
     await setKeyPermissions(resolvedPath);
     return {
@@ -44399,7 +44399,7 @@ function parseSealsContent(content, format) {
 }
 async function readSeals(dir, sealsPathOverride) {
   if (sealsPathOverride) {
-    const sealsPath = path8.resolve(dir, sealsPathOverride);
+    const sealsPath = path9.resolve(dir, sealsPathOverride);
     let content;
     try {
       content = await fs2.promises.readFile(sealsPath, "utf8");
@@ -44413,8 +44413,8 @@ async function readSeals(dir, sealsPathOverride) {
     }
     return parseSealsContent(content, detectFormat2(sealsPath));
   }
-  const yamlPath = path8.join(dir, ".attest-it", "seals.yaml");
-  const jsonPath = path8.join(dir, ".attest-it", "seals.json");
+  const yamlPath = path9.join(dir, ".attest-it", "seals.yaml");
+  const jsonPath = path9.join(dir, ".attest-it", "seals.json");
   try {
     const content = await fs2.promises.readFile(yamlPath, "utf8");
     return parseSealsContent(content, "yaml");

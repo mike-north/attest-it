@@ -69,7 +69,7 @@ describe('VaultKeyProvider', () => {
   beforeEach(() => {
     mocks = createMockBackend()
     backend = mocks.backend
-    provider = new VaultKeyProvider({ backend })
+    provider = new VaultKeyProvider({ backend, displayName: 'Mock VaultKeeper' })
   })
 
   describe('constructor', () => {
@@ -77,16 +77,8 @@ describe('VaultKeyProvider', () => {
       expect(provider.type).toBe('vaultkeeper')
     })
 
-    it('should generate a default displayName from backend', () => {
-      expect(provider.displayName).toBe('VaultKeeper (Mock Backend)')
-    })
-
-    it('should use custom displayName when provided', () => {
-      const custom = new VaultKeyProvider({
-        backend,
-        displayName: '1Password via VaultKeeper',
-      })
-      expect(custom.displayName).toBe('1Password via VaultKeeper')
+    it('should use the provided displayName', () => {
+      expect(provider.displayName).toBe('Mock VaultKeeper')
     })
   })
 
@@ -100,7 +92,7 @@ describe('VaultKeyProvider', () => {
       const { backend: unavailableBackend } = createMockBackend({
         isAvailable: vi.fn<() => Promise<boolean>>().mockResolvedValue(false),
       })
-      const p = new VaultKeyProvider({ backend: unavailableBackend })
+      const p = new VaultKeyProvider({ backend: unavailableBackend, displayName: 'Unavailable' })
       await expect(p.isAvailable()).resolves.toBe(false)
     })
   })

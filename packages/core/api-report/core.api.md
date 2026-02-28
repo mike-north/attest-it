@@ -1027,7 +1027,7 @@ export class VaultKeyProvider implements KeyProvider {
 // @public
 export interface VaultKeyProviderOptions {
     backend: SecretBackend;
-    displayName?: string;
+    displayName: string;
 }
 
 // @public
