@@ -4,6 +4,7 @@
 
 ```ts
 
+import { SecretBackend } from 'vaultkeeper';
 import { z } from 'zod';
 
 // @public
@@ -1008,6 +1009,26 @@ export interface ValidationError {
 
 // @public
 export type ValidationErrorType = 'MISSING_TEAM_MEMBER' | 'UNKNOWN_GATE';
+
+// @public
+export class VaultKeyProvider implements KeyProvider {
+    constructor(options: VaultKeyProviderOptions);
+    // (undocumented)
+    readonly displayName: string;
+    generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult>;
+    getConfig(): KeyProviderConfig;
+    getPrivateKey(keyRef: string): Promise<KeyRetrievalResult>;
+    isAvailable(): Promise<boolean>;
+    keyExists(keyRef: string): Promise<boolean>;
+    // (undocumented)
+    readonly type: string;
+}
+
+// @public
+export interface VaultKeyProviderOptions {
+    backend: SecretBackend;
+    displayName?: string;
+}
 
 // @public
 export type VerificationState = 'FINGERPRINT_MISMATCH' | 'INVALID_SIGNATURE' | 'MISSING' | 'STALE' | 'UNKNOWN_SIGNER' | 'VALID';
