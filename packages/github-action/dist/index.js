@@ -42037,12 +42037,88 @@ var localConfigSchemaV1 = external_exports.object({
     message: "At least one identity must be defined"
   })
 }).strict();
+var privateKeyRefSchemaV2 = external_exports.discriminatedUnion("type", [
+  external_exports.object({
+    type: external_exports.literal("file"),
+    id: external_exports.string().min(1, "Secret ID cannot be empty")
+  }),
+  external_exports.object({
+    type: external_exports.literal("keychain"),
+    id: external_exports.string().min(1, "Secret ID cannot be empty")
+  }),
+  external_exports.object({
+    type: external_exports.literal("1password"),
+    id: external_exports.string().min(1, "Secret ID cannot be empty"),
+    vault: external_exports.string().optional()
+  }),
+  external_exports.object({
+    type: external_exports.literal("yubikey"),
+    id: external_exports.string().min(1, "Secret ID cannot be empty")
+  }),
+  external_exports.object({
+    type: external_exports.literal("filesystem"),
+    path: external_exports.string().min(1, "Filesystem path cannot be empty")
+  })
+]);
+var identitySchemaV2 = external_exports.object({
+  name: external_exports.string().min(1, "Identity name cannot be empty"),
+  email: external_exports.string().optional(),
+  github: external_exports.string().optional(),
+  publicKey: external_exports.string().min(1, "Public key cannot be empty"),
+  privateKey: privateKeyRefSchemaV2
+}).strict();
+var localConfigSchemaV2 = external_exports.object({
+  version: external_exports.literal(2),
+  activeIdentity: external_exports.string().min(1, "Active identity name cannot be empty"),
+  identities: external_exports.record(external_exports.string(), identitySchemaV2).refine((identities) => Object.keys(identities).length >= 1, {
+    message: "At least one identity must be defined"
+  })
+}).strict();
 var schemaV1 = fromZod("1", localConfigSchemaV1);
+var schemaV2 = fromZod("2", localConfigSchemaV2);
+function migratePrivateKeyRefV1ToV2(v1) {
+  switch (v1.type) {
+    case "file":
+      return { type: "filesystem", path: v1.path };
+    case "keychain":
+      return { type: "filesystem", path: `keychain://${v1.service}/${v1.account}` };
+    case "1password":
+      return {
+        type: "filesystem",
+        path: `1password://${v1.vault}/${v1.item}`
+      };
+    case "yubikey":
+      return { type: "filesystem", path: v1.encryptedKeyPath };
+  }
+}
 var identityMigrationGraph = createMigrationGraph({
   id: "attest-it-identity-config",
   versionStrategy: integerStrategy,
-  schemas: [schemaV1],
-  migrations: []
+  schemas: [schemaV1, schemaV2],
+  migrations: [
+    {
+      fromVersion: "1",
+      toVersion: "2",
+      irreversibleReason: "V1 private key refs lose provider-specific details when converted to the legacy filesystem fallback format. The original provider-specific fields (service, vault, item, etc.) cannot be fully recovered from the filesystem pseudo-URI paths.",
+      up: (v1Data) => {
+        const identities = {};
+        for (const [key, identity] of Object.entries(v1Data.identities)) {
+          identities[key] = {
+            name: identity.name,
+            publicKey: identity.publicKey,
+            privateKey: migratePrivateKeyRefV1ToV2(identity.privateKey),
+            ...identity.email !== void 0 && { email: identity.email },
+            ...identity.github !== void 0 && { github: identity.github }
+          };
+        }
+        return {
+          version: 2,
+          activeIdentity: v1Data.activeIdentity,
+          identities
+        };
+      }
+    }
+  ]
 });
 function versionSchema(version2) {
   return external_exports.union([external_exports.literal(version2), external_exports.literal(String(version2))]).transform(() => version2);

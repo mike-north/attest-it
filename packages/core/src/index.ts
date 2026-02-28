@@ -135,6 +135,9 @@ export {
   type YubiKeyInfo,
   type VaultKeyProviderOptions,
   type KeyProviderFactory,
+  storePrivateKey,
+  type StorePrivateKeyResult,
+  type PrivateKeyBackendType,
 } from './key-provider/index.js'
 
 // Identity System

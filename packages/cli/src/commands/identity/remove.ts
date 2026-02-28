@@ -66,77 +66,26 @@ async function runRemove(slug: string): Promise<void> {
     // Delete private key if requested
     if (deletePrivateKey) {
       switch (identity.privateKey.type) {
-        case 'file': {
+        case 'file':
+        case 'keychain':
+        case '1password':
+        case 'yubikey': {
+          // VaultKeeper-managed keys: deletion is handled by VaultKeeper's backend.
+          // For now, log a note — full backend deletion will be wired when the
+          // VaultKeeper vault instance is available here.
+          log(
+            `  Note: To delete the key from VaultKeeper storage, use the VaultKeeper CLI with ID: ${identity.privateKey.id}`,
+          )
+          break
+        }
+        case 'filesystem': {
+          // Legacy filesystem key — delete the file directly
           try {
             await unlink(identity.privateKey.path)
-            log(`  Deleted private key file: ${identity.privateKey.path}`)
+            log(`  Deleted legacy private key file: ${identity.privateKey.path}`)
           } catch (err) {
             // Ignore file not found errors
             if (err && typeof err === 'object' && 'code' in err && err.code !== 'ENOENT') {
-              throw err
-            }
-          }
-          break
-        }
-        case 'keychain': {
-          // Delete from macOS Keychain
-          const { execFile } = await import('node:child_process')
-          const { promisify } = await import('node:util')
-          const execFileAsync = promisify(execFile)
-
-          try {
-            const deleteArgs = [
-              'delete-generic-password',
-              '-s',
-              identity.privateKey.service,
-              '-a',
-              identity.privateKey.account,
-            ]
-            if (identity.privateKey.keychain) {
-              deleteArgs.push(identity.privateKey.keychain)
-            }
-            await execFileAsync('security', deleteArgs)
-            log(`  Deleted private key from macOS Keychain`)
-          } catch (err) {
-            // Ignore if key doesn't exist
-            if (
-              err instanceof Error &&
-              !err.message.includes('could not be found') &&
-              !err.message.includes('does not exist')
-            ) {
-              throw err
-            }
-          }
-          break
-        }
-        case '1password': {
-          // Delete from 1Password
-          const { execFile } = await import('node:child_process')
-          const { promisify } = await import('node:util')
-          const execFileAsync = promisify(execFile)
-
-          try {
-            const opArgs = [
-              'item',
-              'delete',
-              identity.privateKey.item,
-              '--vault',
-              identity.privateKey.vault,
-            ]
-
-            if (identity.privateKey.account) {
-              opArgs.push('--account', identity.privateKey.account)
-            }
-
-            await execFileAsync('op', opArgs)
-            log(`  Deleted private key from 1Password`)
-          } catch (err) {
-            // Ignore if item doesn't exist
-            if (
-              err instanceof Error &&
-              !err.message.includes('not found') &&
-              !err.message.includes("doesn't exist")
-            ) {
               throw err
             }
           }
@@ -170,7 +119,7 @@ async function runRemove(slug: string): Promise<void> {
     }
 
     const newConfig = {
-      version: 1 as const,
+      version: 2 as const,
       activeIdentity: newActiveIdentity,
       identities: remainingIdentities,
     }

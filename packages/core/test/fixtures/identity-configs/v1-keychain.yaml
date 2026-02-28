@@ -1,4 +1,4 @@
-version: 2
+version: 1
 activeIdentity: work
 identities:
   work:
@@ -7,4 +7,5 @@ identities:
     publicKey: dGVzdCBwdWJsaWMga2V5IGZvciB0ZXN0aW5n
     privateKey:
       type: keychain
-      id: attest-it-work-keychain-key
+      service: attest-it
+      account: work-key

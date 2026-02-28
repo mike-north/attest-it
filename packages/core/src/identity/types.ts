@@ -4,14 +4,38 @@
  */
 
 /**
- * Private key reference - points to where the key is stored.
+ * Legacy private key reference (v1 format).
+ *
+ * @remarks
+ * These types represent the v1 config format where each backend had
+ * provider-specific fields. V2 identities should use {@link PrivateKeyRef} instead.
+ *
  * @public
  */
-export type PrivateKeyRef =
+export type LegacyPrivateKeyRef =
   | { type: 'file'; path: string }
   | { type: 'keychain'; service: string; account: string; keychain?: string }
   | { type: '1password'; account?: string; vault: string; item: string; field?: string }
   | { type: 'yubikey'; encryptedKeyPath: string; slot?: 1 | 2; serial?: string }
+
+/**
+ * Private key reference — points to where the key is stored (v2 format).
+ *
+ * @remarks
+ * V2 uses flat VaultKeeper-style secret IDs. Provider-specific details
+ * (which vault, which keychain, which YubiKey slot) are managed by VaultKeeper's
+ * own configuration, not stored here. The `filesystem` variant is a legacy
+ * fallback that works without VaultKeeper for backwards compatibility during
+ * migration from v1.
+ *
+ * @public
+ */
+export type PrivateKeyRef =
+  | { type: 'file'; id: string }
+  | { type: 'keychain'; id: string }
+  | { type: '1password'; id: string; vault?: string }
+  | { type: 'yubikey'; id: string }
+  | { type: 'filesystem'; path: string }
 
 /**
  * A single identity configuration.
@@ -36,7 +60,7 @@ export interface Identity {
  */
 export interface LocalConfig {
   /** Schema version for forward compatibility */
-  version: 1
+  version: 2
   /** Name of the currently active identity */
   activeIdentity: string
   /** Map of identity names to identity configurations */

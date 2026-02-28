@@ -12,9 +12,9 @@ import { z } from 'zod'
 import type { Identity, LocalConfig, PrivateKeyRef } from './types.js'
 import {
   identityMigrationGraph,
-  localConfigSchemaV1,
+  localConfigSchemaV2,
   loadVersionedFileSync,
-  type IdentityConfigV1,
+  type IdentityConfigV2,
 } from '../config/migrations/index.js'
 
 /**
@@ -122,45 +122,26 @@ export function getIdentityConfigDir(homeDir?: string): string {
 }
 
 /**
- * Transform validated config data to match LocalConfig interface.
+ * Transform validated v2 config data to match the LocalConfig interface.
  * Removes undefined optional fields for cleaner serialization.
  *
- * @param data - Validated config data from Zod/migrex
+ * @param data - Validated v2 config data from Zod/migrex
  * @returns Transformed LocalConfig object
  * @internal
  */
-function transformToLocalConfig(data: IdentityConfigV1): LocalConfig {
+function transformToLocalConfig(data: IdentityConfigV2): LocalConfig {
   const identities: Record<string, Identity> = Object.fromEntries(
     Object.entries(data.identities).map(([key, identity]) => {
-      // Transform private key ref to remove undefined optional fields
+      // Remove undefined optional fields from the private key ref
       let privateKey: PrivateKeyRef
       if (identity.privateKey.type === '1password') {
         privateKey = {
           type: '1password',
-          vault: identity.privateKey.vault,
-          item: identity.privateKey.item,
-          ...(identity.privateKey.account !== undefined && {
-            account: identity.privateKey.account,
-          }),
-          ...(identity.privateKey.field !== undefined && { field: identity.privateKey.field }),
-        }
-      } else if (identity.privateKey.type === 'keychain') {
-        privateKey = {
-          type: 'keychain',
-          service: identity.privateKey.service,
-          account: identity.privateKey.account,
-          ...(identity.privateKey.keychain !== undefined && {
-            keychain: identity.privateKey.keychain,
-          }),
-        }
-      } else if (identity.privateKey.type === 'yubikey') {
-        privateKey = {
-          type: 'yubikey',
-          encryptedKeyPath: identity.privateKey.encryptedKeyPath,
-          ...(identity.privateKey.slot !== undefined && { slot: identity.privateKey.slot }),
-          ...(identity.privateKey.serial !== undefined && { serial: identity.privateKey.serial }),
+          id: identity.privateKey.id,
+          ...(identity.privateKey.vault !== undefined && { vault: identity.privateKey.vault }),
         }
       } else {
+        // file, keychain, yubikey, filesystem — no optional fields to strip
         privateKey = identity.privateKey
       }
 
@@ -178,7 +159,7 @@ function transformToLocalConfig(data: IdentityConfigV1): LocalConfig {
   )
 
   return {
-    version: 1,
+    version: 2,
     activeIdentity: data.activeIdentity,
     identities,
   }
@@ -188,7 +169,8 @@ function transformToLocalConfig(data: IdentityConfigV1): LocalConfig {
  * Load and validate local config from file (async).
  *
  * Uses migrex for versioned schema validation and migration.
- * Files without a version field are treated as version 1.
+ * Files without a version field are treated as version 1 and automatically
+ * migrated to version 2.
  *
  * @param configPath - Optional path to config file. If not provided, uses default location.
  * @returns Validated LocalConfig object, or null if file does not exist
@@ -236,8 +218,34 @@ export async function loadLocalConfig(configPath?: string): Promise<LocalConfig 
     mutableData.version = 1
   }
 
-  // Validate against the schema
-  const validationResult = localConfigSchemaV1.safeParse(rawData)
+  // Detect version and migrate to v2 if needed
+  const sourceVersion =
+    rawData && typeof rawData === 'object' && 'version' in rawData
+      ? String((rawData as Record<string, unknown>).version)
+      : '1'
+
+  let migratedData: unknown
+  if (sourceVersion !== '2') {
+    if (!identityMigrationGraph.hasPath(sourceVersion, '2')) {
+      throw new LocalConfigValidationError(
+        `Unsupported config version: ${sourceVersion}. No migration path to v2 found.`,
+        [],
+      )
+    }
+    const migrationResult = identityMigrationGraph.migrate(rawData, sourceVersion, '2')
+    if (!migrationResult.success) {
+      throw new LocalConfigValidationError(
+        `Failed to migrate config from v${sourceVersion} to v2: ${migrationResult.error?.message ?? 'Unknown error'}`,
+        [],
+      )
+    }
+    migratedData = migrationResult.data
+  } else {
+    migratedData = rawData
+  }
+
+  // Validate the migrated data against the v2 schema
+  const validationResult = localConfigSchemaV2.safeParse(migratedData)
   if (!validationResult.success) {
     throw new LocalConfigValidationError(
       'Local configuration validation failed:\n' +
@@ -255,7 +263,8 @@ export async function loadLocalConfig(configPath?: string): Promise<LocalConfig 
  * Load and validate local config from file (sync).
  *
  * Uses migrex for versioned schema validation and migration.
- * Files without a version field are treated as version 1.
+ * Files without a version field are treated as version 1 and automatically
+ * migrated to version 2.
  *
  * @param configPath - Optional path to config file. If not provided, uses default location.
  * @returns Validated LocalConfig object, or null if file does not exist
@@ -266,7 +275,7 @@ export function loadLocalConfigSync(configPath?: string): LocalConfig | null {
   const resolvedPath = configPath ?? getLocalConfigPath()
 
   try {
-    const result = loadVersionedFileSync<IdentityConfigV1>(identityMigrationGraph, resolvedPath, {
+    const result = loadVersionedFileSync<IdentityConfigV2>(identityMigrationGraph, resolvedPath, {
       format: 'yaml',
     })
 
@@ -274,9 +283,24 @@ export function loadLocalConfigSync(configPath?: string): LocalConfig | null {
       return null
     }
 
-    return transformToLocalConfig(result.data)
+    // Validate the migrated data against the v2 schema
+    const validationResult = localConfigSchemaV2.safeParse(result.data)
+    if (!validationResult.success) {
+      throw new LocalConfigValidationError(
+        'Local configuration validation failed:\n' +
+          validationResult.error.issues
+            .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
+            .join('\n'),
+        validationResult.error.issues,
+      )
+    }
+
+    return transformToLocalConfig(validationResult.data)
   } catch (error) {
     // Wrap errors in LocalConfigValidationError for API compatibility
+    if (error instanceof LocalConfigValidationError) {
+      throw error
+    }
     if (error instanceof Error) {
       throw new LocalConfigValidationError(error.message, [])
     }
@@ -289,13 +313,12 @@ export function loadLocalConfigSync(configPath?: string): LocalConfig | null {
  * This enables editor support (autocomplete, validation) in VS Code and other YAML-aware editors.
  */
 const IDENTITY_SCHEMA_HEADER =
-  '# yaml-language-server: $schema=https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/identity.schema.json\n'
+  '# yaml-language-server: $schema=https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v2/identity.schema.json\n'
 
 /**
  * Save local config to file (async).
  *
- * Adds version field (version: 1) if not present for forward compatibility.
- * Validates using the migrex migration graph before saving.
+ * Validates using the v2 schema before saving.
  *
  * @param config - LocalConfig object to save
  * @param configPath - Optional path to config file. If not provided, uses default location.
@@ -305,14 +328,8 @@ const IDENTITY_SCHEMA_HEADER =
 export async function saveLocalConfig(config: LocalConfig, configPath?: string): Promise<void> {
   const resolvedPath = configPath ?? getLocalConfigPath()
 
-  // Add version field for migrex compatibility (spread config first, then version to ensure it's always 1)
-  const versionedConfig: IdentityConfigV1 = {
-    ...config,
-    version: 1,
-  }
-
-  // Validate using the schema
-  const validationResult = localConfigSchemaV1.safeParse(versionedConfig)
+  // Validate using the v2 schema
+  const validationResult = localConfigSchemaV2.safeParse(config)
   if (!validationResult.success) {
     throw new LocalConfigValidationError(
       'Local configuration validation failed:\n' +
@@ -336,8 +353,7 @@ export async function saveLocalConfig(config: LocalConfig, configPath?: string):
 /**
  * Save local config to file (sync).
  *
- * Adds version field (version: 1) if not present for forward compatibility.
- * Validates using the migrex migration graph before saving.
+ * Validates using the v2 schema before saving.
  *
  * @param config - LocalConfig object to save
  * @param configPath - Optional path to config file. If not provided, uses default location.
@@ -347,14 +363,8 @@ export async function saveLocalConfig(config: LocalConfig, configPath?: string):
 export function saveLocalConfigSync(config: LocalConfig, configPath?: string): void {
   const resolvedPath = configPath ?? getLocalConfigPath()
 
-  // Add version field for migrex compatibility (spread config first, then version to ensure it's always 1)
-  const versionedConfig: IdentityConfigV1 = {
-    ...config,
-    version: 1,
-  }
-
-  // Validate using the schema
-  const validationResult = localConfigSchemaV1.safeParse(versionedConfig)
+  // Validate using the v2 schema
+  const validationResult = localConfigSchemaV2.safeParse(config)
   if (!validationResult.success) {
     throw new LocalConfigValidationError(
       'Local configuration validation failed:\n' +

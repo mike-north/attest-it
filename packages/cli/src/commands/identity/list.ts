@@ -43,16 +43,19 @@ async function runList(): Promise<void> {
       let keyType: string
       switch (identity.privateKey.type) {
         case 'file':
-          keyType = 'file'
+          keyType = 'file (VaultKeeper)'
           break
         case 'keychain':
-          keyType = 'keychain'
+          keyType = 'keychain (VaultKeeper)'
           break
         case '1password':
-          keyType = '1password'
+          keyType = '1password (VaultKeeper)'
           break
         case 'yubikey':
-          keyType = 'yubikey'
+          keyType = 'yubikey (VaultKeeper)'
+          break
+        case 'filesystem':
+          keyType = 'file (legacy)'
           break
       }
 

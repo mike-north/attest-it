@@ -1,4 +1,4 @@
-version: 2
+version: 1
 activeIdentity: default
 identities:
   default:
@@ -8,4 +8,4 @@ identities:
     publicKey: AbCdEfGhIjKlMnOpQrStUvWxYz1234567890=
     privateKey:
       type: file
-      id: attest-it-550e8400-e29b-41d4-a716-446655440000
+      path: /home/user/.ssh/attest-it.key

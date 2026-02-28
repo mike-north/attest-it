@@ -1,3 +1,4 @@
+version: 2
 activeIdentity: default
 identities:
   default:
@@ -5,4 +6,4 @@ identities:
     publicKey: ''
     privateKey:
       type: file
-      path: /path/to/key
+      id: attest-it-test-key

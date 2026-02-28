@@ -1,4 +1,4 @@
-version: 2
+version: 1
 activeIdentity: minimal
 identities:
   minimal:
@@ -6,4 +6,4 @@ identities:
     publicKey: bWluaW1hbCBwdWJsaWMga2V5IGZvciB0ZXN0aW5n
     privateKey:
       type: file
-      id: attest-it-minimal-key
+      path: /path/to/key
