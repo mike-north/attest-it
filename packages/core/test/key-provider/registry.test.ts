@@ -1,9 +1,46 @@
-import { describe, it, expect, beforeEach } from 'vitest'
-import { KeyProviderRegistry } from '../../src/key-provider/registry.js'
-import { FilesystemKeyProvider } from '../../src/key-provider/filesystem-provider.js'
-import type { KeyProvider, KeyProviderConfig } from '../../src/key-provider/types.js'
+/**
+ * Tests for KeyProviderRegistry.
+ *
+ * @remarks
+ * The registry now creates VaultKeyProvider instances backed by VaultKeeper
+ * SecretBackend implementations. Tests mock the VaultKeeper BackendRegistry
+ * to avoid requiring real backends.
+ */
 
-// Mock key provider for testing
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { KeyProviderRegistry } from '../../src/key-provider/registry.js'
+import { VaultKeyProvider } from '../../src/key-provider/vault-key-provider.js'
+import type { KeyProvider, KeyProviderConfig } from '../../src/key-provider/types.js'
+import type { SecretBackend } from 'vaultkeeper'
+
+// Mock VaultKeeper's BackendRegistry so we don't need real backends
+vi.mock('vaultkeeper', () => {
+  function makeMockBackend(type: string): SecretBackend {
+    return {
+      type,
+      displayName: `Mock ${type}`,
+      isAvailable: () => Promise.resolve(true),
+      store: () => Promise.resolve(),
+      retrieve: () => Promise.resolve('mock-secret'),
+      delete: () => Promise.resolve(),
+      exists: () => Promise.resolve(false),
+    }
+  }
+
+  return {
+    BackendRegistry: {
+      create(type: string) {
+        const known = ['file', '1password', 'keychain', 'yubikey']
+        if (!known.includes(type)) {
+          throw new Error(`Unknown backend type: ${type}`)
+        }
+        return makeMockBackend(type)
+      },
+    },
+  }
+})
+
+// Mock key provider for testing custom registration
 class MockKeyProvider implements KeyProvider {
   readonly type = 'mock'
   readonly displayName = 'Mock Provider'
@@ -47,23 +84,59 @@ class MockKeyProvider implements KeyProvider {
 describe('KeyProviderRegistry', () => {
   beforeEach(() => {
     // The registry is a singleton, so we need to be careful about test isolation.
-    // Since filesystem provider is registered by default, we'll work with that.
   })
 
   describe('register and create', () => {
-    it('should register and create filesystem provider by default', () => {
+    it('should create filesystem provider backed by VaultKeeper file backend', () => {
       const config: KeyProviderConfig = {
         type: 'filesystem',
-        options: {
-          privateKeyPath: '/test/path/key.pem',
-        },
+        options: {},
       }
 
       const provider = KeyProviderRegistry.create(config)
 
-      expect(provider).toBeInstanceOf(FilesystemKeyProvider)
-      expect(provider.type).toBe('filesystem')
+      expect(provider).toBeInstanceOf(VaultKeyProvider)
+      expect(provider.type).toBe('file')
       expect(provider.displayName).toBe('Filesystem')
+    })
+
+    it('should create 1password provider backed by VaultKeeper 1password backend', () => {
+      const config: KeyProviderConfig = {
+        type: '1password',
+        options: {},
+      }
+
+      const provider = KeyProviderRegistry.create(config)
+
+      expect(provider).toBeInstanceOf(VaultKeyProvider)
+      expect(provider.type).toBe('1password')
+      expect(provider.displayName).toBe('1Password')
+    })
+
+    it('should create macos-keychain provider backed by VaultKeeper keychain backend', () => {
+      const config: KeyProviderConfig = {
+        type: 'macos-keychain',
+        options: {},
+      }
+
+      const provider = KeyProviderRegistry.create(config)
+
+      expect(provider).toBeInstanceOf(VaultKeyProvider)
+      expect(provider.type).toBe('keychain')
+      expect(provider.displayName).toBe('macOS Keychain')
+    })
+
+    it('should create yubikey provider backed by VaultKeeper yubikey backend', () => {
+      const config: KeyProviderConfig = {
+        type: 'yubikey',
+        options: {},
+      }
+
+      const provider = KeyProviderRegistry.create(config)
+
+      expect(provider).toBeInstanceOf(VaultKeyProvider)
+      expect(provider.type).toBe('yubikey')
+      expect(provider.displayName).toBe('YubiKey')
     })
 
     it('should allow registering custom providers', () => {
@@ -113,6 +186,9 @@ describe('KeyProviderRegistry', () => {
 
       expect(types).toBeInstanceOf(Array)
       expect(types).toContain('filesystem')
+      expect(types).toContain('1password')
+      expect(types).toContain('macos-keychain')
+      expect(types).toContain('yubikey')
     })
 
     it('should include custom providers in the list', () => {
@@ -144,48 +220,6 @@ describe('KeyProviderRegistry', () => {
       KeyProviderRegistry.create(config)
 
       expect(receivedConfig).toEqual(config)
-    })
-  })
-
-  describe('filesystem provider registration', () => {
-    it('should create FilesystemKeyProvider with custom path from config', () => {
-      const config: KeyProviderConfig = {
-        type: 'filesystem',
-        options: {
-          privateKeyPath: '/custom/private/key.pem',
-        },
-      }
-
-      const provider = KeyProviderRegistry.create(config)
-      const providerConfig = provider.getConfig()
-
-      expect(providerConfig.options.privateKeyPath).toBe('/custom/private/key.pem')
-    })
-
-    it('should create FilesystemKeyProvider with default path when not specified', () => {
-      const config: KeyProviderConfig = {
-        type: 'filesystem',
-        options: {},
-      }
-
-      const provider = KeyProviderRegistry.create(config)
-
-      // Should use default path (we don't assert exact path as it's OS-dependent)
-      expect(provider).toBeInstanceOf(FilesystemKeyProvider)
-    })
-
-    it('should handle non-string privateKeyPath option gracefully', () => {
-      const config: KeyProviderConfig = {
-        type: 'filesystem',
-        options: {
-          privateKeyPath: 123, // Invalid type
-        },
-      }
-
-      const provider = KeyProviderRegistry.create(config)
-
-      // Should fall back to default path
-      expect(provider).toBeInstanceOf(FilesystemKeyProvider)
     })
   })
 })

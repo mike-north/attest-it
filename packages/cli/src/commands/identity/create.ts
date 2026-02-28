@@ -5,8 +5,15 @@ import {
   loadLocalConfig,
   saveLocalConfig,
   getIdentityConfigDir,
-  OnePasswordKeyProvider,
-  MacOSKeychainKeyProvider,
+  isOnePasswordInstalled,
+  listOnePasswordAccounts,
+  listOnePasswordVaults,
+  isMacOSKeychainAvailable,
+  listMacOSKeychains,
+  isYubiKeyInstalled,
+  isYubiKeyConnected,
+  listYubiKeyDevices,
+  isYubiKeyChallengeResponseConfigured,
   YubiKeyProvider,
   savePublicKey,
 } from '@attest-it/core'
@@ -76,16 +83,16 @@ async function runCreate(): Promise<void> {
       'You may see authentication prompts from 1Password, macOS Keychain, or other security tools.',
     )
 
-    const opAvailable = await OnePasswordKeyProvider.isInstalled()
+    const opAvailable = await isOnePasswordInstalled()
     verbose(`  1Password CLI (op): ${opAvailable ? 'found' : 'not found'}`)
 
-    const keychainAvailable = MacOSKeychainKeyProvider.isAvailable()
+    const keychainAvailable = isMacOSKeychainAvailable()
     verbose(`  macOS Keychain: ${keychainAvailable ? 'available' : 'not available (not macOS)'}`)
 
-    const yubikeyInstalled = await YubiKeyProvider.isInstalled()
+    const yubikeyInstalled = await isYubiKeyInstalled()
     verbose(`  YubiKey CLI (ykman): ${yubikeyInstalled ? 'found' : 'not found'}`)
 
-    const yubikeyConnected = yubikeyInstalled ? await YubiKeyProvider.isConnected() : false
+    const yubikeyConnected = yubikeyInstalled ? await isYubiKeyConnected() : false
     if (yubikeyInstalled) {
       verbose(`  YubiKey device: ${yubikeyConnected ? 'connected' : 'not connected'}`)
     }
@@ -171,7 +178,7 @@ async function runCreate(): Promise<void> {
       }
       case 'keychain': {
         // Check if available (using static method)
-        if (!MacOSKeychainKeyProvider.isAvailable()) {
+        if (!isMacOSKeychainAvailable()) {
           error('macOS Keychain is not available on this system')
           process.exit(ExitCode.CONFIG_ERROR)
         }
@@ -182,7 +189,7 @@ async function runCreate(): Promise<void> {
         info('You may be prompted to allow access or enter your password.')
 
         // List available keychains
-        const keychains = await MacOSKeychainKeyProvider.listKeychains()
+        const keychains = await listMacOSKeychains()
 
         if (keychains.length === 0) {
           throw new Error('No keychains found on this system')
@@ -237,7 +244,7 @@ async function runCreate(): Promise<void> {
         )
 
         // List available 1Password accounts (includes friendly names from OnePasswordKeyProvider)
-        const { accounts, inaccessible } = await OnePasswordKeyProvider.listAccounts()
+        const { accounts, inaccessible } = await listOnePasswordAccounts()
 
         if (accounts.length === 0) {
           throw new Error(
@@ -285,7 +292,7 @@ async function runCreate(): Promise<void> {
         }
 
         // List vaults for selected account
-        const vaults = await OnePasswordKeyProvider.listVaults(selectedAccountUuid)
+        const vaults = await listOnePasswordVaults(selectedAccountUuid)
 
         if (vaults.length === 0) {
           throw new Error(`No vaults found in 1Password account: ${selectedAccountDisplayName}`)
@@ -328,13 +335,13 @@ async function runCreate(): Promise<void> {
         info('Your private key will be encrypted using HMAC challenge-response from the YubiKey.')
 
         // Check if YubiKey is connected
-        if (!(await YubiKeyProvider.isConnected())) {
+        if (!(await isYubiKeyConnected())) {
           error('No YubiKey detected. Please insert your YubiKey and try again.')
           process.exit(ExitCode.CONFIG_ERROR)
         }
 
         // List connected YubiKeys
-        const yubikeys = await YubiKeyProvider.listDevices()
+        const yubikeys = await listYubiKeyDevices()
 
         if (yubikeys.length === 0) {
           throw new Error('No YubiKeys detected. Please insert a YubiKey and try again.')
@@ -366,7 +373,7 @@ async function runCreate(): Promise<void> {
 
         // Check if challenge-response is configured on slot 2
         const slot: 1 | 2 = 2 // Default to slot 2 for challenge-response
-        const isChallengeResponseConfigured = await YubiKeyProvider.isChallengeResponseConfigured(
+        const isChallengeResponseConfigured = await isYubiKeyChallengeResponseConfigured(
           slot,
           selectedSerial,
         )

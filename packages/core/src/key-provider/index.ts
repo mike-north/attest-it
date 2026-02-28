@@ -44,6 +44,19 @@ export type { YubiKeyProviderOptions, YubiKeyInfo } from './yubikey-provider.js'
 export { VaultKeyProvider } from './vault-key-provider.js'
 export type { VaultKeyProviderOptions } from './vault-key-provider.js'
 
+// Discovery functions
+export {
+  isOnePasswordInstalled,
+  listOnePasswordAccounts,
+  listOnePasswordVaults,
+  isMacOSKeychainAvailable,
+  listMacOSKeychains,
+  isYubiKeyInstalled,
+  isYubiKeyConnected,
+  listYubiKeyDevices,
+  isYubiKeyChallengeResponseConfigured,
+} from './discovery.js'
+
 // Registry
 export { KeyProviderRegistry } from './registry.js'
 export type { KeyProviderFactory } from './registry.js'

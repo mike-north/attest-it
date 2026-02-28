@@ -210,6 +210,21 @@ export interface InaccessibleAccount {
 export function isAuthorizedSigner(config: AttestItConfig, gateId: string, publicKey: string): boolean;
 
 // @public
+export function isMacOSKeychainAvailable(): boolean;
+
+// @public
+export function isOnePasswordInstalled(): Promise<boolean>;
+
+// @public
+export function isYubiKeyChallengeResponseConfigured(slot?: 1 | 2, serial?: string): Promise<boolean>;
+
+// @public
+export function isYubiKeyConnected(): Promise<boolean>;
+
+// @public
+export function isYubiKeyInstalled(): Promise<boolean>;
+
+// @public
 export interface KeyGenerationResult {
     encrypted?: boolean;
     privateKeyRef: string;
@@ -289,7 +304,19 @@ export interface ListAccountsResult {
 }
 
 // @public
+export function listMacOSKeychains(): Promise<MacOSKeychain[]>;
+
+// @public
+export function listOnePasswordAccounts(): Promise<ListAccountsResult>;
+
+// @public
+export function listOnePasswordVaults(accountUuid?: string): Promise<OnePasswordVault[]>;
+
+// @public
 export function listPackageFiles(packages: string[], ignore?: string[], baseDir?: string): Promise<string[]>;
+
+// @public
+export function listYubiKeyDevices(): Promise<YubiKeyInfo[]>;
 
 // @public
 export function loadLocalConfig(configPath?: string): Promise<LocalConfig | null>;

@@ -4,15 +4,15 @@
  * @remarks
  * The registry maintains a mapping of provider types to factory functions,
  * allowing dynamic creation of key providers based on configuration.
+ * All providers are now backed by VaultKeeper SecretBackend instances
+ * via VaultKeyProvider.
  *
  * @packageDocumentation
  */
 
 import type { KeyProvider, KeyProviderConfig } from './types.js'
-import { FilesystemKeyProvider } from './filesystem-provider.js'
-import { OnePasswordKeyProvider } from './one-password-provider.js'
-import { MacOSKeychainKeyProvider } from './macos-keychain-provider.js'
-import { YubiKeyProvider } from './yubikey-provider.js'
+import { BackendRegistry } from 'vaultkeeper'
+import { VaultKeyProvider } from './vault-key-provider.js'
 
 /**
  * Type for a key provider factory function.
@@ -69,74 +69,26 @@ export class KeyProviderRegistry {
   }
 }
 
-// Register the filesystem provider by default
-KeyProviderRegistry.register('filesystem', (config) => {
-  const privateKeyPath =
-    typeof config.options.privateKeyPath === 'string' ? config.options.privateKeyPath : undefined
-
-  // Only pass privateKeyPath if it's defined (to satisfy exactOptionalPropertyTypes)
-  if (privateKeyPath !== undefined) {
-    return new FilesystemKeyProvider({ privateKeyPath })
-  }
-  return new FilesystemKeyProvider()
+// Register the filesystem provider backed by VaultKeeper's file backend
+KeyProviderRegistry.register('filesystem', (_config) => {
+  const backend = BackendRegistry.create('file')
+  return new VaultKeyProvider({ backend, displayName: 'Filesystem' })
 })
 
-// Register the 1Password provider
-KeyProviderRegistry.register('1password', (config) => {
-  const { options } = config
-  const accountUuid = typeof options.accountUuid === 'string' ? options.accountUuid : undefined
-  const vault = typeof options.vault === 'string' ? options.vault : ''
-  const itemName = typeof options.itemName === 'string' ? options.itemName : ''
-
-  if (!vault || !itemName) {
-    throw new Error('1Password provider requires vault and itemName options')
-  }
-
-  // Only pass accountUuid if it's defined (to satisfy exactOptionalPropertyTypes)
-  if (accountUuid !== undefined) {
-    return new OnePasswordKeyProvider({ accountUuid, vault, itemName })
-  }
-  return new OnePasswordKeyProvider({ vault, itemName })
+// Register the 1Password provider backed by VaultKeeper's 1password backend
+KeyProviderRegistry.register('1password', (_config) => {
+  const backend = BackendRegistry.create('1password')
+  return new VaultKeyProvider({ backend, displayName: '1Password' })
 })
 
-// Register the macOS Keychain provider
-KeyProviderRegistry.register('macos-keychain', (config) => {
-  const { options } = config
-  const itemName = typeof options.itemName === 'string' ? options.itemName : ''
-
-  if (!itemName) {
-    throw new Error('macOS Keychain provider requires itemName option')
-  }
-
-  return new MacOSKeychainKeyProvider({ itemName })
+// Register the macOS Keychain provider backed by VaultKeeper's keychain backend
+KeyProviderRegistry.register('macos-keychain', (_config) => {
+  const backend = BackendRegistry.create('keychain')
+  return new VaultKeyProvider({ backend, displayName: 'macOS Keychain' })
 })
 
-// Register the YubiKey provider
-KeyProviderRegistry.register('yubikey', (config) => {
-  const { options } = config
-  const encryptedKeyPath =
-    typeof options.encryptedKeyPath === 'string' ? options.encryptedKeyPath : ''
-
-  if (!encryptedKeyPath) {
-    throw new Error('YubiKey provider requires encryptedKeyPath option')
-  }
-
-  const slot =
-    typeof options.slot === 'number' && (options.slot === 1 || options.slot === 2)
-      ? options.slot
-      : undefined
-  const serial = typeof options.serial === 'string' ? options.serial : undefined
-
-  // Build options object, only including defined properties
-  const providerOptions: { encryptedKeyPath: string; slot?: 1 | 2; serial?: string } = {
-    encryptedKeyPath,
-  }
-  if (slot !== undefined) {
-    providerOptions.slot = slot
-  }
-  if (serial !== undefined) {
-    providerOptions.serial = serial
-  }
-
-  return new YubiKeyProvider(providerOptions)
+// Register the YubiKey provider backed by VaultKeeper's yubikey backend
+KeyProviderRegistry.register('yubikey', (_config) => {
+  const backend = BackendRegistry.create('yubikey')
+  return new VaultKeyProvider({ backend, displayName: 'YubiKey' })
 })
