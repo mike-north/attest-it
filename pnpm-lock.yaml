@@ -182,8 +182,8 @@ importers:
         specifier: ^0.2.0
         version: 0.2.15
       vaultkeeper:
-        specifier: ^0.3.0
-        version: 0.3.0
+        specifier: ^0.4.0
+        version: 0.4.0
       yaml:
         specifier: ^2.8.2
         version: 2.8.2
@@ -4393,8 +4393,8 @@ packages:
     resolution: {integrity: sha512-IUoow1YUtvoBBC06dXs8bR8B9vuA3aJfmQNKMoaPG/OFsPmoQvw8xh+6Ye25Gx9DQhoEom3Pcu9MKHerm/NpUQ==}
     engines: {node: ^18.17.0 || >=20.5.0}
 
-  vaultkeeper@0.3.0:
-    resolution: {integrity: sha512-tiZT8gmmFcSG/241IfTnirvmRKim10NAXs6i2/IgSDRK6iNh1z95LhgtNA3GfrZzFgldM1BPL0yx69nEf3kN9Q==}
+  vaultkeeper@0.4.0:
+    resolution: {integrity: sha512-WkRhidK1TKe7Z6m9s/FivqxdqrW0rXB3JQfCxX7BTvcLEMeqqJNtAUdzYfmqD+Kcnf0o/aC29IQNwUUNU36H5Q==}
     engines: {node: '>=20.0.0'}
 
   vite-node@3.2.4:
@@ -9084,7 +9084,7 @@ snapshots:
 
   validate-npm-package-name@6.0.2: {}
 
-  vaultkeeper@0.3.0:
+  vaultkeeper@0.4.0:
     dependencies:
       jose: 6.1.3
 
