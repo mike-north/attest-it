@@ -57,7 +57,7 @@ export class VaultKeyProvider implements KeyProvider {
    */
   constructor(options: VaultKeyProviderOptions) {
     this.backend = options.backend
-    this.type = options.backend.type
+    this.type = 'vaultkeeper'
     this.displayName = options.displayName ?? `VaultKeeper (${options.backend.displayName})`
   }
 
@@ -81,7 +81,7 @@ export class VaultKeyProvider implements KeyProvider {
    *
    * @remarks
    * Downloads the PEM to a secure temporary file (mode 0o600) and returns
-   * a cleanup function that overwrites the file with zeros before deletion.
+   * a cleanup function that overwrites the file with random bytes before deletion.
    *
    * @param keyRef - Secret identifier in the backend
    * @throws Error if the key does not exist in the backend
@@ -102,7 +102,7 @@ export class VaultKeyProvider implements KeyProvider {
         keyPath: tempKeyPath,
         cleanup: async () => {
           try {
-            // Overwrite with zeros before unlinking for security
+            // Overwrite with random bytes before unlinking for security
             const stat = await fs.stat(tempKeyPath)
             await fs.writeFile(tempKeyPath, crypto.randomBytes(stat.size))
             await fs.unlink(tempKeyPath)
@@ -148,10 +148,9 @@ export class VaultKeyProvider implements KeyProvider {
           `Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`,
         )
       } catch (err) {
-        // File doesn't exist, which is what we want
-        if (err instanceof Error && !err.message.includes('already exists')) {
-          // This is an access error (file doesn't exist), continue
-        } else {
+        // Re-throw anything that is not an ENOENT (file-not-found) error.
+        // ENOENT means the file doesn't exist yet, which is the expected case.
+        if (!(err instanceof Error && 'code' in err && err.code === 'ENOENT')) {
           throw err
         }
       }
@@ -185,7 +184,7 @@ export class VaultKeyProvider implements KeyProvider {
   getConfig(): KeyProviderConfig {
     return {
       type: this.type,
-      options: {},
+      options: { backendType: this.backend.type },
     }
   }
 }

@@ -5,6 +5,8 @@
  */
 
 import * as fs from 'node:fs/promises'
+import * as os from 'node:os'
+import * as path from 'node:path'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import type { SecretBackend } from 'vaultkeeper'
 import { VaultKeyProvider } from '../../src/key-provider/vault-key-provider.js'
@@ -71,8 +73,8 @@ describe('VaultKeyProvider', () => {
   })
 
   describe('constructor', () => {
-    it('should derive type from backend', () => {
-      expect(provider.type).toBe('mock')
+    it('should use stable type "vaultkeeper" regardless of backend type', () => {
+      expect(provider.type).toBe('vaultkeeper')
     })
 
     it('should generate a default displayName from backend', () => {
@@ -125,10 +127,12 @@ describe('VaultKeyProvider', () => {
       const content = await fs.readFile(result.keyPath, 'utf-8')
       expect(content).toBe(SAMPLE_PEM)
 
-      // Verify file permissions (owner read/write only)
-      const stat = await fs.stat(result.keyPath)
-      const permissionBits = stat.mode & 0o777
-      expect(permissionBits).toBe(0o600)
+      // Verify file permissions (owner read/write only) — Unix only
+      if (process.platform !== 'win32') {
+        const stat = await fs.stat(result.keyPath)
+        const permissionBits = stat.mode & 0o777
+        expect(permissionBits).toBe(0o600)
+      }
 
       // Cleanup should remove the file
       await result.cleanup()
@@ -151,7 +155,7 @@ describe('VaultKeyProvider', () => {
 
   describe('generateKeyPair', () => {
     it('should generate keys and store private key in backend', async () => {
-      const tmpDir = await fs.mkdtemp('/tmp/attest-it-test-')
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'attest-it-test-'))
       const publicKeyPath = `${tmpDir}/public.pem`
 
       try {
@@ -174,7 +178,7 @@ describe('VaultKeyProvider', () => {
     })
 
     it('should throw when public key file already exists and force is false', async () => {
-      const tmpDir = await fs.mkdtemp('/tmp/attest-it-test-')
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'attest-it-test-'))
       const publicKeyPath = `${tmpDir}/public.pem`
 
       try {
@@ -186,7 +190,7 @@ describe('VaultKeyProvider', () => {
     })
 
     it('should overwrite when force is true', async () => {
-      const tmpDir = await fs.mkdtemp('/tmp/attest-it-test-')
+      const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'attest-it-test-'))
       const publicKeyPath = `${tmpDir}/public.pem`
 
       try {
@@ -203,10 +207,10 @@ describe('VaultKeyProvider', () => {
   })
 
   describe('getConfig', () => {
-    it('should return config with backend type', () => {
+    it('should return stable "vaultkeeper" type with backendType in options', () => {
       const config = provider.getConfig()
-      expect(config.type).toBe('mock')
-      expect(config.options).toEqual({})
+      expect(config.type).toBe('vaultkeeper')
+      expect(config.options).toEqual({ backendType: 'mock' })
     })
   })
 })
