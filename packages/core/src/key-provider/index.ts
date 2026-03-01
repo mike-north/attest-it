@@ -40,6 +40,10 @@ export type { MacOSKeychainKeyProviderOptions, MacOSKeychain } from './macos-key
 export { YubiKeyProvider } from './yubikey-provider.js'
 export type { YubiKeyProviderOptions, YubiKeyInfo } from './yubikey-provider.js'
 
+// VaultKeeper provider
+export { VaultKeyProvider } from './vault-key-provider.js'
+export type { VaultKeyProviderOptions } from './vault-key-provider.js'
+
 // Registry
 export { KeyProviderRegistry } from './registry.js'
 export type { KeyProviderFactory } from './registry.js'

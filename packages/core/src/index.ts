@@ -140,6 +140,7 @@ export {
   OnePasswordKeyProvider,
   MacOSKeychainKeyProvider,
   YubiKeyProvider,
+  VaultKeyProvider,
   KeyProviderRegistry,
   type KeyProvider,
   type KeyProviderConfig,
@@ -156,6 +157,7 @@ export {
   type MacOSKeychain,
   type YubiKeyProviderOptions,
   type YubiKeyInfo,
+  type VaultKeyProviderOptions,
   type KeyProviderFactory,
 } from './key-provider/index.js'
 
