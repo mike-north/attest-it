@@ -56,7 +56,7 @@ export class VaultKeyProvider implements KeyProvider {
    */
   constructor(options: VaultKeyProviderOptions) {
     this.backend = options.backend
-    this.type = 'vaultkeeper'
+    this.type = options.backend.type
     this.displayName = options.displayName
   }
 

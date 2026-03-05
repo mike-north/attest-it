@@ -73,8 +73,8 @@ describe('VaultKeyProvider', () => {
   })
 
   describe('constructor', () => {
-    it('should use stable type "vaultkeeper" regardless of backend type', () => {
-      expect(provider.type).toBe('vaultkeeper')
+    it('should use the backend type', () => {
+      expect(provider.type).toBe('mock')
     })
 
     it('should use the provided displayName', () => {
@@ -199,9 +199,9 @@ describe('VaultKeyProvider', () => {
   })
 
   describe('getConfig', () => {
-    it('should return stable "vaultkeeper" type with backendType in options', () => {
+    it('should return backend type with backendType in options', () => {
       const config = provider.getConfig()
-      expect(config.type).toBe('vaultkeeper')
+      expect(config.type).toBe('mock')
       expect(config.options).toEqual({ backendType: 'mock' })
     })
   })
