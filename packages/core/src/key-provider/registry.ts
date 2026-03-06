@@ -13,6 +13,7 @@
 import type { KeyProvider, KeyProviderConfig } from './types.js'
 import { BackendRegistry } from 'vaultkeeper'
 import { VaultKeyProvider } from './vault-key-provider.js'
+import { LegacyFilesystemKeyProvider } from './legacy-filesystem-provider.js'
 
 /**
  * Type for a key provider factory function.
@@ -91,4 +92,9 @@ KeyProviderRegistry.register('macos-keychain', (_config) => {
 KeyProviderRegistry.register('yubikey', (_config) => {
   const backend = BackendRegistry.create('yubikey')
   return new VaultKeyProvider({ backend, displayName: 'YubiKey' })
+})
+
+// Register the legacy filesystem provider for v1 identities not yet imported into VaultKeeper
+KeyProviderRegistry.register('filesystem-legacy', (_config) => {
+  return new LegacyFilesystemKeyProvider()
 })

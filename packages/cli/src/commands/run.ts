@@ -536,8 +536,8 @@ function createKeyProviderFromIdentity(
     case 'filesystem':
       // Legacy filesystem provider — for v1 identities not yet imported into VaultKeeper
       return KeyProviderRegistry.create({
-        type: 'filesystem',
-        options: { privateKeyPath: privateKey.path },
+        type: 'filesystem-legacy',
+        options: {},
       })
     default: {
       // This should never happen due to TypeScript's discriminated union
