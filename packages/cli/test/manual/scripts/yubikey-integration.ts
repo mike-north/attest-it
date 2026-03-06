@@ -27,7 +27,6 @@
 
 import {
   isYubiKeyInstalled,
-  isYubiKeyConnected,
   listYubiKeyDevices,
   isYubiKeyChallengeResponseConfigured,
   VaultKeyProvider,

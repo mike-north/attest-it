@@ -264,7 +264,14 @@ async function runIntegrationTest(): Promise<boolean> {
 
     // Step 7: Generate keypair with VaultKeyProvider (1Password backend)
     step('Step 7: Generating keypair and storing in 1Password via VaultKeeper')
-    const backend = BackendRegistry.create('1password')
+    const backend = BackendRegistry.create('1password', {
+      type: '1password',
+      enabled: true,
+      options: {
+        account: ctx.account ?? '',
+        vault: vaultName,
+      },
+    })
     const provider = new VaultKeyProvider({ backend, displayName: '1Password' })
 
     const publicKeyPath = path.join(project.baseDir, '.attest-it', 'test-pubkey.pem')
