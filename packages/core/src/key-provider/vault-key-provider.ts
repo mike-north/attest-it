@@ -13,7 +13,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import type { SecretBackend } from 'vaultkeeper'
 import { generateKeyPair as ed25519GenerateKeyPair } from '../crypto/ed25519.js'
-import { setKeyPermissions } from '../crypto.js'
+import { setKeyPermissions } from '../key-utils.js'
 import type {
   KeyProvider,
   KeyProviderConfig,

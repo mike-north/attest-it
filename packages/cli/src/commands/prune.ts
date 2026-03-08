@@ -3,13 +3,11 @@
  */
 
 import { Command } from 'commander'
-import * as fs from 'node:fs'
 import {
   loadSplitConfig,
   readAttestations,
-  writeSignedAttestations,
+  writeAttestations,
   computeFingerprint,
-  getDefaultPrivateKeyPath,
   type Attestation,
 } from '@attest-it/core'
 import { log, success, error, info, verbose } from '../utils/output.js'
@@ -135,21 +133,8 @@ async function runPrune(options: PruneOptions): Promise<void> {
       return
     }
 
-    // Check for private key
-    const privateKeyPath = getDefaultPrivateKeyPath()
-    if (!fs.existsSync(privateKeyPath)) {
-      error(`Private key not found: ${privateKeyPath}`)
-      error('Cannot re-sign attestations file.')
-      process.exit(ExitCode.MISSING_KEY)
-      return
-    }
-
-    // Write updated attestations
-    await writeSignedAttestations({
-      filePath: attestationsPath,
-      attestations: keep,
-      privateKeyPath,
-    })
+    // Write updated attestations (signature verification removed — seals provide integrity)
+    await writeAttestations(attestationsPath, keep, 'unsigned')
 
     success(`Pruned ${String(stale.length)} stale attestation(s)`)
     log(`Remaining: ${String(keep.length)} attestation(s)`)

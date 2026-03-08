@@ -9,7 +9,10 @@
  */
 
 import * as fs from 'node:fs/promises'
-import { generateKeyPair as cryptoGenerateKeyPair, getDefaultPrivateKeyPath } from '../crypto.js'
+import * as path from 'node:path'
+import { getDefaultPrivateKeyPath } from '../key-utils.js'
+import { setKeyPermissions } from '../key-utils.js'
+import { generateKeyPair as ed25519GenerateKeyPair } from '../crypto/ed25519.js'
 import type {
   KeyProvider,
   KeyProviderConfig,
@@ -94,33 +97,58 @@ export class FilesystemKeyProvider implements KeyProvider {
   }
 
   /**
-   * Generate a new keypair and store on filesystem.
+   * Generate a new Ed25519 keypair and store on filesystem.
    * @param options - Key generation options
    */
   async generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult> {
-    const { publicKeyPath, force = false, passphrase } = options
+    const { publicKeyPath, force = false } = options
 
-    // Build crypto options, only including passphrase if provided
-    const cryptoOptions: Parameters<typeof cryptoGenerateKeyPair>[0] = {
-      privatePath: this.privateKeyPath,
-      publicPath: publicKeyPath,
-      force,
+    // Check if keys already exist
+    const privateExists = await this.fileExists(this.privateKeyPath)
+    const publicExists = await this.fileExists(publicKeyPath)
+
+    if ((privateExists || publicExists) && !force) {
+      const existing = [
+        privateExists ? this.privateKeyPath : null,
+        publicExists ? publicKeyPath : null,
+      ].filter(Boolean)
+      throw new Error(
+        `Key files already exist: ${existing.join(', ')}. Use force: true to overwrite.`,
+      )
     }
-    if (passphrase !== undefined) {
-      cryptoOptions.passphrase = passphrase
-    }
 
-    // Delegate to existing crypto module function
-    const result = await cryptoGenerateKeyPair(cryptoOptions)
+    // Ensure parent directories exist
+    await fs.mkdir(path.dirname(this.privateKeyPath), { recursive: true })
+    await fs.mkdir(path.dirname(publicKeyPath), { recursive: true })
 
-    const encrypted = passphrase !== undefined && passphrase.length > 0
-    const encryptionStatus = encrypted ? ' (passphrase-encrypted)' : ''
+    // Generate Ed25519 keypair
+    const keyPair = ed25519GenerateKeyPair()
+
+    // Write private key
+    await fs.writeFile(this.privateKeyPath, keyPair.privateKey, 'utf-8')
+    await setKeyPermissions(this.privateKeyPath)
+
+    // Write public key
+    await fs.writeFile(publicKeyPath, keyPair.publicKey, 'utf-8')
 
     return {
-      privateKeyRef: result.privatePath,
-      publicKeyPath: result.publicPath,
-      storageDescription: `Filesystem: ${result.privatePath}${encryptionStatus}`,
-      encrypted,
+      privateKeyRef: this.privateKeyPath,
+      publicKeyPath,
+      storageDescription: `Filesystem: ${this.privateKeyPath}`,
+      encrypted: false,
+    }
+  }
+
+  /**
+   * Check if a file exists.
+   * @internal
+   */
+  private async fileExists(filePath: string): Promise<boolean> {
+    try {
+      await fs.access(filePath)
+      return true
+    } catch {
+      return false
     }
   }
 

@@ -1,0 +1,17 @@
+{
+  "name": "attest-it-wasm",
+  "description": "WebAssembly bindings for attest-it",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mike-north/attest-it"
+  },
+  "files": [
+    "attest_it_wasm_bg.wasm",
+    "attest_it_wasm.js",
+    "attest_it_wasm.d.ts"
+  ],
+  "main": "attest_it_wasm.js",
+  "types": "attest_it_wasm.d.ts"
+}

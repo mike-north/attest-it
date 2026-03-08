@@ -157,3 +157,6 @@ vite.config.ts.timestamp-*
 .claude/settings.local.json
 # Claude Code local configuration (auto-added)
 .claude/*.local.*
+
+# Rust
+target/

@@ -1,8 +1,14 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
-  "ignoreDependencies": ["@nx/js", "lint-staged", "@types/picomatch", "tsx"],
-  "ignoreBinaries": ["op", "act", "tsx"],
-  "ignore": ["**/vitest.config.*", "**/test/fixtures/**", "**/fixtures/**"],
+  "ignoreDependencies": ["@nx/js", "lint-staged", "@types/picomatch"],
+  "ignoreBinaries": ["op", "act"],
+  "ignore": [
+    "**/vitest.config.*",
+    "**/test/fixtures/**",
+    "**/fixtures/**",
+    "scratch/**",
+    "**/placeholder.ts"
+  ],
   "workspaces": {
     "packages/core": {
       "entry": ["test/**/*.test.ts", "test/**/*.ts"],
@@ -12,6 +18,9 @@
         "src/config/shared-schemas.ts",
         "src/config/index.ts"
       ]
+    },
+    "packages/attest-it-wasm": {
+      "ignore": ["wasm/**"]
     },
     "packages/cli": {
       "entry": ["test/**/*.test.ts", "test/**/*.ts"]

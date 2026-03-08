@@ -94,32 +94,15 @@ export {
   removeAttestation,
   canonicalizeAttestations,
   createAttestation,
-  writeSignedAttestations,
-  readAndVerifyAttestations,
-  SignatureInvalidError,
-} from './attestation.js'
-export type {
-  WriteSignedAttestationsOptions,
-  ReadSignedAttestationsOptions,
 } from './attestation.js'
 
-// Cryptography
+// Key utilities
 export {
-  checkOpenSSL,
   getDefaultPrivateKeyPath,
   getDefaultPublicKeyPath,
   getDefaultYubiKeyEncryptedKeyPath,
-  generateKeyPair,
-  sign,
-  verify,
   setKeyPermissions,
-} from './crypto.js'
-export type {
-  KeyPaths,
-  KeygenOptions,
-  SignOptions,
-  VerifyOptions as CryptoVerifyOptions,
-} from './crypto.js'
+} from './key-utils.js'
 
 // Ed25519 Cryptography
 export {

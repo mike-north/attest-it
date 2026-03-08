@@ -11,7 +11,7 @@ import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import * as os from 'node:os'
 import { MacOSKeychainKeyProvider } from '../../src/key-provider/macos-keychain-provider.js'
-import * as crypto from '../../src/crypto.js'
+import * as keyUtils from '../../src/key-utils.js'
 import * as ed25519 from '../../src/crypto/ed25519.js'
 
 // Mock child_process.spawn
@@ -19,9 +19,9 @@ vi.mock('node:child_process', () => ({
   spawn: vi.fn(),
 }))
 
-// Mock crypto.setKeyPermissions (generateKeyPair no longer used by keychain provider)
-vi.mock('../../src/crypto.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof crypto>()
+// Mock key-utils.setKeyPermissions
+vi.mock('../../src/key-utils.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof keyUtils>()
   return {
     ...actual,
     setKeyPermissions: vi.fn(),
@@ -264,7 +264,7 @@ describe('MacOSKeychainKeyProvider', () => {
   describe('getPrivateKey', () => {
     it('should retrieve base64 key, decode, and write to temp file', async () => {
       const mockSpawnFn = vi.mocked(spawn)
-      const mockSetKeyPermissions = vi.mocked(crypto.setKeyPermissions)
+      const mockSetKeyPermissions = vi.mocked(keyUtils.setKeyPermissions)
 
       const originalKeyContent =
         '-----BEGIN PRIVATE KEY-----\nmock-key-content\n-----END PRIVATE KEY-----'
@@ -583,7 +583,7 @@ describe('MacOSKeychainKeyProvider', () => {
   describe('edge cases', () => {
     it('should handle base64 decoding of complex key content', async () => {
       const mockSpawnFn = vi.mocked(spawn)
-      const mockSetKeyPermissions = vi.mocked(crypto.setKeyPermissions)
+      const mockSetKeyPermissions = vi.mocked(keyUtils.setKeyPermissions)
 
       const complexKeyContent =
         '-----BEGIN PRIVATE KEY-----\n' +
@@ -631,7 +631,7 @@ describe('MacOSKeychainKeyProvider', () => {
 
     it('should handle empty base64 string from keychain', async () => {
       const mockSpawnFn = vi.mocked(spawn)
-      const mockSetKeyPermissions = vi.mocked(crypto.setKeyPermissions)
+      const mockSetKeyPermissions = vi.mocked(keyUtils.setKeyPermissions)
 
       let callCount = 0
       mockSpawnFn.mockImplementation(() => {
@@ -667,7 +667,7 @@ describe('MacOSKeychainKeyProvider', () => {
       // 3. Proper cleanup after use
 
       const mockSpawnFn = vi.mocked(spawn)
-      const mockSetKeyPermissions = vi.mocked(crypto.setKeyPermissions)
+      const mockSetKeyPermissions = vi.mocked(keyUtils.setKeyPermissions)
 
       const mockPrivateKeyContent =
         '-----BEGIN PRIVATE KEY-----\nmock-key-content\n-----END PRIVATE KEY-----'

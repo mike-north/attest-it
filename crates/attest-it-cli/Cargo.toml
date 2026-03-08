@@ -1,0 +1,19 @@
+[package]
+name = "attest-it-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Native CLI for attest-it"
+
+[[bin]]
+name = "attest-it"
+path = "src/main.rs"
+
+[dependencies]
+attest-it-core = { workspace = true }
+clap = { workspace = true }
+tokio = { workspace = true }
+serde_json = { workspace = true }
+globset = { workspace = true }
+walkdir = { workspace = true }

@@ -52,9 +52,6 @@ export interface AttestItSettings {
 export function canonicalizeAttestations(attestations: Attestation[]): string;
 
 // @public
-export function checkOpenSSL(): Promise<string>;
-
-// @public
 export function checkVersionCompatibility(minVersion: string): void;
 
 // @public
@@ -115,13 +112,6 @@ export class CrossConfigValidationError extends Error {
         message: string;
         type: string;
     }[];
-}
-
-// @public
-export interface CryptoVerifyOptions {
-    data: Buffer | string;
-    publicKeyPath: string;
-    signature: string;
 }
 
 // @public
@@ -197,9 +187,6 @@ export interface GateConfig {
 export function generateEd25519KeyPair(): Ed25519KeyPair;
 
 // @public
-export function generateKeyPair(options?: KeygenOptions): Promise<KeyPaths>;
-
-// @public
 export function getActiveIdentity(config: LocalConfig): Identity | undefined;
 
 // @public
@@ -269,24 +256,10 @@ export interface KeyGenerationResult {
 }
 
 // @public
-export interface KeygenOptions {
-    force?: boolean;
-    passphrase?: string;
-    privatePath?: string;
-    publicPath?: string;
-}
-
-// @public
 export interface KeygenProviderOptions {
     force?: boolean;
     passphrase?: string;
     publicKeyPath: string;
-}
-
-// @public
-export interface KeyPaths {
-    privatePath: string;
-    publicPath: string;
 }
 
 // @public
@@ -842,9 +815,6 @@ export type PrivateKeyRef = {
 };
 
 // @public
-export function readAndVerifyAttestations(options: ReadSignedAttestationsOptions): Promise<AttestationsFile>;
-
-// @public
 export function readAttestations(filePath: string): Promise<AttestationsFile | null>;
 
 // @public
@@ -855,12 +825,6 @@ export function readSeals(dir: string, sealsPathOverride?: string): Promise<Seal
 
 // @public
 export function readSealsSync(dir: string, sealsPathOverride?: string): SealsFile;
-
-// @public
-export interface ReadSignedAttestationsOptions {
-    filePath: string;
-    publicKeyPath: string;
-}
 
 // @public
 export function removeAttestation(attestations: Attestation[], suite: string): Attestation[];
@@ -921,14 +885,6 @@ export function setKeyPermissions(keyPath: string): Promise<void>;
 export function setPreference<K extends keyof UserPreferences>(key: K, value: UserPreferences[K]): Promise<void>;
 
 // @public
-export function sign(options: SignOptions): Promise<string>;
-
-// @public
-export class SignatureInvalidError extends Error {
-    constructor(filePath: string);
-}
-
-// @public
 export interface SignatureVerificationResult {
     error?: string;
     valid: boolean;
@@ -936,15 +892,6 @@ export interface SignatureVerificationResult {
 
 // @public
 export function signEd25519(data: Buffer | string, privateKeyPem: string): string;
-
-// @public
-export interface SignOptions {
-    data: Buffer | string;
-    keyProvider?: KeyProvider;
-    keyRef?: string;
-    passphrase?: string;
-    privateKeyPath?: string;
-}
 
 // @public
 export class SplitConfigNotFoundError extends Error {
@@ -1037,9 +984,6 @@ export type VerificationState = 'FINGERPRINT_MISMATCH' | 'INVALID_SIGNATURE' | '
 export type VerificationStatus = 'EXPIRED' | 'FINGERPRINT_CHANGED' | 'INVALIDATED_BY_PARENT' | 'NEEDS_ATTESTATION' | 'SIGNATURE_INVALID' | 'VALID';
 
 // @public
-export function verify(options: CryptoVerifyOptions): Promise<boolean>;
-
-// @public
 export function verifyAllSeals(config: AttestItConfig, seals: SealsFile, fingerprints: Record<string, string>): SealVerificationResult[];
 
 // @public
@@ -1089,18 +1033,6 @@ export function writeSeals(dir: string, sealsFile: SealsFile, sealsPathOverride?
 
 // @public
 export function writeSealsSync(dir: string, sealsFile: SealsFile, sealsPathOverride?: string): void;
-
-// @public
-export function writeSignedAttestations(options: WriteSignedAttestationsOptions): Promise<void>;
-
-// @public
-export interface WriteSignedAttestationsOptions {
-    attestations: Attestation[];
-    filePath: string;
-    keyProvider?: KeyProvider;
-    keyRef?: string;
-    privateKeyPath?: string;
-}
 
 // @public
 export interface YubiKeyInfo {

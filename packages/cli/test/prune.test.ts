@@ -2,11 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { runPrune } from '../src/commands/prune.js'
 import type { Config, AttestationsFile, Attestation } from '@attest-it/core'
 
-// Mock fs
-vi.mock('node:fs', () => ({
-  existsSync: vi.fn(),
-}))
-
 // Mock core functions
 vi.mock('@attest-it/core', async () => {
   const actual = await vi.importActual<typeof import('@attest-it/core')>('@attest-it/core')
@@ -15,9 +10,8 @@ vi.mock('@attest-it/core', async () => {
     loadConfig: vi.fn(),
     loadSplitConfig: vi.fn(),
     readAttestations: vi.fn(),
-    writeSignedAttestations: vi.fn(),
+    writeAttestations: vi.fn(),
     computeFingerprint: vi.fn(),
-    getDefaultPrivateKeyPath: vi.fn(),
   }
 })
 
@@ -38,15 +32,8 @@ const mockProcessExit = vi
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   .mockImplementation(() => {})
 
-const { existsSync } = await import('node:fs')
-const {
-  loadConfig,
-  loadSplitConfig,
-  readAttestations,
-  writeSignedAttestations,
-  computeFingerprint,
-  getDefaultPrivateKeyPath,
-} = await import('@attest-it/core')
+const { loadConfig, loadSplitConfig, readAttestations, writeAttestations, computeFingerprint } =
+  await import('@attest-it/core')
 
 describe('runPrune', () => {
   beforeEach(() => {
@@ -126,16 +113,14 @@ describe('runPrune', () => {
         files: [],
         fileCount: 10,
       })
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
 
       await runPrune({ keepDays: '30', dryRun: false })
 
-      expect(writeSignedAttestations).toHaveBeenCalledWith({
-        filePath: '.attest-it/attestations.json',
-        attestations: [], // All attestations should be pruned
-        privateKeyPath: '/home/user/.attest-it/private.pem',
-      })
+      expect(writeAttestations).toHaveBeenCalledWith(
+        '.attest-it/attestations.json',
+        [], // All attestations should be pruned
+        'unsigned',
+      )
       expect(mockProcessExit).toHaveBeenCalledWith(0)
     })
 
@@ -153,12 +138,10 @@ describe('runPrune', () => {
         files: [],
         fileCount: 10,
       })
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
 
       await runPrune({ keepDays: '30', dryRun: false })
 
-      expect(writeSignedAttestations).not.toHaveBeenCalled()
+      expect(writeAttestations).not.toHaveBeenCalled()
       expect(mockProcessExit).toHaveBeenCalledWith(0)
     })
 
@@ -176,12 +159,10 @@ describe('runPrune', () => {
         files: [],
         fileCount: 10,
       })
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
 
       await runPrune({ keepDays: '30', dryRun: false })
 
-      expect(writeSignedAttestations).not.toHaveBeenCalled()
+      expect(writeAttestations).not.toHaveBeenCalled()
       expect(mockProcessExit).toHaveBeenCalledWith(0)
     })
   })
@@ -201,12 +182,10 @@ describe('runPrune', () => {
         files: [],
         fileCount: 10,
       })
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
 
       await runPrune({ keepDays: '30', dryRun: true })
 
-      expect(writeSignedAttestations).not.toHaveBeenCalled()
+      expect(writeAttestations).not.toHaveBeenCalled()
       expect(mockProcessExit).toHaveBeenCalledWith(0)
     })
 
@@ -227,29 +206,6 @@ describe('runPrune', () => {
 
       expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
     })
-
-    it('should handle missing private key', async () => {
-      const config = createMockConfig()
-      const staleAttestation = createMockAttestation({
-        attestedAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
-      })
-      const file = createMockAttestationsFile([staleAttestation])
-
-      vi.mocked(loadSplitConfig).mockResolvedValue(config)
-      vi.mocked(readAttestations).mockResolvedValue(file)
-      vi.mocked(computeFingerprint).mockResolvedValue({
-        fingerprint: 'sha256:different',
-        files: [],
-        fileCount: 10,
-      })
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(false)
-
-      await runPrune({ keepDays: '30', dryRun: false })
-
-      expect(writeSignedAttestations).not.toHaveBeenCalled()
-      expect(mockProcessExit).toHaveBeenCalledWith(5) // MISSING_KEY
-    })
   })
 
   describe('edge cases', () => {
@@ -259,12 +215,10 @@ describe('runPrune', () => {
 
       vi.mocked(loadSplitConfig).mockResolvedValue(config)
       vi.mocked(readAttestations).mockResolvedValue(file)
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
 
       await runPrune({ keepDays: '30', dryRun: false })
 
-      expect(writeSignedAttestations).not.toHaveBeenCalled()
+      expect(writeAttestations).not.toHaveBeenCalled()
       expect(mockProcessExit).toHaveBeenCalledWith(0)
     })
 
@@ -273,12 +227,10 @@ describe('runPrune', () => {
 
       vi.mocked(loadSplitConfig).mockResolvedValue(config)
       vi.mocked(readAttestations).mockResolvedValue(null)
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
 
       await runPrune({ keepDays: '30', dryRun: false })
 
-      expect(writeSignedAttestations).not.toHaveBeenCalled()
+      expect(writeAttestations).not.toHaveBeenCalled()
       expect(mockProcessExit).toHaveBeenCalledWith(0)
     })
 
@@ -297,16 +249,14 @@ describe('runPrune', () => {
 
       vi.mocked(loadSplitConfig).mockResolvedValue(config)
       vi.mocked(readAttestations).mockResolvedValue(file)
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
 
       await runPrune({ keepDays: '30', dryRun: false })
 
-      expect(writeSignedAttestations).toHaveBeenCalledWith({
-        filePath: '.attest-it/attestations.json',
-        attestations: [], // Orphaned attestation should be pruned
-        privateKeyPath: '/home/user/.attest-it/private.pem',
-      })
+      expect(writeAttestations).toHaveBeenCalledWith(
+        '.attest-it/attestations.json',
+        [], // Orphaned attestation should be pruned
+        'unsigned',
+      )
       expect(mockProcessExit).toHaveBeenCalledWith(0)
     })
 
@@ -324,18 +274,16 @@ describe('runPrune', () => {
         files: [],
         fileCount: 10,
       })
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
 
       // With keepDays=60, the 50-day-old attestation should NOT be pruned
       await runPrune({ keepDays: '60', dryRun: false })
 
       // Should keep the attestation because it's within 60 days
-      expect(writeSignedAttestations).not.toHaveBeenCalled()
+      expect(writeAttestations).not.toHaveBeenCalled()
       expect(mockProcessExit).toHaveBeenCalledWith(0)
     })
 
-    it('should re-sign attestation file after pruning', async () => {
+    it('should write updated attestation file after pruning', async () => {
       const config = createMockConfig({
         suites: {
           'stale-suite': {
@@ -382,16 +330,14 @@ describe('runPrune', () => {
           fileCount: 10,
         })
       })
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
 
       await runPrune({ keepDays: '30', dryRun: false })
 
-      expect(writeSignedAttestations).toHaveBeenCalledWith({
-        filePath: '.attest-it/attestations.json',
-        attestations: [validAttestation],
-        privateKeyPath: '/home/user/.attest-it/private.pem',
-      })
+      expect(writeAttestations).toHaveBeenCalledWith(
+        '.attest-it/attestations.json',
+        [validAttestation],
+        'unsigned',
+      )
       expect(mockProcessExit).toHaveBeenCalledWith(0)
     })
 

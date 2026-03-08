@@ -1,0 +1,49 @@
+[workspace]
+members = ["crates/*"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/mike-north/attest-it"
+
+[workspace.dependencies]
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+
+# Error handling
+thiserror = "2"
+
+# Async
+async-trait = "0.1"
+tokio = { version = "1", features = ["full"] }
+
+# Crypto (RustCrypto ecosystem — all wasm32-compatible)
+sha2 = "0.10"
+ed25519-dalek = { version = "2", features = ["alloc", "pkcs8"] }
+base64ct = { version = "1", features = ["alloc"] }
+
+# WASM
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+console_error_panic_hook = "0.1"
+
+# CLI
+clap = { version = "4", features = ["derive"] }
+
+# File operations
+globset = "0.4"
+walkdir = "2"
+
+# Versioning
+semver = "1"
+
+# Internal
+attest-it-core = { path = "crates/attest-it-core", version = "0.1.0" }
+
+# Testing
+assert_matches = "1"

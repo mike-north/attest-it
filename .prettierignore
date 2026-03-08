@@ -11,5 +11,8 @@ tmp/**/*
 **/build/**/*
 pnpm-lock.yaml
 
+# Reference implementation (not part of main project)
+scratch/**/*
+
 # Intentionally malformed files for testing
 packages/cli/test/docker/fixtures/corrupted-config/config.yaml

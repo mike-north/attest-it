@@ -8,14 +8,11 @@ import * as path from 'node:path'
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { verifyAttestations } from '../src/verify.js'
 import type { AttestItConfig, Attestation } from '../src/types.js'
-import { writeSignedAttestations, createAttestation } from '../src/attestation.js'
+import { writeAttestations, createAttestation } from '../src/attestation.js'
 import { computeFingerprint } from '../src/fingerprint.js'
 
 // Fixtures
 const FIXTURES_DIR = path.join(__dirname, 'fixtures')
-const TEST_KEYS_DIR = path.join(FIXTURES_DIR, 'test-keys')
-const PRIVATE_KEY = path.join(TEST_KEYS_DIR, 'test-private.pem')
-const PUBLIC_KEY = path.join(TEST_KEYS_DIR, 'test-public.pem')
 const FINGERPRINT_PROJECT = path.join(FIXTURES_DIR, 'fingerprint-test-project')
 
 // Temporary test directory
@@ -60,22 +57,14 @@ function createTestConfig(overrides?: Partial<AttestItConfig>): AttestItConfig {
 async function setupTestEnvironment(options: {
   config: AttestItConfig
   attestations: Attestation[]
-  privateKeyPath?: string
 }): Promise<void> {
-  const { config, attestations, privateKeyPath = PRIVATE_KEY } = options
+  const { config, attestations } = options
 
   // Create test directory
   await fs.promises.mkdir(TEST_DIR, { recursive: true })
 
-  // Copy public key
-  await fs.promises.copyFile(PUBLIC_KEY, config.settings.publicKeyPath)
-
-  // Write signed attestations
-  await writeSignedAttestations({
-    filePath: config.settings.attestationsPath,
-    attestations,
-    privateKeyPath,
-  })
+  // Write attestations (signature verification removed — seals provide integrity)
+  await writeAttestations(config.settings.attestationsPath, attestations, 'unsigned')
 }
 
 /**
@@ -420,60 +409,6 @@ describe('verifyAttestations', () => {
       expect(result.suites[0]?.age).toBeGreaterThanOrEqual(9)
     })
 
-    it('should return SIGNATURE_INVALID when signature tampered', async () => {
-      const config = createTestConfig({
-        gates: {
-          'test-gate': {
-            name: 'Test Gate',
-            description: 'Test gate',
-            authorizedSigners: ['testuser'],
-            fingerprint: {
-              paths: [FINGERPRINT_PROJECT],
-            },
-            maxAge: '30d',
-          },
-        },
-        suites: {
-          unit: {
-            gate: 'test-gate',
-          },
-        },
-      })
-
-      const fingerprint = await computeFingerprint({
-        packages: [FINGERPRINT_PROJECT],
-        baseDir: TEST_DIR,
-      })
-
-      const attestation = createAttestation({
-        suite: 'unit',
-        fingerprint: fingerprint.fingerprint,
-        command: 'npm test',
-      })
-
-      await setupTestEnvironment({ config, attestations: [attestation] })
-
-      // Tamper with the attestations file
-      // Read as string, modify, and write back
-      const attestationsContent = await fs.promises.readFile(
-        config.settings.attestationsPath,
-        'utf-8',
-      )
-      // Simple string replacement to tamper with the command
-      const tampered = attestationsContent.replace('"npm test"', '"malicious command"')
-      await fs.promises.writeFile(config.settings.attestationsPath, tampered)
-
-      const result = await verifyAttestations({
-        config,
-        repoRoot: TEST_DIR,
-      })
-
-      expect(result.success).toBe(false)
-      expect(result.signatureValid).toBe(false)
-      expect(result.errors.length).toBeGreaterThan(0)
-      expect(result.errors[0]).toContain('Signature verification failed')
-    })
-
     it('should return INVALIDATED_BY_PARENT for invalidation chains', async () => {
       const config = createTestConfig({
         gates: {
@@ -544,59 +479,6 @@ describe('verifyAttestations', () => {
   })
 
   describe('edge cases', () => {
-    it('should handle missing public key file', async () => {
-      const config = createTestConfig({
-        settings: {
-          maxAgeDays: 30,
-          publicKeyPath: path.join(TEST_DIR, 'nonexistent-public.pem'),
-          attestationsPath: path.join(TEST_DIR, 'attestations.json'),
-          sealsPath: path.join(TEST_DIR, 'seals.json'),
-        },
-        gates: {
-          'test-gate': {
-            name: 'Test Gate',
-            description: 'Test gate',
-            authorizedSigners: ['testuser'],
-            fingerprint: {
-              paths: [FINGERPRINT_PROJECT],
-            },
-            maxAge: '30d',
-          },
-        },
-        suites: {
-          unit: {
-            gate: 'test-gate',
-          },
-        },
-      })
-
-      // Create attestations file but no public key
-      await fs.promises.mkdir(TEST_DIR, { recursive: true })
-      const fingerprint = await computeFingerprint({
-        packages: [FINGERPRINT_PROJECT],
-        baseDir: TEST_DIR,
-      })
-      const attestation = createAttestation({
-        suite: 'unit',
-        fingerprint: fingerprint.fingerprint,
-        command: 'npm test',
-      })
-      await writeSignedAttestations({
-        filePath: config.settings.attestationsPath,
-        attestations: [attestation],
-        privateKeyPath: PRIVATE_KEY,
-      })
-
-      const result = await verifyAttestations({
-        config,
-        repoRoot: TEST_DIR,
-      })
-
-      expect(result.success).toBe(false)
-      expect(result.signatureValid).toBe(false)
-      expect(result.errors.some((e) => e.includes('Public key not found'))).toBe(true)
-    })
-
     it('should handle missing attestations file (fresh repo)', async () => {
       const config = createTestConfig({
         gates: {

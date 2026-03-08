@@ -3,7 +3,7 @@ import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import * as os from 'node:os'
 import { FilesystemKeyProvider } from '../../src/key-provider/filesystem-provider.js'
-import { getDefaultPrivateKeyPath } from '../../src/crypto.js'
+import { getDefaultPrivateKeyPath } from '../../src/key-utils.js'
 
 describe('FilesystemKeyProvider', () => {
   let tmpDir: string
@@ -175,91 +175,56 @@ describe('FilesystemKeyProvider', () => {
     })
   })
 
-  describe('generateKeyPair with passphrase', () => {
-    it('should generate encrypted keypair and return encrypted flag', async () => {
-      const privatePath = path.join(tmpDir, 'encrypted-private.pem')
-      const publicKeyPath = path.join(tmpDir, 'encrypted-public.pem')
-      const passphrase = 'test-passphrase-12345'
+  describe('generateKeyPair produces Ed25519 keys', () => {
+    it('should generate Ed25519 keypair with PEM private key', async () => {
+      const privatePath = path.join(tmpDir, 'ed25519-private.pem')
+      const publicKeyPath = path.join(tmpDir, 'ed25519-public.pem')
 
       const customProvider = new FilesystemKeyProvider({ privateKeyPath: privatePath })
 
       const result = await customProvider.generateKeyPair({
         publicKeyPath,
-        passphrase,
       })
 
       expect(result.privateKeyRef).toBe(privatePath)
       expect(result.publicKeyPath).toBe(publicKeyPath)
-      expect(result.encrypted).toBe(true)
-      expect(result.storageDescription).toContain('passphrase-encrypted')
-
-      // Verify private key is encrypted
-      const privateContent = await fs.readFile(privatePath, 'utf8')
-      expect(privateContent).toMatch(/ENCRYPTED/)
-    })
-
-    it('should return encrypted=false when no passphrase provided', async () => {
-      const privatePath = path.join(tmpDir, 'unencrypted-private.pem')
-      const publicKeyPath = path.join(tmpDir, 'unencrypted-public.pem')
-
-      const customProvider = new FilesystemKeyProvider({ privateKeyPath: privatePath })
-
-      const result = await customProvider.generateKeyPair({
-        publicKeyPath,
-      })
-
       expect(result.encrypted).toBe(false)
-      expect(result.storageDescription).not.toContain('passphrase-encrypted')
 
-      // Verify private key is not encrypted
+      // Verify private key is PEM-encoded Ed25519
       const privateContent = await fs.readFile(privatePath, 'utf8')
-      expect(privateContent).not.toMatch(/ENCRYPTED/)
-    })
+      expect(privateContent).toContain('BEGIN PRIVATE KEY')
 
-    it('should return encrypted=false for empty passphrase', async () => {
-      const privatePath = path.join(tmpDir, 'empty-pass-private.pem')
-      const publicKeyPath = path.join(tmpDir, 'empty-pass-public.pem')
-
-      const customProvider = new FilesystemKeyProvider({ privateKeyPath: privatePath })
-
-      const result = await customProvider.generateKeyPair({
-        publicKeyPath,
-        passphrase: '',
-      })
-
-      expect(result.encrypted).toBe(false)
+      // Verify public key is base64-encoded
+      const publicContent = await fs.readFile(publicKeyPath, 'utf8')
+      expect(publicContent.trim().length).toBeGreaterThan(0)
     })
   })
 
   describe('integration: sign with FilesystemKeyProvider', () => {
-    it('should successfully sign data using provider', async () => {
+    it('should successfully sign data using Ed25519 keys from provider', async () => {
       const privatePath = path.join(tmpDir, 'sign-private.pem')
       const publicKeyPath = path.join(tmpDir, 'sign-public.pem')
 
-      // Import crypto functions
-      const { sign, verify } = await import('../../src/crypto.js')
+      // Import Ed25519 crypto functions
+      const { sign, verify } = await import('../../src/crypto/ed25519.js')
 
       // Create provider and generate keys
       const signingProvider = new FilesystemKeyProvider({ privateKeyPath: privatePath })
       await signingProvider.generateKeyPair({ publicKeyPath })
 
-      // Sign data using provider
+      // Read the generated keys
+      const privateKeyPem = await fs.readFile(privatePath, 'utf-8')
+      const publicKeyBase64 = await fs.readFile(publicKeyPath, 'utf-8')
+
+      // Sign data using Ed25519
       const testData = 'test data for signing'
-      const signature = await sign({
-        keyProvider: signingProvider,
-        keyRef: privatePath,
-        data: testData,
-      })
+      const signature = sign(testData, privateKeyPem)
 
       expect(signature).toBeTruthy()
       expect(typeof signature).toBe('string')
 
-      // Verify signature
-      const isValid = await verify({
-        publicKeyPath,
-        data: testData,
-        signature,
-      })
+      // Verify signature using Ed25519
+      const isValid = verify(testData, signature, publicKeyBase64)
 
       expect(isValid).toBe(true)
     })

@@ -6,13 +6,13 @@
  * This script uses the actual @attest-it/core library to ensure
  * the attestation format and signatures are correct.
  */
-import { writeFileSync, mkdirSync, copyFileSync, readFileSync } from 'fs'
+import { writeFileSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
 import {
   computeFingerprint,
   createAttestation,
-  writeSignedAttestations,
+  writeAttestations,
   createSeal,
   writeSealsSync,
   generateEd25519KeyPair,
@@ -21,7 +21,6 @@ import {
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 // Paths
-const coreTestKeys = join(__dirname, '../../../core/test/fixtures/test-keys')
 const validFixture = join(__dirname, 'valid-attestation')
 const missingFixture = join(__dirname, 'missing-attestation')
 const splitConfigFixture = join(__dirname, 'split-config-valid')
@@ -31,24 +30,10 @@ const ed25519KeyPair = generateEd25519KeyPair()
 console.log('Generated Ed25519 keypair')
 console.log('Public key (base64):', ed25519KeyPair.publicKey)
 
-// Read RSA public key for attestations (legacy system)
-const rsaPubKeyPem = readFileSync(join(coreTestKeys, 'test-rsa-public.pem'), 'utf8')
-// Extract the base64 content (remove header/footer and newlines)
-const rsaPubKeyBase64 = rsaPubKeyPem
-  .replace(/-----BEGIN PUBLIC KEY-----/, '')
-  .replace(/-----END PUBLIC KEY-----/, '')
-  .replace(/\n/g, '')
-  .trim()
-
 // Create directories
 for (const fixture of [validFixture, missingFixture, splitConfigFixture]) {
   mkdirSync(join(fixture, '.attest-it'), { recursive: true })
   mkdirSync(join(fixture, 'src'), { recursive: true })
-}
-
-// Copy RSA test keys to fixtures (used for attestations.json legacy system)
-for (const fixture of [validFixture, missingFixture, splitConfigFixture]) {
-  copyFileSync(join(coreTestKeys, 'test-rsa-public.pem'), join(fixture, '.attest-it', 'pubkey.pem'))
 }
 
 // Create a simple source file to fingerprint
@@ -124,18 +109,11 @@ const attestation = createAttestation({
 
 console.log('Created attestation:', JSON.stringify(attestation, null, 2))
 
-// Write signed attestations using the core library for valid fixtures
-// Note: attestations still use RSA keys
-const rsaPrivateKeyPath = join(coreTestKeys, 'test-rsa-private.pem')
-
+// Write attestations for valid fixtures (signature verification removed — seals provide integrity)
 for (const fixture of [validFixture, splitConfigFixture]) {
   const attestationsPath = join(fixture, '.attest-it', 'attestations.json')
-  await writeSignedAttestations({
-    attestations: [attestation],
-    privateKeyPath: rsaPrivateKeyPath,
-    filePath: attestationsPath,
-  })
-  console.log('Wrote signed attestations to:', attestationsPath)
+  await writeAttestations(attestationsPath, [attestation], 'unsigned')
+  console.log('Wrote attestations to:', attestationsPath)
 }
 
 // For missing-attestation fixture, don't create attestations.json

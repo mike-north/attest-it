@@ -1,0 +1,26 @@
+{
+  "name": "@attest-it/test-helpers",
+  "description": "Shared test utilities for attest-it",
+  "version": "0.1.0",
+  "author": "Mike North <michael.l.north@gmail.com>",
+  "devDependencies": {
+    "typescript": "5.8.3"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "clean": "node -e \"import('node:fs').then(fs=>fs.rmSync('dist',{recursive:true,force:true}))\""
+  },
+  "type": "module"
+}

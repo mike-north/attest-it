@@ -100,6 +100,19 @@ importers:
         specifier: 5.8.3
         version: 5.8.3
 
+  packages/attest-it-wasm:
+    dependencies:
+      tinyglobby:
+        specifier: ^0.2.0
+        version: 0.2.15
+    devDependencies:
+      '@types/node':
+        specifier: ~22.19.3
+        version: 22.19.3
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
+
   packages/cli:
     dependencies:
       '@attest-it/core':
@@ -160,6 +173,12 @@ importers:
       vitest:
         specifier: ^3.0.0
         version: 3.2.4(@types/node@22.19.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/cli-tests:
+    devDependencies:
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
 
   packages/core:
     dependencies:
@@ -246,6 +265,12 @@ importers:
       vitest:
         specifier: ^3.0.0
         version: 3.2.4(@types/node@22.19.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2)
+
+  packages/test-helpers:
+    devDependencies:
+      typescript:
+        specifier: 5.8.3
+        version: 5.8.3
 
 packages:
 

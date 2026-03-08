@@ -1,0 +1,25 @@
+[package]
+name = "attest-it-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Platform-agnostic core library for attest-it"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+sha2 = { workspace = true }
+ed25519-dalek = { workspace = true }
+base64ct = { workspace = true }
+semver = { workspace = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+js-sys = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+assert_matches = { workspace = true }

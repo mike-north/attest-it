@@ -13,7 +13,7 @@ import * as fs from 'node:fs/promises'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { spawn } from 'node:child_process'
-import { setKeyPermissions } from '../crypto.js'
+import { setKeyPermissions } from '../key-utils.js'
 import { generateKeyPair as ed25519GenerateKeyPair } from '../crypto/ed25519.js'
 import type {
   KeyProvider,

@@ -25,7 +25,7 @@ import * as crypto from 'node:crypto'
 import { spawn } from 'node:child_process'
 import { z } from 'zod'
 import { generateKeyPair as ed25519GenerateKeyPair } from '../crypto/ed25519.js'
-import { setKeyPermissions } from '../crypto.js'
+import { setKeyPermissions } from '../key-utils.js'
 import { getIdentityConfigDir } from '../identity/config.js'
 import type {
   KeyProvider,

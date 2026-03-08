@@ -1,0 +1,6 @@
+[build]
+# Default target is the host platform; WASM is built explicitly via wasm-pack.
+
+[target.wasm32-unknown-unknown]
+# wasm-pack handles the runner; this ensures cargo clippy/check work for this target.
+rustflags = ["-C", "target-feature=+simd128"]

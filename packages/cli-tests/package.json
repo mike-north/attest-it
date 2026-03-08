@@ -1,0 +1,16 @@
+{
+  "name": "@attest-it/cli-tests",
+  "description": "CLI user acceptance tests and conformance runner for attest-it",
+  "version": "0.1.0",
+  "author": "Mike North <michael.l.north@gmail.com>",
+  "devDependencies": {
+    "typescript": "5.8.3"
+  },
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "build": "tsc",
+    "clean": "node -e \"import('node:fs').then(fs=>fs.rmSync('dist',{recursive:true,force:true}))\""
+  },
+  "type": "module"
+}

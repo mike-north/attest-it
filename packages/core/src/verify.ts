@@ -13,7 +13,7 @@ import type {
   SuiteVerificationResult,
 } from './types.js'
 import { computeFingerprint } from './fingerprint.js'
-import { readAndVerifyAttestations, SignatureInvalidError } from './attestation.js'
+import { readAttestations } from './attestation.js'
 
 /**
  * Options for verifying attestations.
@@ -62,32 +62,21 @@ export async function verifyAttestations(options: VerifyOptions): Promise<Verify
   const { config, repoRoot = process.cwd() } = options
   const errors: string[] = []
   const suiteResults: SuiteVerificationResult[] = []
-  let signatureValid = true
+  const signatureValid = true
   let attestationsFile: AttestationsFile | null = null
 
   // Resolve paths
   const attestationsPath = resolvePath(config.settings.attestationsPath, repoRoot)
-  const publicKeyPath = resolvePath(config.settings.publicKeyPath, repoRoot)
 
-  // Step 1: Load and verify attestations
+  // Step 1: Load attestations (signature verification removed — seals provide integrity)
   try {
     if (!fs.existsSync(attestationsPath)) {
-      // No attestations file - all suites need attestation
       attestationsFile = null
-    } else if (!fs.existsSync(publicKeyPath)) {
-      errors.push(`Public key not found: ${publicKeyPath}`)
-      signatureValid = false
     } else {
-      attestationsFile = await readAndVerifyAttestations({
-        filePath: attestationsPath,
-        publicKeyPath,
-      })
+      attestationsFile = await readAttestations(attestationsPath)
     }
   } catch (err) {
-    if (err instanceof SignatureInvalidError) {
-      signatureValid = false
-      errors.push(err.message)
-    } else if (err instanceof Error) {
+    if (err instanceof Error) {
       errors.push(err.message)
     }
   }
@@ -111,8 +100,7 @@ export async function verifyAttestations(options: VerifyOptions): Promise<Verify
   checkInvalidationChains(config, suiteResults)
 
   // Step 4: Aggregate results
-  const allValid =
-    signatureValid && suiteResults.every((r) => r.status === 'VALID') && errors.length === 0
+  const allValid = suiteResults.every((r) => r.status === 'VALID') && errors.length === 0
 
   return {
     success: allValid,

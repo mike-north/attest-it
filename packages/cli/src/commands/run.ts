@@ -11,11 +11,9 @@ import {
   computeFingerprint,
   computeFingerprintSync,
   readAttestations,
-  writeSignedAttestations,
+  writeAttestations,
   upsertAttestation,
   createAttestation,
-  getDefaultPrivateKeyPath,
-  FilesystemKeyProvider,
   KeyProviderRegistry,
   loadLocalConfigSync,
   getActiveIdentity,
@@ -24,7 +22,6 @@ import {
   readSealsSync,
   writeSealsSync,
   type AttestItConfig,
-  type KeyProvider,
   type Identity,
 } from '@attest-it/core'
 import { log, success, error, warn, verbose } from '../utils/output.js'
@@ -432,46 +429,8 @@ async function runSingleSuite(
   // Upsert the new attestation
   const newAttestations = upsertAttestation(existingAttestations, attestation)
 
-  // Set up key provider from config or use default
-  let keyProvider: KeyProvider
-  let keyRef: string
-
-  if (config.settings.keyProvider) {
-    keyProvider = KeyProviderRegistry.create({
-      type: config.settings.keyProvider.type,
-      options: config.settings.keyProvider.options ?? {},
-    })
-    if (config.settings.keyProvider.type === 'filesystem') {
-      keyRef = config.settings.keyProvider.options?.privateKeyPath ?? getDefaultPrivateKeyPath()
-    } else if (config.settings.keyProvider.type === '1password') {
-      keyRef = config.settings.keyProvider.options?.itemName ?? 'attest-it-private-key'
-    } else {
-      throw new Error(`Unsupported key provider type: ${config.settings.keyProvider.type}`)
-    }
-  } else {
-    // Default to filesystem provider with default path
-    keyProvider = new FilesystemKeyProvider()
-    keyRef = getDefaultPrivateKeyPath()
-  }
-
-  // Check if key exists
-  if (!(await keyProvider.keyExists(keyRef))) {
-    error(`Private key not found in ${keyProvider.displayName}`)
-    if (keyProvider.type === 'filesystem') {
-      error('Run "attest-it identity create" first to generate a keypair.')
-    } else {
-      error('Run "attest-it identity create" to generate and store a key.')
-    }
-    process.exit(ExitCode.MISSING_KEY)
-  }
-
-  // Write signed attestations
-  await writeSignedAttestations({
-    filePath: attestationsPath,
-    attestations: newAttestations,
-    keyProvider,
-    keyRef,
-  })
+  // Write attestations (signature verification removed — seals provide integrity)
+  await writeAttestations(attestationsPath, newAttestations, 'unsigned')
 
   success(`Attestation created for ${suiteName}`)
   log(`  Fingerprint: ${fingerprintResult.fingerprint}`)

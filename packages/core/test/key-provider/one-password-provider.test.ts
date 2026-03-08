@@ -11,7 +11,7 @@ import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import * as os from 'node:os'
 import { OnePasswordKeyProvider } from '../../src/key-provider/one-password-provider.js'
-import * as crypto from '../../src/crypto.js'
+import * as keyUtils from '../../src/key-utils.js'
 import * as ed25519 from '../../src/crypto/ed25519.js'
 
 // Mock child_process.spawn
@@ -19,9 +19,9 @@ vi.mock('node:child_process', () => ({
   spawn: vi.fn(),
 }))
 
-// Mock crypto.setKeyPermissions
-vi.mock('../../src/crypto.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof crypto>()
+// Mock key-utils.setKeyPermissions
+vi.mock('../../src/key-utils.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof keyUtils>()
   return {
     ...actual,
     setKeyPermissions: vi.fn(),
@@ -249,7 +249,7 @@ describe('OnePasswordKeyProvider', () => {
       const mockSpawnFn = vi.mocked(spawn)
       mockSpawnFn.mockReturnValue(mockSpawnSuccess(''))
 
-      const mockSetKeyPermissions = vi.mocked(crypto.setKeyPermissions)
+      const mockSetKeyPermissions = vi.mocked(keyUtils.setKeyPermissions)
       mockSetKeyPermissions.mockResolvedValue()
 
       const provider = new OnePasswordKeyProvider({
@@ -800,7 +800,7 @@ describe('OnePasswordKeyProvider', () => {
       // which runs in environments with OpenSSL available.
 
       const mockSpawnFn = vi.mocked(spawn)
-      const mockSetKeyPermissions = vi.mocked(crypto.setKeyPermissions)
+      const mockSetKeyPermissions = vi.mocked(keyUtils.setKeyPermissions)
 
       // Create a mock private key content
       const mockPrivateKeyContent =
@@ -971,7 +971,7 @@ describe('OnePasswordKeyProvider', () => {
       // by testing the keyProvider + keyRef signature (without requiring OpenSSL)
 
       const mockSpawnFn = vi.mocked(spawn)
-      const mockSetKeyPermissions = vi.mocked(crypto.setKeyPermissions)
+      const mockSetKeyPermissions = vi.mocked(keyUtils.setKeyPermissions)
 
       // Create a mock private key
       const mockPrivateKeyContent = '-----BEGIN PRIVATE KEY-----\nmock\n-----END PRIVATE KEY-----'
