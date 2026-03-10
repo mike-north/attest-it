@@ -16,7 +16,7 @@ describe('fingerprint streaming for large files', () => {
 
         // Compute fingerprint - this should use streaming
         const result = await computeFingerprint({
-          packages: ['.'],
+          paths: ['.'],
           baseDir: tempDir,
         })
 
@@ -37,7 +37,7 @@ describe('fingerprint streaming for large files', () => {
         fs.writeFileSync(smallFile, content)
 
         const smallResult = await computeFingerprint({
-          packages: ['.'],
+          paths: ['.'],
           baseDir: tempDir,
         })
 
@@ -49,7 +49,7 @@ describe('fingerprint streaming for large files', () => {
         fs.writeFileSync(mediumFile, content)
 
         const mediumResult = await computeFingerprint({
-          packages: ['.'],
+          paths: ['.'],
           baseDir: tempDir,
         })
 
@@ -73,7 +73,7 @@ describe('fingerprint streaming for large files', () => {
         fs.writeFileSync(largeFile, buffer)
 
         const result = await computeFingerprint({
-          packages: ['.'],
+          paths: ['.'],
           baseDir: tempDir,
         })
 
@@ -102,7 +102,7 @@ describe('fingerprint streaming for large files', () => {
 
           await expect(
             computeFingerprint({
-              packages: ['.'],
+              paths: ['.'],
               baseDir: tempDir,
             }),
           ).rejects.toThrow()
@@ -126,7 +126,7 @@ describe('fingerprint streaming for large files', () => {
         fs.writeFileSync(thresholdFile, buffer)
 
         const result = await computeFingerprint({
-          packages: ['.'],
+          paths: ['.'],
           baseDir: tempDir,
         })
 
@@ -147,7 +147,7 @@ describe('fingerprint streaming for large files', () => {
         fs.writeFileSync(overFile, buffer)
 
         const result = await computeFingerprint({
-          packages: ['.'],
+          paths: ['.'],
           baseDir: tempDir,
         })
 

@@ -30,7 +30,8 @@
     "build": "tsc",
     "check": "pnpm check:typecheck",
     "check:typecheck": "tsc --noEmit",
-    "clean": "node -e \"import('node:fs').then(fs=>fs.rmSync('dist',{recursive:true,force:true}))\""
+    "clean": "node -e \"import('node:fs').then(fs=>fs.rmSync('dist',{recursive:true,force:true}))\"",
+    "test": "node --test dist/test/*.test.js"
   },
   "type": "module"
 }

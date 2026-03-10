@@ -347,10 +347,10 @@ groups:
     - visual-tests
 ```
 
-Run a group:
+Groups are informational — use them to document which suites belong together. To run multiple suites, use `--all` with `--filter`:
 
 ```bash
-npx attest-it run --group fast
+npx attest-it run --all --filter "unit-*"
 ```
 
 ---

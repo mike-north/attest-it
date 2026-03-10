@@ -38,6 +38,7 @@ export const runCommand = new Command('run')
   .option('--dry-run', 'Show what would run without executing')
   .option('-c, --continue', 'Resume interrupted session')
   .option('--filter <pattern>', 'Filter suites by pattern (glob-style)')
+  .option('-y, --yes', 'Auto-confirm all prompts (for CI/non-interactive use)')
   .action(async (options: RunOptions) => {
     await runTests(options)
   })
@@ -49,6 +50,7 @@ interface RunOptions {
   dryRun?: boolean
   continue?: boolean
   filter?: string
+  yes?: boolean
 }
 
 /**
@@ -82,8 +84,16 @@ async function runTests(options: RunOptions): Promise<void> {
       return
     }
 
-    // No --suite and no --all means interactive mode
-    // This includes: no args, --dry-run, --continue, --filter
+    // No --suite and no --all means interactive mode (unless --dry-run is set,
+    // which only prints a list and exits without rendering any Ink UI).
+    // Ink requires a TTY to render its React-based UI; fail early with a
+    // helpful message instead of crashing with an Ink stack trace.
+    if (!options.dryRun && !process.stdout.isTTY) {
+      error(
+        'Interactive mode requires a terminal. Use --suite <name> or --all to run non-interactively.',
+      )
+      process.exit(ExitCode.CONFIG_ERROR)
+    }
     await runInteractive({
       dryRun: options.dryRun,
       continue: options.continue,
@@ -278,9 +288,11 @@ async function runDirectMode(options: RunOptions): Promise<void> {
 
   log('')
   success('Suite completed!')
-  log(
-    `\nTo commit: git add ${config.settings.attestationsPath} && git commit -m "Update attestations"`,
-  )
+  if (options.attest !== false) {
+    log(
+      `\nTo commit: git add ${config.settings.attestationsPath} ${config.settings.sealsPath} && git commit -m "Update seals"`,
+    )
+  }
 }
 
 /**
@@ -336,9 +348,11 @@ async function runAllPending(options: RunOptions): Promise<void> {
 
   log('')
   success('All suites completed!')
-  log(
-    `\nTo commit: git add ${config.settings.attestationsPath} && git commit -m "Update attestations"`,
-  )
+  if (options.attest !== false) {
+    log(
+      `\nTo commit: git add ${config.settings.attestationsPath} ${config.settings.sealsPath} && git commit -m "Update seals"`,
+    )
+  }
 }
 
 /**
@@ -374,8 +388,8 @@ async function runSingleSuite(
 
   // Compute fingerprint using gate's fingerprint configuration
   const fingerprintOptions = {
-    packages: gateConfig.fingerprint.paths,
-    ...(gateConfig.fingerprint.exclude && { ignore: gateConfig.fingerprint.exclude }),
+    paths: gateConfig.fingerprint.paths,
+    ...(gateConfig.fingerprint.exclude && { exclude: gateConfig.fingerprint.exclude }),
   }
   const fingerprintResult = await computeFingerprint(fingerprintOptions)
   verbose(`Fingerprint: ${fingerprintResult.fingerprint}`)
@@ -402,11 +416,13 @@ async function runSingleSuite(
     return
   }
 
-  // Confirm attestation
-  const shouldAttest = await confirmAction({
-    message: 'Create attestation',
-    default: false,
-  })
+  // Confirm attestation (auto-confirm with --yes)
+  const shouldAttest = options.yes
+    ? true
+    : await confirmAction({
+        message: 'Create attestation',
+        default: false,
+      })
 
   if (!shouldAttest) {
     warn('Attestation cancelled')
@@ -439,7 +455,7 @@ async function runSingleSuite(
 
   // Check if this suite has a linked gate, and if so, prompt for seal
   if (suiteConfig.gate) {
-    await promptForSeal(suiteName, suiteConfig.gate, config)
+    await promptForSeal(suiteName, suiteConfig.gate, config, options)
   }
 }
 
@@ -454,6 +470,7 @@ async function promptForSeal(
   suiteName: string,
   gateId: string,
   config: AttestItConfig,
+  options: RunOptions,
 ): Promise<void> {
   log('')
   log(`Suite '${suiteName}' is linked to gate '${gateId}'`)
@@ -480,11 +497,13 @@ async function promptForSeal(
     return
   }
 
-  // Prompt for seal confirmation
-  const shouldSeal = await confirmAction({
-    message: `Create seal for gate '${gateId}'`,
-    default: true,
-  })
+  // Prompt for seal confirmation (auto-confirm with --yes)
+  const shouldSeal = options.yes
+    ? true
+    : await confirmAction({
+        message: `Create seal for gate '${gateId}'`,
+        default: true,
+      })
 
   if (!shouldSeal) {
     log('Seal creation skipped')
@@ -503,8 +522,8 @@ async function promptForSeal(
 
     // Compute fingerprint for the gate
     const gateFingerprint = computeFingerprintSync({
-      packages: gate.fingerprint.paths,
-      ...(gate.fingerprint.exclude && { ignore: gate.fingerprint.exclude }),
+      paths: gate.fingerprint.paths,
+      ...(gate.fingerprint.exclude && { exclude: gate.fingerprint.exclude }),
     })
 
     // Create key provider from identity's private key reference

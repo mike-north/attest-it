@@ -47,7 +47,7 @@ interface ConfigStructure {
   version: number
   settings: {
     maxAgeDays: number
-    attestationsPath: string
+    sealsPath: string
   }
   team: Record<string, unknown>
   gates: Record<string, unknown>
@@ -76,9 +76,9 @@ function hasGatesField(value: object): value is { gates: unknown } {
 
 function hasRequiredSettingsFields(value: object): value is {
   maxAgeDays: unknown
-  attestationsPath: unknown
+  sealsPath: unknown
 } {
-  return 'maxAgeDays' in value && 'attestationsPath' in value
+  return 'maxAgeDays' in value && 'sealsPath' in value
 }
 
 function isConfigStructure(value: unknown): value is ConfigStructure {
@@ -92,7 +92,7 @@ function isConfigStructure(value: unknown): value is ConfigStructure {
 
   if (!hasRequiredSettingsFields(value.settings)) return false
   if (typeof value.settings.maxAgeDays !== 'number') return false
-  if (typeof value.settings.attestationsPath !== 'string') return false
+  if (typeof value.settings.sealsPath !== 'string') return false
 
   if (!hasTeamField(value)) return false
   if (typeof value.team !== 'object' || value.team === null) return false
@@ -144,60 +144,52 @@ describe('init command', () => {
 
       // Mock config template file
       if (path.includes('config.yaml')) {
-        return `# attest-it configuration
+        return `# yaml-language-server: $schema=https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/project-config.schema.json
+# attest-it configuration
 # See https://github.com/attest-it/attest-it for documentation
 
 version: 1
 
 settings:
-  # How long attestations remain valid (in days)
+  # How long seals remain valid
   maxAgeDays: 30
-  # Path to the attestations file
-  attestationsPath: .attest-it/attestations.json
+  # Path to the seals file
+  sealsPath: .attest-it/seals.yaml
 
-# Team members who can sign attestations.
-# Add members with: attest-it team join (for yourself) or team add (for others)
+# Team members who can sign seals.
+# Add members with: attest-it identity create && attest-it team join
 #
 # team:
-#   mike-north:
-#     name: Mike North
-#     email: mike@example.com
-#     github: mike-north
-#     publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
-#     publicKeyAlgorithm: ed25519
+#   alice:
+#     name: Alice
+#     email: alice@example.com
+#     publicKey: <base64-encoded-public-key>
 
 team: {}
 
-# Gates define what code areas require attestation and who can sign.
+# Gates define what code areas require seals and who can sign.
 #
-# Example:
-#
-# gates:
-#   cli-interactive:
-#     name: CLI Interactive Tests
-#     description: Manual verification of interactive CLI experiences
-#     authorizedSigners:
-#       - mike-north
-#     fingerprint:
-#       paths:
-#         - packages/cli/src/commands
-#       exclude:
-#         - '**/*.spec.ts'
-#     maxAge: 90d
-
-gates: {}
+# Customize this gate or add more gates for different code areas.
+gates:
+  default:
+    name: Default Gate
+    description: Covers the entire project
+    authorizedSigners: []  # Add team member slugs after running 'attest-it team join'
+    fingerprint:
+      paths:
+        - src
+      exclude:
+        - '**/*.test.ts'
+        - '**/*.spec.ts'
 
 # Suites define test commands that produce attestations.
 #
-# Example:
-#
-# suites:
-#   visual-tests:
-#     description: Visual regression tests requiring human review
-#     gate: cli-interactive
-#     command: pnpm vitest packages/ui
-
-suites: {}
+# Customize this suite to match your project's test setup.
+suites:
+  default:
+    description: Default test suite
+    gate: default
+    command: npm test
 `
       }
 
@@ -279,7 +271,7 @@ suites: {}
       }
 
       expect(config.settings.maxAgeDays).toBe(30)
-      expect(config.settings.attestationsPath).toBe('.attest-it/attestations.json')
+      expect(config.settings.sealsPath).toBe('.attest-it/seals.yaml')
     })
 
     it('should overwrite with --force flag', async () => {
@@ -355,7 +347,7 @@ suites: {}
       })
     })
 
-    it('should include commented example suites in template', async () => {
+    it('should include customization comments for gates and suites', async () => {
       await runInit({
         path: '.attest-it/config.yaml',
       })
@@ -370,14 +362,12 @@ suites: {}
         throw new Error('Expected content to be string')
       }
 
-      // Should contain commented examples for gates and suites
-      expect(contentArg).toContain('# Example:')
-      expect(contentArg).toContain('# gates:')
-      expect(contentArg).toContain('# suites:')
-      expect(contentArg).toContain('#   visual-tests:')
+      // Should contain customization comments for gates and suites
+      expect(contentArg).toContain('# Customize this gate')
+      expect(contentArg).toContain('# Customize this suite')
     })
 
-    it('should have empty suites object by default', async () => {
+    it('should include a default suite and gate so config is immediately valid', async () => {
       await runInit({
         path: '.attest-it/config.yaml',
       })
@@ -397,7 +387,9 @@ suites: {}
         throw new Error('Expected valid config structure')
       }
 
-      expect(config.suites).toEqual({})
+      // Both suites and gates should have a 'default' entry out of the box
+      expect(config.suites).toHaveProperty('default')
+      expect(config.gates).toHaveProperty('default')
     })
 
     it('should create or update package.json with attest-it devDependency', async () => {
@@ -444,8 +436,10 @@ suites: {}
         throw new Error('Expected valid config structure')
       }
 
+      // team starts empty — identity setup is required before joining
       expect(config.team).toEqual({})
-      expect(config.gates).toEqual({})
+      // gates has a default entry out of the box
+      expect(config.gates).toHaveProperty('default')
     })
   })
 

@@ -149,9 +149,9 @@ async function verifySuite(options: VerifySuiteOptions): Promise<SuiteVerificati
 
   // Compute current fingerprint using gate's fingerprint configuration
   const fingerprintOptions = {
-    packages: gate.fingerprint.paths.map((p) => resolvePath(p, repoRoot)),
+    paths: gate.fingerprint.paths.map((p) => resolvePath(p, repoRoot)),
     baseDir: repoRoot,
-    ...(gate.fingerprint.exclude && { ignore: gate.fingerprint.exclude }),
+    ...(gate.fingerprint.exclude && { exclude: gate.fingerprint.exclude }),
   }
   const fingerprintResult = await computeFingerprint(fingerprintOptions)
 

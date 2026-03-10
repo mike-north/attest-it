@@ -4,6 +4,7 @@
   "version": "0.10.1",
   "author": "Mike North <michael.l.north@gmail.com>",
   "dependencies": {
+    "@attest-it/wasm": "workspace:*",
     "@migrex/core": "0.2.0-alpha.1",
     "@migrex/zod": "1.0.0-alpha.1",
     "canonicalize": "^2.0.0",

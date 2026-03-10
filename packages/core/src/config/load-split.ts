@@ -364,6 +364,11 @@ export async function loadSplitConfig(
         const config = await loadUnifiedConfig(unifiedPath)
         return toAttestItConfig(config)
       }
+      // Neither split nor unified config found — throw a user-friendly error
+      throw new SplitConfigNotFoundError(
+        'Configuration file not found. Expected .attest-it/config.yaml (or .attest-it/policy.yaml for split config). Run "attest-it init" to create one.',
+        'policy',
+      )
     }
     throw error
   }
@@ -412,6 +417,11 @@ export function loadSplitConfigSync(options: LoadSplitConfigOptions = {}): Attes
         const config = loadUnifiedConfigSync(unifiedPath)
         return toAttestItConfig(config)
       }
+      // Neither split nor unified config found — throw a user-friendly error
+      throw new SplitConfigNotFoundError(
+        'Configuration file not found. Expected .attest-it/config.yaml (or .attest-it/policy.yaml for split config). Run "attest-it init" to create one.',
+        'policy',
+      )
     }
     throw error
   }

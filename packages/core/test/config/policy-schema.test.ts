@@ -409,7 +409,7 @@ gates:
         expect(() => parsePolicyContent(yaml, 'yaml')).toThrow('authorizedSigners')
       })
 
-      it('should reject gate with empty authorizedSigners', () => {
+      it('should accept gate with empty authorizedSigners (valid intermediate state during setup)', () => {
         const yaml = `
 version: 1
 gates:
@@ -422,8 +422,8 @@ gates:
         - src/**
     maxAge: 7d
 `
-        expect(() => parsePolicyContent(yaml, 'yaml')).toThrow(PolicyValidationError)
-        expect(() => parsePolicyContent(yaml, 'yaml')).toThrow('At least one authorized signer')
+        const result = parsePolicyContent(yaml, 'yaml')
+        expect(result.gates?.test?.authorizedSigners).toEqual([])
       })
 
       it('should reject gate without fingerprint', () => {

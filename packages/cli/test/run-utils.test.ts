@@ -424,8 +424,8 @@ describe('run-utils', () => {
         await getAllSuiteStatuses(config)
 
         expect(computeFingerprint).toHaveBeenCalledWith({
-          packages: ['pkg1/**'],
-          ignore: ['**/*.test.ts'],
+          paths: ['pkg1/**'],
+          exclude: ['**/*.test.ts'],
         })
       })
     })
@@ -624,7 +624,7 @@ describe('run-utils', () => {
         await getAllSuiteStatuses(config)
 
         expect(computeFingerprint).toHaveBeenCalledWith({
-          packages: ['lib/**/*.js'],
+          paths: ['lib/**/*.js'],
         })
       })
     })
@@ -668,8 +668,8 @@ describe('run-utils', () => {
 
         // Should use gate's fingerprint.paths and fingerprint.exclude
         expect(computeFingerprint).toHaveBeenCalledWith({
-          packages: ['src/**/*.ts'],
-          ignore: ['**/*.test.ts'],
+          paths: ['src/**/*.ts'],
+          exclude: ['**/*.test.ts'],
         })
       })
 
@@ -741,7 +741,7 @@ describe('run-utils', () => {
 
         // Only one fingerprint call for gate-based suite
         expect(computeFingerprint).toHaveBeenCalledTimes(1)
-        expect(computeFingerprint).toHaveBeenCalledWith({ packages: ['src/ui/**'] })
+        expect(computeFingerprint).toHaveBeenCalledWith({ paths: ['src/ui/**'] })
       })
 
       it('should skip suites with gate property when gates config is undefined', async () => {
@@ -830,8 +830,8 @@ describe('run-utils', () => {
         vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile({ 'gate-1': validSeal }))
 
         // Return different fingerprints for different gates
-        vi.mocked(computeFingerprint).mockImplementation(({ packages }) => {
-          if (packages[0] === 'pkg1/**') {
+        vi.mocked(computeFingerprint).mockImplementation(({ paths }) => {
+          if (paths[0] === 'pkg1/**') {
             return Promise.resolve(createMockFingerprintResult('valid-fp'))
           }
           return Promise.resolve(createMockFingerprintResult('different-fp'))

@@ -78,8 +78,8 @@ async function runVerify(gates: string[], options: VerifyOptions): Promise<void>
       if (!gate) continue
 
       const result = computeFingerprintSync({
-        packages: gate.fingerprint.paths,
-        ...(gate.fingerprint.exclude && { ignore: gate.fingerprint.exclude }),
+        paths: gate.fingerprint.paths,
+        ...(gate.fingerprint.exclude && { exclude: gate.fingerprint.exclude }),
       })
       // eslint-disable-next-line security/detect-object-injection
       fingerprints[gateId] = result.fingerprint

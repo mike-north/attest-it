@@ -63,18 +63,18 @@ export async function getAllSuiteStatuses(config: AttestItConfig): Promise<Suite
     }
 
     // Get fingerprint paths from the gate
-    const packages = gateConfig.fingerprint.paths
-    const ignore = gateConfig.fingerprint.exclude
+    const paths = gateConfig.fingerprint.paths
+    const exclude = gateConfig.fingerprint.exclude
 
     // Skip if no paths configured
-    if (packages.length === 0) {
+    if (paths.length === 0) {
       continue
     }
 
     // Compute current fingerprint
     const fingerprintResult = await computeFingerprint({
-      packages,
-      ...(ignore && { ignore }),
+      paths,
+      ...(exclude && { exclude }),
     })
 
     // Verify the seal for this gate using the new seal verification system

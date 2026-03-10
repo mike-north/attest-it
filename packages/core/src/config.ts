@@ -83,9 +83,7 @@ const gateSchema = z
   .object({
     name: z.string().min(1, 'Gate name cannot be empty'),
     description: z.string().min(1, 'Gate description cannot be empty'),
-    authorizedSigners: z
-      .array(z.string().min(1, 'Authorized signer slug cannot be empty'))
-      .min(1, 'At least one authorized signer is required'),
+    authorizedSigners: z.array(z.string().min(1, 'Authorized signer slug cannot be empty')),
     fingerprint: fingerprintConfigSchema,
     maxAge: durationSchema,
   })
@@ -124,8 +122,9 @@ const suiteSchema = z
 
 /**
  * Zod schema for the full configuration file.
+ * @public
  */
-const configSchema = z
+export const configSchema = z
   .object({
     version: z.literal(1),
     minVersion: semverSchema.optional(),

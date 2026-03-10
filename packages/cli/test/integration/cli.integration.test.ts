@@ -322,13 +322,13 @@ describe('CLI Integration Tests', () => {
   describe('attest-it status', () => {
     it('shows MISSING status when no seals exist', async () => {
       const result = await runCli(['status'], tempDir)
-      expect(result.exitCode).toBe(1) // At least one gate has missing seal
+      expect(result.exitCode).toBe(0) // Status is informational — always exits 0
       expect(result.stdout).toContain('MISSING')
     })
 
     it('outputs JSON with --json flag', async () => {
       const result = await runCli(['status', '--json'], tempDir)
-      expect(result.exitCode).toBe(1)
+      expect(result.exitCode).toBe(0)
 
       // Parse and validate JSON
       const json: unknown = JSON.parse(result.stdout)
@@ -352,7 +352,7 @@ describe('CLI Integration Tests', () => {
 
     it('filters by gate with positional argument', async () => {
       const result = await runCli(['status', 'example-gate'], tempDir)
-      expect(result.exitCode).toBe(1)
+      expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('example-gate')
       expect(result.stdout).not.toContain('failing-gate')
     })
@@ -540,9 +540,9 @@ describe('CLI Integration Tests', () => {
 
   describe('seal workflow', () => {
     it('full workflow: check status, manually seal, verify', async () => {
-      // Initial status should show missing
+      // Initial status should show missing (status always exits 0 — it's informational)
       let result = await runCli(['status', '--json'], tempDir)
-      expect(result.exitCode).toBe(1)
+      expect(result.exitCode).toBe(0)
 
       let status: unknown = JSON.parse(result.stdout)
       if (!isGateStatusResultArray(status)) {
@@ -585,9 +585,9 @@ describe('CLI Integration Tests', () => {
       )
       await runCommand('git add . && git commit -m "modify code"', tempDir)
 
-      // Status should show fingerprint mismatch
+      // Status should show fingerprint mismatch (status always exits 0)
       result = await runCli(['status', 'example-gate', '--json'], tempDir)
-      expect(result.exitCode).toBe(1)
+      expect(result.exitCode).toBe(0)
 
       status = JSON.parse(result.stdout)
       if (!isGateStatusResultArray(status)) {
@@ -610,7 +610,7 @@ describe('CLI Integration Tests', () => {
       try {
         const result = await runCli(['status'], emptyDir)
         expect(result.exitCode).toBe(3) // CONFIG_ERROR
-        expect(result.stderr).toContain('Policy file not found')
+        expect(result.stderr).toContain('Configuration file not found')
       } finally {
         await fs.promises.rm(emptyDir, { recursive: true, force: true })
       }

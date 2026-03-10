@@ -87,27 +87,24 @@ In your repository, run:
 npx attest-it init
 ```
 
-This creates `.attest-it/config.yaml` with your first gate.
+This creates `.attest-it/config.yaml` from a template and adds `attest-it` to your `devDependencies`.
 
-### Example Configuration Session
+Example output:
 
 ```
-Welcome to attest-it!
-
-? Gate name: desktop-tests
-? Description: Tests requiring VS Code desktop app
-? Fingerprint paths (comma-separated): packages/vscode-extension/**/*.ts
-? Exclude patterns (comma-separated): **/*.test.ts
-? Maximum seal age: 30d
-
+✓ Updated package.json with attest-it devDependency
 ✓ Configuration created at .attest-it/config.yaml
 
 Next steps:
-  1. Add yourself to the team: npx attest-it team join
-  2. Run tests and seal: npx attest-it run --suite desktop-tests
+  1. Run: pnpm install
+  2. Run: attest-it identity create  (if you haven't already)
+  3. Run: attest-it team join
+  4. Edit .attest-it/config.yaml to customize gates, suites, and test commands
 ```
 
-### Understanding the Config
+### Customize the Config
+
+Open `.attest-it/config.yaml` and edit it to match your project. The template includes a `default` gate covering `src/` — rename it and adjust the paths for your use case:
 
 ```yaml
 version: 1

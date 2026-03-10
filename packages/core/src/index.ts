@@ -27,6 +27,7 @@ export {
   findConfigPath,
   resolveConfigPaths,
   toAttestItConfig,
+  configSchema,
   ConfigValidationError,
   ConfigNotFoundError,
   type Config,
@@ -186,6 +187,9 @@ export {
   getGate,
   parseDuration,
 } from './authorization.js'
+
+// WASM backend
+export { initWasm, teardownWasm } from './wasm-bridge.js'
 
 // Seal System
 export {

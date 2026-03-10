@@ -113,13 +113,13 @@ describe('Interactive CLI Integration Tests', () => {
         reject: false,
       })
 
-      // Exit code 0 or 1 are both success (0 = all valid, 1 = has pending)
-      expect([0, 1]).toContain(result.exitCode)
+      // Status is informational — always exits 0
+      expect(result.exitCode).toBe(0)
     })
   })
 
   describe('Exit code handling', () => {
-    it('should return exit code 1 when there are pending suites', async () => {
+    it('should return exit code 0 for pending suites (status is informational)', async () => {
       project = await createAllMissingFixture()
       await setupProject(project)
 
@@ -128,8 +128,8 @@ describe('Interactive CLI Integration Tests', () => {
         reject: false,
       })
 
-      // Exit code 1 = has pending suites (NOT an error)
-      expect(result.exitCode).toBe(1)
+      // Status is informational — always exits 0. Use `verify` for enforcement.
+      expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('MISSING')
     })
 
@@ -149,17 +149,17 @@ describe('Interactive CLI Integration Tests', () => {
       expect([0, 1]).toContain(result.exitCode)
     })
 
-    it('should return exit code 3 for actual errors', async () => {
+    it('should return exit code 0 for status even without keypair setup', async () => {
       project = await createMultiSuiteFixture()
-      // Don't set up project - missing keypair should cause error
+      // Don't set up project - status doesn't need keypair (it's informational)
 
       const result = await execa('node', [CLI_PATH, 'status'], {
         cwd: project.baseDir,
         reject: false,
       })
 
-      // Should fail with actual error (missing public key)
-      expect(result.exitCode).toBeGreaterThanOrEqual(1)
+      // Status is informational — always exits 0 even with missing seals
+      expect(result.exitCode).toBe(0)
     })
   })
 
@@ -199,10 +199,14 @@ describe('Interactive CLI Integration Tests', () => {
       project = await createMultiSuiteFixture()
       await setupProject(project)
 
-      const result = await execa('node', [CLI_PATH, 'run', '--dry-run', '--filter', '*-tests'], {
-        cwd: project.baseDir,
-        reject: false,
-      })
+      const result = await execa(
+        'node',
+        [CLI_PATH, 'run', '--all', '--dry-run', '--filter', '*-tests'],
+        {
+          cwd: project.baseDir,
+          reject: false,
+        },
+      )
 
       // Should include suites matching pattern
       expect(result.stdout).toContain('unit-tests')
@@ -289,8 +293,8 @@ describe('Interactive CLI Integration Tests', () => {
         reject: false,
       })
 
-      // Exit code 1 = has pending work
-      expect(result.exitCode).toBe(1)
+      // Status is informational — always exits 0
+      expect(result.exitCode).toBe(0)
 
       // All suites should show as MISSING
       expect(result.stdout).toContain('MISSING')
@@ -345,8 +349,8 @@ describe('Interactive CLI Integration Tests', () => {
       const { computeFingerprintSync } = await import('@attest-it/core')
 
       const fingerprint = computeFingerprintSync({
-        packages: ['.'],
-        ignore: ['.attest-it/**'],
+        paths: ['.'],
+        exclude: ['.attest-it/**'],
         baseDir: project.baseDir,
       })
 
@@ -415,8 +419,8 @@ describe('Interactive CLI Integration Tests', () => {
       const { computeFingerprintSync } = await import('@attest-it/core')
 
       const fingerprint = computeFingerprintSync({
-        packages: ['.'],
-        ignore: ['.attest-it/**'],
+        paths: ['.'],
+        exclude: ['.attest-it/**'],
         baseDir: project.baseDir,
       })
 

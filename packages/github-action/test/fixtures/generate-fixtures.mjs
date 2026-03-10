@@ -93,7 +93,7 @@ for (const fixture of [validFixture, missingFixture, splitConfigFixture]) {
 
 // Compute fingerprint using the suite's packages config
 const fingerprintResult = await computeFingerprint({
-  packages: ['src'],
+  paths: ['src'],
   baseDir: validFixture,
 })
 

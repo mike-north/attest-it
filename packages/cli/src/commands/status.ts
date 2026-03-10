@@ -88,8 +88,8 @@ async function runStatus(gates: string[], options: StatusOptions): Promise<void>
       if (!gate) continue
 
       const result = computeFingerprintSync({
-        packages: gate.fingerprint.paths,
-        ...(gate.fingerprint.exclude && { ignore: gate.fingerprint.exclude }),
+        paths: gate.fingerprint.paths,
+        ...(gate.fingerprint.exclude && { exclude: gate.fingerprint.exclude }),
       })
       // eslint-disable-next-line security/detect-object-injection
       fingerprints[gateId] = result.fingerprint
@@ -135,17 +135,8 @@ async function runStatus(gates: string[], options: StatusOptions): Promise<void>
       displayStatusTable(results)
     }
 
-    // Exit with appropriate code
-    const hasInvalid = results.some(
-      (r) =>
-        r.state === 'MISSING' ||
-        r.state === 'FINGERPRINT_MISMATCH' ||
-        r.state === 'INVALID_SIGNATURE' ||
-        r.state === 'UNKNOWN_SIGNER' ||
-        r.state === 'STALE',
-    )
-
-    process.exit(hasInvalid ? ExitCode.FAILURE : ExitCode.SUCCESS)
+    // Status is informational — always exit 0. Use `verify` for enforcement.
+    process.exit(ExitCode.SUCCESS)
   } catch (err) {
     if (err instanceof Error) {
       error(err.message)

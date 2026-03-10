@@ -62,6 +62,7 @@ function loadConfigTemplate(): string {
 interface PackageJson {
   name: string
   version: string
+  dependencies?: Record<string, string>
   devDependencies?: Record<string, string>
   [key: string]: unknown
 }
@@ -118,10 +119,13 @@ async function ensureDevDependency(): Promise<{ packageManager: string; created:
     created = true
   }
 
-  // Add devDependency
+  // Add devDependency (skip if already present in dependencies or devDependencies)
+  const deps = packageJson.dependencies
   const devDeps = packageJson.devDependencies ?? {}
-  devDeps['attest-it'] = '^' + getPackageVersion()
-  packageJson.devDependencies = devDeps
+  if (!deps?.['attest-it'] && !devDeps['attest-it']) {
+    devDeps['attest-it'] = '^' + getPackageVersion()
+    packageJson.devDependencies = devDeps
+  }
 
   await fs.promises.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n')
 
@@ -175,7 +179,7 @@ async function runInit(options: InitOptions): Promise<void> {
     log(`  1. Run: ${packageManager} install`)
     log("  2. Run: attest-it identity create  (if you haven't already)")
     log('  3. Run: attest-it team join')
-    log('  4. Edit .attest-it/config.yaml to define your gates and suites')
+    log(`  4. Edit ${options.path} to customize gates, suites, and test commands`)
 
     // Offer to install shell completions
     await offerCompletionInstall()

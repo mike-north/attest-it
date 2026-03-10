@@ -64,7 +64,6 @@ describe('verify command', () => {
       },
       suites: {
         'test-suite': {
-          packages: ['src/**/*.ts'],
           gate: 'test-gate',
         },
       },

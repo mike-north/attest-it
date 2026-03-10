@@ -110,7 +110,7 @@ describe('verifyAttestations', () => {
 
       // Compute fingerprint for the test project
       const fingerprint = await computeFingerprint({
-        packages: [FINGERPRINT_PROJECT],
+        paths: [FINGERPRINT_PROJECT],
         baseDir: TEST_DIR,
       })
 
@@ -195,7 +195,7 @@ describe('verifyAttestations', () => {
       })
 
       const fingerprint = await computeFingerprint({
-        packages: [FINGERPRINT_PROJECT],
+        paths: [FINGERPRINT_PROJECT],
         baseDir: TEST_DIR,
       })
 
@@ -249,7 +249,7 @@ describe('verifyAttestations', () => {
       })
 
       const fingerprint = await computeFingerprint({
-        packages: [FINGERPRINT_PROJECT],
+        paths: [FINGERPRINT_PROJECT],
         baseDir: TEST_DIR,
       })
 
@@ -379,7 +379,7 @@ describe('verifyAttestations', () => {
       })
 
       const fingerprint = await computeFingerprint({
-        packages: [FINGERPRINT_PROJECT],
+        paths: [FINGERPRINT_PROJECT],
         baseDir: TEST_DIR,
       })
 
@@ -434,7 +434,7 @@ describe('verifyAttestations', () => {
       })
 
       const fingerprint = await computeFingerprint({
-        packages: [FINGERPRINT_PROJECT],
+        paths: [FINGERPRINT_PROJECT],
         baseDir: TEST_DIR,
       })
 
@@ -554,7 +554,7 @@ describe('verifyAttestations', () => {
       })
 
       const fingerprint = await computeFingerprint({
-        packages: [FINGERPRINT_PROJECT],
+        paths: [FINGERPRINT_PROJECT],
         baseDir: TEST_DIR,
       })
 
@@ -610,7 +610,7 @@ describe('verifyAttestations', () => {
 
       // Step 1: Compute fingerprints
       const fingerprint = await computeFingerprint({
-        packages: [FINGERPRINT_PROJECT],
+        paths: [FINGERPRINT_PROJECT],
         baseDir: TEST_DIR,
       })
 
@@ -674,7 +674,7 @@ describe('verifyAttestations', () => {
 
       // Compute initial fingerprint and create attestation
       const initialFingerprint = await computeFingerprint({
-        packages: [tempProject],
+        paths: [tempProject],
         baseDir: TEST_DIR,
       })
 

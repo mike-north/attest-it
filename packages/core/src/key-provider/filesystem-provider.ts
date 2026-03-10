@@ -10,6 +10,7 @@
 
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
+import { homedir } from 'node:os'
 import { getDefaultPrivateKeyPath } from '../key-utils.js'
 import { setKeyPermissions } from '../key-utils.js'
 import { generateKeyPair as ed25519GenerateKeyPair } from '../crypto/ed25519.js'
@@ -64,12 +65,25 @@ export class FilesystemKeyProvider implements KeyProvider {
   }
 
   /**
+   * Expand a leading `~` to the user's home directory.
+   * Shell tilde expansion is not performed by Node's filesystem APIs,
+   * so we handle it explicitly here at the point of I/O.
+   * @internal
+   */
+  private resolvePath(p: string): string {
+    if (p.startsWith('~/') || p === '~') {
+      return path.join(homedir(), p.slice(1))
+    }
+    return p
+  }
+
+  /**
    * Check if a key exists at the given path.
-   * @param keyRef - Path to the private key file
+   * @param keyRef - Path to the private key file (may contain leading `~`)
    */
   async keyExists(keyRef: string): Promise<boolean> {
     try {
-      await fs.access(keyRef)
+      await fs.access(this.resolvePath(keyRef))
       return true
     } catch {
       return false
@@ -78,17 +92,19 @@ export class FilesystemKeyProvider implements KeyProvider {
 
   /**
    * Get the private key path for signing.
-   * Returns the path directly with a no-op cleanup function.
-   * @param keyRef - Path to the private key file
+   * Returns the resolved (tilde-expanded) path with a no-op cleanup function.
+   * @param keyRef - Path to the private key file (may contain leading `~`)
    */
   async getPrivateKey(keyRef: string): Promise<KeyRetrievalResult> {
+    const resolved = this.resolvePath(keyRef)
+
     // Verify the key exists
     if (!(await this.keyExists(keyRef))) {
       throw new Error(`Private key not found: ${keyRef}`)
     }
 
     return {
-      keyPath: keyRef,
+      keyPath: resolved,
       // No-op cleanup for filesystem provider
       cleanup: async () => {
         // Nothing to clean up - key stays on filesystem

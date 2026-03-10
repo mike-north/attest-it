@@ -7,8 +7,13 @@ repository.workspace = true
 description = "Data-driven conformance test definitions for attest-it"
 
 [dependencies]
+attest-it-core = { workspace = true }
+base64ct = { workspace = true }
+ed25519-dalek = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+sha2 = { workspace = true }
 
 [[bin]]
 name = "export-conformance"

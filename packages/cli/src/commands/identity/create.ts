@@ -20,16 +20,40 @@ import { writeFile, mkdir } from 'node:fs/promises'
 
 export const createCommand = new Command('create')
   .description('Create a new identity with Ed25519 keypair')
-  .action(async () => {
-    await runCreate()
+  .option('--slug <slug>', 'Identity slug (non-interactive)')
+  .option('--name <name>', 'Display name (non-interactive)')
+  .option('--email <email>', 'Email address (non-interactive)')
+  .option('--github <username>', 'GitHub username (non-interactive)')
+  .action(async (options: CreateOptions) => {
+    await runCreate(options)
   })
+
+interface CreateOptions {
+  slug?: string
+  name?: string
+  email?: string
+  github?: string
+}
 
 /**
  * Run the create command to interactively create a new identity.
  */
-async function runCreate(): Promise<void> {
+async function runCreate(options: CreateOptions = {}): Promise<void> {
   try {
     const theme = getTheme()
+    const hasSlug = options.slug !== undefined
+    const hasName = options.name !== undefined
+    const nonInteractive = hasSlug && hasName
+
+    // Reject partial non-interactive usage: if one required flag is given, both must be
+    if (hasSlug && !hasName) {
+      error('--name is required when --slug is provided (non-interactive mode)')
+      process.exit(ExitCode.CONFIG_ERROR)
+    }
+    if (hasName && !hasSlug) {
+      error('--slug is required when --name is provided (non-interactive mode)')
+      process.exit(ExitCode.CONFIG_ERROR)
+    }
 
     log('')
     log(theme.blue.bold()('Create New Identity'))
@@ -38,92 +62,120 @@ async function runCreate(): Promise<void> {
     // Load existing config if it exists
     const existingConfig = await loadLocalConfig()
 
-    // Prompt for identity details
-    const slug = (
-      await input({
-        message: 'Identity slug (unique identifier):',
-        validate: (value) => validateSlug(value, existingConfig?.identities),
-      })
-    ).trim()
+    let slug: string
+    let name: string
+    let email: string
+    let github: string
+    let keyStorageType: string
 
-    const name = await input({
-      message: 'Display name:',
-      validate: (value) => {
-        if (!value || value.trim().length === 0) {
-          return 'Name cannot be empty'
+    if (nonInteractive) {
+      // Non-interactive: use CLI options, validate, default to file storage
+      // nonInteractive guarantees both slug and name are defined
+      slug = options.slug ?? ''
+      const slugValidation = validateSlug(slug, existingConfig?.identities)
+      if (slugValidation !== true) {
+        error(slugValidation)
+        process.exit(ExitCode.CONFIG_ERROR)
+      }
+      name = options.name ?? ''
+      email = options.email ?? ''
+      if (email) {
+        const emailValidation = validateEmail(email)
+        if (emailValidation !== true) {
+          error(emailValidation)
+          process.exit(ExitCode.CONFIG_ERROR)
         }
-        return true
-      },
-    })
-
-    const email = (
-      await input({
-        message: 'Email (optional):',
-        default: '',
-        validate: validateEmail,
-      })
-    ).trim()
-
-    const github = await input({
-      message: 'GitHub username (optional):',
-      default: '',
-    })
-
-    // Check provider availability
-    // Note: Checking 1Password/YubiKey may trigger authentication prompts
-    info('Checking available key storage providers...')
-    info(
-      'You may see authentication prompts from 1Password, macOS Keychain, or other security tools.',
-    )
-
-    const opAvailable = await OnePasswordKeyProvider.isInstalled()
-    verbose(`  1Password CLI (op): ${opAvailable ? 'found' : 'not found'}`)
-
-    const keychainAvailable = MacOSKeychainKeyProvider.isAvailable()
-    verbose(`  macOS Keychain: ${keychainAvailable ? 'available' : 'not available (not macOS)'}`)
-
-    const yubikeyInstalled = await YubiKeyProvider.isInstalled()
-    verbose(`  YubiKey CLI (ykman): ${yubikeyInstalled ? 'found' : 'not found'}`)
-
-    const yubikeyConnected = yubikeyInstalled ? await YubiKeyProvider.isConnected() : false
-    if (yubikeyInstalled) {
-      verbose(`  YubiKey device: ${yubikeyConnected ? 'connected' : 'not connected'}`)
-    }
-
-    // Build choices based on availability
-    const configDir = getIdentityConfigDir()
-    const storageChoices: { name: string; value: string }[] = [
-      { name: `File system (${join(configDir, 'keys')})`, value: 'file' },
-    ]
-
-    if (keychainAvailable) {
-      storageChoices.push({ name: 'macOS Keychain', value: 'keychain' })
-    }
-
-    if (opAvailable) {
-      storageChoices.push({ name: '1Password', value: '1password' })
-    }
-
-    if (yubikeyInstalled) {
-      const yubikeyLabel = yubikeyConnected
-        ? 'YubiKey (encrypted with challenge-response)'
-        : 'YubiKey (not connected - insert YubiKey first)'
-      storageChoices.push({ name: yubikeyLabel, value: 'yubikey' })
+      }
+      github = options.github ?? ''
+      keyStorageType = 'file'
     } else {
-      // Show YubiKey as disabled option so users know it exists
-      storageChoices.push({
-        name: theme.muted('YubiKey (install ykman CLI to enable)'),
-        value: 'yubikey-disabled',
-        // @ts-expect-error -- @inquirer/prompts supports disabled property but types may not reflect it
-        disabled: true,
+      // Interactive: prompt for all details
+      slug = (
+        await input({
+          message: 'Identity slug (unique identifier):',
+          validate: (value) => validateSlug(value, existingConfig?.identities),
+        })
+      ).trim()
+
+      name = await input({
+        message: 'Display name:',
+        validate: (value) => {
+          if (!value || value.trim().length === 0) {
+            return 'Name cannot be empty'
+          }
+          return true
+        },
+      })
+
+      email = (
+        await input({
+          message: 'Email (optional):',
+          default: '',
+          validate: validateEmail,
+        })
+      ).trim()
+
+      github = await input({
+        message: 'GitHub username (optional):',
+        default: '',
+      })
+
+      // Check provider availability
+      // Note: Checking 1Password/YubiKey may trigger authentication prompts
+      info('Checking available key storage providers...')
+      info(
+        'You may see authentication prompts from 1Password, macOS Keychain, or other security tools.',
+      )
+
+      const opAvailable = await OnePasswordKeyProvider.isInstalled()
+      verbose(`  1Password CLI (op): ${opAvailable ? 'found' : 'not found'}`)
+
+      const keychainAvailable = MacOSKeychainKeyProvider.isAvailable()
+      verbose(`  macOS Keychain: ${keychainAvailable ? 'available' : 'not available (not macOS)'}`)
+
+      const yubikeyInstalled = await YubiKeyProvider.isInstalled()
+      verbose(`  YubiKey CLI (ykman): ${yubikeyInstalled ? 'found' : 'not found'}`)
+
+      const yubikeyConnected = yubikeyInstalled ? await YubiKeyProvider.isConnected() : false
+      if (yubikeyInstalled) {
+        verbose(`  YubiKey device: ${yubikeyConnected ? 'connected' : 'not connected'}`)
+      }
+
+      // Build choices based on availability
+      const configDir = getIdentityConfigDir()
+      const storageChoices: { name: string; value: string }[] = [
+        { name: `File system (${join(configDir, 'keys')})`, value: 'file' },
+      ]
+
+      if (keychainAvailable) {
+        storageChoices.push({ name: 'macOS Keychain', value: 'keychain' })
+      }
+
+      if (opAvailable) {
+        storageChoices.push({ name: '1Password', value: '1password' })
+      }
+
+      if (yubikeyInstalled) {
+        const yubikeyLabel = yubikeyConnected
+          ? 'YubiKey (encrypted with challenge-response)'
+          : 'YubiKey (not connected - insert YubiKey first)'
+        storageChoices.push({ name: yubikeyLabel, value: 'yubikey' })
+      } else {
+        // Show YubiKey as disabled option so users know it exists
+        storageChoices.push({
+          name: theme.muted('YubiKey (install ykman CLI to enable)'),
+          value: 'yubikey-disabled',
+          // @ts-expect-error -- @inquirer/prompts supports disabled property but types may not reflect it
+          disabled: true,
+        })
+      }
+
+      // Prompt for key storage type
+      keyStorageType = await select({
+        message: 'Where should the private key be stored?',
+        choices: storageChoices,
       })
     }
-
-    // Prompt for key storage type
-    const keyStorageType = await select({
-      message: 'Where should the private key be stored?',
-      choices: storageChoices,
-    })
 
     // ============================================================
     // PHASE 1: Collect all provider-specific configuration
@@ -616,8 +668,10 @@ async function runCreate(): Promise<void> {
       log('')
     }
 
-    // Offer to install shell completions
-    await offerCompletionInstall()
+    // Offer to install shell completions (skip in non-interactive mode)
+    if (!nonInteractive) {
+      await offerCompletionInstall()
+    }
   } catch (err) {
     if (err instanceof Error) {
       error(err.message)

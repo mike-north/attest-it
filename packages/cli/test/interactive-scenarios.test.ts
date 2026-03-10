@@ -116,8 +116,8 @@ describe('Interactive CLI Scenarios with fixturify-project', () => {
       // Run status command to verify project is valid
       const result = await runCli(['status'], project.baseDir)
 
-      // Exit code 0 = all valid, 1 = has pending suites (both are success)
-      expect([0, 1]).toContain(result.exitCode)
+      // Status is informational — always exits 0
+      expect(result.exitCode).toBe(0)
 
       // Should show all 5 suites
       expect(result.stdout).toContain('unit-tests')
@@ -142,8 +142,8 @@ describe('Interactive CLI Scenarios with fixturify-project', () => {
 
       const result = await runCli(['status'], project.baseDir)
 
-      // Exit code 1 = has pending suites (since no attestations created yet)
-      expect(result.exitCode).toBe(1)
+      // Status is informational — always exits 0
+      expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('tests')
     })
 
@@ -153,8 +153,8 @@ describe('Interactive CLI Scenarios with fixturify-project', () => {
 
       const result = await runCli(['status'], project.baseDir)
 
-      // Should have pending suites (exit code 1)
-      expect([0, 1]).toContain(result.exitCode)
+      // Status is informational — always exits 0
+      expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('suite-1')
       expect(result.stdout).toContain('suite-2')
       expect(result.stdout).toContain('suite-3')
@@ -166,8 +166,8 @@ describe('Interactive CLI Scenarios with fixturify-project', () => {
 
       const result = await runCli(['status'], project.baseDir)
 
-      // Should have pending suites (exit code 1)
-      expect([0, 1]).toContain(result.exitCode)
+      // Status is informational — always exits 0
+      expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('frontend-unit')
       expect(result.stdout).toContain('backend-unit')
     })

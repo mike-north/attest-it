@@ -64,15 +64,20 @@ For identity and team management commands, see the [main README](../../README.md
 ### Programmatic API
 
 ```typescript
-import { loadConfig, computeFingerprint, verifyAttestations, generateKeyPair } from 'attest-it'
+import {
+  loadConfig,
+  computeFingerprint,
+  verifyAttestations,
+  generateEd25519KeyPair,
+} from 'attest-it'
 
 // Load configuration
 const config = await loadConfig('.attest-it/config.yaml')
 
 // Compute fingerprint for a suite
 const result = await computeFingerprint({
-  packages: config.suites['my-suite'].packages,
-  basedir: process.cwd(),
+  paths: ['src'],
+  baseDir: process.cwd(),
 })
 
 // Verify all attestations
@@ -91,15 +96,26 @@ version: 1
 
 settings:
   maxAgeDays: 30
-  algorithm: ed25519
-  publicKeyPath: .attest-it/pubkey.pem
-  attestationsPath: .attest-it/attestations.json
+  sealsPath: .attest-it/seals.yaml
+
+team:
+  alice:
+    name: Alice Smith
+    publicKey: MCowBQYDK2VwAyEA...
+
+gates:
+  desktop-tests:
+    name: Desktop Tests
+    description: Tests requiring desktop application
+    authorizedSigners: [alice]
+    fingerprint:
+      paths:
+        - packages/my-app
+    maxAge: 30d
 
 suites:
   desktop-tests:
-    description: Tests requiring desktop application
-    packages:
-      - packages/my-app
+    gate: desktop-tests
     command: pnpm vitest --project desktop
 ```
 
@@ -121,7 +137,6 @@ suites:
 ## Requirements
 
 - Node.js 20+
-- OpenSSL (for key generation and signing)
 
 ## License
 

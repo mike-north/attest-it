@@ -163,6 +163,60 @@ describe('FilesystemKeyProvider', () => {
     })
   })
 
+  describe('tilde expansion', () => {
+    // We create a real subdirectory under os.homedir() so that paths expressed
+    // as ~/... resolve correctly via os.homedir().  The subdir is removed in
+    // afterEach alongside the regular tmpDir cleanup.
+    let homeTmpDir: string
+    let homeTmpRelative: string // e.g. ".attest-it-test-abc123"
+
+    beforeEach(async () => {
+      // mkdtemp with a prefix inside homedir gives us a unique directory
+      homeTmpDir = await fs.mkdtemp(path.join(os.homedir(), '.attest-it-test-'))
+      homeTmpRelative = path.relative(os.homedir(), homeTmpDir)
+    })
+
+    afterEach(async () => {
+      try {
+        await fs.rm(homeTmpDir, { recursive: true, force: true })
+      } catch {
+        // Ignore cleanup errors
+      }
+    })
+
+    it('should expand ~ in keyExists when key file exists', async () => {
+      const keyFile = path.join(homeTmpDir, 'tilde-key.pem')
+      await fs.writeFile(keyFile, 'test key content', 'utf-8')
+
+      const tildeRef = `~/${homeTmpRelative}/tilde-key.pem`
+      const exists = await provider.keyExists(tildeRef)
+      expect(exists).toBe(true)
+    })
+
+    it('should expand ~ in keyExists when key file does not exist', async () => {
+      const tildeRef = `~/${homeTmpRelative}/nonexistent.pem`
+      const exists = await provider.keyExists(tildeRef)
+      expect(exists).toBe(false)
+    })
+
+    it('should expand ~ in getPrivateKey and return the absolute resolved path', async () => {
+      const keyFile = path.join(homeTmpDir, 'tilde-key.pem')
+      await fs.writeFile(keyFile, 'test key content', 'utf-8')
+
+      const tildeRef = `~/${homeTmpRelative}/tilde-key.pem`
+      const result = await provider.getPrivateKey(tildeRef)
+
+      // The returned keyPath must be the expanded absolute path, not the tilde form
+      expect(result.keyPath).toBe(keyFile)
+      expect(result.keyPath).not.toContain('~')
+    })
+
+    it('should throw in getPrivateKey when tilde-prefixed key does not exist', async () => {
+      const tildeRef = `~/${homeTmpRelative}/missing.pem`
+      await expect(provider.getPrivateKey(tildeRef)).rejects.toThrow(/not found/)
+    })
+  })
+
   describe('getConfig', () => {
     it('should return correct configuration', () => {
       const privateKeyPath = path.join(tmpDir, 'config-key.pem')

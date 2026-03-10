@@ -95,8 +95,13 @@ name = "attest-it-conformance"
 version = "0.1.0"
 dependencies = [
  "assert_matches",
+ "attest-it-core",
+ "base64ct",
+ "ed25519-dalek",
  "serde",
  "serde_json",
+ "serde_yaml",
+ "sha2",
 ]
 
 [[package]]

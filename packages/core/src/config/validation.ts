@@ -89,7 +89,7 @@ export function validateSuiteGateReferences(
         type: 'UNKNOWN_GATE',
         suite: suiteName,
         gate: gateName,
-        message: `Suite "${suiteName}" references unknown gate "${gateName}". The gate must be defined in policy.yaml.`,
+        message: `Suite "${suiteName}" references unknown gate "${gateName}". The gate must be defined in the configuration.`,
       })
       continue
     }
@@ -103,7 +103,7 @@ export function validateSuiteGateReferences(
           suite: suiteName,
           gate: gateName,
           signer: signerSlug,
-          message: `Gate "${gateName}" (referenced by suite "${suiteName}") authorizes signer "${signerSlug}", but this team member is not defined in policy.yaml.`,
+          message: `Gate "${gateName}" (referenced by suite "${suiteName}") authorizes signer "${signerSlug}", but this team member is not defined in the configuration.`,
         })
       }
     }

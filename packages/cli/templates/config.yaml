@@ -5,51 +5,43 @@
 version: 1
 
 settings:
-  # How long attestations remain valid (in days)
+  # How long seals remain valid
   maxAgeDays: 30
-  # Path to the attestations file
-  attestationsPath: .attest-it/attestations.json
+  # Path to the seals file
+  sealsPath: .attest-it/seals.yaml
 
-# Team members who can sign attestations.
-# Add members with: attest-it team join (for yourself) or team add (for others)
+# Team members who can sign seals.
+# Add members with: attest-it identity create && attest-it team join
 #
 # team:
-#   mike-north:
-#     name: Mike North
-#     email: mike@example.com
-#     github: mike-north
-#     publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
-#     publicKeyAlgorithm: ed25519
+#   alice:
+#     name: Alice
+#     email: alice@example.com
+#     publicKey: <base64-encoded-public-key>
 
 team: {}
 
-# Gates define what code areas require attestation and who can sign.
+# Gates define what code areas require seals and who can sign.
 #
-# Example:
-#
-# gates:
-#   cli-interactive:
-#     name: CLI Interactive Tests
-#     description: Manual verification of interactive CLI experiences
-#     authorizedSigners:
-#       - mike-north
-#     fingerprint:
-#       paths:
-#         - packages/cli/src/commands
-#       exclude:
-#         - '**/*.spec.ts'
-#     maxAge: 90d
-
-gates: {}
+# Customize this gate or add more gates for different code areas.
+gates:
+  default:
+    name: Default Gate
+    description: Covers the entire project
+    authorizedSigners: [] # Add team member slugs after running 'attest-it team join'
+    maxAge: 30d
+    fingerprint:
+      paths:
+        - src
+      exclude:
+        - '**/*.test.ts'
+        - '**/*.spec.ts'
 
 # Suites define test commands that produce attestations.
 #
-# Example:
-#
-# suites:
-#   visual-tests:
-#     description: Visual regression tests requiring human review
-#     gate: cli-interactive
-#     command: pnpm vitest packages/ui
-
-suites: {}
+# Customize this suite to match your project's test setup.
+suites:
+  default:
+    description: Default test suite
+    gate: default
+    command: npm test

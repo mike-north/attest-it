@@ -6,6 +6,7 @@
 import ms from 'ms'
 
 import type { AttestItConfig, GateConfig, TeamMember } from './types.js'
+import { getWasm } from './wasm-bridge.js'
 
 /**
  * Check if a public key belongs to an authorized signer for a gate.
@@ -21,6 +22,13 @@ export function isAuthorizedSigner(
   gateId: string,
   publicKey: string,
 ): boolean {
+  // Delegate to WASM if initialized
+  const wasm = getWasm()
+  if (wasm) {
+    return wasm.isAuthorizedSigner(JSON.stringify(config), gateId, publicKey)
+  }
+
+  // Fall back to TypeScript implementation
   // eslint-disable-next-line security/detect-object-injection
   const gate = config.gates?.[gateId]
   if (!gate) {

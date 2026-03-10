@@ -222,7 +222,7 @@ async function main(): Promise<void> {
     // Step 11: Compute fingerprint for the gate
     log(symbols.info, 'Computing fingerprint...', 'blue')
     const fingerprintResult = computeFingerprintSync({
-      packages: ['src'], // Package directories to include
+      paths: ['src'], // Paths or glob patterns to include
       baseDir: tempDir,
     })
     log(

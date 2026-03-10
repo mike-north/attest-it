@@ -5,9 +5,9 @@
  * {@link WasmHostPlatform} interface expected by the WASM core.
  */
 
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { access, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { platform as osPlatform } from 'node:os'
-import { resolve } from 'node:path'
+import { dirname, resolve } from 'node:path'
 
 import type { ResolvedFile, SignResult, WasmHostPlatform } from './types.js'
 
@@ -25,10 +25,7 @@ export function createNodeHost(): WasmHostPlatform {
     },
 
     async writeFile(path: string, content: Uint8Array): Promise<void> {
-      const dir = path.substring(0, path.lastIndexOf('/'))
-      if (dir) {
-        await mkdir(dir, { recursive: true })
-      }
+      await mkdir(dirname(path), { recursive: true })
       await writeFile(path, content)
     },
 
@@ -50,11 +47,29 @@ export function createNodeHost(): WasmHostPlatform {
       ignore: string[],
       baseDir: string,
     ): Promise<ResolvedFile[]> {
+      // Expand bare directory paths to recursive globs, matching the TS
+      // `resolvePackagePattern` behavior in packages/core/src/fingerprint.ts.
+      const expandedPatterns: string[] = []
+      for (const pattern of patterns) {
+        if (/[*?{}\[\]]/.test(pattern)) {
+          expandedPatterns.push(pattern)
+        } else {
+          try {
+            const stats = await stat(resolve(baseDir, pattern))
+            expandedPatterns.push(stats.isFile() ? pattern : `${pattern}/**/*`)
+          } catch {
+            expandedPatterns.push(pattern)
+          }
+        }
+      }
+
       const { glob } = await import('tinyglobby')
-      const matches = await glob(patterns, {
+      const matches = await glob(expandedPatterns, {
         cwd: baseDir,
         ignore,
         absolute: false,
+        onlyFiles: true,
+        dot: true,
       })
 
       return matches.map((relativePath) => ({

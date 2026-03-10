@@ -182,6 +182,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@attest-it/wasm':
+        specifier: workspace:*
+        version: link:../attest-it-wasm
       '@migrex/core':
         specifier: 0.2.0-alpha.1
         version: 0.2.0-alpha.1

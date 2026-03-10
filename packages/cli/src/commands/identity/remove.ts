@@ -5,6 +5,8 @@ import { log, success, error, getTheme } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
 import { formatKeyLocation } from '../../utils/format-key-location.js'
 import { unlink } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import * as path from 'node:path'
 
 export const removeCommand = new Command('remove')
   .description('Delete identity and optionally delete private key')
@@ -68,8 +70,12 @@ async function runRemove(slug: string): Promise<void> {
       switch (identity.privateKey.type) {
         case 'file': {
           try {
-            await unlink(identity.privateKey.path)
-            log(`  Deleted private key file: ${identity.privateKey.path}`)
+            const rawPath = identity.privateKey.path
+            const resolvedPath = rawPath.startsWith('~/')
+              ? path.join(homedir(), rawPath.slice(1))
+              : rawPath
+            await unlink(resolvedPath)
+            log(`  Deleted private key file: ${rawPath}`)
           } catch (err) {
             // Ignore file not found errors
             if (err && typeof err === 'object' && 'code' in err && err.code !== 'ENOENT') {

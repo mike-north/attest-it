@@ -85,8 +85,8 @@ async function runPrune(options: PruneOptions): Promise<void> {
         const gateConfig = gateName ? config.gates?.[gateName] : undefined
         if (gateConfig) {
           const fingerprintOptions = {
-            packages: gateConfig.fingerprint.paths,
-            ...(gateConfig.fingerprint.exclude && { ignore: gateConfig.fingerprint.exclude }),
+            paths: gateConfig.fingerprint.paths,
+            ...(gateConfig.fingerprint.exclude && { exclude: gateConfig.fingerprint.exclude }),
           }
           const result = await computeFingerprint(fingerprintOptions)
           fingerprintMatches = result.fingerprint === attestation.fingerprint

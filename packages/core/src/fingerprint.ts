@@ -2,6 +2,7 @@ import * as crypto from 'node:crypto'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { glob, globSync } from 'tinyglobby'
+import { getWasm } from './wasm-bridge.js'
 
 /**
  * Threshold for streaming large files instead of reading into memory.
@@ -14,10 +15,10 @@ const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024 // 50MB
  * @public
  */
 export interface FingerprintOptions {
-  /** Package directories to include */
-  packages: string[]
+  /** Paths or glob patterns to include in fingerprint */
+  paths: string[]
   /** Glob patterns to exclude from fingerprint */
-  ignore?: string[]
+  exclude?: string[]
   /** Base directory for resolving paths */
   baseDir?: string
 }
@@ -143,19 +144,19 @@ function isGlobPattern(pathStr: string): boolean {
  * Validate fingerprint options and return base directory.
  */
 function validateOptions(options: FingerprintOptions): string {
-  if (options.packages.length === 0) {
-    throw new Error('packages array must not be empty')
+  if (options.paths.length === 0) {
+    throw new Error('paths array must not be empty')
   }
 
   const baseDir = options.baseDir ?? process.cwd()
 
-  // Verify all non-glob package paths exist
+  // Verify all non-glob paths exist
   // Glob patterns are validated later by tinyglobby
-  for (const pkg of options.packages) {
-    if (!isGlobPattern(pkg)) {
-      const pkgPath = path.resolve(baseDir, pkg)
-      if (!fs.existsSync(pkgPath)) {
-        throw new Error(`Package path does not exist: ${pkgPath}`)
+  for (const p of options.paths) {
+    if (!isGlobPattern(p)) {
+      const resolvedPath = path.resolve(baseDir, p)
+      if (!fs.existsSync(resolvedPath)) {
+        throw new Error(`Path does not exist: ${resolvedPath}`)
       }
     }
   }
@@ -180,10 +181,22 @@ function validateOptions(options: FingerprintOptions): string {
  * @public
  */
 export async function computeFingerprint(options: FingerprintOptions): Promise<FingerprintResult> {
+  // Delegate to WASM if initialized
+  const wasm = getWasm()
+  if (wasm) {
+    const wasmOpts: { paths: string[]; ignore?: string[]; baseDir?: string } = {
+      paths: options.paths,
+    }
+    if (options.exclude) wasmOpts.ignore = options.exclude
+    if (options.baseDir) wasmOpts.baseDir = options.baseDir
+    return wasm.computeFingerprint(wasmOpts)
+  }
+
+  // Fall back to TypeScript implementation
   const baseDir = validateOptions(options)
 
   // List all files in packages
-  const files = await listPackageFiles(options.packages, options.ignore, baseDir)
+  const files = await listPackageFiles(options.paths, options.exclude, baseDir)
 
   // Sort files lexicographically
   const sortedFiles = sortFiles(files)
@@ -254,17 +267,23 @@ export async function computeFingerprint(options: FingerprintOptions): Promise<F
 /**
  * Compute a deterministic fingerprint for a set of packages (sync).
  *
+ * Note: This always uses the TypeScript implementation, even when WASM is
+ * initialized. The WASM fingerprint path is inherently async (host callbacks
+ * for file I/O and glob resolution are Promise-based), so the sync variant
+ * cannot delegate to WASM. Use {@link computeFingerprint} for WASM-accelerated
+ * fingerprinting.
+ *
  * @param options - Configuration for fingerprint computation
  * @returns Result containing the fingerprint hash and list of files processed
  * @throws Error if packages array is empty or if package paths don't exist
  * @public
- * @see {@link computeFingerprint} for the async version
+ * @see {@link computeFingerprint} for the async version with WASM support
  */
 export function computeFingerprintSync(options: FingerprintOptions): FingerprintResult {
   const baseDir = validateOptions(options)
 
   // List all files in packages (sync version)
-  const files = listPackageFilesSync(options.packages, options.ignore, baseDir)
+  const files = listPackageFilesSync(options.paths, options.exclude, baseDir)
 
   // Sort files lexicographically
   const sortedFiles = sortFiles(files)

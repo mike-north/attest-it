@@ -16,15 +16,22 @@ import { promptForGateAuthorization, addTeamMemberToConfig } from './utils.js'
 
 export const joinCommand = new Command('join')
   .description('Add yourself to the project team using your active identity')
-  .action(async () => {
-    await runJoin()
+  .option('--all-gates', 'Authorize for all gates (non-interactive)')
+  .option('--gates <gates>', 'Comma-separated list of gate IDs to authorize for (non-interactive)')
+  .action(async (options: JoinOptions) => {
+    await runJoin(options)
   })
+
+interface JoinOptions {
+  allGates?: boolean
+  gates?: string
+}
 
 /**
  * Run the join command to add the user's active identity to the project team.
  * @public
  */
-export async function runJoin(): Promise<void> {
+export async function runJoin(options: JoinOptions = {}): Promise<void> {
   try {
     const theme = getTheme()
 
@@ -70,6 +77,13 @@ export async function runJoin(): Promise<void> {
     let slug = activeSlug
     // eslint-disable-next-line security/detect-object-injection -- slug comes from validated config
     if (existingTeam[slug]) {
+      const isNonInteractive = options.allGates !== undefined || options.gates !== undefined
+      if (isNonInteractive) {
+        error(
+          `Slug "${slug}" is already taken by another team member. Use a different identity or rename interactively.`,
+        )
+        process.exit(ExitCode.CONFIG_ERROR)
+      }
       log(`Slug "${slug}" is already taken by another team member.`)
       slug = await input({
         message: 'Choose a different slug:',
@@ -89,9 +103,25 @@ export async function runJoin(): Promise<void> {
       })
     }
 
-    // Prompt for gate authorizations
+    // Determine gate authorizations
     log('')
-    const authorizedGates = await promptForGateAuthorization(attestItConfig.gates)
+    let authorizedGates: string[]
+    if (options.allGates) {
+      authorizedGates = Object.keys(attestItConfig.gates ?? {})
+    } else if (options.gates) {
+      const requestedGates = options.gates.split(',').map((g) => g.trim())
+      const availableGates = Object.keys(attestItConfig.gates ?? {})
+      const unknownGates = requestedGates.filter((g) => !availableGates.includes(g))
+      if (unknownGates.length > 0) {
+        error(
+          `Unknown gate(s): ${unknownGates.join(', ')}. Available: ${availableGates.join(', ')}`,
+        )
+        process.exit(ExitCode.CONFIG_ERROR)
+      }
+      authorizedGates = requestedGates
+    } else {
+      authorizedGates = await promptForGateAuthorization(attestItConfig.gates)
+    }
 
     // Update config with new team member
     const memberData: Parameters<typeof addTeamMemberToConfig>[2] = {

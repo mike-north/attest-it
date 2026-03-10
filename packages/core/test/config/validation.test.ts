@@ -63,7 +63,7 @@ describe('validation', () => {
       expect(errors[0].suite).toBe('test')
       expect(errors[0].gate).toBe('nonexistent-gate')
       expect(errors[0].message).toContain('nonexistent-gate')
-      expect(errors[0].message).toContain('policy.yaml')
+      expect(errors[0].message).toContain('the configuration')
     })
 
     it('should detect missing team member in policy-missing-team-member.yaml fixture', () => {
@@ -91,7 +91,7 @@ suites:
       expect(errors[0].signer).toBe('charlie')
       expect(errors[0].message).toContain('charlie')
       expect(errors[0].message).toContain('broken')
-      expect(errors[0].message).toContain('policy.yaml')
+      expect(errors[0].message).toContain('the configuration')
     })
 
     it('should validate end-to-end: parse fixtures, merge, and validate', () => {
@@ -260,7 +260,7 @@ suites:
           suite: 'unit',
           gate: 'nonexistent',
           message:
-            'Suite "unit" references unknown gate "nonexistent". The gate must be defined in policy.yaml.',
+            'Suite "unit" references unknown gate "nonexistent". The gate must be defined in the configuration.',
         })
       })
 
@@ -311,7 +311,7 @@ suites:
           gate: 'core',
           signer: 'bob',
           message:
-            'Gate "core" (referenced by suite "unit") authorizes signer "bob", but this team member is not defined in policy.yaml.',
+            'Gate "core" (referenced by suite "unit") authorizes signer "bob", but this team member is not defined in the configuration.',
         })
       })
 
@@ -669,7 +669,7 @@ suites:
 
         expect(errors[0].message).toContain('my-suite')
         expect(errors[0].message).toContain('missing-gate')
-        expect(errors[0].message).toContain('policy.yaml')
+        expect(errors[0].message).toContain('the configuration')
       })
 
       it('should include all relevant information in MISSING_TEAM_MEMBER error messages', () => {
@@ -709,7 +709,7 @@ suites:
         expect(errors[0].message).toContain('security-gate')
         expect(errors[0].message).toContain('security-suite')
         expect(errors[0].message).toContain('missing-person')
-        expect(errors[0].message).toContain('policy.yaml')
+        expect(errors[0].message).toContain('the configuration')
       })
     })
   })

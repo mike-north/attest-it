@@ -5,6 +5,7 @@
 
 import { parseDuration, getGate, isAuthorizedSigner } from '../authorization.js'
 import type { AttestItConfig } from '../types.js'
+import { getWasm } from '../wasm-bridge.js'
 import type { Seal, SealsFile } from './types.js'
 import { verifySeal } from './operations.js'
 
@@ -51,6 +52,22 @@ export function verifyGateSeal(
   seals: SealsFile,
   currentFingerprint: string,
 ): SealVerificationResult {
+  // Capture nowMs once at entry so both WASM and TS paths use the same instant
+  const nowMs = Date.now()
+
+  // Delegate to WASM if initialized
+  const wasm = getWasm()
+  if (wasm) {
+    return wasm.verifyGateSeal(
+      JSON.stringify(config),
+      gateId,
+      JSON.stringify(seals),
+      currentFingerprint,
+      nowMs,
+    )
+  }
+
+  // Fall back to TypeScript implementation
   // Get the gate configuration
   const gate = getGate(config, gateId)
   if (!gate) {
@@ -128,8 +145,7 @@ export function verifyGateSeal(
   try {
     const maxAgeMs = parseDuration(gate.maxAge)
     const sealTimestamp = new Date(seal.timestamp).getTime()
-    const now = Date.now()
-    const ageMs = now - sealTimestamp
+    const ageMs = nowMs - sealTimestamp
 
     if (ageMs > maxAgeMs) {
       const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24))
@@ -174,6 +190,21 @@ export function verifyAllSeals(
   seals: SealsFile,
   fingerprints: Record<string, string>,
 ): SealVerificationResult[] {
+  // Capture nowMs once at entry so both WASM and TS paths use the same instant
+  const nowMs = Date.now()
+
+  // Delegate to WASM if initialized
+  const wasm = getWasm()
+  if (wasm) {
+    return wasm.verifyAllSeals(
+      JSON.stringify(config),
+      JSON.stringify(seals),
+      JSON.stringify(fingerprints),
+      nowMs,
+    )
+  }
+
+  // Fall back to TypeScript implementation
   if (!config.gates) {
     return []
   }

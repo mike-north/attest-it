@@ -271,8 +271,8 @@ async function createSealForGate(
 
   // Compute fingerprint for the gate
   const fingerprintResult = computeFingerprintSync({
-    packages: gateConfig.fingerprint.paths,
-    ...(gateConfig.fingerprint.exclude && { ignore: gateConfig.fingerprint.exclude }),
+    paths: gateConfig.fingerprint.paths,
+    ...(gateConfig.fingerprint.exclude && { exclude: gateConfig.fingerprint.exclude }),
   })
 
   // Create key provider from identity's private key reference

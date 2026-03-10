@@ -238,7 +238,7 @@ describe('runPrune', () => {
       const config = createMockConfig({
         suites: {
           'different-suite': {
-            packages: ['pkg1'],
+            gate: 'test-gate',
           },
         },
       })
@@ -285,12 +285,28 @@ describe('runPrune', () => {
 
     it('should write updated attestation file after pruning', async () => {
       const config = createMockConfig({
+        gates: {
+          'stale-gate': {
+            name: 'Stale Gate',
+            description: 'Gate for stale suite',
+            authorizedSigners: ['test-user'],
+            fingerprint: { paths: ['pkg1'] },
+            maxAge: '30d',
+          },
+          'valid-gate': {
+            name: 'Valid Gate',
+            description: 'Gate for valid suite',
+            authorizedSigners: ['test-user'],
+            fingerprint: { paths: ['pkg2'] },
+            maxAge: '30d',
+          },
+        },
         suites: {
           'stale-suite': {
-            packages: ['pkg1'],
+            gate: 'stale-gate',
           },
           'valid-suite': {
-            packages: ['pkg2'],
+            gate: 'valid-gate',
           },
         },
       })
@@ -308,7 +324,7 @@ describe('runPrune', () => {
       vi.mocked(readAttestations).mockResolvedValue(file)
       vi.mocked(computeFingerprint).mockImplementation((options) => {
         // Return different fingerprints for different suites
-        if (options.packages[0] === 'pkg1') {
+        if (options.paths[0] === 'pkg1') {
           // For stale-suite, return different fingerprint
           return Promise.resolve({
             fingerprint: 'sha256:different',
@@ -316,7 +332,7 @@ describe('runPrune', () => {
             fileCount: 10,
           })
         }
-        if (options.packages[0] === 'pkg2') {
+        if (options.paths[0] === 'pkg2') {
           // For valid-suite, return matching fingerprint
           return Promise.resolve({
             fingerprint: validAttestation.fingerprint,
