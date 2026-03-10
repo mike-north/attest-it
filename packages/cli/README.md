@@ -63,14 +63,15 @@ attest-it run --all --filter "unit-*"
 attest-it run  # Interactive mode (requires a terminal)
 ```
 
-| Option               | Description                               |
-| -------------------- | ----------------------------------------- |
-| `-s, --suite <name>` | Run a specific suite directly             |
-| `-a, --all`          | Run all suites needing attestation        |
-| `--no-attest`        | Run tests without creating an attestation |
-| `--dry-run`          | Show what would run without executing     |
-| `-c, --continue`     | Resume an interrupted session             |
-| `--filter <pattern>` | Filter suites by glob-style pattern       |
+| Option               | Description                                |
+| -------------------- | ------------------------------------------ |
+| `-s, --suite <name>` | Run a specific suite directly              |
+| `-a, --all`          | Run all suites needing attestation         |
+| `--no-attest`        | Run tests without creating an attestation  |
+| `--dry-run`          | Show what would run without executing      |
+| `-c, --continue`     | Resume an interrupted session              |
+| `-y, --yes`          | Run non-interactively; auto-accept prompts |
+| `--filter <pattern>` | Filter suites by glob-style pattern        |
 
 ### verify
 

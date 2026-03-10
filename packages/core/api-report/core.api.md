@@ -1351,6 +1351,7 @@ export interface VerifyOptions {
 // @public
 export interface VerifyResult {
     errors: string[];
+    // @deprecated
     signatureValid: boolean;
     success: boolean;
     suites: SuiteVerificationResult[];

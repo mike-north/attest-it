@@ -105,6 +105,10 @@ export async function runJoin(options: JoinOptions = {}): Promise<void> {
 
     // Determine gate authorizations
     log('')
+    if (options.allGates && options.gates) {
+      error('Cannot use --all-gates and --gates together. Choose one.')
+      process.exit(ExitCode.CONFIG_ERROR)
+    }
     let authorizedGates: string[]
     if (options.allGates) {
       authorizedGates = Object.keys(attestItConfig.gates ?? {})

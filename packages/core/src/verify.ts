@@ -33,7 +33,10 @@ export interface VerifyOptions {
 export interface VerifyResult {
   /** Overall success - true if all attestations are valid */
   success: boolean
-  /** Whether the attestations file signature is valid */
+  /**
+   * Whether the attestations file signature is valid.
+   * @deprecated Always returns `true`. Legacy RSA signature verification was removed — seals provide integrity instead.
+   */
   signatureValid: boolean
   /** Verification results for each suite */
   suites: SuiteVerificationResult[]

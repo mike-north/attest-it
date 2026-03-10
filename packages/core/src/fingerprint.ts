@@ -177,7 +177,7 @@ function validateOptions(options: FingerprintOptions): string {
  *
  * @param options - Configuration for fingerprint computation
  * @returns Result containing the fingerprint hash and list of files processed
- * @throws Error if packages array is empty or if package paths don't exist
+ * @throws Error if paths array is empty or if paths don't exist
  * @public
  */
 export async function computeFingerprint(options: FingerprintOptions): Promise<FingerprintResult> {
@@ -275,14 +275,14 @@ export async function computeFingerprint(options: FingerprintOptions): Promise<F
  *
  * @param options - Configuration for fingerprint computation
  * @returns Result containing the fingerprint hash and list of files processed
- * @throws Error if packages array is empty or if package paths don't exist
+ * @throws Error if paths array is empty or if paths don't exist
  * @public
  * @see {@link computeFingerprint} for the async version with WASM support
  */
 export function computeFingerprintSync(options: FingerprintOptions): FingerprintResult {
   const baseDir = validateOptions(options)
 
-  // List all files in packages (sync version)
+  // List all files in paths (sync version)
   const files = listPackageFilesSync(options.paths, options.exclude, baseDir)
 
   // Sort files lexicographically

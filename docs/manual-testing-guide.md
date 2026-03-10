@@ -289,7 +289,7 @@ pnpm --filter @attest-it/cli test:manual:my-integration
 pnpm exec attest-it seal my-integration
 ```
 
-Commit the seals file (`.attest-it/seals.yaml`) along with your changes.
+Commit the seals file (`.attest-it/seals.json`) along with your changes.
 
 ### Example: Full Flow
 

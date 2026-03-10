@@ -8,7 +8,7 @@ settings:
   # How long seals remain valid
   maxAgeDays: 30
   # Path to the seals file
-  sealsPath: .attest-it/seals.yaml
+  sealsPath: .attest-it/seals.json
 
 # Team members who can sign seals.
 # Add members with: attest-it identity create && attest-it team join
