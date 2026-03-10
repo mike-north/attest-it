@@ -1551,6 +1551,17 @@ Environment variable name for overriding the attest-it home directory. When set,
 </td></tr>
 <tr><td>
 
+[configSchema](./core.configschema.md)
+
+
+</td><td>
+
+Zod schema for the full configuration file.
+
+
+</td></tr>
+<tr><td>
+
 [operationalSchema](./core.operationalschema.md)
 
 

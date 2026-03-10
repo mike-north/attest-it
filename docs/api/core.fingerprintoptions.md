@@ -56,7 +56,7 @@ _(Optional)_ Base directory for resolving paths
 </td></tr>
 <tr><td>
 
-[ignore?](./core.fingerprintoptions.ignore.md)
+[exclude?](./core.fingerprintoptions.exclude.md)
 
 
 </td><td>
@@ -75,7 +75,7 @@ _(Optional)_ Glob patterns to exclude from fingerprint
 </td></tr>
 <tr><td>
 
-[packages](./core.fingerprintoptions.packages.md)
+[paths](./core.fingerprintoptions.paths.md)
 
 
 </td><td>
@@ -88,7 +88,7 @@ string\[\]
 
 </td><td>
 
-Package directories to include
+Paths or glob patterns to include in fingerprint
 
 
 </td></tr>

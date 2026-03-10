@@ -9,6 +9,7 @@ Improve developer experience across core, CLI, and documentation.
 **Breaking:** `FingerprintOptions` properties renamed: `packages` → `paths`, `ignore` → `exclude` to align with `GateConfig.fingerprint`. The `status` command now always exits 0 (use `verify` for CI enforcement).
 
 **Fixes:**
+
 - `seal` command uses full verification (not just fingerprint match) before skipping reseal
 - `run` commit hint now includes both attestations and seals files
 - `identity create` rejects partial non-interactive flags (`--slug` without `--name` or vice versa)
