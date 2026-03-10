@@ -143,8 +143,8 @@ if (!result.valid) {
 
 // Verify all seals at once: provide current fingerprints keyed by gateId
 const fingerprints: Record<string, string> = {}
-for (const gateId of Object.keys(sealsFile.seals)) {
-  const fp = await computeFingerprint({ paths: [`gates/${gateId}`], baseDir: '/path/to/repo' })
+for (const [gateId, gate] of Object.entries(config.gates ?? {})) {
+  const fp = await computeFingerprint({ paths: gate.fingerprint.paths, baseDir: '/path/to/repo' })
   fingerprints[gateId] = fp.fingerprint
 }
 const sealResults = verifyAllSeals(config, sealsFile, fingerprints)
@@ -171,7 +171,8 @@ const newAttestation = createAttestation({
   command: 'pnpm vitest --project desktop',
 })
 
-// Upsert and save (signature field is a legacy placeholder; integrity is provided by seals)
+// Upsert and save. The empty string for signature is correct for projects
+// using the seal model — seals provide cryptographic integrity instead.
 const updated = upsertAttestation(attestations, newAttestation)
 await writeAttestations('.attest-it/attestations.json', updated, '')
 ```

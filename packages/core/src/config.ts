@@ -100,7 +100,7 @@ const settingsSchema = z
     sealsPath: z.string().default('.attest-it/seals.json'),
     defaultCommand: z.string().optional(),
     keyProvider: keyProviderSchema.optional(),
-    // Note: algorithm field was removed - RSA is the only supported algorithm
+    // Note: legacy algorithm field was removed — Ed25519 is the only supported algorithm
   })
   .passthrough()
 
@@ -348,6 +348,7 @@ export function resolveConfigPaths(config: Config, repoRoot: string): Config {
       ...config.settings,
       publicKeyPath: resolve(repoRoot, config.settings.publicKeyPath),
       attestationsPath: resolve(repoRoot, config.settings.attestationsPath),
+      sealsPath: resolve(repoRoot, config.settings.sealsPath),
     },
   }
 }

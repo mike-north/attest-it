@@ -41992,7 +41992,7 @@ var settingsSchema = external_exports.object({
   sealsPath: external_exports.string().default(".attest-it/seals.json"),
   defaultCommand: external_exports.string().optional(),
   keyProvider: keyProviderSchema2.optional()
-  // Note: algorithm field was removed - RSA is the only supported algorithm
+  // Note: legacy algorithm field was removed — Ed25519 is the only supported algorithm
 }).passthrough();
 var suiteSchema = external_exports.object({
   gate: external_exports.string().min(1, "Gate reference cannot be empty"),

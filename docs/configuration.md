@@ -61,8 +61,8 @@ Global settings that apply to the project.
 ```yaml
 settings:
   maxAgeDays: 30
+  sealsPath: .attest-it/seals.json
   publicKeyPath: .attest-it/pubkey.pem
-  attestationsPath: .attest-it/attestations.json
   defaultCommand: pnpm test
   keyProvider:
     type: filesystem
@@ -75,8 +75,9 @@ settings:
 | Field              | Type    | Required | Default                        | Description                      |
 | ------------------ | ------- | -------- | ------------------------------ | -------------------------------- |
 | `maxAgeDays`       | integer | No       | `30`                           | Default maximum seal age in days |
+| `sealsPath`        | string  | No       | `.attest-it/seals.json`        | Path to seals file               |
 | `publicKeyPath`    | string  | No       | `.attest-it/pubkey.pem`        | Path to public key file          |
-| `attestationsPath` | string  | No       | `.attest-it/attestations.json` | Path to seals/attestations file  |
+| `attestationsPath` | string  | No       | `.attest-it/attestations.json` | Path to legacy attestations file |
 | `defaultCommand`   | string  | No       | -                              | Default command for suites       |
 | `keyProvider`      | object  | No       | -                              | Key provider configuration       |
 
