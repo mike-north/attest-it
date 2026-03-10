@@ -22,7 +22,8 @@ gates:
         - packages/cli/test/manual/scripts/1password-integration.ts
         - packages/core/src/key-provider/one-password-provider.ts
         - packages/core/src/seal/**/*.ts
-        - packages/core/src/crypto.ts
+        - packages/core/src/crypto/ed25519.ts
+        - packages/core/src/key-utils.ts
     maxAge: 90d
   keychain-integration:
     name: macOS Keychain Integration Tests
@@ -35,7 +36,8 @@ gates:
         - packages/cli/test/manual/scripts/keychain-integration.ts
         - packages/core/src/key-provider/macos-keychain-provider.ts
         - packages/core/src/seal/**/*.ts
-        - packages/core/src/crypto.ts
+        - packages/core/src/crypto/ed25519.ts
+        - packages/core/src/key-utils.ts
     maxAge: 90d
   yubikey-integration:
     name: YubiKey Integration Tests
@@ -47,7 +49,8 @@ gates:
         - packages/cli/test/manual/scripts/yubikey-integration.ts
         - packages/core/src/key-provider/yubikey-provider.ts
         - packages/core/src/seal/**/*.ts
-        - packages/core/src/crypto.ts
+        - packages/core/src/crypto/ed25519.ts
+        - packages/core/src/key-utils.ts
     maxAge: 90d
   cli-interactive:
     name: CLI Interactive Tests
