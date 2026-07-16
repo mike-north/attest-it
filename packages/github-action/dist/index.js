@@ -41,9 +41,13 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 // ../../node_modules/.pnpm/tsup@8.5.1_@microsoft+api-extractor@7.55.2_@types+node@22.19.3__jiti@2.6.1_postcss@8.5._65dab1016c61d0c054da0a70acdf15cb/node_modules/tsup/assets/esm_shims.js
 import path from "path";
 import { fileURLToPath } from "url";
+var getFilename, getDirname, __dirname;
 var init_esm_shims = __esm({
   "../../node_modules/.pnpm/tsup@8.5.1_@microsoft+api-extractor@7.55.2_@types+node@22.19.3__jiti@2.6.1_postcss@8.5._65dab1016c61d0c054da0a70acdf15cb/node_modules/tsup/assets/esm_shims.js"() {
     "use strict";
+    getFilename = () => fileURLToPath(import.meta.url);
+    getDirname = () => path.dirname(getFilename());
+    __dirname = /* @__PURE__ */ getDirname();
   }
 });
 
@@ -114,11 +118,11 @@ var require_command = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.issue = exports.issueCommand = void 0;
-    var os2 = __importStar(__require("os"));
+    var os3 = __importStar(__require("os"));
     var utils_1 = require_utils();
     function issueCommand(command, properties, message) {
       const cmd = new Command(command, properties, message);
-      process.stdout.write(cmd.toString() + os2.EOL);
+      process.stdout.write(cmd.toString() + os3.EOL);
     }
     exports.issueCommand = issueCommand;
     function issue(name, message = "") {
@@ -202,18 +206,18 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.prepareKeyValueMessage = exports.issueFileCommand = void 0;
     var crypto = __importStar(__require("crypto"));
-    var fs3 = __importStar(__require("fs"));
-    var os2 = __importStar(__require("os"));
+    var fs4 = __importStar(__require("fs"));
+    var os3 = __importStar(__require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
       const filePath = process.env[`GITHUB_${command}`];
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs3.existsSync(filePath)) {
+      if (!fs4.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs3.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os2.EOL}`, {
+      fs4.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os3.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -227,7 +231,7 @@ var require_file_command = __commonJS({
       if (convertedValue.includes(delimiter)) {
         throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
       }
-      return `${key}<<${delimiter}${os2.EOL}${convertedValue}${os2.EOL}${delimiter}`;
+      return `${key}<<${delimiter}${os3.EOL}${convertedValue}${os3.EOL}${delimiter}`;
     }
     exports.prepareKeyValueMessage = prepareKeyValueMessage;
   }
@@ -357,44 +361,44 @@ var require_tunnel = __commonJS({
       return agent;
     }
     function TunnelingAgent(options) {
-      var self = this;
-      self.options = options || {};
-      self.proxyOptions = self.options.proxy || {};
-      self.maxSockets = self.options.maxSockets || http.Agent.defaultMaxSockets;
-      self.requests = [];
-      self.sockets = [];
-      self.on("free", function onFree(socket, host, port, localAddress) {
+      var self2 = this;
+      self2.options = options || {};
+      self2.proxyOptions = self2.options.proxy || {};
+      self2.maxSockets = self2.options.maxSockets || http.Agent.defaultMaxSockets;
+      self2.requests = [];
+      self2.sockets = [];
+      self2.on("free", function onFree(socket, host, port, localAddress) {
         var options2 = toOptions(host, port, localAddress);
-        for (var i = 0, len = self.requests.length; i < len; ++i) {
-          var pending = self.requests[i];
+        for (var i = 0, len = self2.requests.length; i < len; ++i) {
+          var pending = self2.requests[i];
           if (pending.host === options2.host && pending.port === options2.port) {
-            self.requests.splice(i, 1);
+            self2.requests.splice(i, 1);
             pending.request.onSocket(socket);
             return;
           }
         }
         socket.destroy();
-        self.removeSocket(socket);
+        self2.removeSocket(socket);
       });
     }
     util2.inherits(TunnelingAgent, events.EventEmitter);
     TunnelingAgent.prototype.addRequest = function addRequest(req, host, port, localAddress) {
-      var self = this;
-      var options = mergeOptions({ request: req }, self.options, toOptions(host, port, localAddress));
-      if (self.sockets.length >= this.maxSockets) {
-        self.requests.push(options);
+      var self2 = this;
+      var options = mergeOptions({ request: req }, self2.options, toOptions(host, port, localAddress));
+      if (self2.sockets.length >= this.maxSockets) {
+        self2.requests.push(options);
         return;
       }
-      self.createSocket(options, function(socket) {
+      self2.createSocket(options, function(socket) {
         socket.on("free", onFree);
         socket.on("close", onCloseOrRemove);
         socket.on("agentRemove", onCloseOrRemove);
         req.onSocket(socket);
         function onFree() {
-          self.emit("free", socket, options);
+          self2.emit("free", socket, options);
         }
         function onCloseOrRemove(err) {
-          self.removeSocket(socket);
+          self2.removeSocket(socket);
           socket.removeListener("free", onFree);
           socket.removeListener("close", onCloseOrRemove);
           socket.removeListener("agentRemove", onCloseOrRemove);
@@ -402,10 +406,10 @@ var require_tunnel = __commonJS({
       });
     };
     TunnelingAgent.prototype.createSocket = function createSocket(options, cb) {
-      var self = this;
+      var self2 = this;
       var placeholder = {};
-      self.sockets.push(placeholder);
-      var connectOptions = mergeOptions({}, self.proxyOptions, {
+      self2.sockets.push(placeholder);
+      var connectOptions = mergeOptions({}, self2.proxyOptions, {
         method: "CONNECT",
         path: options.host + ":" + options.port,
         agent: false,
@@ -421,7 +425,7 @@ var require_tunnel = __commonJS({
         connectOptions.headers["Proxy-Authorization"] = "Basic " + new Buffer(connectOptions.proxyAuth).toString("base64");
       }
       debug("making CONNECT request");
-      var connectReq = self.request(connectOptions);
+      var connectReq = self2.request(connectOptions);
       connectReq.useChunkedEncodingByDefault = false;
       connectReq.once("response", onResponse);
       connectReq.once("upgrade", onUpgrade);
@@ -448,7 +452,7 @@ var require_tunnel = __commonJS({
           var error2 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
           error2.code = "ECONNRESET";
           options.request.emit("error", error2);
-          self.removeSocket(placeholder);
+          self2.removeSocket(placeholder);
           return;
         }
         if (head.length > 0) {
@@ -457,11 +461,11 @@ var require_tunnel = __commonJS({
           var error2 = new Error("got illegal response body from proxy");
           error2.code = "ECONNRESET";
           options.request.emit("error", error2);
-          self.removeSocket(placeholder);
+          self2.removeSocket(placeholder);
           return;
         }
         debug("tunneling connection has established");
-        self.sockets[self.sockets.indexOf(placeholder)] = socket;
+        self2.sockets[self2.sockets.indexOf(placeholder)] = socket;
         return cb(socket);
       }
       function onError(cause) {
@@ -474,7 +478,7 @@ var require_tunnel = __commonJS({
         var error2 = new Error("tunneling socket could not be established, cause=" + cause.message);
         error2.code = "ECONNRESET";
         options.request.emit("error", error2);
-        self.removeSocket(placeholder);
+        self2.removeSocket(placeholder);
       }
     };
     TunnelingAgent.prototype.removeSocket = function removeSocket(socket) {
@@ -491,15 +495,15 @@ var require_tunnel = __commonJS({
       }
     };
     function createSecureSocket(options, cb) {
-      var self = this;
-      TunnelingAgent.prototype.createSocket.call(self, options, function(socket) {
+      var self2 = this;
+      TunnelingAgent.prototype.createSocket.call(self2, options, function(socket) {
         var hostHeader = options.request.getHeader("host");
-        var tlsOptions = mergeOptions({}, self.options, {
+        var tlsOptions = mergeOptions({}, self2.options, {
           socket,
           servername: hostHeader ? hostHeader.replace(/:.*$/, "") : options.host
         });
         var secureSocket = tls.connect(0, tlsOptions);
-        self.sockets[self.sockets.indexOf(socket)] = secureSocket;
+        self2.sockets[self2.sockets.indexOf(socket)] = secureSocket;
         cb(secureSocket);
       });
     }
@@ -1614,7 +1618,7 @@ var require_HeaderParser = __commonJS({
     function HeaderParser(cfg) {
       EventEmitter.call(this);
       cfg = cfg || {};
-      const self = this;
+      const self2 = this;
       this.nread = 0;
       this.maxed = false;
       this.npairs = 0;
@@ -1625,18 +1629,18 @@ var require_HeaderParser = __commonJS({
       this.finished = false;
       this.ss = new StreamSearch(B_DCRLF);
       this.ss.on("info", function(isMatch, data, start, end) {
-        if (data && !self.maxed) {
-          if (self.nread + end - start >= self.maxHeaderSize) {
-            end = self.maxHeaderSize - self.nread + start;
-            self.nread = self.maxHeaderSize;
-            self.maxed = true;
+        if (data && !self2.maxed) {
+          if (self2.nread + end - start >= self2.maxHeaderSize) {
+            end = self2.maxHeaderSize - self2.nread + start;
+            self2.nread = self2.maxHeaderSize;
+            self2.maxed = true;
           } else {
-            self.nread += end - start;
+            self2.nread += end - start;
           }
-          self.buffer += data.toString("binary", start, end);
+          self2.buffer += data.toString("binary", start, end);
         }
         if (isMatch) {
-          self._finish();
+          self2._finish();
         }
       });
     }
@@ -1742,34 +1746,34 @@ var require_Dicer = __commonJS({
       this._ignoreData = false;
       this._partOpts = { highWaterMark: cfg.partHwm };
       this._pause = false;
-      const self = this;
+      const self2 = this;
       this._hparser = new HeaderParser(cfg);
       this._hparser.on("header", function(header) {
-        self._inHeader = false;
-        self._part.emit("header", header);
+        self2._inHeader = false;
+        self2._part.emit("header", header);
       });
     }
     inherits(Dicer, WritableStream);
     Dicer.prototype.emit = function(ev) {
       if (ev === "finish" && !this._realFinish) {
         if (!this._finished) {
-          const self = this;
+          const self2 = this;
           process.nextTick(function() {
-            self.emit("error", new Error("Unexpected end of multipart data"));
-            if (self._part && !self._ignoreData) {
-              const type = self._isPreamble ? "Preamble" : "Part";
-              self._part.emit("error", new Error(type + " terminated early due to unexpected end of multipart data"));
-              self._part.push(null);
+            self2.emit("error", new Error("Unexpected end of multipart data"));
+            if (self2._part && !self2._ignoreData) {
+              const type = self2._isPreamble ? "Preamble" : "Part";
+              self2._part.emit("error", new Error(type + " terminated early due to unexpected end of multipart data"));
+              self2._part.push(null);
               process.nextTick(function() {
-                self._realFinish = true;
-                self.emit("finish");
-                self._realFinish = false;
+                self2._realFinish = true;
+                self2.emit("finish");
+                self2._realFinish = false;
               });
               return;
             }
-            self._realFinish = true;
-            self.emit("finish");
-            self._realFinish = false;
+            self2._realFinish = true;
+            self2.emit("finish");
+            self2._realFinish = false;
           });
         }
       } else {
@@ -1813,10 +1817,10 @@ var require_Dicer = __commonJS({
       this._hparser = void 0;
     };
     Dicer.prototype.setBoundary = function(boundary) {
-      const self = this;
+      const self2 = this;
       this._bparser = new StreamSearch("\r\n--" + boundary);
       this._bparser.on("info", function(isMatch, data, start, end) {
-        self._oninfo(isMatch, data, start, end);
+        self2._oninfo(isMatch, data, start, end);
       });
     };
     Dicer.prototype._ignore = function() {
@@ -1828,7 +1832,7 @@ var require_Dicer = __commonJS({
     };
     Dicer.prototype._oninfo = function(isMatch, data, start, end) {
       let buf;
-      const self = this;
+      const self2 = this;
       let i = 0;
       let r;
       let shouldWriteMore = true;
@@ -1851,10 +1855,10 @@ var require_Dicer = __commonJS({
           }
           this.reset();
           this._finished = true;
-          if (self._parts === 0) {
-            self._realFinish = true;
-            self.emit("finish");
-            self._realFinish = false;
+          if (self2._parts === 0) {
+            self2._realFinish = true;
+            self2.emit("finish");
+            self2._realFinish = false;
           }
         }
         if (this._dashes) {
@@ -1867,7 +1871,7 @@ var require_Dicer = __commonJS({
       if (!this._part) {
         this._part = new PartStream(this._partOpts);
         this._part._read = function(n) {
-          self._unpause();
+          self2._unpause();
         };
         if (this._isPreamble && this.listenerCount("preamble") !== 0) {
           this.emit("preamble", this._part);
@@ -1907,13 +1911,13 @@ var require_Dicer = __commonJS({
           if (start !== end) {
             ++this._parts;
             this._part.on("end", function() {
-              if (--self._parts === 0) {
-                if (self._finished) {
-                  self._realFinish = true;
-                  self.emit("finish");
-                  self._realFinish = false;
+              if (--self2._parts === 0) {
+                if (self2._finished) {
+                  self2._realFinish = true;
+                  self2.emit("finish");
+                  self2._realFinish = false;
                 } else {
-                  self._unpause();
+                  self2._unpause();
                 }
               }
             });
@@ -2694,7 +2698,7 @@ var require_multipart = __commonJS({
     function Multipart(boy, cfg) {
       let i;
       let len;
-      const self = this;
+      const self2 = this;
       let boundary;
       const limits = cfg.limits;
       const isPartAFile = cfg.isPartAFile || ((fieldName, contentType, fileName) => contentType === "application/octet-stream" || fileName !== void 0);
@@ -2711,7 +2715,7 @@ var require_multipart = __commonJS({
       function checkFinished() {
         if (nends === 0 && finished && !boy._done) {
           finished = false;
-          self.end();
+          self2.end();
         }
       }
       if (typeof boundary !== "string") {
@@ -2744,16 +2748,16 @@ var require_multipart = __commonJS({
       };
       this.parser = new Dicer(parserCfg);
       this.parser.on("drain", function() {
-        self._needDrain = false;
-        if (self._cb && !self._pause) {
-          const cb = self._cb;
-          self._cb = void 0;
+        self2._needDrain = false;
+        if (self2._cb && !self2._pause) {
+          const cb = self2._cb;
+          self2._cb = void 0;
           cb();
         }
       }).on("part", function onPart(part) {
-        if (++self._nparts > partsLimit) {
-          self.parser.removeListener("part", onPart);
-          self.parser.on("part", skipPart);
+        if (++self2._nparts > partsLimit) {
+          self2.parser.removeListener("part", onPart);
+          self2.parser.on("part", skipPart);
           boy.hitPartsLimit = true;
           boy.emit("partsLimit");
           return skipPart(part);
@@ -2823,7 +2827,7 @@ var require_multipart = __commonJS({
             }
             ++nfiles;
             if (boy.listenerCount("file") === 0) {
-              self.parser._ignore();
+              self2.parser._ignore();
               return;
             }
             ++nends;
@@ -2831,22 +2835,22 @@ var require_multipart = __commonJS({
             curFile = file;
             file.on("end", function() {
               --nends;
-              self._pause = false;
+              self2._pause = false;
               checkFinished();
-              if (self._cb && !self._needDrain) {
-                const cb = self._cb;
-                self._cb = void 0;
+              if (self2._cb && !self2._needDrain) {
+                const cb = self2._cb;
+                self2._cb = void 0;
                 cb();
               }
             });
             file._read = function(n) {
-              if (!self._pause) {
+              if (!self2._pause) {
                 return;
               }
-              self._pause = false;
-              if (self._cb && !self._needDrain) {
-                const cb = self._cb;
-                self._cb = void 0;
+              self2._pause = false;
+              if (self2._cb && !self2._needDrain) {
+                const cb = self2._cb;
+                self2._cb = void 0;
                 cb();
               }
             };
@@ -2863,7 +2867,7 @@ var require_multipart = __commonJS({
                 file.emit("limit");
                 return;
               } else if (!file.push(data)) {
-                self._pause = true;
+                self2._pause = true;
               }
               file.bytesRead = nsize;
             };
@@ -2929,13 +2933,13 @@ var require_multipart = __commonJS({
       }
     };
     Multipart.prototype.end = function() {
-      const self = this;
-      if (self.parser.writable) {
-        self.parser.end();
-      } else if (!self._boy._done) {
+      const self2 = this;
+      if (self2.parser.writable) {
+        self2.parser.end();
+      } else if (!self2._boy._done) {
         process.nextTick(function() {
-          self._boy._done = true;
-          self._boy.emit("finish");
+          self2._boy._done = true;
+          self2._boy.emit("finish");
         });
       }
     };
@@ -4068,8 +4072,8 @@ var require_util2 = __commonJS({
     function createDeferredPromise() {
       let res;
       let rej;
-      const promise2 = new Promise((resolve4, reject) => {
-        res = resolve4;
+      const promise2 = new Promise((resolve6, reject) => {
+        res = resolve6;
         rej = reject;
       });
       return { promise: promise2, resolve: res, reject: rej };
@@ -5580,8 +5584,8 @@ Content-Type: ${value.type || "application/octet-stream"}\r
                 });
               }
             });
-            const busboyResolve = new Promise((resolve4, reject) => {
-              busboy.on("finish", resolve4);
+            const busboyResolve = new Promise((resolve6, reject) => {
+              busboy.on("finish", resolve6);
               busboy.on("error", (err) => reject(new TypeError(err)));
             });
             if (this.body !== null) for await (const chunk of consumeBody(this[kState].body)) busboy.write(chunk);
@@ -5711,7 +5715,7 @@ var require_request = __commonJS({
       channels.trailers = { hasSubscribers: false };
       channels.error = { hasSubscribers: false };
     }
-    var Request = class _Request {
+    var Request2 = class _Request {
       constructor(origin, {
         path: path4,
         method,
@@ -6046,7 +6050,7 @@ var require_request = __commonJS({
         }
       }
     }
-    module.exports = Request;
+    module.exports = Request2;
   }
 });
 
@@ -6118,9 +6122,9 @@ var require_dispatcher_base = __commonJS({
       }
       close(callback2) {
         if (callback2 === void 0) {
-          return new Promise((resolve4, reject) => {
+          return new Promise((resolve6, reject) => {
             this.close((err, data) => {
-              return err ? reject(err) : resolve4(data);
+              return err ? reject(err) : resolve6(data);
             });
           });
         }
@@ -6158,12 +6162,12 @@ var require_dispatcher_base = __commonJS({
           err = null;
         }
         if (callback2 === void 0) {
-          return new Promise((resolve4, reject) => {
+          return new Promise((resolve6, reject) => {
             this.destroy(err, (err2, data) => {
               return err2 ? (
                 /* istanbul ignore next: should never error */
                 reject(err2)
-              ) : resolve4(data);
+              ) : resolve6(data);
             });
           });
         }
@@ -6938,7 +6942,7 @@ var require_client = __commonJS({
     var { pipeline } = __require("stream");
     var util2 = require_util();
     var timers = require_timers();
-    var Request = require_request();
+    var Request2 = require_request();
     var DispatcherBase = require_dispatcher_base();
     var {
       RequestContentLengthMismatchError,
@@ -7218,7 +7222,7 @@ var require_client = __commonJS({
       }
       [kDispatch](opts, handler2) {
         const origin = opts.origin || this[kUrl].origin;
-        const request2 = this[kHTTPConnVersion] === "h2" ? Request[kHTTP2BuildRequest](origin, opts, handler2) : Request[kHTTP1BuildRequest](origin, opts, handler2);
+        const request2 = this[kHTTPConnVersion] === "h2" ? Request2[kHTTP2BuildRequest](origin, opts, handler2) : Request2[kHTTP1BuildRequest](origin, opts, handler2);
         this[kQueue].push(request2);
         if (this[kResuming]) {
         } else if (util2.bodyLength(request2.body) == null && util2.isIterable(request2.body)) {
@@ -7233,16 +7237,16 @@ var require_client = __commonJS({
         return this[kNeedDrain] < 2;
       }
       async [kClose]() {
-        return new Promise((resolve4) => {
+        return new Promise((resolve6) => {
           if (!this[kSize]) {
-            resolve4(null);
+            resolve6(null);
           } else {
-            this[kClosedResolve] = resolve4;
+            this[kClosedResolve] = resolve6;
           }
         });
       }
       async [kDestroy](err) {
-        return new Promise((resolve4) => {
+        return new Promise((resolve6) => {
           const requests = this[kQueue].splice(this[kPendingIdx]);
           for (let i = 0; i < requests.length; i++) {
             const request2 = requests[i];
@@ -7253,7 +7257,7 @@ var require_client = __commonJS({
               this[kClosedResolve]();
               this[kClosedResolve] = null;
             }
-            resolve4();
+            resolve6();
           };
           if (this[kHTTP2Session] != null) {
             util2.destroy(this[kHTTP2Session], err);
@@ -7833,7 +7837,7 @@ var require_client = __commonJS({
         });
       }
       try {
-        const socket = await new Promise((resolve4, reject) => {
+        const socket = await new Promise((resolve6, reject) => {
           client[kConnector]({
             host,
             hostname,
@@ -7845,7 +7849,7 @@ var require_client = __commonJS({
             if (err) {
               reject(err);
             } else {
-              resolve4(socket2);
+              resolve6(socket2);
             }
           });
         });
@@ -8171,7 +8175,7 @@ upgrade: ${upgrade}\r
     function writeH2(client, session, request2) {
       const { body, method, path: path4, host, upgrade, expectContinue, signal, headers: reqHeaders } = request2;
       let headers;
-      if (typeof reqHeaders === "string") headers = Request[kHTTP2CopyHeaders](reqHeaders.trim());
+      if (typeof reqHeaders === "string") headers = Request2[kHTTP2CopyHeaders](reqHeaders.trim());
       else headers = reqHeaders;
       if (upgrade) {
         errorRequest(client, request2, new Error("Upgrade not supported for H2"));
@@ -8469,12 +8473,12 @@ upgrade: ${upgrade}\r
           cb();
         }
       }
-      const waitForDrain = () => new Promise((resolve4, reject) => {
+      const waitForDrain = () => new Promise((resolve6, reject) => {
         assert(callback2 === null);
         if (socket[kError]) {
           reject(socket[kError]);
         } else {
-          callback2 = resolve4;
+          callback2 = resolve6;
         }
       });
       if (client[kHTTPConnVersion] === "h2") {
@@ -8823,8 +8827,8 @@ var require_pool_base = __commonJS({
         if (this[kQueue].isEmpty()) {
           return Promise.all(this[kClients].map((c) => c.close()));
         } else {
-          return new Promise((resolve4) => {
-            this[kClosedResolve] = resolve4;
+          return new Promise((resolve6) => {
+            this[kClosedResolve] = resolve6;
           });
         }
       }
@@ -9165,7 +9169,7 @@ var require_agent = __commonJS({
     var Client = require_client();
     var util2 = require_util();
     var createRedirectInterceptor = require_redirectInterceptor();
-    var { WeakRef: WeakRef2, FinalizationRegistry } = require_dispatcher_weakref()();
+    var { WeakRef: WeakRef2, FinalizationRegistry: FinalizationRegistry2 } = require_dispatcher_weakref()();
     var kOnConnect = /* @__PURE__ */ Symbol("onConnect");
     var kOnDisconnect = /* @__PURE__ */ Symbol("onDisconnect");
     var kOnConnectionError = /* @__PURE__ */ Symbol("onConnectionError");
@@ -9198,7 +9202,7 @@ var require_agent = __commonJS({
         this[kMaxRedirections] = maxRedirections;
         this[kFactory] = factory;
         this[kClients] = /* @__PURE__ */ new Map();
-        this[kFinalizer] = new FinalizationRegistry(
+        this[kFinalizer] = new FinalizationRegistry2(
           /* istanbul ignore next: gc is undeterministic */
           (key) => {
             const ref = this[kClients].get(key);
@@ -9407,7 +9411,7 @@ var require_readable = __commonJS({
         if (this.closed) {
           return Promise.resolve(null);
         }
-        return new Promise((resolve4, reject) => {
+        return new Promise((resolve6, reject) => {
           const signalListenerCleanup = signal ? util2.addAbortListener(signal, () => {
             this.destroy();
           }) : noop2;
@@ -9416,7 +9420,7 @@ var require_readable = __commonJS({
             if (signal && signal.aborted) {
               reject(signal.reason || Object.assign(new Error("The operation was aborted"), { name: "AbortError" }));
             } else {
-              resolve4(null);
+              resolve6(null);
             }
           }).on("error", noop2).on("data", function(chunk) {
             limit -= chunk.length;
@@ -9427,22 +9431,22 @@ var require_readable = __commonJS({
         });
       }
     };
-    function isLocked(self) {
-      return self[kBody] && self[kBody].locked === true || self[kConsume];
+    function isLocked(self2) {
+      return self2[kBody] && self2[kBody].locked === true || self2[kConsume];
     }
-    function isUnusable(self) {
-      return util2.isDisturbed(self) || isLocked(self);
+    function isUnusable(self2) {
+      return util2.isDisturbed(self2) || isLocked(self2);
     }
     async function consume(stream, type) {
       if (isUnusable(stream)) {
         throw new TypeError("unusable");
       }
       assert(!stream[kConsume]);
-      return new Promise((resolve4, reject) => {
+      return new Promise((resolve6, reject) => {
         stream[kConsume] = {
           type,
           stream,
-          resolve: resolve4,
+          resolve: resolve6,
           reject,
           length: 0,
           body: []
@@ -9477,12 +9481,12 @@ var require_readable = __commonJS({
       }
     }
     function consumeEnd(consume2) {
-      const { type, body, resolve: resolve4, stream, length } = consume2;
+      const { type, body, resolve: resolve6, stream, length } = consume2;
       try {
         if (type === "text") {
-          resolve4(toUSVString(Buffer.concat(body)));
+          resolve6(toUSVString(Buffer.concat(body)));
         } else if (type === "json") {
-          resolve4(JSON.parse(Buffer.concat(body)));
+          resolve6(JSON.parse(Buffer.concat(body)));
         } else if (type === "arrayBuffer") {
           const dst = new Uint8Array(length);
           let pos = 0;
@@ -9490,12 +9494,12 @@ var require_readable = __commonJS({
             dst.set(buf, pos);
             pos += buf.byteLength;
           }
-          resolve4(dst.buffer);
+          resolve6(dst.buffer);
         } else if (type === "blob") {
           if (!Blob2) {
             Blob2 = __require("buffer").Blob;
           }
-          resolve4(new Blob2(body, { type: stream[kContentType] }));
+          resolve6(new Blob2(body, { type: stream[kContentType] }));
         }
         consumeFinish(consume2);
       } catch (err) {
@@ -9579,40 +9583,40 @@ var require_abort_signal = __commonJS({
     var { RequestAbortedError } = require_errors();
     var kListener = /* @__PURE__ */ Symbol("kListener");
     var kSignal = /* @__PURE__ */ Symbol("kSignal");
-    function abort(self) {
-      if (self.abort) {
-        self.abort();
+    function abort(self2) {
+      if (self2.abort) {
+        self2.abort();
       } else {
-        self.onError(new RequestAbortedError());
+        self2.onError(new RequestAbortedError());
       }
     }
-    function addSignal(self, signal) {
-      self[kSignal] = null;
-      self[kListener] = null;
+    function addSignal(self2, signal) {
+      self2[kSignal] = null;
+      self2[kListener] = null;
       if (!signal) {
         return;
       }
       if (signal.aborted) {
-        abort(self);
+        abort(self2);
         return;
       }
-      self[kSignal] = signal;
-      self[kListener] = () => {
-        abort(self);
+      self2[kSignal] = signal;
+      self2[kListener] = () => {
+        abort(self2);
       };
-      addAbortListener(self[kSignal], self[kListener]);
+      addAbortListener(self2[kSignal], self2[kListener]);
     }
-    function removeSignal(self) {
-      if (!self[kSignal]) {
+    function removeSignal(self2) {
+      if (!self2[kSignal]) {
         return;
       }
-      if ("removeEventListener" in self[kSignal]) {
-        self[kSignal].removeEventListener("abort", self[kListener]);
+      if ("removeEventListener" in self2[kSignal]) {
+        self2[kSignal].removeEventListener("abort", self2[kListener]);
       } else {
-        self[kSignal].removeListener("abort", self[kListener]);
+        self2[kSignal].removeListener("abort", self2[kListener]);
       }
-      self[kSignal] = null;
-      self[kListener] = null;
+      self2[kSignal] = null;
+      self2[kListener] = null;
     }
     module.exports = {
       addSignal,
@@ -9755,9 +9759,9 @@ var require_api_request = __commonJS({
     };
     function request2(opts, callback2) {
       if (callback2 === void 0) {
-        return new Promise((resolve4, reject) => {
+        return new Promise((resolve6, reject) => {
           request2.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve4(data);
+            return err ? reject(err) : resolve6(data);
           });
         });
       }
@@ -9931,9 +9935,9 @@ var require_api_stream = __commonJS({
     };
     function stream(opts, factory, callback2) {
       if (callback2 === void 0) {
-        return new Promise((resolve4, reject) => {
+        return new Promise((resolve6, reject) => {
           stream.call(this, opts, factory, (err, data) => {
-            return err ? reject(err) : resolve4(data);
+            return err ? reject(err) : resolve6(data);
           });
         });
       }
@@ -10216,9 +10220,9 @@ var require_api_upgrade = __commonJS({
     };
     function upgrade(opts, callback2) {
       if (callback2 === void 0) {
-        return new Promise((resolve4, reject) => {
+        return new Promise((resolve6, reject) => {
           upgrade.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve4(data);
+            return err ? reject(err) : resolve6(data);
           });
         });
       }
@@ -10308,9 +10312,9 @@ var require_api_connect = __commonJS({
     };
     function connect(opts, callback2) {
       if (callback2 === void 0) {
-        return new Promise((resolve4, reject) => {
+        return new Promise((resolve6, reject) => {
           connect.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve4(data);
+            return err ? reject(err) : resolve6(data);
           });
         });
       }
@@ -11797,7 +11801,7 @@ var require_headers = __commonJS({
         return headers;
       }
     };
-    var Headers = class _Headers {
+    var Headers2 = class _Headers {
       constructor(init = void 0) {
         if (init === kConstruct) {
           return;
@@ -11992,8 +11996,8 @@ var require_headers = __commonJS({
         return this[kHeadersList];
       }
     };
-    Headers.prototype[Symbol.iterator] = Headers.prototype.entries;
-    Object.defineProperties(Headers.prototype, {
+    Headers2.prototype[Symbol.iterator] = Headers2.prototype.entries;
+    Object.defineProperties(Headers2.prototype, {
       append: kEnumerableProperty,
       delete: kEnumerableProperty,
       get: kEnumerableProperty,
@@ -12028,7 +12032,7 @@ var require_headers = __commonJS({
     };
     module.exports = {
       fill,
-      Headers,
+      Headers: Headers2,
       HeadersList
     };
   }
@@ -12039,7 +12043,7 @@ var require_response = __commonJS({
   "../../node_modules/.pnpm/undici@5.29.0/node_modules/undici/lib/fetch/response.js"(exports, module) {
     "use strict";
     init_esm_shims();
-    var { Headers, HeadersList, fill } = require_headers();
+    var { Headers: Headers2, HeadersList, fill } = require_headers();
     var { extractBody, cloneBody, mixinBody } = require_body();
     var util2 = require_util();
     var { kEnumerableProperty } = util2;
@@ -12067,7 +12071,7 @@ var require_response = __commonJS({
     var { types } = __require("util");
     var ReadableStream = globalThis.ReadableStream || __require("stream/web").ReadableStream;
     var textEncoder = new TextEncoder("utf-8");
-    var Response = class _Response {
+    var Response2 = class _Response {
       // Creates network error Response.
       static error() {
         const relevantRealm = { settingsObject: {} };
@@ -12131,7 +12135,7 @@ var require_response = __commonJS({
         init = webidl.converters.ResponseInit(init);
         this[kRealm] = { settingsObject: {} };
         this[kState] = makeResponse({});
-        this[kHeaders] = new Headers(kConstruct);
+        this[kHeaders] = new Headers2(kConstruct);
         this[kHeaders][kGuard] = "response";
         this[kHeaders][kHeadersList] = this[kState].headersList;
         this[kHeaders][kRealm] = this[kRealm];
@@ -12209,8 +12213,8 @@ var require_response = __commonJS({
         return clonedResponseObject;
       }
     };
-    mixinBody(Response);
-    Object.defineProperties(Response.prototype, {
+    mixinBody(Response2);
+    Object.defineProperties(Response2.prototype, {
       type: kEnumerableProperty,
       url: kEnumerableProperty,
       status: kEnumerableProperty,
@@ -12226,7 +12230,7 @@ var require_response = __commonJS({
         configurable: true
       }
     });
-    Object.defineProperties(Response, {
+    Object.defineProperties(Response2, {
       json: kEnumerableProperty,
       redirect: kEnumerableProperty,
       error: kEnumerableProperty
@@ -12408,7 +12412,7 @@ var require_response = __commonJS({
       makeResponse,
       makeAppropriateNetworkError,
       filterResponse,
-      Response,
+      Response: Response2,
       cloneResponse
     };
   }
@@ -12420,8 +12424,8 @@ var require_request2 = __commonJS({
     "use strict";
     init_esm_shims();
     var { extractBody, mixinBody, cloneBody } = require_body();
-    var { Headers, fill: fillHeaders, HeadersList } = require_headers();
-    var { FinalizationRegistry } = require_dispatcher_weakref()();
+    var { Headers: Headers2, fill: fillHeaders, HeadersList } = require_headers();
+    var { FinalizationRegistry: FinalizationRegistry2 } = require_dispatcher_weakref()();
     var util2 = require_util();
     var {
       isValidHTTPToken,
@@ -12450,10 +12454,10 @@ var require_request2 = __commonJS({
     var { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = __require("events");
     var TransformStream = globalThis.TransformStream;
     var kAbortController = /* @__PURE__ */ Symbol("abortController");
-    var requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
+    var requestFinalizer = new FinalizationRegistry2(({ signal, abort }) => {
       signal.removeEventListener("abort", abort);
     });
-    var Request = class _Request {
+    var Request2 = class _Request {
       // https://fetch.spec.whatwg.org/#dom-request
       constructor(input, init = {}) {
         if (input === kConstruct) {
@@ -12495,15 +12499,15 @@ var require_request2 = __commonJS({
           signal = input[kSignal];
         }
         const origin = this[kRealm].settingsObject.origin;
-        let window = "client";
+        let window2 = "client";
         if (request2.window?.constructor?.name === "EnvironmentSettingsObject" && sameOrigin(request2.window, origin)) {
-          window = request2.window;
+          window2 = request2.window;
         }
         if (init.window != null) {
-          throw new TypeError(`'window' option '${window}' must be null`);
+          throw new TypeError(`'window' option '${window2}' must be null`);
         }
         if ("window" in init) {
-          window = "no-window";
+          window2 = "no-window";
         }
         request2 = makeRequest({
           // URL request’s URL.
@@ -12518,7 +12522,7 @@ var require_request2 = __commonJS({
           // client This’s relevant settings object.
           client: this[kRealm].settingsObject,
           // window window.
-          window,
+          window: window2,
           // priority request’s priority.
           priority: request2.priority,
           // origin request’s origin. The propagation of the origin is only significant for navigation requests
@@ -12664,7 +12668,7 @@ var require_request2 = __commonJS({
             requestFinalizer.register(ac, { signal, abort });
           }
         }
-        this[kHeaders] = new Headers(kConstruct);
+        this[kHeaders] = new Headers2(kConstruct);
         this[kHeaders][kHeadersList] = request2.headersList;
         this[kHeaders][kGuard] = "request";
         this[kHeaders][kRealm] = this[kRealm];
@@ -12863,7 +12867,7 @@ var require_request2 = __commonJS({
         const clonedRequestObject = new _Request(kConstruct);
         clonedRequestObject[kState] = clonedRequest;
         clonedRequestObject[kRealm] = this[kRealm];
-        clonedRequestObject[kHeaders] = new Headers(kConstruct);
+        clonedRequestObject[kHeaders] = new Headers2(kConstruct);
         clonedRequestObject[kHeaders][kHeadersList] = clonedRequest.headersList;
         clonedRequestObject[kHeaders][kGuard] = this[kHeaders][kGuard];
         clonedRequestObject[kHeaders][kRealm] = this[kHeaders][kRealm];
@@ -12882,7 +12886,7 @@ var require_request2 = __commonJS({
         return clonedRequestObject;
       }
     };
-    mixinBody(Request);
+    mixinBody(Request2);
     function makeRequest(init) {
       const request2 = {
         method: "GET",
@@ -12933,7 +12937,7 @@ var require_request2 = __commonJS({
       }
       return newRequest;
     }
-    Object.defineProperties(Request.prototype, {
+    Object.defineProperties(Request2.prototype, {
       method: kEnumerableProperty,
       url: kEnumerableProperty,
       headers: kEnumerableProperty,
@@ -12960,13 +12964,13 @@ var require_request2 = __commonJS({
       }
     });
     webidl.converters.Request = webidl.interfaceConverter(
-      Request
+      Request2
     );
     webidl.converters.RequestInfo = function(V) {
       if (typeof V === "string") {
         return webidl.converters.USVString(V);
       }
-      if (V instanceof Request) {
+      if (V instanceof Request2) {
         return webidl.converters.Request(V);
       }
       return webidl.converters.USVString(V);
@@ -13050,7 +13054,7 @@ var require_request2 = __commonJS({
         allowedValues: requestDuplex
       }
     ]);
-    module.exports = { Request, makeRequest };
+    module.exports = { Request: Request2, makeRequest };
   }
 });
 
@@ -13060,14 +13064,14 @@ var require_fetch = __commonJS({
     "use strict";
     init_esm_shims();
     var {
-      Response,
+      Response: Response2,
       makeNetworkError,
       makeAppropriateNetworkError,
       filterResponse,
       makeResponse
     } = require_response();
-    var { Headers } = require_headers();
-    var { Request, makeRequest } = require_request2();
+    var { Headers: Headers2 } = require_headers();
+    var { Request: Request2, makeRequest } = require_request2();
     var zlib = __require("zlib");
     var {
       bytesMatch,
@@ -13158,7 +13162,7 @@ var require_fetch = __commonJS({
       const p = createDeferredPromise();
       let requestObject;
       try {
-        requestObject = new Request(input, init);
+        requestObject = new Request2(input, init);
       } catch (e) {
         p.reject(e);
         return p.promise;
@@ -13200,7 +13204,7 @@ var require_fetch = __commonJS({
           );
           return Promise.resolve();
         }
-        responseObject = new Response();
+        responseObject = new Response2();
         responseObject[kState] = response;
         responseObject[kRealm] = relevantRealm;
         responseObject[kHeaders][kHeadersList] = response.headersList;
@@ -13951,7 +13955,7 @@ var require_fetch = __commonJS({
       async function dispatch({ body }) {
         const url = requestCurrentURL(request2);
         const agent = fetchParams.controller.dispatcher;
-        return new Promise((resolve4, reject) => agent.dispatch(
+        return new Promise((resolve6, reject) => agent.dispatch(
           {
             path: url.pathname + url.search,
             origin: url.origin,
@@ -13979,7 +13983,7 @@ var require_fetch = __commonJS({
               }
               let codings = [];
               let location = "";
-              const headers = new Headers();
+              const headers = new Headers2();
               if (Array.isArray(headersList)) {
                 for (let n = 0; n < headersList.length; n += 2) {
                   const key = headersList[n + 0].toString("latin1");
@@ -14027,7 +14031,7 @@ var require_fetch = __commonJS({
                   }
                 }
               }
-              resolve4({
+              resolve6({
                 status,
                 statusText,
                 headersList: headers[kHeadersList],
@@ -14064,13 +14068,13 @@ var require_fetch = __commonJS({
               if (status !== 101) {
                 return;
               }
-              const headers = new Headers();
+              const headers = new Headers2();
               for (let n = 0; n < headersList.length; n += 2) {
                 const key = headersList[n + 0].toString("latin1");
                 const val = headersList[n + 1].toString("latin1");
                 headers[kHeadersList].append(key, val);
               }
-              resolve4({
+              resolve6({
                 status,
                 statusText: STATUS_CODES[status],
                 headersList: headers[kHeadersList],
@@ -14965,8 +14969,8 @@ var require_cache = __commonJS({
     var { kEnumerableProperty, isDisturbed } = require_util();
     var { kHeadersList } = require_symbols();
     var { webidl } = require_webidl();
-    var { Response, cloneResponse } = require_response();
-    var { Request } = require_request2();
+    var { Response: Response2, cloneResponse } = require_response();
+    var { Request: Request2 } = require_request2();
     var { kState, kHeaders, kGuard, kRealm } = require_symbols2();
     var { fetching } = require_fetch();
     var { urlIsHttpHttpsScheme, createDeferredPromise, readAllBytes } = require_util2();
@@ -15001,13 +15005,13 @@ var require_cache = __commonJS({
         options = webidl.converters.CacheQueryOptions(options);
         let r = null;
         if (request2 !== void 0) {
-          if (request2 instanceof Request) {
+          if (request2 instanceof Request2) {
             r = request2[kState];
             if (r.method !== "GET" && !options.ignoreMethod) {
               return [];
             }
           } else if (typeof request2 === "string") {
-            r = new Request(request2)[kState];
+            r = new Request2(request2)[kState];
           }
         }
         const responses = [];
@@ -15023,7 +15027,7 @@ var require_cache = __commonJS({
         }
         const responseList = [];
         for (const response of responses) {
-          const responseObject = new Response(response.body?.source ?? null);
+          const responseObject = new Response2(response.body?.source ?? null);
           const body = responseObject[kState].body;
           responseObject[kState] = response;
           responseObject[kState].body = body;
@@ -15061,7 +15065,7 @@ var require_cache = __commonJS({
         }
         const fetchControllers = [];
         for (const request2 of requests) {
-          const r = new Request(request2)[kState];
+          const r = new Request2(request2)[kState];
           if (!urlIsHttpHttpsScheme(r.url)) {
             throw webidl.errors.exception({
               header: "Cache.addAll",
@@ -15145,10 +15149,10 @@ var require_cache = __commonJS({
         request2 = webidl.converters.RequestInfo(request2);
         response = webidl.converters.Response(response);
         let innerRequest = null;
-        if (request2 instanceof Request) {
+        if (request2 instanceof Request2) {
           innerRequest = request2[kState];
         } else {
-          innerRequest = new Request(request2)[kState];
+          innerRequest = new Request2(request2)[kState];
         }
         if (!urlIsHttpHttpsScheme(innerRequest.url) || innerRequest.method !== "GET") {
           throw webidl.errors.exception({
@@ -15225,14 +15229,14 @@ var require_cache = __commonJS({
         request2 = webidl.converters.RequestInfo(request2);
         options = webidl.converters.CacheQueryOptions(options);
         let r = null;
-        if (request2 instanceof Request) {
+        if (request2 instanceof Request2) {
           r = request2[kState];
           if (r.method !== "GET" && !options.ignoreMethod) {
             return false;
           }
         } else {
           assert(typeof request2 === "string");
-          r = new Request(request2)[kState];
+          r = new Request2(request2)[kState];
         }
         const operations = [];
         const operation = {
@@ -15270,13 +15274,13 @@ var require_cache = __commonJS({
         options = webidl.converters.CacheQueryOptions(options);
         let r = null;
         if (request2 !== void 0) {
-          if (request2 instanceof Request) {
+          if (request2 instanceof Request2) {
             r = request2[kState];
             if (r.method !== "GET" && !options.ignoreMethod) {
               return [];
             }
           } else if (typeof request2 === "string") {
-            r = new Request(request2)[kState];
+            r = new Request2(request2)[kState];
           }
         }
         const promise2 = createDeferredPromise();
@@ -15294,7 +15298,7 @@ var require_cache = __commonJS({
         queueMicrotask(() => {
           const requestList = [];
           for (const request3 of requests) {
-            const requestObject = new Request("https://a");
+            const requestObject = new Request2("https://a");
             requestObject[kState] = request3;
             requestObject[kHeaders][kHeadersList] = request3.headersList;
             requestObject[kHeaders][kGuard] = "immutable";
@@ -15478,7 +15482,7 @@ var require_cache = __commonJS({
         converter: webidl.converters.DOMString
       }
     ]);
-    webidl.converters.Response = webidl.interfaceConverter(Response);
+    webidl.converters.Response = webidl.interfaceConverter(Response2);
     webidl.converters["sequence<RequestInfo>"] = webidl.sequenceConverter(
       webidl.converters.RequestInfo
     );
@@ -15904,10 +15908,10 @@ var require_cookies = __commonJS({
     var { parseSetCookie } = require_parse();
     var { stringify: stringify2 } = require_util6();
     var { webidl } = require_webidl();
-    var { Headers } = require_headers();
+    var { Headers: Headers2 } = require_headers();
     function getCookies(headers) {
       webidl.argumentLengthCheck(arguments, 1, { header: "getCookies" });
-      webidl.brandCheck(headers, Headers, { strict: false });
+      webidl.brandCheck(headers, Headers2, { strict: false });
       const cookie = headers.get("cookie");
       const out = {};
       if (!cookie) {
@@ -15921,7 +15925,7 @@ var require_cookies = __commonJS({
     }
     function deleteCookie(headers, name, attributes) {
       webidl.argumentLengthCheck(arguments, 2, { header: "deleteCookie" });
-      webidl.brandCheck(headers, Headers, { strict: false });
+      webidl.brandCheck(headers, Headers2, { strict: false });
       name = webidl.converters.DOMString(name);
       attributes = webidl.converters.DeleteCookieAttributes(attributes);
       setCookie(headers, {
@@ -15933,7 +15937,7 @@ var require_cookies = __commonJS({
     }
     function getSetCookies(headers) {
       webidl.argumentLengthCheck(arguments, 1, { header: "getSetCookies" });
-      webidl.brandCheck(headers, Headers, { strict: false });
+      webidl.brandCheck(headers, Headers2, { strict: false });
       const cookies = headers.getSetCookie();
       if (!cookies) {
         return [];
@@ -15942,7 +15946,7 @@ var require_cookies = __commonJS({
     }
     function setCookie(headers, cookie) {
       webidl.argumentLengthCheck(arguments, 2, { header: "setCookie" });
-      webidl.brandCheck(headers, Headers, { strict: false });
+      webidl.brandCheck(headers, Headers2, { strict: false });
       cookie = webidl.converters.Cookie(cookie);
       const str = stringify2(cookie);
       if (str) {
@@ -16440,7 +16444,7 @@ var require_connection = __commonJS({
     var { CloseEvent } = require_events();
     var { makeRequest } = require_request2();
     var { fetching } = require_fetch();
-    var { Headers } = require_headers();
+    var { Headers: Headers2 } = require_headers();
     var { getGlobalDispatcher } = require_global2();
     var { kHeadersList } = require_symbols();
     var channels = {};
@@ -16465,7 +16469,7 @@ var require_connection = __commonJS({
         redirect: "error"
       });
       if (options.headers) {
-        const headersList = new Headers(options.headers)[kHeadersList];
+        const headersList = new Headers2(options.headers)[kHeadersList];
         request2.headersList = headersList;
       }
       const keyValue = crypto.randomBytes(16).toString("base64");
@@ -17447,11 +17451,11 @@ var require_lib = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve6, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -17467,7 +17471,7 @@ var require_lib = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -17509,11 +17513,11 @@ var require_lib = __commonJS({
       HttpCodes2[HttpCodes2["ServiceUnavailable"] = 503] = "ServiceUnavailable";
       HttpCodes2[HttpCodes2["GatewayTimeout"] = 504] = "GatewayTimeout";
     })(HttpCodes || (exports.HttpCodes = HttpCodes = {}));
-    var Headers;
-    (function(Headers2) {
-      Headers2["Accept"] = "accept";
-      Headers2["ContentType"] = "content-type";
-    })(Headers || (exports.Headers = Headers = {}));
+    var Headers2;
+    (function(Headers3) {
+      Headers3["Accept"] = "accept";
+      Headers3["ContentType"] = "content-type";
+    })(Headers2 || (exports.Headers = Headers2 = {}));
     var MediaTypes;
     (function(MediaTypes2) {
       MediaTypes2["ApplicationJson"] = "application/json";
@@ -17553,26 +17557,26 @@ var require_lib = __commonJS({
       }
       readBody() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve4) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve6) => __awaiter(this, void 0, void 0, function* () {
             let output = Buffer.alloc(0);
             this.message.on("data", (chunk) => {
               output = Buffer.concat([output, chunk]);
             });
             this.message.on("end", () => {
-              resolve4(output.toString());
+              resolve6(output.toString());
             });
           }));
         });
       }
       readBodyBuffer() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve4) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve6) => __awaiter(this, void 0, void 0, function* () {
             const chunks = [];
             this.message.on("data", (chunk) => {
               chunks.push(chunk);
             });
             this.message.on("end", () => {
-              resolve4(Buffer.concat(chunks));
+              resolve6(Buffer.concat(chunks));
             });
           }));
         });
@@ -17668,7 +17672,7 @@ var require_lib = __commonJS({
        */
       getJson(requestUrl, additionalHeaders = {}) {
         return __awaiter(this, void 0, void 0, function* () {
-          additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers2.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.Accept, MediaTypes.ApplicationJson);
           const res = yield this.get(requestUrl, additionalHeaders);
           return this._processResponse(res, this.requestOptions);
         });
@@ -17676,8 +17680,8 @@ var require_lib = __commonJS({
       postJson(requestUrl, obj, additionalHeaders = {}) {
         return __awaiter(this, void 0, void 0, function* () {
           const data = JSON.stringify(obj, null, 2);
-          additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
-          additionalHeaders[Headers.ContentType] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.ContentType, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers2.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.Accept, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers2.ContentType] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.ContentType, MediaTypes.ApplicationJson);
           const res = yield this.post(requestUrl, data, additionalHeaders);
           return this._processResponse(res, this.requestOptions);
         });
@@ -17685,8 +17689,8 @@ var require_lib = __commonJS({
       putJson(requestUrl, obj, additionalHeaders = {}) {
         return __awaiter(this, void 0, void 0, function* () {
           const data = JSON.stringify(obj, null, 2);
-          additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
-          additionalHeaders[Headers.ContentType] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.ContentType, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers2.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.Accept, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers2.ContentType] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.ContentType, MediaTypes.ApplicationJson);
           const res = yield this.put(requestUrl, data, additionalHeaders);
           return this._processResponse(res, this.requestOptions);
         });
@@ -17694,8 +17698,8 @@ var require_lib = __commonJS({
       patchJson(requestUrl, obj, additionalHeaders = {}) {
         return __awaiter(this, void 0, void 0, function* () {
           const data = JSON.stringify(obj, null, 2);
-          additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
-          additionalHeaders[Headers.ContentType] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.ContentType, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers2.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.Accept, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers2.ContentType] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.ContentType, MediaTypes.ApplicationJson);
           const res = yield this.patch(requestUrl, data, additionalHeaders);
           return this._processResponse(res, this.requestOptions);
         });
@@ -17781,14 +17785,14 @@ var require_lib = __commonJS({
        */
       requestRaw(info2, data) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve4, reject) => {
+          return new Promise((resolve6, reject) => {
             function callbackForResult(err, res) {
               if (err) {
                 reject(err);
               } else if (!res) {
                 reject(new Error("Unknown error"));
               } else {
-                resolve4(res);
+                resolve6(res);
               }
             }
             this.requestRawWithCallback(info2, data, callbackForResult);
@@ -17970,12 +17974,12 @@ var require_lib = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           retryNumber = Math.min(ExponentialBackoffCeiling, retryNumber);
           const ms2 = ExponentialBackoffTimeSlice * Math.pow(2, retryNumber);
-          return new Promise((resolve4) => setTimeout(() => resolve4(), ms2));
+          return new Promise((resolve6) => setTimeout(() => resolve6(), ms2));
         });
       }
       _processResponse(res, options) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve4, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve6, reject) => __awaiter(this, void 0, void 0, function* () {
             const statusCode = res.message.statusCode || 0;
             const response = {
               statusCode,
@@ -17983,7 +17987,7 @@ var require_lib = __commonJS({
               headers: {}
             };
             if (statusCode === HttpCodes.NotFound) {
-              resolve4(response);
+              resolve6(response);
             }
             function dateTimeDeserializer(key, value) {
               if (typeof value === "string") {
@@ -18022,7 +18026,7 @@ var require_lib = __commonJS({
               err.result = response.result;
               reject(err);
             } else {
-              resolve4(response);
+              resolve6(response);
             }
           }));
         });
@@ -18040,11 +18044,11 @@ var require_auth = __commonJS({
     init_esm_shims();
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve6, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18060,7 +18064,7 @@ var require_auth = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18145,11 +18149,11 @@ var require_oidc_utils = __commonJS({
     init_esm_shims();
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve6, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18165,7 +18169,7 @@ var require_oidc_utils = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18244,11 +18248,11 @@ var require_summary = __commonJS({
     init_esm_shims();
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve6, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18264,7 +18268,7 @@ var require_summary = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18273,7 +18277,7 @@ var require_summary = __commonJS({
     exports.summary = exports.markdownSummary = exports.SUMMARY_DOCS_URL = exports.SUMMARY_ENV_VAR = void 0;
     var os_1 = __require("os");
     var fs_1 = __require("fs");
-    var { access: access2, appendFile, writeFile: writeFile3 } = fs_1.promises;
+    var { access: access3, appendFile, writeFile: writeFile4 } = fs_1.promises;
     exports.SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY";
     exports.SUMMARY_DOCS_URL = "https://docs.github.com/actions/using-workflows/workflow-commands-for-github-actions#adding-a-job-summary";
     var Summary = class {
@@ -18296,7 +18300,7 @@ var require_summary = __commonJS({
             throw new Error(`Unable to find environment variable for $${exports.SUMMARY_ENV_VAR}. Check if your runtime environment supports job summaries.`);
           }
           try {
-            yield access2(pathFromEnv, fs_1.constants.R_OK | fs_1.constants.W_OK);
+            yield access3(pathFromEnv, fs_1.constants.R_OK | fs_1.constants.W_OK);
           } catch (_a) {
             throw new Error(`Unable to access summary file: '${pathFromEnv}'. Check if the file has correct read/write permissions.`);
           }
@@ -18331,7 +18335,7 @@ var require_summary = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           const overwrite = !!(options === null || options === void 0 ? void 0 : options.overwrite);
           const filePath = yield this.filePath();
-          const writeFunc = overwrite ? writeFile3 : appendFile;
+          const writeFunc = overwrite ? writeFile4 : appendFile;
           yield writeFunc(filePath, this._buffer, { encoding: "utf8" });
           return this.emptyBuffer();
         });
@@ -18612,11 +18616,11 @@ var require_io_util = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve6, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18632,7 +18636,7 @@ var require_io_util = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18640,12 +18644,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.getCmdPath = exports.tryGetExecutablePath = exports.isRooted = exports.isDirectory = exports.exists = exports.READONLY = exports.UV_FS_O_EXLOCK = exports.IS_WINDOWS = exports.unlink = exports.symlink = exports.stat = exports.rmdir = exports.rm = exports.rename = exports.readlink = exports.readdir = exports.open = exports.mkdir = exports.lstat = exports.copyFile = exports.chmod = void 0;
-    var fs3 = __importStar(__require("fs"));
+    var fs4 = __importStar(__require("fs"));
     var path4 = __importStar(__require("path"));
-    _a = fs3.promises, exports.chmod = _a.chmod, exports.copyFile = _a.copyFile, exports.lstat = _a.lstat, exports.mkdir = _a.mkdir, exports.open = _a.open, exports.readdir = _a.readdir, exports.readlink = _a.readlink, exports.rename = _a.rename, exports.rm = _a.rm, exports.rmdir = _a.rmdir, exports.stat = _a.stat, exports.symlink = _a.symlink, exports.unlink = _a.unlink;
+    _a = fs4.promises, exports.chmod = _a.chmod, exports.copyFile = _a.copyFile, exports.lstat = _a.lstat, exports.mkdir = _a.mkdir, exports.open = _a.open, exports.readdir = _a.readdir, exports.readlink = _a.readlink, exports.rename = _a.rename, exports.rm = _a.rm, exports.rmdir = _a.rmdir, exports.stat = _a.stat, exports.symlink = _a.symlink, exports.unlink = _a.unlink;
     exports.IS_WINDOWS = process.platform === "win32";
     exports.UV_FS_O_EXLOCK = 268435456;
-    exports.READONLY = fs3.constants.O_RDONLY;
+    exports.READONLY = fs4.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -18786,11 +18790,11 @@ var require_io = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve6, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18806,7 +18810,7 @@ var require_io = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19035,11 +19039,11 @@ var require_toolrunner = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve6, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19055,14 +19059,14 @@ var require_toolrunner = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.argStringToArray = exports.ToolRunner = void 0;
-    var os2 = __importStar(__require("os"));
+    var os3 = __importStar(__require("os"));
     var events = __importStar(__require("events"));
     var child = __importStar(__require("child_process"));
     var path4 = __importStar(__require("path"));
@@ -19117,12 +19121,12 @@ var require_toolrunner = __commonJS({
       _processLineBuffer(data, strBuffer, onLine) {
         try {
           let s = strBuffer + data.toString();
-          let n = s.indexOf(os2.EOL);
+          let n = s.indexOf(os3.EOL);
           while (n > -1) {
             const line = s.substring(0, n);
             onLine(line);
-            s = s.substring(n + os2.EOL.length);
-            n = s.indexOf(os2.EOL);
+            s = s.substring(n + os3.EOL.length);
+            n = s.indexOf(os3.EOL);
           }
           return s;
         } catch (err) {
@@ -19283,7 +19287,7 @@ var require_toolrunner = __commonJS({
             this.toolPath = path4.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
           }
           this.toolPath = yield io.which(this.toolPath, true);
-          return new Promise((resolve4, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve6, reject) => __awaiter(this, void 0, void 0, function* () {
             this._debug(`exec tool: ${this.toolPath}`);
             this._debug("arguments:");
             for (const arg of this.args) {
@@ -19291,7 +19295,7 @@ var require_toolrunner = __commonJS({
             }
             const optionsNonNull = this._cloneExecOptions(this.options);
             if (!optionsNonNull.silent && optionsNonNull.outStream) {
-              optionsNonNull.outStream.write(this._getCommandString(optionsNonNull) + os2.EOL);
+              optionsNonNull.outStream.write(this._getCommandString(optionsNonNull) + os3.EOL);
             }
             const state = new ExecState(optionsNonNull, this.toolPath);
             state.on("debug", (message) => {
@@ -19366,7 +19370,7 @@ var require_toolrunner = __commonJS({
               if (error2) {
                 reject(error2);
               } else {
-                resolve4(exitCode);
+                resolve6(exitCode);
               }
             });
             if (this.options.input) {
@@ -19520,11 +19524,11 @@ var require_exec = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve6, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19540,7 +19544,7 @@ var require_exec = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19632,11 +19636,11 @@ var require_platform = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve6, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19652,7 +19656,7 @@ var require_platform = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19752,11 +19756,11 @@ var require_core = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve6, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19772,7 +19776,7 @@ var require_core = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19782,7 +19786,7 @@ var require_core = __commonJS({
     var command_1 = require_command();
     var file_command_1 = require_file_command();
     var utils_1 = require_utils();
-    var os2 = __importStar(__require("os"));
+    var os3 = __importStar(__require("os"));
     var path4 = __importStar(__require("path"));
     var oidc_utils_1 = require_oidc_utils();
     var ExitCode;
@@ -19850,7 +19854,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       if (filePath) {
         return (0, file_command_1.issueFileCommand)("OUTPUT", (0, file_command_1.prepareKeyValueMessage)(name, value));
       }
-      process.stdout.write(os2.EOL);
+      process.stdout.write(os3.EOL);
       (0, command_1.issueCommand)("set-output", { name }, (0, utils_1.toCommandValue)(value));
     }
     exports.setOutput = setOutput2;
@@ -19884,7 +19888,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     }
     exports.notice = notice;
     function info2(message) {
-      process.stdout.write(message + os2.EOL);
+      process.stdout.write(message + os3.EOL);
     }
     exports.info = info2;
     function startGroup2(name) {
@@ -24808,8 +24812,8 @@ var require_int2 = __commonJS({
     var stringifyNumber = require_stringifyNumber();
     var intIdentify = (value) => typeof value === "bigint" || Number.isInteger(value);
     function intResolve(str, offset, radix, { intAsBigInt }) {
-      const sign2 = str[0];
-      if (sign2 === "-" || sign2 === "+")
+      const sign3 = str[0];
+      if (sign3 === "-" || sign3 === "+")
         offset += 1;
       str = str.substring(offset).replace(/_/g, "");
       if (intAsBigInt) {
@@ -24825,10 +24829,10 @@ var require_int2 = __commonJS({
             break;
         }
         const n2 = BigInt(str);
-        return sign2 === "-" ? BigInt(-1) * n2 : n2;
+        return sign3 === "-" ? BigInt(-1) * n2 : n2;
       }
       const n = parseInt(str, radix);
-      return sign2 === "-" ? -1 * n : n;
+      return sign3 === "-" ? -1 * n : n;
     }
     function intStringify(node, radix, prefix) {
       const { value } = node;
@@ -24977,11 +24981,11 @@ var require_timestamp = __commonJS({
     init_esm_shims();
     var stringifyNumber = require_stringifyNumber();
     function parseSexagesimal(str, asBigInt) {
-      const sign2 = str[0];
-      const parts = sign2 === "-" || sign2 === "+" ? str.substring(1) : str;
+      const sign3 = str[0];
+      const parts = sign3 === "-" || sign3 === "+" ? str.substring(1) : str;
       const num = (n) => asBigInt ? BigInt(n) : Number(n);
       const res = parts.replace(/_/g, "").split(":").reduce((res2, p) => res2 * num(60) + num(p), num(0));
-      return sign2 === "-" ? num(-1) * res : res;
+      return sign3 === "-" ? num(-1) * res : res;
     }
     function stringifySexagesimal(node) {
       let { value } = node;
@@ -24990,9 +24994,9 @@ var require_timestamp = __commonJS({
         num = (n) => BigInt(n);
       else if (isNaN(value) || !isFinite(value))
         return stringifyNumber.stringifyNumber(node);
-      let sign2 = "";
+      let sign3 = "";
       if (value < 0) {
-        sign2 = "-";
+        sign3 = "-";
         value *= num(-1);
       }
       const _60 = num(60);
@@ -25007,7 +25011,7 @@ var require_timestamp = __commonJS({
           parts.unshift(value);
         }
       }
-      return sign2 + parts.map((n) => String(n).padStart(2, "0")).join(":").replace(/000000\d*$/, "");
+      return sign3 + parts.map((n) => String(n).padStart(2, "0")).join(":").replace(/000000\d*$/, "");
     }
     var intTime = {
       identify: (value) => typeof value === "bigint" || Number.isInteger(value),
@@ -28833,14 +28837,14 @@ var require_parser = __commonJS({
             case "scalar":
             case "single-quoted-scalar":
             case "double-quoted-scalar": {
-              const fs3 = this.flowScalar(this.type);
+              const fs4 = this.flowScalar(this.type);
               if (atNextItem || it.value) {
-                map.items.push({ start, key: fs3, sep: [] });
+                map.items.push({ start, key: fs4, sep: [] });
                 this.onKeyLine = true;
               } else if (it.sep) {
-                this.stack.push(fs3);
+                this.stack.push(fs4);
               } else {
-                Object.assign(it, { key: fs3, sep: [] });
+                Object.assign(it, { key: fs4, sep: [] });
                 this.onKeyLine = true;
               }
               return;
@@ -28968,13 +28972,13 @@ var require_parser = __commonJS({
             case "scalar":
             case "single-quoted-scalar":
             case "double-quoted-scalar": {
-              const fs3 = this.flowScalar(this.type);
+              const fs4 = this.flowScalar(this.type);
               if (!it || it.value)
-                fc.items.push({ start: [], key: fs3, sep: [] });
+                fc.items.push({ start: [], key: fs4, sep: [] });
               else if (it.sep)
-                this.stack.push(fs3);
+                this.stack.push(fs4);
               else
-                Object.assign(it, { key: fs3, sep: [] });
+                Object.assign(it, { key: fs4, sep: [] });
               return;
             }
             case "flow-map-end":
@@ -30962,6 +30966,2357 @@ var require_picomatch2 = __commonJS({
   }
 });
 
+// ../../node_modules/.pnpm/@1password+sdk-core@0.4.0/node_modules/@1password/sdk-core/nodejs/core.js
+var require_core2 = __commonJS({
+  "../../node_modules/.pnpm/@1password+sdk-core@0.4.0/node_modules/@1password/sdk-core/nodejs/core.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var imports = {};
+    imports["__wbindgen_placeholder__"] = module.exports;
+    var wasm;
+    var { TextDecoder: TextDecoder2, TextEncoder: TextEncoder2 } = __require("util");
+    var cachedTextDecoder = new TextDecoder2("utf-8", { ignoreBOM: true, fatal: true });
+    cachedTextDecoder.decode();
+    var cachedUint8ArrayMemory0 = null;
+    function getUint8ArrayMemory0() {
+      if (cachedUint8ArrayMemory0 === null || cachedUint8ArrayMemory0.byteLength === 0) {
+        cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
+      }
+      return cachedUint8ArrayMemory0;
+    }
+    function getStringFromWasm0(ptr, len) {
+      ptr = ptr >>> 0;
+      return cachedTextDecoder.decode(getUint8ArrayMemory0().subarray(ptr, ptr + len));
+    }
+    function addToExternrefTable0(obj) {
+      const idx = wasm.__externref_table_alloc();
+      wasm.__wbindgen_export_2.set(idx, obj);
+      return idx;
+    }
+    function handleError(f, args) {
+      try {
+        return f.apply(this, args);
+      } catch (e) {
+        const idx = addToExternrefTable0(e);
+        wasm.__wbindgen_exn_store(idx);
+      }
+    }
+    function isLikeNone(x) {
+      return x === void 0 || x === null;
+    }
+    var WASM_VECTOR_LEN = 0;
+    var cachedTextEncoder = new TextEncoder2("utf-8");
+    var encodeString = typeof cachedTextEncoder.encodeInto === "function" ? function(arg, view) {
+      return cachedTextEncoder.encodeInto(arg, view);
+    } : function(arg, view) {
+      const buf = cachedTextEncoder.encode(arg);
+      view.set(buf);
+      return {
+        read: arg.length,
+        written: buf.length
+      };
+    };
+    function passStringToWasm0(arg, malloc, realloc) {
+      if (realloc === void 0) {
+        const buf = cachedTextEncoder.encode(arg);
+        const ptr2 = malloc(buf.length, 1) >>> 0;
+        getUint8ArrayMemory0().subarray(ptr2, ptr2 + buf.length).set(buf);
+        WASM_VECTOR_LEN = buf.length;
+        return ptr2;
+      }
+      let len = arg.length;
+      let ptr = malloc(len, 1) >>> 0;
+      const mem = getUint8ArrayMemory0();
+      let offset = 0;
+      for (; offset < len; offset++) {
+        const code = arg.charCodeAt(offset);
+        if (code > 127) break;
+        mem[ptr + offset] = code;
+      }
+      if (offset !== len) {
+        if (offset !== 0) {
+          arg = arg.slice(offset);
+        }
+        ptr = realloc(ptr, len, len = offset + arg.length * 3, 1) >>> 0;
+        const view = getUint8ArrayMemory0().subarray(ptr + offset, ptr + len);
+        const ret = encodeString(arg, view);
+        offset += ret.written;
+        ptr = realloc(ptr, len, offset, 1) >>> 0;
+      }
+      WASM_VECTOR_LEN = offset;
+      return ptr;
+    }
+    var cachedDataViewMemory0 = null;
+    function getDataViewMemory0() {
+      if (cachedDataViewMemory0 === null || cachedDataViewMemory0.buffer.detached === true || cachedDataViewMemory0.buffer.detached === void 0 && cachedDataViewMemory0.buffer !== wasm.memory.buffer) {
+        cachedDataViewMemory0 = new DataView(wasm.memory.buffer);
+      }
+      return cachedDataViewMemory0;
+    }
+    var CLOSURE_DTORS = typeof FinalizationRegistry === "undefined" ? { register: () => {
+    }, unregister: () => {
+    } } : new FinalizationRegistry((state) => {
+      wasm.__wbindgen_export_5.get(state.dtor)(state.a, state.b);
+    });
+    function makeMutClosure(arg0, arg1, dtor, f) {
+      const state = { a: arg0, b: arg1, cnt: 1, dtor };
+      const real = (...args) => {
+        state.cnt++;
+        const a = state.a;
+        state.a = 0;
+        try {
+          return f(a, state.b, ...args);
+        } finally {
+          if (--state.cnt === 0) {
+            wasm.__wbindgen_export_5.get(state.dtor)(a, state.b);
+            CLOSURE_DTORS.unregister(state);
+          } else {
+            state.a = a;
+          }
+        }
+      };
+      real.original = state;
+      CLOSURE_DTORS.register(real, state, state);
+      return real;
+    }
+    function debugString(val) {
+      const type = typeof val;
+      if (type == "number" || type == "boolean" || val == null) {
+        return `${val}`;
+      }
+      if (type == "string") {
+        return `"${val}"`;
+      }
+      if (type == "symbol") {
+        const description = val.description;
+        if (description == null) {
+          return "Symbol";
+        } else {
+          return `Symbol(${description})`;
+        }
+      }
+      if (type == "function") {
+        const name = val.name;
+        if (typeof name == "string" && name.length > 0) {
+          return `Function(${name})`;
+        } else {
+          return "Function";
+        }
+      }
+      if (Array.isArray(val)) {
+        const length = val.length;
+        let debug = "[";
+        if (length > 0) {
+          debug += debugString(val[0]);
+        }
+        for (let i = 1; i < length; i++) {
+          debug += ", " + debugString(val[i]);
+        }
+        debug += "]";
+        return debug;
+      }
+      const builtInMatches = /\[object ([^\]]+)\]/.exec(toString.call(val));
+      let className;
+      if (builtInMatches && builtInMatches.length > 1) {
+        className = builtInMatches[1];
+      } else {
+        return toString.call(val);
+      }
+      if (className == "Object") {
+        try {
+          return "Object(" + JSON.stringify(val) + ")";
+        } catch (_) {
+          return "Object";
+        }
+      }
+      if (val instanceof Error) {
+        return `${val.name}: ${val.message}
+${val.stack}`;
+      }
+      return className;
+    }
+    module.exports.init_client = function(config) {
+      const ptr0 = passStringToWasm0(config, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+      const len0 = WASM_VECTOR_LEN;
+      const ret = wasm.init_client(ptr0, len0);
+      return ret;
+    };
+    module.exports.invoke = function(parameters) {
+      const ptr0 = passStringToWasm0(parameters, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+      const len0 = WASM_VECTOR_LEN;
+      const ret = wasm.invoke(ptr0, len0);
+      return ret;
+    };
+    function takeFromExternrefTable0(idx) {
+      const value = wasm.__wbindgen_export_2.get(idx);
+      wasm.__externref_table_dealloc(idx);
+      return value;
+    }
+    module.exports.invoke_sync = function(parameters) {
+      let deferred3_0;
+      let deferred3_1;
+      try {
+        const ptr0 = passStringToWasm0(parameters, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.invoke_sync(ptr0, len0);
+        var ptr2 = ret[0];
+        var len2 = ret[1];
+        if (ret[3]) {
+          ptr2 = 0;
+          len2 = 0;
+          throw takeFromExternrefTable0(ret[2]);
+        }
+        deferred3_0 = ptr2;
+        deferred3_1 = len2;
+        return getStringFromWasm0(ptr2, len2);
+      } finally {
+        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
+      }
+    };
+    module.exports.release_client = function(client_id) {
+      const ptr0 = passStringToWasm0(client_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+      const len0 = WASM_VECTOR_LEN;
+      const ret = wasm.release_client(ptr0, len0);
+      if (ret[1]) {
+        throw takeFromExternrefTable0(ret[0]);
+      }
+    };
+    function __wbg_adapter_30(arg0, arg1) {
+      wasm._dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h4fa304e9a7297dba(arg0, arg1);
+    }
+    function __wbg_adapter_33(arg0, arg1, arg2) {
+      wasm.closure2484_externref_shim(arg0, arg1, arg2);
+    }
+    function __wbg_adapter_156(arg0, arg1, arg2, arg3) {
+      wasm.closure2632_externref_shim(arg0, arg1, arg2, arg3);
+    }
+    var __wbindgen_enum_RequestCache = ["default", "no-store", "reload", "no-cache", "force-cache", "only-if-cached"];
+    var __wbindgen_enum_RequestCredentials = ["omit", "same-origin", "include"];
+    var __wbindgen_enum_RequestMode = ["same-origin", "no-cors", "cors", "navigate"];
+    module.exports.__wbg_abort_410ec47a64ac6117 = function(arg0, arg1) {
+      arg0.abort(arg1);
+    };
+    module.exports.__wbg_abort_775ef1d17fc65868 = function(arg0) {
+      arg0.abort();
+    };
+    module.exports.__wbg_append_8c7dd8d641a5f01b = function() {
+      return handleError(function(arg0, arg1, arg2, arg3, arg4) {
+        arg0.append(getStringFromWasm0(arg1, arg2), getStringFromWasm0(arg3, arg4));
+      }, arguments);
+    };
+    module.exports.__wbg_arrayBuffer_d1b44c4390db422f = function() {
+      return handleError(function(arg0) {
+        const ret = arg0.arrayBuffer();
+        return ret;
+      }, arguments);
+    };
+    module.exports.__wbg_buffer_609cc3eee51ed158 = function(arg0) {
+      const ret = arg0.buffer;
+      return ret;
+    };
+    module.exports.__wbg_call_672a4d21634d4a24 = function() {
+      return handleError(function(arg0, arg1) {
+        const ret = arg0.call(arg1);
+        return ret;
+      }, arguments);
+    };
+    module.exports.__wbg_call_7cccdd69e0791ae2 = function() {
+      return handleError(function(arg0, arg1, arg2) {
+        const ret = arg0.call(arg1, arg2);
+        return ret;
+      }, arguments);
+    };
+    module.exports.__wbg_clearTimeout_42d9ccd50822fd3a = function(arg0) {
+      const ret = clearTimeout(arg0);
+      return ret;
+    };
+    module.exports.__wbg_crypto_86f2631e91b51511 = function(arg0) {
+      const ret = arg0.crypto;
+      return ret;
+    };
+    module.exports.__wbg_done_769e5ede4b31c67b = function(arg0) {
+      const ret = arg0.done;
+      return ret;
+    };
+    module.exports.__wbg_fetch_509096533071c657 = function(arg0, arg1) {
+      const ret = arg0.fetch(arg1);
+      return ret;
+    };
+    module.exports.__wbg_fetch_6bbc32f991730587 = function(arg0) {
+      const ret = fetch(arg0);
+      return ret;
+    };
+    module.exports.__wbg_getFullYear_17d3c9e4db748eb7 = function(arg0) {
+      const ret = arg0.getFullYear();
+      return ret;
+    };
+    module.exports.__wbg_getRandomValues_b3f15fcbfabb0f8b = function() {
+      return handleError(function(arg0, arg1) {
+        arg0.getRandomValues(arg1);
+      }, arguments);
+    };
+    module.exports.__wbg_getTimezoneOffset_6b5752021c499c47 = function(arg0) {
+      const ret = arg0.getTimezoneOffset();
+      return ret;
+    };
+    module.exports.__wbg_get_67b2ba62fc30de12 = function() {
+      return handleError(function(arg0, arg1) {
+        const ret = Reflect.get(arg0, arg1);
+        return ret;
+      }, arguments);
+    };
+    module.exports.__wbg_has_a5ea9117f258a0ec = function() {
+      return handleError(function(arg0, arg1) {
+        const ret = Reflect.has(arg0, arg1);
+        return ret;
+      }, arguments);
+    };
+    module.exports.__wbg_headers_9cb51cfd2ac780a4 = function(arg0) {
+      const ret = arg0.headers;
+      return ret;
+    };
+    module.exports.__wbg_instanceof_Response_f2cc20d9f7dfd644 = function(arg0) {
+      let result;
+      try {
+        result = arg0 instanceof Response;
+      } catch (_) {
+        result = false;
+      }
+      const ret = result;
+      return ret;
+    };
+    module.exports.__wbg_instanceof_Window_def73ea0955fc569 = function(arg0) {
+      let result;
+      try {
+        result = arg0 instanceof Window;
+      } catch (_) {
+        result = false;
+      }
+      const ret = result;
+      return ret;
+    };
+    module.exports.__wbg_instanceof_WorkerGlobalScope_dbdbdea7e3b56493 = function(arg0) {
+      let result;
+      try {
+        result = arg0 instanceof WorkerGlobalScope;
+      } catch (_) {
+        result = false;
+      }
+      const ret = result;
+      return ret;
+    };
+    module.exports.__wbg_iterator_9a24c88df860dc65 = function() {
+      const ret = Symbol.iterator;
+      return ret;
+    };
+    module.exports.__wbg_languages_2420955220685766 = function(arg0) {
+      const ret = arg0.languages;
+      return ret;
+    };
+    module.exports.__wbg_languages_d8dad509faf757df = function(arg0) {
+      const ret = arg0.languages;
+      return ret;
+    };
+    module.exports.__wbg_length_a446193dc22c12f8 = function(arg0) {
+      const ret = arg0.length;
+      return ret;
+    };
+    module.exports.__wbg_msCrypto_d562bbe83e0d4b91 = function(arg0) {
+      const ret = arg0.msCrypto;
+      return ret;
+    };
+    module.exports.__wbg_navigator_0a9bf1120e24fec2 = function(arg0) {
+      const ret = arg0.navigator;
+      return ret;
+    };
+    module.exports.__wbg_navigator_1577371c070c8947 = function(arg0) {
+      const ret = arg0.navigator;
+      return ret;
+    };
+    module.exports.__wbg_new0_f788a2397c7ca929 = function() {
+      const ret = /* @__PURE__ */ new Date();
+      return ret;
+    };
+    module.exports.__wbg_new_018dcc2d6c8c2f6a = function() {
+      return handleError(function() {
+        const ret = new Headers();
+        return ret;
+      }, arguments);
+    };
+    module.exports.__wbg_new_23a2665fac83c611 = function(arg0, arg1) {
+      try {
+        var state0 = { a: arg0, b: arg1 };
+        var cb0 = (arg02, arg12) => {
+          const a = state0.a;
+          state0.a = 0;
+          try {
+            return __wbg_adapter_156(a, state0.b, arg02, arg12);
+          } finally {
+            state0.a = a;
+          }
+        };
+        const ret = new Promise(cb0);
+        return ret;
+      } finally {
+        state0.a = state0.b = 0;
+      }
+    };
+    module.exports.__wbg_new_31a97dac4f10fab7 = function(arg0) {
+      const ret = new Date(arg0);
+      return ret;
+    };
+    module.exports.__wbg_new_405e22f390576ce2 = function() {
+      const ret = new Object();
+      return ret;
+    };
+    module.exports.__wbg_new_a12002a7f91c75be = function(arg0) {
+      const ret = new Uint8Array(arg0);
+      return ret;
+    };
+    module.exports.__wbg_new_e25e5aab09ff45db = function() {
+      return handleError(function() {
+        const ret = new AbortController();
+        return ret;
+      }, arguments);
+    };
+    module.exports.__wbg_newnoargs_105ed471475aaf50 = function(arg0, arg1) {
+      const ret = new Function(getStringFromWasm0(arg0, arg1));
+      return ret;
+    };
+    module.exports.__wbg_newwithbyteoffsetandlength_d97e637ebe145a9a = function(arg0, arg1, arg2) {
+      const ret = new Uint8Array(arg0, arg1 >>> 0, arg2 >>> 0);
+      return ret;
+    };
+    module.exports.__wbg_newwithlength_a381634e90c276d4 = function(arg0) {
+      const ret = new Uint8Array(arg0 >>> 0);
+      return ret;
+    };
+    module.exports.__wbg_newwithstrandinit_06c535e0a867c635 = function() {
+      return handleError(function(arg0, arg1, arg2) {
+        const ret = new Request(getStringFromWasm0(arg0, arg1), arg2);
+        return ret;
+      }, arguments);
+    };
+    module.exports.__wbg_next_25feadfc0913fea9 = function(arg0) {
+      const ret = arg0.next;
+      return ret;
+    };
+    module.exports.__wbg_next_6574e1a8a62d1055 = function() {
+      return handleError(function(arg0) {
+        const ret = arg0.next();
+        return ret;
+      }, arguments);
+    };
+    module.exports.__wbg_node_e1f24f89a7336c2e = function(arg0) {
+      const ret = arg0.node;
+      return ret;
+    };
+    module.exports.__wbg_now_807e54c39636c349 = function() {
+      const ret = Date.now();
+      return ret;
+    };
+    module.exports.__wbg_now_d18023d54d4e5500 = function(arg0) {
+      const ret = arg0.now();
+      return ret;
+    };
+    module.exports.__wbg_parse_def2e24ef1252aff = function() {
+      return handleError(function(arg0, arg1) {
+        const ret = JSON.parse(getStringFromWasm0(arg0, arg1));
+        return ret;
+      }, arguments);
+    };
+    module.exports.__wbg_process_3975fd6c72f520aa = function(arg0) {
+      const ret = arg0.process;
+      return ret;
+    };
+    module.exports.__wbg_queueMicrotask_97d92b4fcc8a61c5 = function(arg0) {
+      queueMicrotask(arg0);
+    };
+    module.exports.__wbg_queueMicrotask_d3219def82552485 = function(arg0) {
+      const ret = arg0.queueMicrotask;
+      return ret;
+    };
+    module.exports.__wbg_randomFillSync_f8c153b79f285817 = function() {
+      return handleError(function(arg0, arg1) {
+        arg0.randomFillSync(arg1);
+      }, arguments);
+    };
+    module.exports.__wbg_require_b74f47fc2d022fd6 = function() {
+      return handleError(function() {
+        const ret = module.require;
+        return ret;
+      }, arguments);
+    };
+    module.exports.__wbg_resolve_4851785c9c5f573d = function(arg0) {
+      const ret = Promise.resolve(arg0);
+      return ret;
+    };
+    module.exports.__wbg_self_b29ea9f89ecb0567 = function() {
+      return handleError(function() {
+        const ret = self.self;
+        return ret;
+      }, arguments);
+    };
+    module.exports.__wbg_setTimeout_4ec014681668a581 = function(arg0, arg1) {
+      const ret = setTimeout(arg0, arg1);
+      return ret;
+    };
+    module.exports.__wbg_set_65595bdd868b3009 = function(arg0, arg1, arg2) {
+      arg0.set(arg1, arg2 >>> 0);
+    };
+    module.exports.__wbg_setbody_5923b78a95eedf29 = function(arg0, arg1) {
+      arg0.body = arg1;
+    };
+    module.exports.__wbg_setcache_12f17c3a980650e4 = function(arg0, arg1) {
+      arg0.cache = __wbindgen_enum_RequestCache[arg1];
+    };
+    module.exports.__wbg_setcredentials_c3a22f1cd105a2c6 = function(arg0, arg1) {
+      arg0.credentials = __wbindgen_enum_RequestCredentials[arg1];
+    };
+    module.exports.__wbg_setheaders_834c0bdb6a8949ad = function(arg0, arg1) {
+      arg0.headers = arg1;
+    };
+    module.exports.__wbg_setmethod_3c5280fe5d890842 = function(arg0, arg1, arg2) {
+      arg0.method = getStringFromWasm0(arg1, arg2);
+    };
+    module.exports.__wbg_setmode_5dc300b865044b65 = function(arg0, arg1) {
+      arg0.mode = __wbindgen_enum_RequestMode[arg1];
+    };
+    module.exports.__wbg_setsignal_75b21ef3a81de905 = function(arg0, arg1) {
+      arg0.signal = arg1;
+    };
+    module.exports.__wbg_signal_aaf9ad74119f20a4 = function(arg0) {
+      const ret = arg0.signal;
+      return ret;
+    };
+    module.exports.__wbg_static_accessor_GLOBAL_88a902d13a557d07 = function() {
+      const ret = typeof global === "undefined" ? null : global;
+      return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+    };
+    module.exports.__wbg_static_accessor_GLOBAL_THIS_56578be7e9f832b0 = function() {
+      const ret = typeof globalThis === "undefined" ? null : globalThis;
+      return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+    };
+    module.exports.__wbg_static_accessor_SELF_37c5d418e4bf5819 = function() {
+      const ret = typeof self === "undefined" ? null : self;
+      return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+    };
+    module.exports.__wbg_static_accessor_WINDOW_5de37043a91a9c40 = function() {
+      const ret = typeof window === "undefined" ? null : window;
+      return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+    };
+    module.exports.__wbg_static_accessor_performance_da77b3a901a72934 = function() {
+      const ret = performance;
+      return ret;
+    };
+    module.exports.__wbg_status_f6360336ca686bf0 = function(arg0) {
+      const ret = arg0.status;
+      return ret;
+    };
+    module.exports.__wbg_stringify_f7ed6987935b4a24 = function() {
+      return handleError(function(arg0) {
+        const ret = JSON.stringify(arg0);
+        return ret;
+      }, arguments);
+    };
+    module.exports.__wbg_subarray_aa9065fa9dc5df96 = function(arg0, arg1, arg2) {
+      const ret = arg0.subarray(arg1 >>> 0, arg2 >>> 0);
+      return ret;
+    };
+    module.exports.__wbg_then_44b73946d2fb3e7d = function(arg0, arg1) {
+      const ret = arg0.then(arg1);
+      return ret;
+    };
+    module.exports.__wbg_then_48b406749878a531 = function(arg0, arg1, arg2) {
+      const ret = arg0.then(arg1, arg2);
+      return ret;
+    };
+    module.exports.__wbg_toLocaleDateString_e5424994746e8415 = function(arg0, arg1, arg2, arg3) {
+      const ret = arg0.toLocaleDateString(getStringFromWasm0(arg1, arg2), arg3);
+      return ret;
+    };
+    module.exports.__wbg_url_ae10c34ca209681d = function(arg0, arg1) {
+      const ret = arg1.url;
+      const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+      const len1 = WASM_VECTOR_LEN;
+      getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
+      getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+    };
+    module.exports.__wbg_value_cd1ffa7b1ab794f1 = function(arg0) {
+      const ret = arg0.value;
+      return ret;
+    };
+    module.exports.__wbg_values_99f7a68c7f313d66 = function(arg0) {
+      const ret = arg0.values();
+      return ret;
+    };
+    module.exports.__wbg_versions_4e31226f5e8dc909 = function(arg0) {
+      const ret = arg0.versions;
+      return ret;
+    };
+    module.exports.__wbg_window_aa5515e600e96252 = function() {
+      return handleError(function() {
+        const ret = window.window;
+        return ret;
+      }, arguments);
+    };
+    module.exports.__wbindgen_cb_drop = function(arg0) {
+      const obj = arg0.original;
+      if (obj.cnt-- == 1) {
+        obj.a = 0;
+        return true;
+      }
+      const ret = false;
+      return ret;
+    };
+    module.exports.__wbindgen_closure_wrapper9169 = function(arg0, arg1, arg2) {
+      const ret = makeMutClosure(arg0, arg1, 2463, __wbg_adapter_30);
+      return ret;
+    };
+    module.exports.__wbindgen_closure_wrapper9209 = function(arg0, arg1, arg2) {
+      const ret = makeMutClosure(arg0, arg1, 2485, __wbg_adapter_33);
+      return ret;
+    };
+    module.exports.__wbindgen_debug_string = function(arg0, arg1) {
+      const ret = debugString(arg1);
+      const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+      const len1 = WASM_VECTOR_LEN;
+      getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
+      getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+    };
+    module.exports.__wbindgen_init_externref_table = function() {
+      const table = wasm.__wbindgen_export_2;
+      const offset = table.grow(4);
+      table.set(0, void 0);
+      table.set(offset + 0, void 0);
+      table.set(offset + 1, null);
+      table.set(offset + 2, true);
+      table.set(offset + 3, false);
+      ;
+    };
+    module.exports.__wbindgen_is_function = function(arg0) {
+      const ret = typeof arg0 === "function";
+      return ret;
+    };
+    module.exports.__wbindgen_is_object = function(arg0) {
+      const val = arg0;
+      const ret = typeof val === "object" && val !== null;
+      return ret;
+    };
+    module.exports.__wbindgen_is_string = function(arg0) {
+      const ret = typeof arg0 === "string";
+      return ret;
+    };
+    module.exports.__wbindgen_is_undefined = function(arg0) {
+      const ret = arg0 === void 0;
+      return ret;
+    };
+    module.exports.__wbindgen_memory = function() {
+      const ret = wasm.memory;
+      return ret;
+    };
+    module.exports.__wbindgen_number_new = function(arg0) {
+      const ret = arg0;
+      return ret;
+    };
+    module.exports.__wbindgen_string_get = function(arg0, arg1) {
+      const obj = arg1;
+      const ret = typeof obj === "string" ? obj : void 0;
+      var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+      var len1 = WASM_VECTOR_LEN;
+      getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
+      getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
+    };
+    module.exports.__wbindgen_string_new = function(arg0, arg1) {
+      const ret = getStringFromWasm0(arg0, arg1);
+      return ret;
+    };
+    module.exports.__wbindgen_throw = function(arg0, arg1) {
+      throw new Error(getStringFromWasm0(arg0, arg1));
+    };
+    var path4 = __require("path").join(__dirname, "core_bg.wasm");
+    var bytes = __require("fs").readFileSync(path4);
+    var wasmModule = new WebAssembly.Module(bytes);
+    var wasmInstance = new WebAssembly.Instance(wasmModule, imports);
+    wasm = wasmInstance.exports;
+    module.exports.__wasm = wasm;
+    wasm.__wbindgen_start();
+  }
+});
+
+// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/types.js
+var require_types = __commonJS({
+  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/types.js"(exports) {
+    "use strict";
+    init_esm_shims();
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.ReplacerFunc = exports.ReviverFunc = exports.UPDATE_ITEM_HISTORY = exports.UPDATE_ITEMS = exports.SEND_ITEMS = exports.REVEAL_ITEM_PASSWORD = exports.RECOVER_VAULT = exports.READ_ITEMS = exports.PRINT_ITEMS = exports.NO_ACCESS = exports.MANAGE_VAULT = exports.IMPORT_ITEMS = exports.EXPORT_ITEMS = exports.DELETE_ITEMS = exports.CREATE_ITEMS = exports.ARCHIVE_ITEMS = exports.WordListType = exports.SeparatorType = exports.VaultType = exports.AllowedRecipientType = exports.AllowedType = exports.ItemShareDuration = exports.ItemState = exports.AutofillBehavior = exports.ItemFieldType = exports.ItemCategory = exports.VaultAccessorType = exports.GroupState = exports.GroupType = void 0;
+    var GroupType;
+    (function(GroupType2) {
+      GroupType2["Owners"] = "owners";
+      GroupType2["Administrators"] = "administrators";
+      GroupType2["Recovery"] = "recovery";
+      GroupType2["ExternalAccountManagers"] = "externalAccountManagers";
+      GroupType2["TeamMembers"] = "teamMembers";
+      GroupType2["UserDefined"] = "userDefined";
+      GroupType2["Unsupported"] = "unsupported";
+    })(GroupType || (exports.GroupType = GroupType = {}));
+    var GroupState;
+    (function(GroupState2) {
+      GroupState2["Active"] = "active";
+      GroupState2["Deleted"] = "deleted";
+      GroupState2["Unsupported"] = "unsupported";
+    })(GroupState || (exports.GroupState = GroupState = {}));
+    var VaultAccessorType;
+    (function(VaultAccessorType2) {
+      VaultAccessorType2["User"] = "user";
+      VaultAccessorType2["Group"] = "group";
+    })(VaultAccessorType || (exports.VaultAccessorType = VaultAccessorType = {}));
+    var ItemCategory;
+    (function(ItemCategory2) {
+      ItemCategory2["Login"] = "Login";
+      ItemCategory2["SecureNote"] = "SecureNote";
+      ItemCategory2["CreditCard"] = "CreditCard";
+      ItemCategory2["CryptoWallet"] = "CryptoWallet";
+      ItemCategory2["Identity"] = "Identity";
+      ItemCategory2["Password"] = "Password";
+      ItemCategory2["Document"] = "Document";
+      ItemCategory2["ApiCredentials"] = "ApiCredentials";
+      ItemCategory2["BankAccount"] = "BankAccount";
+      ItemCategory2["Database"] = "Database";
+      ItemCategory2["DriverLicense"] = "DriverLicense";
+      ItemCategory2["Email"] = "Email";
+      ItemCategory2["MedicalRecord"] = "MedicalRecord";
+      ItemCategory2["Membership"] = "Membership";
+      ItemCategory2["OutdoorLicense"] = "OutdoorLicense";
+      ItemCategory2["Passport"] = "Passport";
+      ItemCategory2["Rewards"] = "Rewards";
+      ItemCategory2["Router"] = "Router";
+      ItemCategory2["Server"] = "Server";
+      ItemCategory2["SshKey"] = "SshKey";
+      ItemCategory2["SocialSecurityNumber"] = "SocialSecurityNumber";
+      ItemCategory2["SoftwareLicense"] = "SoftwareLicense";
+      ItemCategory2["Person"] = "Person";
+      ItemCategory2["Unsupported"] = "Unsupported";
+    })(ItemCategory || (exports.ItemCategory = ItemCategory = {}));
+    var ItemFieldType;
+    (function(ItemFieldType2) {
+      ItemFieldType2["Text"] = "Text";
+      ItemFieldType2["Concealed"] = "Concealed";
+      ItemFieldType2["CreditCardType"] = "CreditCardType";
+      ItemFieldType2["CreditCardNumber"] = "CreditCardNumber";
+      ItemFieldType2["Phone"] = "Phone";
+      ItemFieldType2["Url"] = "Url";
+      ItemFieldType2["Totp"] = "Totp";
+      ItemFieldType2["Email"] = "Email";
+      ItemFieldType2["Reference"] = "Reference";
+      ItemFieldType2["SshKey"] = "SshKey";
+      ItemFieldType2["Menu"] = "Menu";
+      ItemFieldType2["MonthYear"] = "MonthYear";
+      ItemFieldType2["Address"] = "Address";
+      ItemFieldType2["Date"] = "Date";
+      ItemFieldType2["Unsupported"] = "Unsupported";
+    })(ItemFieldType || (exports.ItemFieldType = ItemFieldType = {}));
+    var AutofillBehavior;
+    (function(AutofillBehavior2) {
+      AutofillBehavior2["AnywhereOnWebsite"] = "AnywhereOnWebsite";
+      AutofillBehavior2["ExactDomain"] = "ExactDomain";
+      AutofillBehavior2["Never"] = "Never";
+    })(AutofillBehavior || (exports.AutofillBehavior = AutofillBehavior = {}));
+    var ItemState;
+    (function(ItemState2) {
+      ItemState2["Active"] = "active";
+      ItemState2["Archived"] = "archived";
+    })(ItemState || (exports.ItemState = ItemState = {}));
+    var ItemShareDuration;
+    (function(ItemShareDuration2) {
+      ItemShareDuration2["OneHour"] = "OneHour";
+      ItemShareDuration2["OneDay"] = "OneDay";
+      ItemShareDuration2["SevenDays"] = "SevenDays";
+      ItemShareDuration2["FourteenDays"] = "FourteenDays";
+      ItemShareDuration2["ThirtyDays"] = "ThirtyDays";
+    })(ItemShareDuration || (exports.ItemShareDuration = ItemShareDuration = {}));
+    var AllowedType;
+    (function(AllowedType2) {
+      AllowedType2["Authenticated"] = "Authenticated";
+      AllowedType2["Public"] = "Public";
+    })(AllowedType || (exports.AllowedType = AllowedType = {}));
+    var AllowedRecipientType;
+    (function(AllowedRecipientType2) {
+      AllowedRecipientType2["Email"] = "Email";
+      AllowedRecipientType2["Domain"] = "Domain";
+    })(AllowedRecipientType || (exports.AllowedRecipientType = AllowedRecipientType = {}));
+    var VaultType;
+    (function(VaultType2) {
+      VaultType2["Personal"] = "personal";
+      VaultType2["Everyone"] = "everyone";
+      VaultType2["Transfer"] = "transfer";
+      VaultType2["UserCreated"] = "userCreated";
+      VaultType2["Unsupported"] = "unsupported";
+    })(VaultType || (exports.VaultType = VaultType = {}));
+    var SeparatorType;
+    (function(SeparatorType2) {
+      SeparatorType2["Digits"] = "digits";
+      SeparatorType2["DigitsAndSymbols"] = "digitsAndSymbols";
+      SeparatorType2["Spaces"] = "spaces";
+      SeparatorType2["Hyphens"] = "hyphens";
+      SeparatorType2["Underscores"] = "underscores";
+      SeparatorType2["Periods"] = "periods";
+      SeparatorType2["Commas"] = "commas";
+    })(SeparatorType || (exports.SeparatorType = SeparatorType = {}));
+    var WordListType;
+    (function(WordListType2) {
+      WordListType2["FullWords"] = "fullWords";
+      WordListType2["Syllables"] = "syllables";
+      WordListType2["ThreeLetters"] = "threeLetters";
+    })(WordListType || (exports.WordListType = WordListType = {}));
+    exports.ARCHIVE_ITEMS = 256;
+    exports.CREATE_ITEMS = 128;
+    exports.DELETE_ITEMS = 512;
+    exports.EXPORT_ITEMS = 4194304;
+    exports.IMPORT_ITEMS = 2097152;
+    exports.MANAGE_VAULT = 2;
+    exports.NO_ACCESS = 0;
+    exports.PRINT_ITEMS = 8388608;
+    exports.READ_ITEMS = 32;
+    exports.RECOVER_VAULT = 1;
+    exports.REVEAL_ITEM_PASSWORD = 16;
+    exports.SEND_ITEMS = 1048576;
+    exports.UPDATE_ITEMS = 64;
+    exports.UPDATE_ITEM_HISTORY = 1024;
+    var ReviverFunc = (key, value) => {
+      if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(value) && (key === "createdAt" || key === "updatedAt")) {
+        return new Date(value);
+      }
+      if (Array.isArray(value) && value.every((v) => Number.isInteger(v) && v >= 0 && v <= 255) && value.length > 0) {
+        return new Uint8Array(value);
+      }
+      return value;
+    };
+    exports.ReviverFunc = ReviverFunc;
+    var ReplacerFunc = (key, value) => {
+      if (value instanceof Date) {
+        return value.toISOString();
+      }
+      if (value instanceof Uint8Array) {
+        return Array.from(value);
+      }
+      return value;
+    };
+    exports.ReplacerFunc = ReplacerFunc;
+  }
+});
+
+// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/errors.js
+var require_errors3 = __commonJS({
+  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/errors.js"(exports) {
+    "use strict";
+    init_esm_shims();
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.throwError = exports.RateLimitExceededError = exports.DesktopSessionExpiredError = void 0;
+    var DesktopSessionExpiredError = class extends Error {
+      constructor(message) {
+        super();
+        this.message = message;
+      }
+    };
+    exports.DesktopSessionExpiredError = DesktopSessionExpiredError;
+    var RateLimitExceededError = class extends Error {
+      constructor(message) {
+        super();
+        this.message = message;
+      }
+    };
+    exports.RateLimitExceededError = RateLimitExceededError;
+    var throwError = (errString) => {
+      let err;
+      try {
+        err = JSON.parse(errString);
+      } catch (e) {
+        throw new Error(errString);
+      }
+      switch (err.name) {
+        case "DesktopSessionExpired":
+          throw new DesktopSessionExpiredError(err.message);
+        case "RateLimitExceeded":
+          throw new RateLimitExceededError(err.message);
+        default:
+          throw new Error(err.message);
+      }
+    };
+    exports.throwError = throwError;
+  }
+});
+
+// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/core.js
+var require_core3 = __commonJS({
+  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/core.js"(exports) {
+    "use strict";
+    init_esm_shims();
+    var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
+      function adopt(value) {
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
+        });
+      }
+      return new (P || (P = Promise))(function(resolve6, reject) {
+        function fulfilled(value) {
+          try {
+            step(generator.next(value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function rejected(value) {
+          try {
+            step(generator["throw"](value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function step(result) {
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+        }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+      });
+    };
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.InnerClient = exports.SharedCore = exports.WasmCore = void 0;
+    var sdk_core_1 = require_core2();
+    var types_1 = require_types();
+    var errors_1 = require_errors3();
+    var messageLimit = 50 * 1024 * 1024;
+    var WasmCore = class {
+      initClient(config) {
+        return __awaiter(this, void 0, void 0, function* () {
+          try {
+            return yield (0, sdk_core_1.init_client)(config);
+          } catch (e) {
+            (0, errors_1.throwError)(e);
+          }
+        });
+      }
+      invoke(config) {
+        return __awaiter(this, void 0, void 0, function* () {
+          try {
+            return yield (0, sdk_core_1.invoke)(config);
+          } catch (e) {
+            (0, errors_1.throwError)(e);
+          }
+        });
+      }
+      releaseClient(clientId) {
+        try {
+          (0, sdk_core_1.release_client)(clientId);
+        } catch (e) {
+          console.warn("failed to release client:", e);
+        }
+      }
+    };
+    exports.WasmCore = WasmCore;
+    var SharedCore = class {
+      constructor() {
+        this.inner = new WasmCore();
+      }
+      setInner(core2) {
+        this.inner = core2;
+      }
+      initClient(config) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const serializedConfig = JSON.stringify(config);
+          return this.inner.initClient(serializedConfig);
+        });
+      }
+      invoke(config) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const serializedConfig = JSON.stringify(config, types_1.ReplacerFunc);
+          if (new TextEncoder().encode(serializedConfig).length > messageLimit) {
+            (0, errors_1.throwError)(`message size exceeds the limit of ${messageLimit} bytes, please contact 1Password at support@1password.com or https://developer.1password.com/joinslack if you need help."`);
+          }
+          return this.inner.invoke(serializedConfig);
+        });
+      }
+      invoke_sync(config) {
+        const serializedConfig = JSON.stringify(config, types_1.ReplacerFunc);
+        if (new TextEncoder().encode(serializedConfig).length > messageLimit) {
+          (0, errors_1.throwError)(`message size exceeds the limit of ${messageLimit} bytes, please contact 1Password at support@1password.com or https://developer.1password.com/joinslack if you need help.`);
+        }
+        return (0, sdk_core_1.invoke_sync)(serializedConfig);
+      }
+      releaseClient(clientId) {
+        const serializedId = JSON.stringify(clientId);
+        this.inner.releaseClient(serializedId);
+      }
+    };
+    exports.SharedCore = SharedCore;
+    var InnerClient = class {
+      constructor(id, core2, config) {
+        this.id = id;
+        this.core = core2;
+        this.config = config;
+      }
+      invoke(config) {
+        return __awaiter(this, void 0, void 0, function* () {
+          try {
+            return yield this.core.invoke(config);
+          } catch (err) {
+            if (err instanceof errors_1.DesktopSessionExpiredError) {
+              const newId = yield this.core.initClient(this.config);
+              this.id = parseInt(newId, 10);
+              config.invocation.clientId = this.id;
+              return yield this.core.invoke(config);
+            }
+            throw err;
+          }
+        });
+      }
+    };
+    exports.InnerClient = InnerClient;
+  }
+});
+
+// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/version.js
+var require_version = __commonJS({
+  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/version.js"(exports) {
+    "use strict";
+    init_esm_shims();
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.SDK_BUILD_NUMBER = exports.SDK_VERSION = void 0;
+    exports.SDK_VERSION = "0.4.0";
+    exports.SDK_BUILD_NUMBER = "0040003";
+  }
+});
+
+// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/configuration.js
+var require_configuration = __commonJS({
+  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/configuration.js"(exports) {
+    "use strict";
+    init_esm_shims();
+    var __importDefault = exports && exports.__importDefault || function(mod) {
+      return mod && mod.__esModule ? mod : { "default": mod };
+    };
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.getOsName = exports.clientAuthConfig = exports.DesktopAuth = exports.VERSION = exports.LANGUAGE = void 0;
+    var os_1 = __importDefault(__require("os"));
+    var version_js_1 = require_version();
+    exports.LANGUAGE = "JS";
+    exports.VERSION = version_js_1.SDK_BUILD_NUMBER;
+    var DesktopAuth = class {
+      constructor(accountName) {
+        this.accountName = accountName;
+      }
+    };
+    exports.DesktopAuth = DesktopAuth;
+    var clientAuthConfig = (userConfig) => {
+      const defaultOsVersion = "0.0.0";
+      let serviceAccountToken;
+      let accountName;
+      if (typeof userConfig.auth === "string") {
+        serviceAccountToken = userConfig.auth;
+      } else if (userConfig.auth instanceof DesktopAuth) {
+        accountName = userConfig.auth.accountName;
+      }
+      return {
+        serviceAccountToken: serviceAccountToken !== null && serviceAccountToken !== void 0 ? serviceAccountToken : "",
+        accountName,
+        programmingLanguage: exports.LANGUAGE,
+        sdkVersion: exports.VERSION,
+        integrationName: userConfig.integrationName,
+        integrationVersion: userConfig.integrationVersion,
+        requestLibraryName: "Fetch API",
+        requestLibraryVersion: "Fetch API",
+        os: (0, exports.getOsName)(),
+        osVersion: defaultOsVersion,
+        architecture: os_1.default.arch()
+      };
+    };
+    exports.clientAuthConfig = clientAuthConfig;
+    var getOsName = () => {
+      const os_name = os_1.default.type().toLowerCase();
+      if (os_name === "windows_nt") {
+        return "windows";
+      }
+      return os_name;
+    };
+    exports.getOsName = getOsName;
+  }
+});
+
+// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/secrets.js
+var require_secrets = __commonJS({
+  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/secrets.js"(exports) {
+    "use strict";
+    init_esm_shims();
+    var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
+      function adopt(value) {
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
+        });
+      }
+      return new (P || (P = Promise))(function(resolve6, reject) {
+        function fulfilled(value) {
+          try {
+            step(generator.next(value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function rejected(value) {
+          try {
+            step(generator["throw"](value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function step(result) {
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+        }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+      });
+    };
+    var __classPrivateFieldSet = exports && exports.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
+      if (kind === "m") throw new TypeError("Private method is not writable");
+      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
+      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
+      return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
+    };
+    var __classPrivateFieldGet = exports && exports.__classPrivateFieldGet || function(receiver, state, kind, f) {
+      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+      return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+    };
+    var _Secrets_inner;
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.Secrets = void 0;
+    var core_js_1 = require_core3();
+    var types_js_1 = require_types();
+    var Secrets = class {
+      constructor(inner) {
+        _Secrets_inner.set(this, void 0);
+        __classPrivateFieldSet(this, _Secrets_inner, inner, "f");
+      }
+      /**
+       * Resolve returns the secret the provided secret reference points to.
+       */
+      resolve(secretReference) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Secrets_inner, "f").id,
+              parameters: {
+                name: "SecretsResolve",
+                parameters: {
+                  secret_reference: secretReference
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _Secrets_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * Resolve takes in a list of secret references and returns the secrets they point to or errors if any.
+       */
+      resolveAll(secretReferences) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Secrets_inner, "f").id,
+              parameters: {
+                name: "SecretsResolveAll",
+                parameters: {
+                  secret_references: secretReferences
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _Secrets_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * Validate the secret reference to ensure there are no syntax errors.
+       */
+      static validateSecretReference(secretReference) {
+        const sharedCore = new core_js_1.SharedCore();
+        const invocationConfig = {
+          invocation: {
+            parameters: {
+              name: "ValidateSecretReference",
+              parameters: {
+                secret_reference: secretReference
+              }
+            }
+          }
+        };
+        sharedCore.invoke_sync(invocationConfig);
+      }
+      /**
+       * Generate a password using the provided recipe.
+       */
+      static generatePassword(recipe) {
+        const sharedCore = new core_js_1.SharedCore();
+        const invocationConfig = {
+          invocation: {
+            parameters: {
+              name: "GeneratePassword",
+              parameters: {
+                recipe
+              }
+            }
+          }
+        };
+        return JSON.parse(sharedCore.invoke_sync(invocationConfig), types_js_1.ReviverFunc);
+      }
+    };
+    exports.Secrets = Secrets;
+    _Secrets_inner = /* @__PURE__ */ new WeakMap();
+  }
+});
+
+// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/items_shares.js
+var require_items_shares = __commonJS({
+  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/items_shares.js"(exports) {
+    "use strict";
+    init_esm_shims();
+    var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
+      function adopt(value) {
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
+        });
+      }
+      return new (P || (P = Promise))(function(resolve6, reject) {
+        function fulfilled(value) {
+          try {
+            step(generator.next(value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function rejected(value) {
+          try {
+            step(generator["throw"](value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function step(result) {
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+        }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+      });
+    };
+    var __classPrivateFieldSet = exports && exports.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
+      if (kind === "m") throw new TypeError("Private method is not writable");
+      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
+      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
+      return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
+    };
+    var __classPrivateFieldGet = exports && exports.__classPrivateFieldGet || function(receiver, state, kind, f) {
+      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+      return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+    };
+    var _ItemsShares_inner;
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.ItemsShares = void 0;
+    var types_js_1 = require_types();
+    var ItemsShares = class {
+      constructor(inner) {
+        _ItemsShares_inner.set(this, void 0);
+        __classPrivateFieldSet(this, _ItemsShares_inner, inner, "f");
+      }
+      /**
+       * Get the item sharing policy of your account.
+       */
+      getAccountPolicy(vaultId, itemId) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _ItemsShares_inner, "f").id,
+              parameters: {
+                name: "ItemsSharesGetAccountPolicy",
+                parameters: {
+                  vault_id: vaultId,
+                  item_id: itemId
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _ItemsShares_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * Validate the recipients of an item sharing link.
+       */
+      validateRecipients(policy, recipients) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _ItemsShares_inner, "f").id,
+              parameters: {
+                name: "ItemsSharesValidateRecipients",
+                parameters: {
+                  policy,
+                  recipients
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _ItemsShares_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * Create a new item sharing link.
+       */
+      create(item, policy, params) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _ItemsShares_inner, "f").id,
+              parameters: {
+                name: "ItemsSharesCreate",
+                parameters: {
+                  item,
+                  policy,
+                  params
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _ItemsShares_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+    };
+    exports.ItemsShares = ItemsShares;
+    _ItemsShares_inner = /* @__PURE__ */ new WeakMap();
+  }
+});
+
+// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/items_files.js
+var require_items_files = __commonJS({
+  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/items_files.js"(exports) {
+    "use strict";
+    init_esm_shims();
+    var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
+      function adopt(value) {
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
+        });
+      }
+      return new (P || (P = Promise))(function(resolve6, reject) {
+        function fulfilled(value) {
+          try {
+            step(generator.next(value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function rejected(value) {
+          try {
+            step(generator["throw"](value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function step(result) {
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+        }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+      });
+    };
+    var __classPrivateFieldSet = exports && exports.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
+      if (kind === "m") throw new TypeError("Private method is not writable");
+      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
+      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
+      return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
+    };
+    var __classPrivateFieldGet = exports && exports.__classPrivateFieldGet || function(receiver, state, kind, f) {
+      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+      return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+    };
+    var _ItemsFiles_inner;
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.ItemsFiles = void 0;
+    var types_js_1 = require_types();
+    var ItemsFiles = class {
+      constructor(inner) {
+        _ItemsFiles_inner.set(this, void 0);
+        __classPrivateFieldSet(this, _ItemsFiles_inner, inner, "f");
+      }
+      /**
+       * Attach files to Items.
+       */
+      attach(item, fileParams) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _ItemsFiles_inner, "f").id,
+              parameters: {
+                name: "ItemsFilesAttach",
+                parameters: {
+                  item,
+                  file_params: fileParams
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _ItemsFiles_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * Read file content from the Item.
+       */
+      read(vaultId, itemId, attr) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _ItemsFiles_inner, "f").id,
+              parameters: {
+                name: "ItemsFilesRead",
+                parameters: {
+                  vault_id: vaultId,
+                  item_id: itemId,
+                  attr
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _ItemsFiles_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * Delete a field file from Item using the section and field IDs.
+       */
+      delete(item, sectionId, fieldId) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _ItemsFiles_inner, "f").id,
+              parameters: {
+                name: "ItemsFilesDelete",
+                parameters: {
+                  item,
+                  section_id: sectionId,
+                  field_id: fieldId
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _ItemsFiles_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * Replace the document file within a document item.
+       */
+      replaceDocument(item, docParams) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _ItemsFiles_inner, "f").id,
+              parameters: {
+                name: "ItemsFilesReplaceDocument",
+                parameters: {
+                  item,
+                  doc_params: docParams
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _ItemsFiles_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+    };
+    exports.ItemsFiles = ItemsFiles;
+    _ItemsFiles_inner = /* @__PURE__ */ new WeakMap();
+  }
+});
+
+// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/items.js
+var require_items = __commonJS({
+  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/items.js"(exports) {
+    "use strict";
+    init_esm_shims();
+    var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
+      function adopt(value) {
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
+        });
+      }
+      return new (P || (P = Promise))(function(resolve6, reject) {
+        function fulfilled(value) {
+          try {
+            step(generator.next(value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function rejected(value) {
+          try {
+            step(generator["throw"](value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function step(result) {
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+        }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+      });
+    };
+    var __classPrivateFieldSet = exports && exports.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
+      if (kind === "m") throw new TypeError("Private method is not writable");
+      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
+      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
+      return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
+    };
+    var __classPrivateFieldGet = exports && exports.__classPrivateFieldGet || function(receiver, state, kind, f) {
+      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+      return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+    };
+    var _Items_inner;
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.Items = void 0;
+    var types_js_1 = require_types();
+    var items_shares_js_1 = require_items_shares();
+    var items_files_js_1 = require_items_files();
+    var Items = class {
+      constructor(inner) {
+        _Items_inner.set(this, void 0);
+        __classPrivateFieldSet(this, _Items_inner, inner, "f");
+        this.shares = new items_shares_js_1.ItemsShares(inner);
+        this.files = new items_files_js_1.ItemsFiles(inner);
+      }
+      /**
+       * Create a new item.
+       */
+      create(params) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
+              parameters: {
+                name: "ItemsCreate",
+                parameters: {
+                  params
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * Create items in batch, within a single vault.
+       */
+      createAll(vaultId, params) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
+              parameters: {
+                name: "ItemsCreateAll",
+                parameters: {
+                  vault_id: vaultId,
+                  params
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * Get an item by vault and item ID.
+       */
+      get(vaultId, itemId) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
+              parameters: {
+                name: "ItemsGet",
+                parameters: {
+                  vault_id: vaultId,
+                  item_id: itemId
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * Get items by vault and their item IDs.
+       */
+      getAll(vaultId, itemIds) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
+              parameters: {
+                name: "ItemsGetAll",
+                parameters: {
+                  vault_id: vaultId,
+                  item_ids: itemIds
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * Update an existing item.
+       */
+      put(item) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
+              parameters: {
+                name: "ItemsPut",
+                parameters: {
+                  item
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * Delete an item.
+       */
+      delete(vaultId, itemId) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
+              parameters: {
+                name: "ItemsDelete",
+                parameters: {
+                  vault_id: vaultId,
+                  item_id: itemId
+                }
+              }
+            }
+          };
+          yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig);
+        });
+      }
+      /**
+       * Delete items in batch, within a single vault.
+       */
+      deleteAll(vaultId, itemIds) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
+              parameters: {
+                name: "ItemsDeleteAll",
+                parameters: {
+                  vault_id: vaultId,
+                  item_ids: itemIds
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * Archive an item.
+       */
+      archive(vaultId, itemId) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
+              parameters: {
+                name: "ItemsArchive",
+                parameters: {
+                  vault_id: vaultId,
+                  item_id: itemId
+                }
+              }
+            }
+          };
+          yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig);
+        });
+      }
+      /**
+       * List items based on filters.
+       */
+      list(vaultId, ...filters) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
+              parameters: {
+                name: "ItemsList",
+                parameters: {
+                  vault_id: vaultId,
+                  filters
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+    };
+    exports.Items = Items;
+    _Items_inner = /* @__PURE__ */ new WeakMap();
+  }
+});
+
+// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/vaults.js
+var require_vaults = __commonJS({
+  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/vaults.js"(exports) {
+    "use strict";
+    init_esm_shims();
+    var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
+      function adopt(value) {
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
+        });
+      }
+      return new (P || (P = Promise))(function(resolve6, reject) {
+        function fulfilled(value) {
+          try {
+            step(generator.next(value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function rejected(value) {
+          try {
+            step(generator["throw"](value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function step(result) {
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+        }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+      });
+    };
+    var __classPrivateFieldSet = exports && exports.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
+      if (kind === "m") throw new TypeError("Private method is not writable");
+      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
+      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
+      return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
+    };
+    var __classPrivateFieldGet = exports && exports.__classPrivateFieldGet || function(receiver, state, kind, f) {
+      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+      return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+    };
+    var _Vaults_inner;
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.Vaults = void 0;
+    var types_js_1 = require_types();
+    var Vaults = class {
+      constructor(inner) {
+        _Vaults_inner.set(this, void 0);
+        __classPrivateFieldSet(this, _Vaults_inner, inner, "f");
+      }
+      /**
+       * Create a new user vault.
+       */
+      create(params) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
+              parameters: {
+                name: "VaultsCreate",
+                parameters: {
+                  params
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * List information about vaults that's configurable based on some input parameters.
+       */
+      list(params) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
+              parameters: {
+                name: "VaultsList",
+                parameters: {
+                  params
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * Get an overview of a vault by its ID.
+       */
+      getOverview(vaultId) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
+              parameters: {
+                name: "VaultsGetOverview",
+                parameters: {
+                  vault_id: vaultId
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * Get detailed vault information by vault ID and parameters.
+       */
+      get(vaultId, vaultParams) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
+              parameters: {
+                name: "VaultsGet",
+                parameters: {
+                  vault_id: vaultId,
+                  vault_params: vaultParams
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * Update a vault
+       */
+      update(vaultId, params) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
+              parameters: {
+                name: "VaultsUpdate",
+                parameters: {
+                  vault_id: vaultId,
+                  params
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+      /**
+       * Delete a vault by its ID.
+       */
+      delete(vaultId) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
+              parameters: {
+                name: "VaultsDelete",
+                parameters: {
+                  vault_id: vaultId
+                }
+              }
+            }
+          };
+          yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig);
+        });
+      }
+      /**
+       * Grant group permissions to a vault.
+       */
+      grantGroupPermissions(vaultId, groupPermissionsList) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
+              parameters: {
+                name: "VaultsGrantGroupPermissions",
+                parameters: {
+                  vault_id: vaultId,
+                  group_permissions_list: groupPermissionsList
+                }
+              }
+            }
+          };
+          yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig);
+        });
+      }
+      /**
+       * Update group permissions for vaults.
+       */
+      updateGroupPermissions(groupPermissionsList) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
+              parameters: {
+                name: "VaultsUpdateGroupPermissions",
+                parameters: {
+                  group_permissions_list: groupPermissionsList
+                }
+              }
+            }
+          };
+          yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig);
+        });
+      }
+      /**
+       * Revoke group permissions from a vault.
+       */
+      revokeGroupPermissions(vaultId, groupId) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
+              parameters: {
+                name: "VaultsRevokeGroupPermissions",
+                parameters: {
+                  vault_id: vaultId,
+                  group_id: groupId
+                }
+              }
+            }
+          };
+          yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig);
+        });
+      }
+    };
+    exports.Vaults = Vaults;
+    _Vaults_inner = /* @__PURE__ */ new WeakMap();
+  }
+});
+
+// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/groups.js
+var require_groups = __commonJS({
+  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/groups.js"(exports) {
+    "use strict";
+    init_esm_shims();
+    var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
+      function adopt(value) {
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
+        });
+      }
+      return new (P || (P = Promise))(function(resolve6, reject) {
+        function fulfilled(value) {
+          try {
+            step(generator.next(value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function rejected(value) {
+          try {
+            step(generator["throw"](value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function step(result) {
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+        }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+      });
+    };
+    var __classPrivateFieldSet = exports && exports.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
+      if (kind === "m") throw new TypeError("Private method is not writable");
+      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
+      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
+      return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
+    };
+    var __classPrivateFieldGet = exports && exports.__classPrivateFieldGet || function(receiver, state, kind, f) {
+      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
+      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
+      return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
+    };
+    var _Groups_inner;
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.Groups = void 0;
+    var types_js_1 = require_types();
+    var Groups = class {
+      constructor(inner) {
+        _Groups_inner.set(this, void 0);
+        __classPrivateFieldSet(this, _Groups_inner, inner, "f");
+      }
+      /**
+       * Get a group by its ID and parameters.
+       */
+      get(groupId, groupParams) {
+        return __awaiter(this, void 0, void 0, function* () {
+          const invocationConfig = {
+            invocation: {
+              clientId: __classPrivateFieldGet(this, _Groups_inner, "f").id,
+              parameters: {
+                name: "GroupsGet",
+                parameters: {
+                  group_id: groupId,
+                  group_params: groupParams
+                }
+              }
+            }
+          };
+          return JSON.parse(yield __classPrivateFieldGet(this, _Groups_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
+        });
+      }
+    };
+    exports.Groups = Groups;
+    _Groups_inner = /* @__PURE__ */ new WeakMap();
+  }
+});
+
+// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/client.js
+var require_client2 = __commonJS({
+  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/client.js"(exports) {
+    "use strict";
+    init_esm_shims();
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.Client = void 0;
+    var secrets_js_1 = require_secrets();
+    var items_js_1 = require_items();
+    var vaults_js_1 = require_vaults();
+    var groups_js_1 = require_groups();
+    var Client = class {
+      constructor(innerClient) {
+        this.secrets = new secrets_js_1.Secrets(innerClient);
+        this.items = new items_js_1.Items(innerClient);
+        this.vaults = new vaults_js_1.Vaults(innerClient);
+        this.groups = new groups_js_1.Groups(innerClient);
+      }
+    };
+    exports.Client = Client;
+  }
+});
+
+// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/shared_lib_core.js
+var require_shared_lib_core = __commonJS({
+  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/shared_lib_core.js"(exports) {
+    "use strict";
+    init_esm_shims();
+    var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      var desc = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+        desc = { enumerable: true, get: function() {
+          return m[k];
+        } };
+      }
+      Object.defineProperty(o, k2, desc);
+    }) : (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      o[k2] = m[k];
+    }));
+    var __setModuleDefault = exports && exports.__setModuleDefault || (Object.create ? (function(o, v) {
+      Object.defineProperty(o, "default", { enumerable: true, value: v });
+    }) : function(o, v) {
+      o["default"] = v;
+    });
+    var __importStar = exports && exports.__importStar || /* @__PURE__ */ (function() {
+      var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function(o2) {
+          var ar = [];
+          for (var k in o2) if (Object.prototype.hasOwnProperty.call(o2, k)) ar[ar.length] = k;
+          return ar;
+        };
+        return ownKeys(o);
+      };
+      return function(mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) {
+          for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        }
+        __setModuleDefault(result, mod);
+        return result;
+      };
+    })();
+    var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
+      function adopt(value) {
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
+        });
+      }
+      return new (P || (P = Promise))(function(resolve6, reject) {
+        function fulfilled(value) {
+          try {
+            step(generator.next(value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function rejected(value) {
+          try {
+            step(generator["throw"](value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function step(result) {
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+        }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+      });
+    };
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.SharedLibCore = void 0;
+    var fs4 = __importStar(__require("fs"));
+    var os3 = __importStar(__require("os"));
+    var path4 = __importStar(__require("path"));
+    var errors_1 = require_errors3();
+    var find1PasswordLibPath = () => {
+      const platform = os3.platform();
+      const appRoot = path4.dirname(process.execPath);
+      let searchPaths = [];
+      switch (platform) {
+        case "darwin":
+          searchPaths = [
+            "/Applications/1Password.app/Contents/Frameworks/libop_sdk_ipc_client.dylib",
+            path4.join(os3.homedir(), "/Applications/1Password.app/Contents/Frameworks/libop_sdk_ipc_client.dylib")
+          ];
+          break;
+        case "linux":
+          searchPaths = [
+            "/usr/bin/1password/libop_sdk_ipc_client.so",
+            "/opt/1Password/libop_sdk_ipc_client.so",
+            "/snap/bin/1password/libop_sdk_ipc_client.so"
+          ];
+          break;
+        case "win32":
+          searchPaths = [
+            path4.join(os3.homedir(), "/AppData/Local/1Password/op_sdk_ipc_client.dll"),
+            "C:/Program Files/1Password/app/8/op_sdk_ipc_client.dll",
+            "C:/Program Files (x86)/1Password/app/8/op_sdk_ipc_client.dll",
+            path4.join(os3.homedir(), "/AppData/Local/1Password/app/8/op_sdk_ipc_client.dll")
+          ];
+          break;
+        default:
+          throw new Error(`Unsupported platform: ${platform}`);
+      }
+      for (const addonPath of searchPaths) {
+        if (fs4.existsSync(addonPath)) {
+          return addonPath;
+        }
+      }
+      throw new Error("1Password desktop application not found");
+    };
+    var SharedLibCore = class {
+      constructor(accountName) {
+        this.lib = null;
+        try {
+          const libPath = find1PasswordLibPath();
+          const moduleStub = { exports: {} };
+          process.dlopen(moduleStub, libPath);
+          if (typeof moduleStub === "object" && moduleStub !== null && typeof moduleStub.exports === "object" && moduleStub.exports !== null && "sendMessage" in moduleStub.exports && typeof moduleStub.exports.sendMessage === "function") {
+            this.lib = moduleStub.exports;
+          } else {
+            throw new Error("Failed to initialize native library: sendMessage function not found on module.");
+          }
+        } catch (e) {
+          console.error("A critical error occurred while loading the native addon:", e);
+          this.lib = null;
+        }
+        this.acccountName = accountName;
+      }
+      /**
+       * callSharedLibrary - send string to native function, receive string back.
+       */
+      callSharedLibrary(input, operation_type) {
+        return __awaiter(this, void 0, void 0, function* () {
+          if (!this.lib) {
+            throw new Error("Native library is not available.");
+          }
+          if (!input || input.length === 0) {
+            throw new Error("internal: empty input");
+          }
+          const inputEncoded = Buffer.from(input, "utf8").toString("base64");
+          const req = {
+            account_name: this.acccountName,
+            kind: operation_type,
+            payload: inputEncoded
+          };
+          const inputBuf = Buffer.from(JSON.stringify(req), "utf8");
+          const nativeResponse = yield this.lib.sendMessage(inputBuf);
+          if (!(nativeResponse instanceof Uint8Array)) {
+            throw new Error(`Native function returned an unexpected type. Expected Uint8Array, got ${typeof nativeResponse}`);
+          }
+          const respString = new TextDecoder().decode(nativeResponse);
+          const response = JSON.parse(respString);
+          if (response.success) {
+            const decodedPayload = Buffer.from(response.payload).toString("utf8");
+            return decodedPayload;
+          } else {
+            const errorMessage = Array.isArray(response.payload) ? String.fromCharCode(...response.payload) : JSON.stringify(response.payload);
+            (0, errors_1.throwError)(errorMessage);
+          }
+        });
+      }
+      // Core interface implementation
+      initClient(config) {
+        return __awaiter(this, void 0, void 0, function* () {
+          return this.callSharedLibrary(config, "init_client");
+        });
+      }
+      invoke(invokeConfigBytes) {
+        return __awaiter(this, void 0, void 0, function* () {
+          return this.callSharedLibrary(invokeConfigBytes, "invoke");
+        });
+      }
+      releaseClient(clientId) {
+        this.callSharedLibrary(clientId, "release_client").catch((err) => {
+          console.warn("failed to release client:", err);
+        });
+      }
+    };
+    exports.SharedLibCore = SharedLibCore;
+  }
+});
+
+// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/client_builder.js
+var require_client_builder = __commonJS({
+  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/client_builder.js"(exports) {
+    "use strict";
+    init_esm_shims();
+    var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
+      function adopt(value) {
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
+        });
+      }
+      return new (P || (P = Promise))(function(resolve6, reject) {
+        function fulfilled(value) {
+          try {
+            step(generator.next(value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function rejected(value) {
+          try {
+            step(generator["throw"](value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function step(result) {
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+        }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+      });
+    };
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.createClientWithCore = void 0;
+    var core_js_1 = require_core3();
+    var configuration_js_1 = require_configuration();
+    var client_js_1 = require_client2();
+    var shared_lib_core_js_1 = require_shared_lib_core();
+    var finalizationRegistry = new FinalizationRegistry((heldClient) => {
+      heldClient.core.releaseClient(heldClient.id);
+    });
+    var createClientWithCore = (config, core2) => __awaiter(void 0, void 0, void 0, function* () {
+      const authConfig = (0, configuration_js_1.clientAuthConfig)(config);
+      if (authConfig.accountName) {
+        core2.setInner(new shared_lib_core_js_1.SharedLibCore(authConfig.accountName));
+      }
+      const clientId = yield core2.initClient(authConfig);
+      const inner = new core_js_1.InnerClient(parseInt(clientId, 10), core2, authConfig);
+      const client = new client_js_1.Client(inner);
+      finalizationRegistry.register(client, inner);
+      return client;
+    });
+    exports.createClientWithCore = createClientWithCore;
+  }
+});
+
+// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/sdk.js
+var require_sdk = __commonJS({
+  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/sdk.js"(exports) {
+    "use strict";
+    init_esm_shims();
+    var __createBinding = exports && exports.__createBinding || (Object.create ? (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      var desc = Object.getOwnPropertyDescriptor(m, k);
+      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+        desc = { enumerable: true, get: function() {
+          return m[k];
+        } };
+      }
+      Object.defineProperty(o, k2, desc);
+    }) : (function(o, m, k, k2) {
+      if (k2 === void 0) k2 = k;
+      o[k2] = m[k];
+    }));
+    var __exportStar = exports && exports.__exportStar || function(m, exports2) {
+      for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports2, p)) __createBinding(exports2, m, p);
+    };
+    var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
+      function adopt(value) {
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
+        });
+      }
+      return new (P || (P = Promise))(function(resolve6, reject) {
+        function fulfilled(value) {
+          try {
+            step(generator.next(value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function rejected(value) {
+          try {
+            step(generator["throw"](value));
+          } catch (e) {
+            reject(e);
+          }
+        }
+        function step(result) {
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+        }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+      });
+    };
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.createClient = exports.DesktopAuth = exports.Secrets = exports.DEFAULT_INTEGRATION_VERSION = exports.DEFAULT_INTEGRATION_NAME = void 0;
+    var core_js_1 = require_core3();
+    var client_builder_js_1 = require_client_builder();
+    exports.DEFAULT_INTEGRATION_NAME = "Unknown";
+    exports.DEFAULT_INTEGRATION_VERSION = "Unknown";
+    var secrets_js_1 = require_secrets();
+    Object.defineProperty(exports, "Secrets", { enumerable: true, get: function() {
+      return secrets_js_1.Secrets;
+    } });
+    var configuration_js_1 = require_configuration();
+    Object.defineProperty(exports, "DesktopAuth", { enumerable: true, get: function() {
+      return configuration_js_1.DesktopAuth;
+    } });
+    __exportStar(require_client2(), exports);
+    __exportStar(require_errors3(), exports);
+    __exportStar(require_types(), exports);
+    var createClient = (config) => __awaiter(void 0, void 0, void 0, function* () {
+      return (0, client_builder_js_1.createClientWithCore)(config, new core_js_1.SharedCore());
+    });
+    exports.createClient = createClient;
+  }
+});
+
 // ../../node_modules/.pnpm/@actions+github@7.0.0/node_modules/@actions/github/lib/context.js
 var require_context = __commonJS({
   "../../node_modules/.pnpm/@actions+github@7.0.0/node_modules/@actions/github/lib/context.js"(exports) {
@@ -31148,11 +33503,11 @@ var require_lib2 = __commonJS({
     })();
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve6, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -31168,7 +33523,7 @@ var require_lib2 = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -31212,11 +33567,11 @@ var require_lib2 = __commonJS({
       HttpCodes2[HttpCodes2["ServiceUnavailable"] = 503] = "ServiceUnavailable";
       HttpCodes2[HttpCodes2["GatewayTimeout"] = 504] = "GatewayTimeout";
     })(HttpCodes || (exports.HttpCodes = HttpCodes = {}));
-    var Headers;
-    (function(Headers2) {
-      Headers2["Accept"] = "accept";
-      Headers2["ContentType"] = "content-type";
-    })(Headers || (exports.Headers = Headers = {}));
+    var Headers2;
+    (function(Headers3) {
+      Headers3["Accept"] = "accept";
+      Headers3["ContentType"] = "content-type";
+    })(Headers2 || (exports.Headers = Headers2 = {}));
     var MediaTypes;
     (function(MediaTypes2) {
       MediaTypes2["ApplicationJson"] = "application/json";
@@ -31255,26 +33610,26 @@ var require_lib2 = __commonJS({
       }
       readBody() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve4) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve6) => __awaiter(this, void 0, void 0, function* () {
             let output = Buffer.alloc(0);
             this.message.on("data", (chunk) => {
               output = Buffer.concat([output, chunk]);
             });
             this.message.on("end", () => {
-              resolve4(output.toString());
+              resolve6(output.toString());
             });
           }));
         });
       }
       readBodyBuffer() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve4) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve6) => __awaiter(this, void 0, void 0, function* () {
             const chunks = [];
             this.message.on("data", (chunk) => {
               chunks.push(chunk);
             });
             this.message.on("end", () => {
-              resolve4(Buffer.concat(chunks));
+              resolve6(Buffer.concat(chunks));
             });
           }));
         });
@@ -31369,7 +33724,7 @@ var require_lib2 = __commonJS({
        */
       getJson(requestUrl_1) {
         return __awaiter(this, arguments, void 0, function* (requestUrl, additionalHeaders = {}) {
-          additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers2.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.Accept, MediaTypes.ApplicationJson);
           const res = yield this.get(requestUrl, additionalHeaders);
           return this._processResponse(res, this.requestOptions);
         });
@@ -31377,8 +33732,8 @@ var require_lib2 = __commonJS({
       postJson(requestUrl_1, obj_1) {
         return __awaiter(this, arguments, void 0, function* (requestUrl, obj, additionalHeaders = {}) {
           const data = JSON.stringify(obj, null, 2);
-          additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
-          additionalHeaders[Headers.ContentType] = this._getExistingOrDefaultContentTypeHeader(additionalHeaders, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers2.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.Accept, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers2.ContentType] = this._getExistingOrDefaultContentTypeHeader(additionalHeaders, MediaTypes.ApplicationJson);
           const res = yield this.post(requestUrl, data, additionalHeaders);
           return this._processResponse(res, this.requestOptions);
         });
@@ -31386,8 +33741,8 @@ var require_lib2 = __commonJS({
       putJson(requestUrl_1, obj_1) {
         return __awaiter(this, arguments, void 0, function* (requestUrl, obj, additionalHeaders = {}) {
           const data = JSON.stringify(obj, null, 2);
-          additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
-          additionalHeaders[Headers.ContentType] = this._getExistingOrDefaultContentTypeHeader(additionalHeaders, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers2.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.Accept, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers2.ContentType] = this._getExistingOrDefaultContentTypeHeader(additionalHeaders, MediaTypes.ApplicationJson);
           const res = yield this.put(requestUrl, data, additionalHeaders);
           return this._processResponse(res, this.requestOptions);
         });
@@ -31395,8 +33750,8 @@ var require_lib2 = __commonJS({
       patchJson(requestUrl_1, obj_1) {
         return __awaiter(this, arguments, void 0, function* (requestUrl, obj, additionalHeaders = {}) {
           const data = JSON.stringify(obj, null, 2);
-          additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
-          additionalHeaders[Headers.ContentType] = this._getExistingOrDefaultContentTypeHeader(additionalHeaders, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers2.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.Accept, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers2.ContentType] = this._getExistingOrDefaultContentTypeHeader(additionalHeaders, MediaTypes.ApplicationJson);
           const res = yield this.patch(requestUrl, data, additionalHeaders);
           return this._processResponse(res, this.requestOptions);
         });
@@ -31482,14 +33837,14 @@ var require_lib2 = __commonJS({
        */
       requestRaw(info2, data) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve4, reject) => {
+          return new Promise((resolve6, reject) => {
             function callbackForResult(err, res) {
               if (err) {
                 reject(err);
               } else if (!res) {
                 reject(new Error("Unknown error"));
               } else {
-                resolve4(res);
+                resolve6(res);
               }
             }
             this.requestRawWithCallback(info2, data, callbackForResult);
@@ -31626,7 +33981,7 @@ var require_lib2 = __commonJS({
       _getExistingOrDefaultContentTypeHeader(additionalHeaders, _default) {
         let clientHeader;
         if (this.requestOptions && this.requestOptions.headers) {
-          const headerValue = lowercaseKeys2(this.requestOptions.headers)[Headers.ContentType];
+          const headerValue = lowercaseKeys2(this.requestOptions.headers)[Headers2.ContentType];
           if (headerValue) {
             if (typeof headerValue === "number") {
               clientHeader = String(headerValue);
@@ -31637,7 +33992,7 @@ var require_lib2 = __commonJS({
             }
           }
         }
-        const additionalValue = additionalHeaders[Headers.ContentType];
+        const additionalValue = additionalHeaders[Headers2.ContentType];
         if (additionalValue !== void 0) {
           if (typeof additionalValue === "number") {
             return String(additionalValue);
@@ -31733,12 +34088,12 @@ var require_lib2 = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           retryNumber = Math.min(ExponentialBackoffCeiling, retryNumber);
           const ms2 = ExponentialBackoffTimeSlice * Math.pow(2, retryNumber);
-          return new Promise((resolve4) => setTimeout(() => resolve4(), ms2));
+          return new Promise((resolve6) => setTimeout(() => resolve6(), ms2));
         });
       }
       _processResponse(res, options) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve4, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve6, reject) => __awaiter(this, void 0, void 0, function* () {
             const statusCode = res.message.statusCode || 0;
             const response = {
               statusCode,
@@ -31746,7 +34101,7 @@ var require_lib2 = __commonJS({
               headers: {}
             };
             if (statusCode === HttpCodes.NotFound) {
-              resolve4(response);
+              resolve6(response);
             }
             function dateTimeDeserializer(key, value) {
               if (typeof value === "string") {
@@ -31785,7 +34140,7 @@ var require_lib2 = __commonJS({
               err.result = response.result;
               reject(err);
             } else {
-              resolve4(response);
+              resolve6(response);
             }
           }));
         });
@@ -31840,11 +34195,11 @@ var require_utils4 = __commonJS({
     })();
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve4) {
-          resolve4(value);
+        return value instanceof P ? value : new P(function(resolve6) {
+          resolve6(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve4, reject) {
+      return new (P || (P = Promise))(function(resolve6, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -31860,7 +34215,7 @@ var require_utils4 = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -35923,16 +38278,16 @@ var require_github = __commonJS({
 // src/index.ts
 init_esm_shims();
 var core = __toESM(require_core(), 1);
-import { resolve as resolve3 } from "path";
+import { resolve as resolve5 } from "path";
 
 // ../core/dist/index.js
 init_esm_shims();
 import * as fs from "fs";
-import { readFileSync as readFileSync2, mkdirSync as mkdirSync2, writeFileSync as writeFileSync2 } from "fs";
+import { readFileSync as readFileSync3, mkdirSync as mkdirSync2, writeFileSync as writeFileSync2 } from "fs";
 var import_semver = __toESM(require_semver2(), 1);
 var import_yaml = __toESM(require_dist(), 1);
 import * as path3 from "path";
-import { join as join3, dirname as dirname3 } from "path";
+import { join as join4, dirname as dirname4 } from "path";
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/index.js
 init_esm_shims();
@@ -41009,7 +43364,7 @@ function fromZod(version2, zodSchema, options) {
 
 // ../core/dist/index.js
 import * as fs2 from "fs/promises";
-import { readFile as readFile2, mkdir as mkdir2, writeFile as writeFile2 } from "fs/promises";
+import { readFile as readFile3, mkdir as mkdir3, writeFile as writeFile3 } from "fs/promises";
 import * as crypto3 from "crypto";
 
 // ../../node_modules/.pnpm/tinyglobby@0.2.15/node_modules/tinyglobby/dist/index.mjs
@@ -41135,11 +43490,11 @@ function build$3(options) {
   return options.group ? groupFiles : empty;
 }
 var resolveSymlinksAsync = function(path4, state, callback$1) {
-  const { queue, fs: fs3, options: { suppressErrors } } = state;
+  const { queue, fs: fs4, options: { suppressErrors } } = state;
   queue.enqueue();
-  fs3.realpath(path4, (error2, resolvedPath) => {
+  fs4.realpath(path4, (error2, resolvedPath) => {
     if (error2) return queue.dequeue(suppressErrors ? null : error2, state);
-    fs3.stat(resolvedPath, (error$1, stat2) => {
+    fs4.stat(resolvedPath, (error$1, stat2) => {
       if (error$1) return queue.dequeue(suppressErrors ? null : error$1, state);
       if (stat2.isDirectory() && isRecursive(path4, resolvedPath, state)) return queue.dequeue(null, state);
       callback$1(stat2, resolvedPath);
@@ -41148,11 +43503,11 @@ var resolveSymlinksAsync = function(path4, state, callback$1) {
   });
 };
 var resolveSymlinks = function(path4, state, callback$1) {
-  const { queue, fs: fs3, options: { suppressErrors } } = state;
+  const { queue, fs: fs4, options: { suppressErrors } } = state;
   queue.enqueue();
   try {
-    const resolvedPath = fs3.realpathSync(path4);
-    const stat2 = fs3.statSync(resolvedPath);
+    const resolvedPath = fs4.realpathSync(path4);
+    const stat2 = fs4.statSync(resolvedPath);
     if (stat2.isDirectory() && isRecursive(path4, resolvedPath, state)) return;
     callback$1(stat2, resolvedPath);
   } catch (e) {
@@ -41222,22 +43577,22 @@ var readdirOpts = { withFileTypes: true };
 var walkAsync = (state, crawlPath, directoryPath, currentDepth, callback$1) => {
   state.queue.enqueue();
   if (currentDepth < 0) return state.queue.dequeue(null, state);
-  const { fs: fs3 } = state;
+  const { fs: fs4 } = state;
   state.visited.push(crawlPath);
   state.counts.directories++;
-  fs3.readdir(crawlPath || ".", readdirOpts, (error2, entries = []) => {
+  fs4.readdir(crawlPath || ".", readdirOpts, (error2, entries = []) => {
     callback$1(entries, directoryPath, currentDepth);
     state.queue.dequeue(state.options.suppressErrors ? null : error2, state);
   });
 };
 var walkSync = (state, crawlPath, directoryPath, currentDepth, callback$1) => {
-  const { fs: fs3 } = state;
+  const { fs: fs4 } = state;
   if (currentDepth < 0) return;
   state.visited.push(crawlPath);
   state.counts.directories++;
   let entries = [];
   try {
-    entries = fs3.readdirSync(crawlPath || ".", readdirOpts);
+    entries = fs4.readdirSync(crawlPath || ".", readdirOpts);
   } catch (e) {
     if (!state.options.suppressErrors) throw e;
   }
@@ -41796,15 +44151,73 @@ async function glob(patternsOrOptions, options) {
 }
 
 // ../core/dist/index.js
-import * as os from "os";
+import * as os2 from "os";
 
-// ../../node_modules/.pnpm/vaultkeeper@0.4.0/node_modules/vaultkeeper/dist/index.js
+// ../../node_modules/.pnpm/vaultkeeper@0.7.0_@1password+sdk@0.4.0_@types+node@22.19.3/node_modules/vaultkeeper/dist/index.js
 init_esm_shims();
-import * as path5 from "path";
+import * as fs3 from "fs/promises";
+import * as path22 from "path";
+import { join as join2, dirname as dirname2, resolve as resolve3 } from "path";
+import * as os from "os";
+import * as crypto2 from "crypto";
+import { spawn } from "child_process";
+import { fileURLToPath as fileURLToPath3 } from "url";
+import { existsSync, readFileSync } from "fs";
 var VaultError = class extends Error {
   constructor(message) {
     super(message);
     this.name = "VaultError";
+  }
+};
+var BackendLockedError = class extends VaultError {
+  /**
+   * Whether the lock can be resolved through an interactive user prompt.
+   * When `true`, callers may retry after prompting the user.
+   */
+  interactive;
+  constructor(message, interactive) {
+    super(message);
+    this.name = "BackendLockedError";
+    this.interactive = interactive;
+  }
+};
+var DeviceNotPresentError = class extends VaultError {
+  /**
+   * How long (in milliseconds) the operation waited for the device before
+   * giving up.
+   */
+  timeoutMs;
+  constructor(message, timeoutMs) {
+    super(message);
+    this.name = "DeviceNotPresentError";
+    this.timeoutMs = timeoutMs;
+  }
+};
+var AuthorizationDeniedError = class extends VaultError {
+  constructor(message) {
+    super(message);
+    this.name = "AuthorizationDeniedError";
+  }
+};
+var PresenceDeclinedError = class extends VaultError {
+  /** The `type` identifier of the backend that requested the presence action. */
+  backendType;
+  constructor(message, backendType) {
+    super(message);
+    this.name = "PresenceDeclinedError";
+    this.backendType = backendType;
+  }
+};
+var PresenceTimeoutError = class extends VaultError {
+  /** The `type` identifier of the backend that requested the presence action. */
+  backendType;
+  /** How long (in milliseconds) the operation waited for the presence action. */
+  timeoutMs;
+  constructor(message, backendType, timeoutMs) {
+    super(message);
+    this.name = "PresenceTimeoutError";
+    this.backendType = backendType;
+    this.timeoutMs = timeoutMs;
   }
 };
 var BackendUnavailableError = class extends VaultError {
@@ -41825,8 +44238,195 @@ var BackendUnavailableError = class extends VaultError {
     this.attempted = attempted;
   }
 };
+var PluginNotFoundError = class extends VaultError {
+  /**
+   * The plugin package or binary name that was not found.
+   */
+  plugin;
+  /**
+   * A URL pointing to installation instructions for the missing plugin.
+   */
+  installUrl;
+  constructor(message, plugin, installUrl) {
+    super(message);
+    this.name = "PluginNotFoundError";
+    this.plugin = plugin;
+    this.installUrl = installUrl;
+  }
+};
+var SecretNotFoundError = class extends VaultError {
+  constructor(message) {
+    super(message);
+    this.name = "SecretNotFoundError";
+  }
+};
+var ExecError = class extends VaultError {
+  /**
+   * The command that failed to execute.
+   */
+  command;
+  constructor(message, command) {
+    super(message);
+    this.name = "ExecError";
+    this.command = command;
+  }
+};
+var InvalidAlgorithmError = class extends VaultError {
+  /**
+   * The algorithm that was requested.
+   */
+  algorithm;
+  /**
+   * The set of algorithms that are allowed.
+   */
+  allowed;
+  constructor(message, algorithm, allowed) {
+    super(message);
+    this.name = "InvalidAlgorithmError";
+    this.algorithm = algorithm;
+    this.allowed = allowed;
+  }
+};
+var InvalidKeyMaterialError = class extends VaultError {
+  constructor(message) {
+    super(message);
+    this.name = "InvalidKeyMaterialError";
+  }
+};
+var SigningKeyNotFoundError = class extends VaultError {
+  /**
+   * The signing-key name that was requested (the caller-facing `--name`, not
+   * the internal namespaced identifier).
+   */
+  keyName;
+  constructor(message, keyName) {
+    super(message);
+    this.name = "SigningKeyNotFoundError";
+    this.keyName = keyName;
+  }
+};
+var SigningKeyAlreadyExistsError = class extends VaultError {
+  /**
+   * The signing-key name that already exists (the caller-facing `--name`, not
+   * the internal namespaced identifier).
+   */
+  keyName;
+  constructor(message, keyName) {
+    super(message);
+    this.name = "SigningKeyAlreadyExistsError";
+    this.keyName = keyName;
+  }
+};
+var DecryptionError = class extends VaultError {
+  /**
+   * The path of the encrypted entry that failed to decrypt.
+   */
+  path;
+  constructor(message, path9) {
+    super(message);
+    this.name = "DecryptionError";
+    this.path = path9;
+  }
+};
+var ConfigValidationError = class extends VaultError {
+  /**
+   * The dotted/bracketed path to the offending config field (e.g.
+   * `'backends[0].path'`).
+   */
+  field;
+  /**
+   * The path of the config file that failed validation, when the error
+   * originated from loading a file on disk (via `loadConfig`) rather than
+   * from validating an in-memory value directly. This is `configDir` joined
+   * with `config.json` exactly as provided to `loadConfig` — it is not
+   * guaranteed to be absolute (`loadConfig` does not resolve a relative
+   * `configDir`).
+   */
+  configFilePath;
+  constructor(message, field, configFilePath) {
+    super(message);
+    this.name = "ConfigValidationError";
+    this.field = field;
+    this.configFilePath = configFilePath;
+  }
+};
+var SetupError = class extends VaultError {
+  /**
+   * The name of the dependency that caused the setup failure.
+   */
+  dependency;
+  constructor(message, dependency) {
+    super(message);
+    this.name = "SetupError";
+    this.dependency = dependency;
+  }
+};
+var FilesystemError = class extends VaultError {
+  /**
+   * The path of the file or directory that caused the error, as provided by
+   * the caller. Not guaranteed to be absolute — e.g. `loadConfig` throws this
+   * with `configDir` joined with `config.json` exactly as given, without
+   * resolving a relative `configDir`.
+   */
+  path;
+  /**
+   * The file operation or access mode that was being attempted when the
+   * failure occurred, for example 'read', 'write', 'delete', or 'rwx' for a
+   * directory create/access check. Despite the field name, this does not
+   * imply the failure was itself a permission problem — it names the
+   * attempted operation regardless of the underlying errno, which may be a
+   * non-permission code such as ENOSPC or EISDIR.
+   */
+  permission;
+  /**
+   * The Node.js errno code from the underlying filesystem failure, for
+   * example EACCES, EPERM, ENOSPC, or EISDIR. Undefined when the error was
+   * constructed without an underlying cause, or when that cause did not
+   * expose a string errno code. Prefer this over parsing the message text,
+   * which is not a contractual format.
+   */
+  code;
+  /**
+   * @param message - Human-readable description of the failure.
+   * @param filePath - The path of the file or directory that caused the error.
+   * @param permission - The file operation or access mode being attempted,
+   * for example 'read', 'write', 'delete', or 'rwx'. See the `permission`
+   * property for why this need not indicate an actual permission problem.
+   * @param cause - The underlying error that was caught, if any. Recorded as
+   * the standard `Error.cause` and used to populate `code` when it exposes a
+   * string errno code.
+   */
+  constructor(message, filePath, permission, cause) {
+    super(message);
+    this.name = "FilesystemError";
+    this.path = filePath;
+    this.permission = permission;
+    this.code = hasErrnoCode(cause) ? cause.code : void 0;
+    if (cause !== void 0) {
+      Object.defineProperty(this, "cause", {
+        value: cause,
+        writable: true,
+        enumerable: false,
+        configurable: true
+      });
+    }
+  }
+};
+function hasErrnoCode(err) {
+  return err instanceof Error && "code" in err && typeof err.code === "string";
+}
+function toFilesystemError(err, resourceLabel, filePath, permission) {
+  const detail = err instanceof Error ? err.message : String(err);
+  return new FilesystemError(
+    `Failed to ${permission} ${resourceLabel} at ${filePath}: ${detail}`,
+    filePath,
+    permission,
+    err
+  );
+}
 var BackendRegistry = class {
   static backends = /* @__PURE__ */ new Map();
+  static setups = /* @__PURE__ */ new Map();
   /**
    * Register a backend factory.
    * @param type - Backend type identifier
@@ -41838,10 +44438,13 @@ var BackendRegistry = class {
   /**
    * Create a backend instance by type.
    * @param type - Backend type identifier
+   * @param config - Optional backend configuration forwarded to the factory
+   * @param configDir - Optional resolved config directory forwarded to the
+   *   factory, so file-based backends can default their storage under it
    * @returns A SecretBackend instance
-   * @throws Error if the backend type is not registered
+   * @throws {@link BackendUnavailableError} if the backend type is not registered
    */
-  static create(type) {
+  static create(type, config, configDir) {
     const factory = this.backends.get(type);
     if (factory === void 0) {
       throw new BackendUnavailableError(
@@ -41850,7 +44453,7 @@ var BackendRegistry = class {
         Array.from(this.backends.keys())
       );
     }
-    return factory();
+    return factory(config, configDir);
   }
   /**
    * Get all registered backend type identifiers.
@@ -41886,9 +44489,1610 @@ var BackendRegistry = class {
     );
     return results.filter((type) => type !== null);
   }
+  /**
+   * Register a setup factory for a backend type.
+   * @param type - Backend type identifier
+   * @param factory - Factory function that creates a setup generator
+   */
+  static registerSetup(type, factory) {
+    this.setups.set(type, factory);
+  }
+  /**
+   * Get the setup factory for a backend type, if one is registered.
+   * @param type - Backend type identifier
+   * @returns The setup factory, or `undefined` if none is registered
+   */
+  static getSetup(type) {
+    return this.setups.get(type);
+  }
+  /**
+   * Check whether a setup factory is registered for the given backend type.
+   * @param type - Backend type identifier
+   * @returns `true` if a setup factory is registered
+   */
+  static hasSetup(type) {
+    return this.setups.has(type);
+  }
+  /**
+   * Clear all registered backend factories.
+   * Intended for use in tests only.
+   * @internal
+   */
+  static clearBackends() {
+    this.backends.clear();
+  }
+  /**
+   * Clear all registered setup factories.
+   * Intended for use in tests only.
+   * @internal
+   */
+  static clearSetups() {
+    this.setups.clear();
+  }
 };
-path5.join(".vaultkeeper", "file");
-path5.join(".vaultkeeper", "yubikey");
+var GCM_IV_BYTES = 12;
+var GCM_KEY_BYTES = 32;
+var GCM_TAG_LENGTH_BITS = 128;
+function encryptGcm(key, plaintext) {
+  const iv = crypto2.randomBytes(GCM_IV_BYTES);
+  const cipher = crypto2.createCipheriv("aes-256-gcm", key, iv, {
+    authTagLength: GCM_TAG_LENGTH_BITS / 8
+  });
+  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return [iv.toString("base64"), authTag.toString("base64"), encrypted.toString("base64")].join(":");
+}
+function decryptGcm(key, encoded, path9 = "") {
+  const parts = encoded.split(":");
+  if (parts.length !== 3) {
+    throw new DecryptionError("Invalid encrypted envelope: expected iv:authTag:ciphertext", path9);
+  }
+  const [ivB64, authTagB64, ciphertextB64] = parts;
+  if (ivB64 === void 0 || authTagB64 === void 0 || ciphertextB64 === void 0) {
+    throw new DecryptionError("Invalid encrypted envelope: missing part", path9);
+  }
+  const iv = Buffer.from(ivB64, "base64");
+  const authTag = Buffer.from(authTagB64, "base64");
+  const ciphertext = Buffer.from(ciphertextB64, "base64");
+  try {
+    const decipher = crypto2.createDecipheriv("aes-256-gcm", key, iv, {
+      authTagLength: GCM_TAG_LENGTH_BITS / 8
+    });
+    decipher.setAuthTag(authTag);
+    const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    return decrypted.toString("utf8");
+  } catch (err) {
+    throw new DecryptionError(
+      `Failed to decrypt envelope: ${err instanceof Error ? err.message : String(err)}`,
+      path9
+    );
+  }
+}
+async function getOrCreateWrapKey(keyPath) {
+  let existing;
+  try {
+    existing = await fs3.readFile(keyPath);
+  } catch (err) {
+    if (!(err instanceof Error && "code" in err && err.code === "ENOENT")) {
+      throw toFilesystemError(err, "wrapping key file", keyPath, "read");
+    }
+  }
+  if (existing?.byteLength === GCM_KEY_BYTES) {
+    return existing;
+  }
+  const key = crypto2.randomBytes(GCM_KEY_BYTES);
+  try {
+    await fs3.writeFile(keyPath, key, { mode: 384 });
+  } catch (err) {
+    throw toFilesystemError(err, "wrapping key file", keyPath, "write");
+  }
+  return key;
+}
+function getPlatformDefaultConfigDir() {
+  if (process.platform === "win32") {
+    const appData = process.env.APPDATA;
+    if (appData !== void 0) {
+      return path22.join(appData, "vaultkeeper");
+    }
+    return path22.join(os.homedir(), "AppData", "Roaming", "vaultkeeper");
+  }
+  return path22.join(os.homedir(), ".config", "vaultkeeper");
+}
+function getDefaultConfigDir() {
+  const envOverride = process.env.VAULTKEEPER_CONFIG_DIR;
+  if (envOverride !== void 0 && envOverride !== "") {
+    return envOverride;
+  }
+  return getPlatformDefaultConfigDir();
+}
+var STORAGE_DIR_NAME = "file";
+var KEY_FILE = ".key";
+var SIGNING_DIR_NAME = "signing-keys";
+var SIGNING_KEY_PREFIX = "signing-key:";
+var SUPPORTED_SIGNING_ALGORITHMS = ["EdDSA"];
+function computeKid(spkiDer) {
+  return crypto2.createHash("sha256").update(spkiDer).digest("base64url");
+}
+function displayKeyName(id) {
+  return id.startsWith(SIGNING_KEY_PREFIX) ? id.slice(SIGNING_KEY_PREFIX.length) : id;
+}
+function legacyStorageDir() {
+  return path22.join(os.homedir(), ".vaultkeeper", "file");
+}
+function resolveStorageDir(configuredPath, configDir) {
+  if (configuredPath !== void 0) {
+    return configuredPath;
+  }
+  return path22.join(configDir ?? getDefaultConfigDir(), STORAGE_DIR_NAME);
+}
+function getEntryPath(storageDir, id) {
+  const safeId = Buffer.from(id, "utf8").toString("hex");
+  return path22.join(storageDir, `${safeId}.enc`);
+}
+async function ensureStorageDir(storageDir) {
+  try {
+    await fs3.mkdir(storageDir, { recursive: true, mode: 448 });
+  } catch (err) {
+    throw new FilesystemError(
+      `Failed to create storage directory: ${storageDir}`,
+      storageDir,
+      "rwx",
+      err
+    );
+  }
+}
+async function getOrCreateKey(storageDir) {
+  return getOrCreateWrapKey(path22.join(storageDir, KEY_FILE));
+}
+var FileBackend = class _FileBackend {
+  type = "file";
+  displayName = "Encrypted File Store";
+  #storageDir;
+  /** Directory holding encrypted signing-key private material. */
+  #signingDir;
+  /**
+   * Pre-#99 default storage directory, consulted as a read-only fallback
+   * when `storageDir` was not explicitly configured. `undefined` when an
+   * explicit `storageDir` was given — an explicit path never falls back.
+   */
+  #legacyStorageDir;
+  /**
+   * @param storageDir - Directory in which encrypted secrets are stored.
+   *   Sourced from `BackendConfig.path`. Defaults to `<configDir>/file`.
+   * @param configDir - Resolved config directory, used to compute the
+   *   default `storageDir` when one is not explicitly provided. Ignored when
+   *   `storageDir` is given. Defaults to `getDefaultConfigDir()`.
+   */
+  constructor(storageDir, configDir) {
+    this.#storageDir = resolveStorageDir(storageDir, configDir);
+    this.#legacyStorageDir = storageDir === void 0 ? legacyStorageDir() : void 0;
+    this.#signingDir = path22.join(this.#storageDir, SIGNING_DIR_NAME);
+  }
+  async isAvailable() {
+    try {
+      await ensureStorageDir(this.#storageDir);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  async store(id, secret) {
+    const storageDir = this.#storageDir;
+    await ensureStorageDir(storageDir);
+    const key = await getOrCreateKey(storageDir);
+    const entryPath = getEntryPath(storageDir, id);
+    const encrypted = encryptGcm(key, secret);
+    try {
+      await fs3.writeFile(entryPath, encrypted, { mode: 384 });
+    } catch (err) {
+      throw toFilesystemError(err, "secret file", entryPath, "write");
+    }
+  }
+  /**
+   * Attempt to read and decrypt the entry for `id` from `storageDir`.
+   * Returns `undefined` (rather than throwing) when the entry does not
+   * exist in `storageDir`, so callers can probe a fallback location.
+   */
+  async #tryRetrieveFrom(storageDir, id) {
+    const entryPath = getEntryPath(storageDir, id);
+    let encoded;
+    try {
+      encoded = await fs3.readFile(entryPath, "utf8");
+    } catch (err) {
+      if (err instanceof Error && "code" in err && err.code === "ENOENT") {
+        return void 0;
+      }
+      throw toFilesystemError(err, "secret file", entryPath, "read");
+    }
+    const key = await getOrCreateKey(storageDir);
+    try {
+      return decryptGcm(key, encoded, entryPath);
+    } catch (err) {
+      throw new DecryptionError(
+        `Failed to decrypt secret: ${err instanceof Error ? err.message : String(err)}`,
+        entryPath
+      );
+    }
+  }
+  async retrieve(id) {
+    const fromPrimary = await this.#tryRetrieveFrom(this.#storageDir, id);
+    if (fromPrimary !== void 0) {
+      return fromPrimary;
+    }
+    if (this.#legacyStorageDir !== void 0) {
+      const fromLegacy = await this.#tryRetrieveFrom(this.#legacyStorageDir, id);
+      if (fromLegacy !== void 0) {
+        return fromLegacy;
+      }
+    }
+    throw new SecretNotFoundError(`Secret not found in file store: ${id}`);
+  }
+  async delete(id) {
+    const entryPath = getEntryPath(this.#storageDir, id);
+    try {
+      await fs3.unlink(entryPath);
+      return;
+    } catch (err) {
+      if (!(err instanceof Error && "code" in err && err.code === "ENOENT")) {
+        throw toFilesystemError(err, "secret file", entryPath, "delete");
+      }
+    }
+    if (this.#legacyStorageDir !== void 0) {
+      const legacyEntryPath = getEntryPath(this.#legacyStorageDir, id);
+      try {
+        await fs3.unlink(legacyEntryPath);
+        return;
+      } catch (err) {
+        if (!(err instanceof Error && "code" in err && err.code === "ENOENT")) {
+          throw toFilesystemError(err, "secret file", legacyEntryPath, "delete");
+        }
+      }
+    }
+    throw new SecretNotFoundError(`Secret not found in file store: ${id}`);
+  }
+  async exists(id) {
+    if (await _FileBackend.#entryExists(this.#storageDir, id)) {
+      return true;
+    }
+    if (this.#legacyStorageDir !== void 0) {
+      return _FileBackend.#entryExists(this.#legacyStorageDir, id);
+    }
+    return false;
+  }
+  static async #entryExists(storageDir, id) {
+    try {
+      await fs3.access(getEntryPath(storageDir, id));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  async list() {
+    const ids = /* @__PURE__ */ new Set();
+    for (const storageDir of [this.#storageDir, this.#legacyStorageDir].filter(
+      (dir) => dir !== void 0
+    )) {
+      for (const id of await _FileBackend.#listEntries(storageDir)) {
+        ids.add(id);
+      }
+    }
+    return Array.from(ids);
+  }
+  static async #listEntries(storageDir) {
+    let entries;
+    try {
+      entries = await fs3.readdir(storageDir);
+    } catch {
+      return [];
+    }
+    return entries.filter((f) => f.endsWith(".enc")).map((f) => Buffer.from(f.slice(0, -4), "hex").toString("utf8"));
+  }
+  // --- Signing contract (SigningBackend) ---
+  /** On-disk path of the encrypted private key for a signing-key id. */
+  #signingKeyPath(id) {
+    const safeId = Buffer.from(id, "utf8").toString("hex");
+    return path22.join(this.#signingDir, `${safeId}.pem.enc`);
+  }
+  /**
+   * Load and decrypt the PKCS#8 private key PEM for `id`, or throw
+   * {@link SigningKeyNotFoundError} when no signing key exists under `id`.
+   */
+  async #loadSigningKeyPem(id) {
+    const keyPath = this.#signingKeyPath(id);
+    let encoded;
+    try {
+      encoded = await fs3.readFile(keyPath, "utf8");
+    } catch (err) {
+      if (err instanceof Error && "code" in err && err.code === "ENOENT") {
+        throw new SigningKeyNotFoundError(
+          `Signing key not found: ${displayKeyName(id)}`,
+          displayKeyName(id)
+        );
+      }
+      throw toFilesystemError(err, "signing key", keyPath, "read");
+    }
+    const wrapKey = await getOrCreateKey(this.#storageDir);
+    try {
+      return decryptGcm(wrapKey, encoded);
+    } catch (err) {
+      throw new DecryptionError(
+        `Failed to decrypt signing key: ${err instanceof Error ? err.message : String(err)}`,
+        keyPath
+      );
+    }
+  }
+  async generateSigningKey(id, algorithm) {
+    if (!SUPPORTED_SIGNING_ALGORITHMS.includes(algorithm)) {
+      throw new InvalidAlgorithmError(
+        `Unsupported signing algorithm '${algorithm}'. Supported: ${SUPPORTED_SIGNING_ALGORITHMS.join(", ")}.`,
+        algorithm,
+        [...SUPPORTED_SIGNING_ALGORITHMS]
+      );
+    }
+    await ensureStorageDir(this.#storageDir);
+    try {
+      await fs3.mkdir(this.#signingDir, { recursive: true, mode: 448 });
+    } catch (err) {
+      if (err instanceof Error && "code" in err && err.code !== "EEXIST") {
+        throw toFilesystemError(err, "signing-key directory", this.#signingDir, "create");
+      }
+    }
+    const keyPath = this.#signingKeyPath(id);
+    let keyExists = false;
+    try {
+      await fs3.access(keyPath);
+      keyExists = true;
+    } catch (err) {
+      if (!(err instanceof Error && "code" in err && err.code === "ENOENT")) {
+        throw toFilesystemError(err, "signing key", keyPath, "read");
+      }
+    }
+    if (keyExists) {
+      throw new SigningKeyAlreadyExistsError(
+        `Signing key already exists: ${displayKeyName(id)}`,
+        displayKeyName(id)
+      );
+    }
+    const { privateKey } = crypto2.generateKeyPairSync("ed25519");
+    const pkcs8Pem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
+    const wrapKey = await getOrCreateKey(this.#storageDir);
+    const encrypted = encryptGcm(wrapKey, pkcs8Pem);
+    try {
+      await fs3.writeFile(keyPath, encrypted, { mode: 384, flag: "wx" });
+    } catch (err) {
+      if (err instanceof Error && "code" in err && err.code === "EEXIST") {
+        throw new SigningKeyAlreadyExistsError(
+          `Signing key already exists: ${displayKeyName(id)}`,
+          displayKeyName(id)
+        );
+      }
+      throw toFilesystemError(err, "signing key", keyPath, "write");
+    }
+  }
+  /**
+   * Load, decrypt, and parse the private key for `id` into a `KeyObject`.
+   *
+   * A parse failure means the decrypted-at-rest material is corrupt or tampered
+   * (it decrypted cleanly but is not a valid PKCS#8 private key). It is
+   * translated into a typed {@link InvalidKeyMaterialError} — never allowed to
+   * surface as a raw Node crypto exception — and the message never echoes any
+   * part of the key material.
+   */
+  async #loadSigningKeyObject(id) {
+    const pkcs8Pem = await this.#loadSigningKeyPem(id);
+    try {
+      return crypto2.createPrivateKey(pkcs8Pem);
+    } catch {
+      throw new InvalidKeyMaterialError(
+        `The stored signing key for "${displayKeyName(id)}" is not valid private key material (it may be corrupt or tampered).`
+      );
+    }
+  }
+  async getPublicKey(id) {
+    const privateKey = await this.#loadSigningKeyObject(id);
+    const publicKey = crypto2.createPublicKey(privateKey);
+    const publicKeyPem = publicKey.export({ type: "spki", format: "pem" }).toString();
+    const spkiDer = publicKey.export({ type: "spki", format: "der" });
+    return {
+      publicKeyPem,
+      algorithm: "EdDSA",
+      kid: computeKid(spkiDer)
+    };
+  }
+  async signWithKey(id, data) {
+    const privateKey = await this.#loadSigningKeyObject(id);
+    return crypto2.sign(null, data, privateKey);
+  }
+};
+async function execCommand(command, args, options) {
+  const result = await execCommandFull(command, args, options);
+  if (result.exitCode !== 0) {
+    throw new ExecError(
+      `Command failed with exit code ${String(result.exitCode)}: ${result.stderr}`,
+      command
+    );
+  }
+  return result.stdout.trim();
+}
+function execCommandFull(command, args, options) {
+  return new Promise((resolve32, reject) => {
+    const proc = spawn(command, args, {
+      stdio: [options?.stdin !== void 0 ? "pipe" : "ignore", "pipe", "pipe"]
+    });
+    let stdout = "";
+    let stderr = "";
+    let timeoutHandle;
+    proc.stdout?.on("data", (data) => {
+      stdout += data.toString();
+    });
+    proc.stderr?.on("data", (data) => {
+      stderr += data.toString();
+    });
+    if (options?.stdin !== void 0 && proc.stdin) {
+      proc.stdin.write(options.stdin);
+      proc.stdin.end();
+    }
+    if (options?.timeoutMs !== void 0) {
+      timeoutHandle = setTimeout(() => {
+        timeoutHandle = void 0;
+        proc.kill("SIGTERM");
+        reject(new ExecError(`Command timed out after ${String(options.timeoutMs)}ms`, command));
+      }, options.timeoutMs);
+    }
+    proc.on("close", (code) => {
+      if (timeoutHandle !== void 0) {
+        clearTimeout(timeoutHandle);
+      }
+      resolve32({ stdout, stderr, exitCode: code ?? 1 });
+    });
+    proc.on("error", (error2) => {
+      if (timeoutHandle !== void 0) {
+        clearTimeout(timeoutHandle);
+      }
+      if ("code" in error2 && error2.code === "ENOENT") {
+        reject(
+          new PluginNotFoundError(
+            `'${command}' is not installed or not found in PATH`,
+            command,
+            ""
+          )
+        );
+      } else {
+        reject(new ExecError(`Failed to spawn '${command}': ${error2.message}`, command));
+      }
+    });
+  });
+}
+var ACCOUNT = "vaultkeeper";
+var SERVICE_PREFIX = "vaultkeeper:";
+var KeychainBackend = class {
+  type = "keychain";
+  displayName = "macOS Keychain";
+  async isAvailable() {
+    if (process.platform !== "darwin") {
+      return false;
+    }
+    try {
+      const result = await execCommandFull("security", ["version"]);
+      return result.exitCode === 0;
+    } catch {
+      return false;
+    }
+  }
+  async store(id, secret) {
+    const service = `${SERVICE_PREFIX}${id}`;
+    const encoded = Buffer.from(secret, "utf8").toString("base64");
+    await execCommandFull("security", ["delete-generic-password", "-a", ACCOUNT, "-s", service]);
+    await execCommand("security", [
+      "add-generic-password",
+      "-a",
+      ACCOUNT,
+      "-s",
+      service,
+      "-w",
+      encoded
+    ]);
+  }
+  async retrieve(id) {
+    const service = `${SERVICE_PREFIX}${id}`;
+    const result = await execCommandFull("security", [
+      "find-generic-password",
+      "-a",
+      ACCOUNT,
+      "-s",
+      service,
+      "-w"
+    ]);
+    if (result.exitCode !== 0) {
+      throw new SecretNotFoundError(`Secret not found in macOS Keychain: ${id}`);
+    }
+    const encoded = result.stdout.trim();
+    return Buffer.from(encoded, "base64").toString("utf8");
+  }
+  async delete(id) {
+    const service = `${SERVICE_PREFIX}${id}`;
+    const result = await execCommandFull("security", [
+      "delete-generic-password",
+      "-a",
+      ACCOUNT,
+      "-s",
+      service
+    ]);
+    if (result.exitCode !== 0) {
+      throw new SecretNotFoundError(`Secret not found in macOS Keychain: ${id}`);
+    }
+  }
+  async exists(id) {
+    const service = `${SERVICE_PREFIX}${id}`;
+    const result = await execCommandFull("security", [
+      "find-generic-password",
+      "-a",
+      ACCOUNT,
+      "-s",
+      service
+    ]);
+    return result.exitCode === 0;
+  }
+  async list() {
+    const result = await execCommandFull("security", ["dump-keychain"]);
+    if (result.exitCode !== 0) {
+      return [];
+    }
+    const ids = [];
+    const servicePattern = /0x00000007 <blob>="vaultkeeper:([^"]+)"/g;
+    let match = servicePattern.exec(result.stdout);
+    while (match !== null) {
+      const id = match[1];
+      if (id !== void 0) {
+        ids.push(id);
+      }
+      match = servicePattern.exec(result.stdout);
+    }
+    return ids;
+  }
+};
+function resolveStorageDir2(configuredPath) {
+  if (configuredPath !== void 0) {
+    return configuredPath;
+  }
+  return path22.join(os.homedir(), ".vaultkeeper", "dpapi");
+}
+function getEntryPath2(storageDir, id) {
+  const safeId = Buffer.from(id, "utf8").toString("hex");
+  return path22.join(storageDir, `${safeId}.enc`);
+}
+var DpapiBackend = class {
+  type = "dpapi";
+  displayName = "Windows DPAPI";
+  #storageDir;
+  /**
+   * @param storageDir - Directory in which encrypted blobs are stored.
+   *   Sourced from `BackendConfig.path`. Defaults to `$HOME/.vaultkeeper/dpapi`.
+   */
+  constructor(storageDir) {
+    this.#storageDir = resolveStorageDir2(storageDir);
+  }
+  async isAvailable() {
+    if (process.platform !== "win32") {
+      return false;
+    }
+    try {
+      const result = await execCommandFull("powershell", [
+        "-NoProfile",
+        "-Command",
+        "[System.Security.Cryptography.ProtectedData] | Out-Null; exit 0"
+      ]);
+      return result.exitCode === 0;
+    } catch {
+      return false;
+    }
+  }
+  async store(id, secret) {
+    const storageDir = this.#storageDir;
+    await fs3.mkdir(storageDir, { recursive: true });
+    const entryPath = getEntryPath2(storageDir, id);
+    const script = [
+      "Add-Type -AssemblyName System.Security",
+      `$bytes = [System.Text.Encoding]::UTF8.GetBytes(${JSON.stringify(secret)})`,
+      "$entropy = $null",
+      "$scope = [System.Security.Cryptography.DataProtectionScope]::CurrentUser",
+      "$encrypted = [System.Security.Cryptography.ProtectedData]::Protect($bytes, $entropy, $scope)",
+      `[System.IO.File]::WriteAllBytes(${JSON.stringify(entryPath)}, $encrypted)`
+    ].join("; ");
+    await execCommand("powershell", ["-NoProfile", "-Command", script]);
+  }
+  async retrieve(id) {
+    const storageDir = this.#storageDir;
+    const entryPath = getEntryPath2(storageDir, id);
+    try {
+      await fs3.access(entryPath);
+    } catch {
+      throw new SecretNotFoundError(`Secret not found in Windows DPAPI store: ${id}`);
+    }
+    const script = [
+      "Add-Type -AssemblyName System.Security",
+      `$encrypted = [System.IO.File]::ReadAllBytes(${JSON.stringify(entryPath)})`,
+      "$entropy = $null",
+      "$scope = [System.Security.Cryptography.DataProtectionScope]::CurrentUser",
+      "$bytes = [System.Security.Cryptography.ProtectedData]::Unprotect($encrypted, $entropy, $scope)",
+      "Write-Output ([System.Text.Encoding]::UTF8.GetString($bytes))"
+    ].join("; ");
+    return execCommand("powershell", ["-NoProfile", "-Command", script]);
+  }
+  async delete(id) {
+    const storageDir = this.#storageDir;
+    const entryPath = getEntryPath2(storageDir, id);
+    try {
+      await fs3.unlink(entryPath);
+    } catch (err) {
+      if (err instanceof Error && "code" in err && err.code === "ENOENT") {
+        throw new SecretNotFoundError(`Secret not found in Windows DPAPI store: ${id}`);
+      }
+      throw toFilesystemError(err, "secret file", entryPath, "delete");
+    }
+  }
+  async exists(id) {
+    const storageDir = this.#storageDir;
+    const entryPath = getEntryPath2(storageDir, id);
+    try {
+      await fs3.access(entryPath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  async list() {
+    const storageDir = this.#storageDir;
+    let entries;
+    try {
+      entries = await fs3.readdir(storageDir);
+    } catch {
+      return [];
+    }
+    return entries.filter((f) => f.endsWith(".enc")).map((f) => Buffer.from(f.slice(0, -4), "hex").toString("utf8"));
+  }
+};
+var ATTRIBUTE_KEY = "vaultkeeper-id";
+var LABEL_PREFIX = "vaultkeeper: ";
+var SecretToolBackend = class {
+  type = "secret-tool";
+  displayName = "Linux Secret Service (secret-tool)";
+  async isAvailable() {
+    if (process.platform !== "linux") {
+      return false;
+    }
+    try {
+      const result = await execCommandFull("secret-tool", ["--version"]);
+      return result.exitCode === 0;
+    } catch {
+      return false;
+    }
+  }
+  async store(id, secret) {
+    const label = `${LABEL_PREFIX}${id}`;
+    await execCommand("secret-tool", ["store", "--label", label, ATTRIBUTE_KEY, id], {
+      stdin: secret
+    });
+  }
+  async retrieve(id) {
+    const result = await execCommandFull("secret-tool", ["lookup", ATTRIBUTE_KEY, id]);
+    if (result.exitCode !== 0 || result.stdout.trim() === "") {
+      throw new SecretNotFoundError(`Secret not found in Secret Service: ${id}`);
+    }
+    return result.stdout.trim();
+  }
+  async delete(id) {
+    const result = await execCommandFull("secret-tool", ["clear", ATTRIBUTE_KEY, id]);
+    if (result.exitCode !== 0) {
+      throw new SecretNotFoundError(`Secret not found in Secret Service: ${id}`);
+    }
+  }
+  async exists(id) {
+    const result = await execCommandFull("secret-tool", ["lookup", ATTRIBUTE_KEY, id]);
+    return result.exitCode === 0 && result.stdout.trim() !== "";
+  }
+  async list() {
+    const result = await execCommandFull("secret-tool", ["search", ATTRIBUTE_KEY, ""]);
+    if (result.exitCode !== 0) {
+      return [];
+    }
+    const ids = [];
+    const attrPattern = new RegExp(`attribute\\.${ATTRIBUTE_KEY} = (.+)`, "g");
+    let match = attrPattern.exec(result.stdout);
+    while (match !== null) {
+      const id = match[1];
+      if (id !== void 0) {
+        ids.push(id);
+      }
+      match = attrPattern.exec(result.stdout);
+    }
+    return ids;
+  }
+};
+var TAG = "vaultkeeper";
+var PASSWORD_FIELD_TITLE = "password";
+async function findItemOverviewByTitle(client, vaultId, title) {
+  const overviews = await client.items.list(vaultId);
+  for (const overview of overviews) {
+    if (overview.title === title && overview.tags.includes(TAG)) {
+      return overview;
+    }
+  }
+  return void 0;
+}
+async function findItemByTitle(client, vaultId, title) {
+  const overview = await findItemOverviewByTitle(client, vaultId, title);
+  if (overview === void 0) return void 0;
+  return client.items.get(vaultId, overview.id);
+}
+function extractPasswordField(item) {
+  for (const field of item.fields) {
+    if (field.title === PASSWORD_FIELD_TITLE) {
+      return field.value;
+    }
+  }
+  return void 0;
+}
+async function storeSecretItem(client, vaultId, title, secret, passwordCategory, concealedFieldType) {
+  const existing = await findItemByTitle(client, vaultId, title);
+  if (existing !== void 0) {
+    const hasPasswordField = existing.fields.some((f) => f.title === PASSWORD_FIELD_TITLE);
+    const updatedFields = hasPasswordField ? existing.fields.map((f) => f.title === PASSWORD_FIELD_TITLE ? { ...f, value: secret } : f) : [
+      ...existing.fields,
+      {
+        id: "password",
+        title: PASSWORD_FIELD_TITLE,
+        fieldType: concealedFieldType,
+        value: secret
+      }
+    ];
+    await client.items.put({ ...existing, fields: updatedFields });
+  } else {
+    await client.items.create({
+      category: passwordCategory,
+      vaultId,
+      title,
+      tags: [TAG],
+      fields: [
+        {
+          id: "password",
+          title: PASSWORD_FIELD_TITLE,
+          fieldType: concealedFieldType,
+          value: secret
+        }
+      ]
+    });
+  }
+}
+async function deleteSecretItem(client, vaultId, title) {
+  const overview = await findItemOverviewByTitle(client, vaultId, title);
+  if (overview === void 0) return false;
+  await client.items.delete(vaultId, overview.id);
+  return true;
+}
+var INTEGRATION_NAME = "vaultkeeper";
+var SDK_PACKAGE = "@1password/sdk";
+var SDK_INSTALL_URL = "https://developer.1password.com/docs/sdks/";
+var SDK_NOT_INSTALLED_MESSAGE = `1Password SDK (${SDK_PACKAGE}) is not installed. Install it to use the 1Password backend.`;
+var PRESENCE_WRITE_TIMEOUT_MS = 3e4;
+function isModuleNotFoundError(error2) {
+  const hasNotFoundCode = (value) => {
+    if (value === null || typeof value !== "object" || !("code" in value)) {
+      return false;
+    }
+    const { code } = value;
+    return code === "ERR_MODULE_NOT_FOUND" || code === "MODULE_NOT_FOUND";
+  };
+  if (hasNotFoundCode(error2)) {
+    return true;
+  }
+  if (error2 !== null && typeof error2 === "object" && "cause" in error2) {
+    return hasNotFoundCode(error2.cause);
+  }
+  return false;
+}
+var cachedVersion;
+function getIntegrationVersion() {
+  if (cachedVersion !== void 0) return cachedVersion;
+  const dir = dirname2(fileURLToPath3(import.meta.url));
+  const candidates = [resolve3(dir, "..", "..", "package.json"), resolve3(dir, "..", "package.json")];
+  for (const candidate of candidates) {
+    if (!existsSync(candidate)) continue;
+    const raw = JSON.parse(readFileSync(candidate, "utf8"));
+    if (raw !== null && typeof raw === "object" && "version" in raw && typeof raw.version === "string") {
+      cachedVersion = raw.version;
+      return cachedVersion;
+    }
+  }
+  throw new SetupError(
+    `Could not read version from vaultkeeper package.json. Tried paths: ${candidates.join(", ")}`,
+    "vaultkeeper package.json"
+  );
+}
+var SESSION_TIMEOUT_MS = 3e4;
+function isWorkerSuccess(res) {
+  return "value" in res;
+}
+function isWorkerResponse(value) {
+  if (value === null || typeof value !== "object") return false;
+  if ("value" in value && typeof value.value === "string") return true;
+  if ("error" in value && typeof value.error === "string" && "code" in value && typeof value.code === "string")
+    return true;
+  return false;
+}
+function isWorkerWriteSuccess(res) {
+  const record = { ...res };
+  return record.ok === true;
+}
+function isWorkerWriteResponse(value) {
+  if (value === null || typeof value !== "object") return false;
+  if ("ok" in value && value.ok === true) return true;
+  if ("error" in value && typeof value.error === "string" && "code" in value && typeof value.code === "string")
+    return true;
+  return false;
+}
+var OnePasswordBackend = class {
+  type = "1password";
+  displayName = "1Password";
+  vaultId;
+  account;
+  serviceAccountToken;
+  accessMode;
+  sessionTimeoutMs;
+  /** In-flight or resolved client promise — prevents duplicate createClient calls. */
+  clientPromise;
+  constructor(options) {
+    if (options.accessMode === "per-access" && options.serviceAccountToken !== void 0) {
+      throw new ConfigValidationError(
+        "per-access mode requires desktop biometric authentication and cannot be used with a service account token",
+        "options.accessMode"
+      );
+    }
+    if (options.account !== void 0 && options.serviceAccountToken !== void 0) {
+      throw new ConfigValidationError(
+        "account and serviceAccountToken are mutually exclusive \u2014 provide one or the other, not both",
+        "options.serviceAccountToken"
+      );
+    }
+    this.vaultId = options.vault;
+    this.sessionTimeoutMs = options.sessionTimeoutMs ?? SESSION_TIMEOUT_MS;
+    if (options.account !== void 0) {
+      this.account = options.account;
+    }
+    if (options.serviceAccountToken !== void 0) {
+      this.serviceAccountToken = options.serviceAccountToken;
+    }
+    this.accessMode = options.accessMode ?? "session";
+  }
+  async isAvailable() {
+    const sdk = await this.tryLoadSdk();
+    return sdk !== null;
+  }
+  /**
+   * Report this instance's capabilities.
+   *
+   * @remarks
+   * `presencePerUse` is `true` only in `per-access` mode, where every keyed
+   * operation (`retrieve()`, `store()`, `delete()`) spawns a fresh worker
+   * process that creates a new SDK client and triggers a per-operation
+   * biometric approval that cannot be satisfied from the cached session
+   * client. In the default `session` mode a single client is cached for all
+   * operations, so operations ride one earlier unlock — that mode reports
+   * `false`.
+   *
+   * **Operation coverage:** the per-access biometric path gates `retrieve()`,
+   * `store()`, and `delete()` — every keyed operation reachable from
+   * `presenceEnforcedOperations`. `exists()`/`list()` are read-only probes,
+   * not keyed operations the presence contract covers, so they continue to
+   * use the cached session client. This reports
+   * `presenceEnforcedOperations: ['read', 'store', 'delete']` (issue #211
+   * closed the earlier `store`/`delete` gap — see
+   * {@link https://github.com/mike-north/vaultkeeper/issues/211}).
+   *
+   * **Truth-basis / cached-OS-unlock caveat:** even for a covered operation
+   * the fresh action is "a fresh SDK client plus whatever the OS enforces at
+   * that moment" — a "fresh process/SDK client" is **not** the same as a
+   * guaranteed fresh hardware action. A per-access call can still ride a
+   * cached OS-level Touch ID / Windows Hello unlock if the OS does not
+   * re-prompt. The strongest per-use hardware guarantee comes from a touch
+   * device (YubiKey / gpg smartcard).
+   */
+  getCapabilities() {
+    if (this.accessMode === "per-access") {
+      return Promise.resolve({
+        presencePerUse: true,
+        presenceEnforcedOperations: ["read", "store", "delete"]
+      });
+    }
+    return Promise.resolve({ presencePerUse: false });
+  }
+  // ---- Session client management ----
+  /**
+   * Dynamically import the SDK. Returns `null` if the SDK is not installed or
+   * the native library cannot be loaded. Used by {@link isAvailable}, which
+   * only needs a yes/no answer; call {@link loadSdkOrThrow} on paths that must
+   * report *why* the SDK could not be loaded.
+   */
+  async tryLoadSdk() {
+    try {
+      const sdk = await Promise.resolve().then(() => __toESM(require_sdk(), 1));
+      return sdk;
+    } catch {
+      return null;
+    }
+  }
+  /**
+   * Dynamically import the SDK, throwing a typed {@link PluginNotFoundError}
+   * only when the module cannot be resolved (the optional peer is not
+   * installed). A present-but-broken SDK (native binding failure, init throw,
+   * incompatible Node) surfaces its real error instead of a misleading
+   * "not installed" message.
+   */
+  async loadSdkOrThrow() {
+    try {
+      return await Promise.resolve().then(() => __toESM(require_sdk(), 1));
+    } catch (error2) {
+      if (isModuleNotFoundError(error2)) {
+        throw new PluginNotFoundError(SDK_NOT_INSTALLED_MESSAGE, SDK_PACKAGE, SDK_INSTALL_URL);
+      }
+      throw error2;
+    }
+  }
+  /**
+   * Acquire (or create) a cached SDK client.
+   * Wraps `createClient` with a configurable timeout (default 30 s) to handle
+   * the known beta SDK hang after session expiry.
+   */
+  acquireClient() {
+    this.clientPromise ??= this.createClientInternal().catch((err) => {
+      this.clientPromise = void 0;
+      throw err;
+    });
+    return this.clientPromise;
+  }
+  async createClientInternal() {
+    const sdk = await this.loadSdkOrThrow();
+    const auth2 = this.buildAuth(sdk);
+    let timerId;
+    const timeoutPromise = new Promise((_resolve, reject) => {
+      timerId = setTimeout(() => {
+        reject(
+          new BackendLockedError("1Password session timed out waiting for authentication", true)
+        );
+      }, this.sessionTimeoutMs);
+    });
+    try {
+      const client = await Promise.race([
+        sdk.createClient({
+          auth: auth2,
+          integrationName: INTEGRATION_NAME,
+          integrationVersion: getIntegrationVersion()
+        }),
+        timeoutPromise
+      ]);
+      return client;
+    } catch (err) {
+      if (err instanceof BackendLockedError) {
+        throw err;
+      }
+      if (err instanceof sdk.DesktopSessionExpiredError) {
+        throw new BackendLockedError("1Password session has expired. Please unlock the app.", true);
+      }
+      throw new AuthorizationDeniedError(`1Password authentication failed: ${String(err)}`);
+    } finally {
+      if (timerId !== void 0) {
+        clearTimeout(timerId);
+      }
+    }
+  }
+  buildAuth(sdk) {
+    if (this.serviceAccountToken !== void 0) {
+      return this.serviceAccountToken;
+    }
+    const accountName = this.account ?? "";
+    return new sdk.DesktopAuth(accountName);
+  }
+  // ---- SecretBackend / ListableBackend implementation ----
+  async store(id, secret) {
+    if (this.accessMode === "per-access") {
+      return this.writeViaWorker("store", id, secret);
+    }
+    const { ItemCategory, ItemFieldType } = await this.requireSdk();
+    const client = await this.acquireClient();
+    await storeSecretItem(
+      client,
+      this.vaultId,
+      id,
+      secret,
+      ItemCategory.Password,
+      ItemFieldType.Concealed
+    );
+  }
+  async retrieve(id) {
+    if (this.accessMode === "per-access") {
+      return this.retrieveViaWorker(id);
+    }
+    return this.retrieveViaSession(id);
+  }
+  async retrieveViaSession(id) {
+    const client = await this.acquireClient();
+    const item = await findItemByTitle(client, this.vaultId, id);
+    if (item === void 0) {
+      throw new SecretNotFoundError(`Secret not found in 1Password: ${id}`);
+    }
+    const value = extractPasswordField(item);
+    if (value === void 0) {
+      throw new SecretNotFoundError(`Secret found in 1Password but missing password field: ${id}`);
+    }
+    return value;
+  }
+  /**
+   * Spawn the per-access worker script that triggers a fresh biometric prompt
+   * for each retrieval, then returns the secret from its stdout.
+   */
+  retrieveViaWorker(id) {
+    return new Promise((resolve32, reject) => {
+      const workerPath = join2(dirname2(fileURLToPath3(import.meta.url)), "one-password-worker.js");
+      const accountArg = this.account ?? "";
+      const child = spawn(process.execPath, [workerPath, accountArg, this.vaultId, id], {
+        stdio: ["ignore", "pipe", "pipe"]
+      });
+      const stdoutChunks = [];
+      const stderrChunks = [];
+      child.stdout.on("data", (chunk) => {
+        stdoutChunks.push(chunk);
+      });
+      child.stderr.on("data", (chunk) => {
+        stderrChunks.push(chunk);
+      });
+      child.on("close", (code, signal) => {
+        const raw = Buffer.concat(stdoutChunks).toString("utf8").trim();
+        if (raw === "") {
+          const stderr = Buffer.concat(stderrChunks).toString("utf8").trim();
+          const exitDescription = typeof signal === "string" ? `terminated by signal ${signal}` : `exit code ${String(code)}`;
+          const detail = stderr !== "" ? stderr : exitDescription;
+          reject(
+            new BackendUnavailableError(
+              `1Password per-access worker crashed for secret ${id}: ${detail}`,
+              "worker-crashed",
+              ["1password"]
+            )
+          );
+          return;
+        }
+        let parsed;
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          reject(new SecretNotFoundError(`Worker returned unparseable output for secret: ${id}`));
+          return;
+        }
+        if (!isWorkerResponse(parsed)) {
+          reject(
+            new SecretNotFoundError(`Worker returned unexpected response shape for secret: ${id}`)
+          );
+          return;
+        }
+        if (isWorkerSuccess(parsed)) {
+          resolve32(parsed.value);
+        } else {
+          switch (parsed.code) {
+            case "PLUGIN_NOT_FOUND":
+              reject(
+                new PluginNotFoundError(SDK_NOT_INSTALLED_MESSAGE, SDK_PACKAGE, SDK_INSTALL_URL)
+              );
+              break;
+            case "NOT_FOUND":
+              reject(new SecretNotFoundError(`Secret not found in 1Password: ${id}`));
+              break;
+            case "AUTH_DENIED":
+              reject(new AuthorizationDeniedError("1Password authentication was denied"));
+              break;
+            case "LOCKED":
+              reject(new BackendLockedError("1Password is locked. Please unlock and retry.", true));
+              break;
+            case "INTERNAL":
+              reject(
+                new BackendUnavailableError(
+                  `1Password per-access worker failed for secret ${id}: ${parsed.error}`,
+                  "worker-internal-error",
+                  ["1password"]
+                )
+              );
+              break;
+            default:
+              reject(new SecretNotFoundError(`Worker failed for secret ${id}: ${parsed.error}`));
+          }
+        }
+      });
+      child.on("error", (err) => {
+        reject(
+          new BackendUnavailableError(
+            `Failed to spawn 1Password per-access worker at ${workerPath}: ${String(err)}`,
+            "worker-spawn-failed",
+            ["1password"]
+          )
+        );
+      });
+    });
+  }
+  /**
+   * Spawn the per-access worker script to perform a `store` or `delete`,
+   * triggering a fresh biometric prompt for this single write (issue #211).
+   *
+   * @remarks
+   * For `store`, `secret` is delivered to the worker over **stdin**, never
+   * argv — it must never appear in a process listing, shell history, or log.
+   * `delete` needs no payload, so no stdin is written and the worker's stdin
+   * is left `'ignore'`d, mirroring the retrieve path's spawn options.
+   */
+  writeViaWorker(op, id, secret) {
+    return new Promise((resolve32, reject) => {
+      const workerPath = join2(dirname2(fileURLToPath3(import.meta.url)), "one-password-worker.js");
+      const accountArg = this.account ?? "";
+      const needsStdin = secret !== void 0;
+      const child = spawn(process.execPath, [workerPath, accountArg, this.vaultId, id, op], {
+        stdio: [needsStdin ? "pipe" : "ignore", "pipe", "pipe"]
+      });
+      if (needsStdin && child.stdin !== null) {
+        child.stdin.on("error", () => {
+        });
+        child.stdin.write(secret, "utf8");
+        child.stdin.end();
+      }
+      const stdoutChunks = [];
+      const stderrChunks = [];
+      child.stdout?.on("data", (chunk) => {
+        stdoutChunks.push(chunk);
+      });
+      child.stderr?.on("data", (chunk) => {
+        stderrChunks.push(chunk);
+      });
+      child.on("close", (code, signal) => {
+        const raw = Buffer.concat(stdoutChunks).toString("utf8").trim();
+        if (raw === "") {
+          const stderr = Buffer.concat(stderrChunks).toString("utf8").trim();
+          const exitDescription = typeof signal === "string" ? `terminated by signal ${signal}` : `exit code ${String(code)}`;
+          const detail = stderr !== "" ? stderr : exitDescription;
+          reject(
+            new BackendUnavailableError(
+              `1Password per-access worker crashed during ${op} of secret ${id}: ${detail}`,
+              "worker-crashed",
+              ["1password"]
+            )
+          );
+          return;
+        }
+        let parsed;
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          reject(
+            new BackendUnavailableError(
+              `Worker returned unparseable output during ${op} of secret ${id}`,
+              "worker-internal-error",
+              ["1password"]
+            )
+          );
+          return;
+        }
+        if (!isWorkerWriteResponse(parsed)) {
+          reject(
+            new BackendUnavailableError(
+              `Worker returned unexpected response shape during ${op} of secret ${id}`,
+              "worker-internal-error",
+              ["1password"]
+            )
+          );
+          return;
+        }
+        if (isWorkerWriteSuccess(parsed)) {
+          resolve32();
+          return;
+        }
+        switch (parsed.code) {
+          case "PLUGIN_NOT_FOUND":
+            reject(new PluginNotFoundError(SDK_NOT_INSTALLED_MESSAGE, SDK_PACKAGE, SDK_INSTALL_URL));
+            break;
+          case "NOT_FOUND":
+            reject(new SecretNotFoundError(`Secret not found in 1Password: ${id}`));
+            break;
+          case "LOCKED":
+            reject(new BackendLockedError("1Password is locked. Please unlock and retry.", true));
+            break;
+          case "PRESENCE_DECLINED":
+            reject(
+              new PresenceDeclinedError(
+                `1Password ${op} presence action was declined for secret ${id}`,
+                "1password"
+              )
+            );
+            break;
+          case "PRESENCE_TIMEOUT":
+            reject(
+              new PresenceTimeoutError(
+                `1Password ${op} presence action timed out for secret ${id}`,
+                "1password",
+                PRESENCE_WRITE_TIMEOUT_MS
+              )
+            );
+            break;
+          case "INTERNAL":
+            reject(
+              new BackendUnavailableError(
+                `1Password per-access worker failed during ${op} of secret ${id}: ${parsed.error}`,
+                "worker-internal-error",
+                ["1password"]
+              )
+            );
+            break;
+          default:
+            reject(
+              new BackendUnavailableError(
+                `Worker failed during ${op} of secret ${id}: ${parsed.error}`,
+                "worker-internal-error",
+                ["1password"]
+              )
+            );
+        }
+      });
+      child.on("error", (err) => {
+        reject(
+          new BackendUnavailableError(
+            `Failed to spawn 1Password per-access worker at ${workerPath}: ${String(err)}`,
+            "worker-spawn-failed",
+            ["1password"]
+          )
+        );
+      });
+    });
+  }
+  async delete(id) {
+    if (this.accessMode === "per-access") {
+      return this.writeViaWorker("delete", id);
+    }
+    const client = await this.acquireClient();
+    const deleted = await deleteSecretItem(client, this.vaultId, id);
+    if (!deleted) {
+      throw new SecretNotFoundError(`Secret not found in 1Password: ${id}`);
+    }
+  }
+  async exists(id) {
+    const client = await this.acquireClient();
+    const overview = await findItemOverviewByTitle(client, this.vaultId, id);
+    return overview !== void 0;
+  }
+  async list() {
+    const client = await this.acquireClient();
+    const overviews = await client.items.list(this.vaultId);
+    const ids = [];
+    for (const overview of overviews) {
+      if (overview.tags.includes(TAG)) {
+        ids.push(overview.title);
+      }
+    }
+    return ids;
+  }
+  // ---- Private helpers ----
+  /**
+   * Load SDK, throwing a typed {@link PluginNotFoundError} when it is not
+   * installed and surfacing the real error when it is present but broken.
+   */
+  requireSdk() {
+    return this.loadSdkOrThrow();
+  }
+};
+var YKMAN_INSTALL_URL = "https://developers.yubico.com/yubikey-manager/";
+var STORAGE_DIR_NAME2 = path22.join(".vaultkeeper", "yubikey");
+var METADATA_FILE = "metadata.json";
+var DEVICE_TIMEOUT_MS = 5e3;
+var GCM_IV_BYTES2 = 12;
+var GCM_KEY_BYTES2 = 32;
+var GCM_TAG_LENGTH_BITS2 = 128;
+var FORMAT_VERSION = "1";
+function resolveStorageDir3(configuredPath) {
+  if (configuredPath !== void 0) {
+    return configuredPath;
+  }
+  return path22.join(os.homedir(), STORAGE_DIR_NAME2);
+}
+function getEntryPath3(storageDir, id) {
+  const safeId = Buffer.from(id, "utf8").toString("hex");
+  return path22.join(storageDir, `${safeId}.enc`);
+}
+function isStringRecord(value) {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+  return Object.values(value).every((v) => typeof v === "string");
+}
+async function loadMetadata(storageDir) {
+  const metaPath = path22.join(storageDir, METADATA_FILE);
+  try {
+    const raw = await fs3.readFile(metaPath, "utf8");
+    const parsed = JSON.parse(raw);
+    if (parsed !== null && typeof parsed === "object" && "entries" in parsed && isStringRecord(parsed.entries)) {
+      return { entries: parsed.entries };
+    }
+    return { entries: {} };
+  } catch {
+    return { entries: {} };
+  }
+}
+async function saveMetadata(storageDir, metadata) {
+  const metaPath = path22.join(storageDir, METADATA_FILE);
+  await fs3.writeFile(metaPath, JSON.stringify(metadata, null, 2), { mode: 384 });
+}
+var HMAC_RESPONSE_HEX_LENGTH = 40;
+var HMAC_RESPONSE_RE = /^[0-9a-fA-F]{40}$/;
+function deriveKey(hmacResponse, id) {
+  const trimmed = hmacResponse.trim();
+  if (!HMAC_RESPONSE_RE.test(trimmed)) {
+    throw new SetupError(
+      `Invalid YubiKey HMAC response: expected exactly ${String(HMAC_RESPONSE_HEX_LENGTH)} hex characters (20 bytes), got ${String(trimmed.length)} characters`,
+      "ykman"
+    );
+  }
+  const ikm = Buffer.from(trimmed, "hex");
+  const info2 = Buffer.from(`vaultkeeper-yubikey:${id}`, "utf8");
+  const keyMaterial = crypto2.hkdfSync("sha256", ikm, Buffer.alloc(0), info2, GCM_KEY_BYTES2);
+  return Buffer.from(keyMaterial);
+}
+function encryptGcm2(key, plaintext) {
+  const iv = crypto2.randomBytes(GCM_IV_BYTES2);
+  let encrypted;
+  let authTag;
+  try {
+    const cipher = crypto2.createCipheriv("aes-256-gcm", key, iv, {
+      authTagLength: GCM_TAG_LENGTH_BITS2 / 8
+    });
+    encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+    authTag = cipher.getAuthTag();
+    return [
+      FORMAT_VERSION,
+      iv.toString("base64"),
+      authTag.toString("base64"),
+      encrypted.toString("base64")
+    ].join(":");
+  } finally {
+    key.fill(0);
+    iv.fill(0);
+    encrypted?.fill(0);
+    authTag?.fill(0);
+  }
+}
+function decryptGcm2(key, encoded, path9) {
+  const parts = encoded.split(":");
+  const versionSegment = parts[0] ?? "";
+  const parsedVersion = parseInt(versionSegment, 10);
+  const isNumericVersion = String(parsedVersion) === versionSegment && !Number.isNaN(parsedVersion);
+  if (!isNumericVersion) {
+    key.fill(0);
+    throw new DecryptionError(
+      "Encrypted file uses a legacy format (AES-256-CBC). Delete the secret and re-store it to migrate to AES-256-GCM.",
+      path9
+    );
+  }
+  if (versionSegment !== FORMAT_VERSION) {
+    key.fill(0);
+    throw new DecryptionError(
+      `Unsupported encrypted file version: ${versionSegment}. This vaultkeeper build only supports version ${FORMAT_VERSION}. Upgrade vaultkeeper to read this secret.`,
+      path9
+    );
+  }
+  if (parts.length !== 4) {
+    key.fill(0);
+    throw new DecryptionError(
+      `Invalid encrypted file format: expected ${FORMAT_VERSION}:iv:authTag:ciphertext`,
+      path9
+    );
+  }
+  const [_version, ivB64, authTagB64, ciphertextB64] = parts;
+  if (ivB64 === void 0 || authTagB64 === void 0 || ciphertextB64 === void 0) {
+    key.fill(0);
+    throw new DecryptionError("Invalid encrypted file format: missing part", path9);
+  }
+  let decrypted;
+  try {
+    const iv = Buffer.from(ivB64, "base64");
+    const authTag = Buffer.from(authTagB64, "base64");
+    const ciphertext = Buffer.from(ciphertextB64, "base64");
+    try {
+      const decipher = crypto2.createDecipheriv("aes-256-gcm", key, iv, {
+        authTagLength: GCM_TAG_LENGTH_BITS2 / 8
+      });
+      decipher.setAuthTag(authTag);
+      decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    } catch (err) {
+      throw new DecryptionError(
+        `GCM authentication failed \u2014 ciphertext may be tampered or corrupt: ${err instanceof Error ? err.message : String(err)}`,
+        path9
+      );
+    }
+    const plaintext = decrypted.toString("utf8");
+    return plaintext;
+  } finally {
+    key.fill(0);
+    decrypted?.fill(0);
+  }
+}
+var YubikeyBackend = class {
+  type = "yubikey";
+  displayName = "YubiKey";
+  #storageDir;
+  /**
+   * Whether the configured challenge-response slot enforces a touch for every
+   * operation. When `true`, each `store`/`retrieve`/`delete` requires a fresh
+   * physical tap (see {@link YubikeyBackend.getCapabilities}). Sourced from
+   * configuration, not hardcoded by type — a slot without a touch policy
+   * reports `false`.
+   */
+  #requireTouch;
+  /**
+   * @param storageDir - Directory in which encrypted secrets and metadata are
+   *   stored. Sourced from `BackendConfig.path`. Defaults to
+   *   `$HOME/.vaultkeeper/yubikey`.
+   * @param requireTouch - Whether the configured challenge-response slot
+   *   enforces a touch-per-operation policy. Defaults to `false`. Sourced from
+   *   the operator's configuration and must match the physical slot's policy
+   *   (verify with `ykman otp info`); it governs the value reported by
+   *   {@link YubikeyBackend.getCapabilities}.
+   */
+  constructor(storageDir, requireTouch = false) {
+    this.#storageDir = resolveStorageDir3(storageDir);
+    this.#requireTouch = requireTouch;
+  }
+  /**
+   * Report this instance's capabilities.
+   *
+   * @remarks
+   * `presencePerUse` is `true` only when the configured slot enforces a
+   * touch-per-operation policy (`requireTouch`), in which case every
+   * challenge-response — and therefore every `store`/`retrieve`/`delete` — forces
+   * a fresh physical tap that cannot be satisfied from any cached state. A slot
+   * without a touch policy reports `false`; the answer is never derived from the
+   * backend `type` alone. Truth-basis: the reported value comes from the
+   * operator-declared `touchPolicy` configuration; confirm it matches the
+   * physical slot with `ykman otp info` (a manual verification).
+   */
+  getCapabilities() {
+    return Promise.resolve({ presencePerUse: this.#requireTouch });
+  }
+  async isAvailable() {
+    try {
+      const result = await execCommandFull("ykman", ["--version"]);
+      if (result.exitCode !== 0) {
+        return false;
+      }
+      const listResult = await execCommandFull("ykman", ["list"]);
+      return listResult.exitCode === 0 && listResult.stdout.trim() !== "";
+    } catch {
+      return false;
+    }
+  }
+  async requireDevice() {
+    const available = await this.isAvailable();
+    if (!available) {
+      const hasYkman = await execCommandFull("ykman", ["--version"]).then(
+        (r) => r.exitCode === 0,
+        () => false
+      );
+      if (!hasYkman) {
+        throw new PluginNotFoundError("ykman is not installed", "ykman", YKMAN_INSTALL_URL);
+      }
+      throw new DeviceNotPresentError("No YubiKey device detected", DEVICE_TIMEOUT_MS);
+    }
+  }
+  /**
+   * Perform the YubiKey HMAC-SHA1 challenge-response for `id` and return the
+   * raw hex response string. Throws on device failure.
+   */
+  async challengeResponse(id) {
+    const challenge = Buffer.from(`vaultkeeper:${id}`, "utf8").toString("hex");
+    const responseResult = await execCommandFull("ykman", ["otp", "calculate", "2", challenge]);
+    if (responseResult.exitCode !== 0) {
+      throw new ExecError(`YubiKey challenge-response failed: ${responseResult.stderr}`, "ykman");
+    }
+    return responseResult.stdout.trim();
+  }
+  async store(id, secret) {
+    await this.requireDevice();
+    const storageDir = this.#storageDir;
+    await fs3.mkdir(storageDir, { recursive: true, mode: 448 });
+    const hmacResponse = await this.challengeResponse(id);
+    const key = deriveKey(hmacResponse, id);
+    const encrypted = encryptGcm2(key, secret);
+    const entryPath = getEntryPath3(storageDir, id);
+    await fs3.writeFile(entryPath, encrypted, { mode: 384 });
+    const metadata = await loadMetadata(storageDir);
+    metadata.entries[id] = entryPath;
+    await saveMetadata(storageDir, metadata);
+  }
+  async retrieve(id) {
+    await this.requireDevice();
+    const storageDir = this.#storageDir;
+    const entryPath = getEntryPath3(storageDir, id);
+    try {
+      await fs3.access(entryPath);
+    } catch {
+      throw new SecretNotFoundError(`Secret not found in YubiKey store: ${id}`);
+    }
+    const encoded = await fs3.readFile(entryPath, "utf8");
+    const hmacResponse = await this.challengeResponse(id);
+    const key = deriveKey(hmacResponse, id);
+    return decryptGcm2(key, encoded, entryPath);
+  }
+  async delete(id) {
+    await this.requireDevice();
+    const storageDir = this.#storageDir;
+    const entryPath = getEntryPath3(storageDir, id);
+    try {
+      await fs3.unlink(entryPath);
+    } catch (err) {
+      if (err instanceof Error && "code" in err && err.code === "ENOENT") {
+        throw new SecretNotFoundError(`Secret not found in YubiKey store: ${id}`);
+      }
+      throw err;
+    }
+    const metadata = await loadMetadata(storageDir);
+    delete metadata.entries[id];
+    await saveMetadata(storageDir, metadata);
+  }
+  async exists(id) {
+    const storageDir = this.#storageDir;
+    const entryPath = getEntryPath3(storageDir, id);
+    try {
+      await fs3.access(entryPath);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  async list() {
+    const storageDir = this.#storageDir;
+    const metadata = await loadMetadata(storageDir);
+    return Object.keys(metadata.entries);
+  }
+};
+function registerBuiltinBackends() {
+  BackendRegistry.register(
+    "file",
+    (config, configDir) => new FileBackend(config?.path, configDir)
+  );
+  BackendRegistry.register("keychain", () => new KeychainBackend());
+  BackendRegistry.register("dpapi", (config) => new DpapiBackend(config?.path));
+  BackendRegistry.register("secret-tool", () => new SecretToolBackend());
+  BackendRegistry.register("1password", (config) => {
+    const opts = config?.options;
+    const vaultId = opts?.vault ?? "";
+    const opOptions = {
+      vault: vaultId,
+      // 'session' is the safer default — 'per-access' re-prompts on every read.
+      accessMode: opts?.accessMode === "per-access" ? "per-access" : "session"
+    };
+    const account = opts?.account;
+    if (account !== void 0) {
+      opOptions.account = account;
+    }
+    const serviceAccountToken = opts?.serviceAccountToken;
+    if (serviceAccountToken !== void 0) {
+      opOptions.serviceAccountToken = serviceAccountToken;
+    }
+    return new OnePasswordBackend(opOptions);
+  });
+  BackendRegistry.register(
+    "yubikey",
+    (config) => (
+      // `touchPolicy: 'required'` in the backend options declares that the
+      // configured challenge-response slot enforces a touch per operation, which
+      // is what makes the instance presence-per-use capable (see
+      // YubikeyBackend.getCapabilities). Any other value (or absent) reports
+      // false — presence is never assumed from the backend type alone.
+      new YubikeyBackend(config?.path, config?.options?.touchPolicy === "required")
+    )
+  );
+}
+registerBuiltinBackends();
 var INSPECT_CUSTOM = /* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom");
 var SecretAccessorTarget = class {
   read;
@@ -41900,14 +46104,14 @@ var SecretAccessorTarget = class {
 };
 
 // ../core/dist/index.js
-var cachedVersion;
+var cachedVersion2;
 function getPackageVersion() {
-  if (cachedVersion !== void 0) {
-    return cachedVersion;
+  if (cachedVersion2 !== void 0) {
+    return cachedVersion2;
   }
   {
-    cachedVersion = "0.10.1";
-    return cachedVersion;
+    cachedVersion2 = "0.10.1";
+    return cachedVersion2;
   }
 }
 var VersionIncompatibleError = class _VersionIncompatibleError extends Error {
@@ -42458,12 +46662,12 @@ function isUnifiedShape(parsed) {
   return typeof parsed === "object" && parsed !== null && ("team" in parsed || "gates" in parsed);
 }
 function findUnifiedConfigPath(baseDir) {
-  const configDir = join3(baseDir, ".attest-it");
+  const configDir = join4(baseDir, ".attest-it");
   const candidates = ["config.yaml", "config.yml", "config.json"];
   for (const candidate of candidates) {
-    const configPath = join3(configDir, candidate);
+    const configPath = join4(configDir, candidate);
     try {
-      const content = readFileSync2(configPath, "utf8");
+      const content = readFileSync3(configPath, "utf8");
       const parsed = candidate.endsWith(".json") ? JSON.parse(content) : (0, import_yaml.parse)(content);
       if (isUnifiedShape(parsed)) {
         return configPath;
@@ -42474,12 +46678,12 @@ function findUnifiedConfigPath(baseDir) {
   return null;
 }
 function findPolicyPath(startDir = process.cwd()) {
-  const configDir = join3(startDir, ".attest-it");
+  const configDir = join4(startDir, ".attest-it");
   const candidates = ["policy.yaml", "policy.yml", "policy.json"];
   for (const candidate of candidates) {
-    const configPath = join3(configDir, candidate);
+    const configPath = join4(configDir, candidate);
     try {
-      readFileSync2(configPath, "utf8");
+      readFileSync3(configPath, "utf8");
       return configPath;
     } catch {
     }
@@ -42487,12 +46691,12 @@ function findPolicyPath(startDir = process.cwd()) {
   return null;
 }
 function findOperationalPath(startDir = process.cwd()) {
-  const configDir = join3(startDir, ".attest-it");
+  const configDir = join4(startDir, ".attest-it");
   const candidates = ["config.yaml", "config.yml", "config.json"];
   for (const candidate of candidates) {
-    const configPath = join3(configDir, candidate);
+    const configPath = join4(configDir, candidate);
     try {
-      readFileSync2(configPath, "utf8");
+      readFileSync3(configPath, "utf8");
       return configPath;
     } catch {
     }
@@ -42526,7 +46730,7 @@ async function loadPolicyAsync(source, baseDir) {
     );
   }
   try {
-    const content = await readFile2(policyPath, "utf8");
+    const content = await readFile3(policyPath, "utf8");
     const format = getConfigFormat(policyPath);
     return parsePolicyContent(content, format);
   } catch (error2) {
@@ -42548,7 +46752,7 @@ async function loadOperationalAsync(operationalPath, baseDir) {
     );
   }
   try {
-    const content = await readFile2(resolvedPath, "utf8");
+    const content = await readFile3(resolvedPath, "utf8");
     const format = getConfigFormat(resolvedPath);
     return parseOperationalContent(content, format);
   } catch (error2) {
@@ -42618,7 +46822,7 @@ function computeFinalFingerprint(fileHashes) {
 }
 async function hashFileAsync(realPath, normalizedPath, stats) {
   if (stats.size > LARGE_FILE_THRESHOLD) {
-    return new Promise((resolve4, reject) => {
+    return new Promise((resolve42, reject) => {
       const hash2 = crypto3.createHash("sha256");
       hash2.update(normalizedPath);
       hash2.update(":");
@@ -42627,7 +46831,7 @@ async function hashFileAsync(realPath, normalizedPath, stats) {
         hash2.update(chunk);
       });
       stream.on("end", () => {
-        resolve4(hash2.digest());
+        resolve42(hash2.digest());
       });
       stream.on("error", reject);
     });
@@ -42874,7 +47078,7 @@ var VaultKeyProvider = class {
    */
   async getPrivateKey(keyRef) {
     const pemContent = await this.backend.retrieve(keyRef);
-    const tempDir = await fs2.mkdtemp(path3.join(os.tmpdir(), "attest-it-vk-"));
+    const tempDir = await fs2.mkdtemp(path3.join(os2.tmpdir(), "attest-it-vk-"));
     const tempKeyPath = path3.join(tempDir, "private.pem");
     try {
       await fs2.writeFile(tempKeyPath, pemContent, "utf-8");
@@ -42966,7 +47170,7 @@ var LegacyFilesystemKeyProvider = class {
    */
   async keyExists(keyRef) {
     try {
-      await fs7.access(keyRef);
+      await fs2.access(keyRef);
       return true;
     } catch {
       return false;
@@ -43438,7 +47642,7 @@ async function run() {
             content: policyResult.content,
             format: policyFormat
           },
-          operationalPath: resolve3(process.cwd(), operationalConfigPath)
+          operationalPath: resolve5(process.cwd(), operationalConfigPath)
         });
       } else {
         core.info("Loading configuration from filesystem");
@@ -43446,9 +47650,9 @@ async function run() {
         config = await loadSplitConfig({
           policySource: {
             type: "filesystem",
-            path: resolve3(process.cwd(), policyPath)
+            path: resolve5(process.cwd(), policyPath)
           },
-          operationalPath: resolve3(process.cwd(), operationalConfigPath)
+          operationalPath: resolve5(process.cwd(), operationalConfigPath)
         });
       }
     } catch (err) {
