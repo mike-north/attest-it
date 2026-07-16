@@ -10,7 +10,6 @@
 // Identity config
 export {
   identityMigrationGraph,
-  type IdentityConfigV1,
   type IdentityConfigV2,
   localConfigSchemaV1,
   localConfigSchemaV2,
