@@ -16,9 +16,7 @@ export function formatKeyLocation(privateKey: PrivateKeyRef): string {
     case 'keychain':
       return `${theme.blue.bold()('macOS Keychain via VaultKeeper')}: ${theme.muted(privateKey.id)}`
     case '1password': {
-      const location = privateKey.vault
-        ? `${privateKey.vault}/${privateKey.id}`
-        : privateKey.id
+      const location = privateKey.vault ? `${privateKey.vault}/${privateKey.id}` : privateKey.id
       return `${theme.blue.bold()('1Password via VaultKeeper')}: ${theme.muted(location)}`
     }
     case 'yubikey':

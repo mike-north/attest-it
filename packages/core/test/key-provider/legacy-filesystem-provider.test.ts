@@ -52,7 +52,10 @@ describe('LegacyFilesystemKeyProvider', () => {
   describe('keyExists', () => {
     it('should return true when the file exists', async () => {
       const keyPath = path.join(tmpDir, 'existing-key.pem')
-      await fs.writeFile(keyPath, '-----BEGIN EC PRIVATE KEY-----\ntest\n-----END EC PRIVATE KEY-----')
+      await fs.writeFile(
+        keyPath,
+        '-----BEGIN EC PRIVATE KEY-----\ntest\n-----END EC PRIVATE KEY-----',
+      )
 
       const exists = await provider.keyExists(keyPath)
       expect(exists).toBe(true)
@@ -69,7 +72,10 @@ describe('LegacyFilesystemKeyProvider', () => {
   describe('getPrivateKey', () => {
     it('should return keyPath pointing to the file', async () => {
       const keyPath = path.join(tmpDir, 'test-key.pem')
-      await fs.writeFile(keyPath, '-----BEGIN EC PRIVATE KEY-----\ntest\n-----END EC PRIVATE KEY-----')
+      await fs.writeFile(
+        keyPath,
+        '-----BEGIN EC PRIVATE KEY-----\ntest\n-----END EC PRIVATE KEY-----',
+      )
 
       const result = await provider.getPrivateKey(keyPath)
 
@@ -78,7 +84,10 @@ describe('LegacyFilesystemKeyProvider', () => {
 
     it('should return a no-op cleanup that leaves the file intact', async () => {
       const keyPath = path.join(tmpDir, 'cleanup-key.pem')
-      await fs.writeFile(keyPath, '-----BEGIN EC PRIVATE KEY-----\ntest\n-----END EC PRIVATE KEY-----')
+      await fs.writeFile(
+        keyPath,
+        '-----BEGIN EC PRIVATE KEY-----\ntest\n-----END EC PRIVATE KEY-----',
+      )
 
       const result = await provider.getPrivateKey(keyPath)
 
