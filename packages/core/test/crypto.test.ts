@@ -224,10 +224,21 @@ describe('crypto', () => {
 
       expect(spawnMock).toHaveBeenCalled()
       for (const [, args, options] of spawnMock.mock.calls) {
-        const argList = args as string[]
-        const stdio = (options as { stdio?: unknown[] } | undefined)?.stdio
-        expect(argList).not.toContain('fd:3')
-        expect(stdio).toHaveLength(3)
+        expect(Array.isArray(args)).toBe(true)
+        if (!Array.isArray(args)) {
+          continue
+        }
+        expect(args).not.toContain('fd:3')
+
+        expect(options).toBeTypeOf('object')
+        if (typeof options !== 'object') {
+          continue
+        }
+        expect('stdio' in options && Array.isArray(options.stdio)).toBe(true)
+        if (!('stdio' in options) || !Array.isArray(options.stdio)) {
+          continue
+        }
+        expect(options.stdio).toHaveLength(3)
       }
     })
 
