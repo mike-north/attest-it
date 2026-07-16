@@ -18,7 +18,12 @@ jobs:
           working-directory: packages/github-action/test/fixtures/valid-attestation
           policy-path: .attest-it/policy.yaml
           config-path: .attest-it/config.yaml
-          # Use PR branch for policy since test fixtures only exist in PR
+          # Use PR branch for policy since test fixtures only exist in PR.
+          # WARNING: this override is safe ONLY because it targets a fixture
+          # policy.yaml with no real trust value. NEVER copy this pattern into
+          # a workflow that gates a real .attest-it/policy.yaml (see issue #74)
+          # — doing so lets a PR author supply their own policy instead of the
+          # trusted base-branch version.
           policy-ref: ${{ github.head_ref }}
           fail-on-missing: 'true'
 
@@ -40,7 +45,12 @@ jobs:
           working-directory: packages/github-action/test/fixtures/missing-attestation
           policy-path: .attest-it/policy.yaml
           config-path: .attest-it/config.yaml
-          # Use PR branch for policy since test fixtures only exist in PR
+          # Use PR branch for policy since test fixtures only exist in PR.
+          # WARNING: this override is safe ONLY because it targets a fixture
+          # policy.yaml with no real trust value. NEVER copy this pattern into
+          # a workflow that gates a real .attest-it/policy.yaml (see issue #74)
+          # — doing so lets a PR author supply their own policy instead of the
+          # trusted base-branch version.
           policy-ref: ${{ github.head_ref }}
           fail-on-missing: 'true'
 

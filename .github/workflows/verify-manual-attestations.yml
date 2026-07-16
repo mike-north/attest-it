@@ -3,6 +3,15 @@ name: Verify Manual Test Attestations
 # This workflow verifies that manual test attestations exist and are valid.
 # The config file contains both trust model (team, gates) and operational
 # config (suites, commands) in a single file.
+#
+# attest-it-guard: real-policy-gate
+# This workflow gates the real .attest-it/policy.yaml, which holds every team
+# member's Ed25519 public key and each gate's authorizedSigners list. It must
+# NEVER pass an explicit `policy-ref` input to ./packages/github-action — doing
+# so would let a PR author supply their own edited policy.yaml instead of the
+# trusted base-branch version, defeating the Action's safe default (see
+# packages/github-action/src/index.ts and fetch-policy.ts). This is enforced
+# in CI by scripts/check-policy-ref-guard.mjs.
 
 on:
   pull_request:
@@ -32,8 +41,5 @@ jobs:
         uses: ./packages/github-action
         with:
           config-path: .attest-it/config.yaml
-          # Use PR branch for policy since this is the initial dogfooding setup
-          # and policy.yaml doesn't exist on main yet
-          policy-ref: ${{ github.head_ref }}
           fail-on-missing: 'true'
           github-token: ${{ secrets.GITHUB_TOKEN }}
