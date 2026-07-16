@@ -15,11 +15,14 @@ import {
   readSealsSync,
   writeSealsSync,
   KeyProviderRegistry,
+  API_SCHEMA_VERSION,
   type AttestItConfig,
+  type FailureClass,
   type Identity,
+  type Seal,
   type SealsFile,
 } from '@attest-it/core'
-import { log, success, error, warn, verbose } from '../utils/output.js'
+import { log, success, error, warn, verbose, outputJson } from '../utils/output.js'
 import { ExitCode } from '../utils/exit-codes.js'
 
 export const sealCommand = new Command('seal')
@@ -27,6 +30,7 @@ export const sealCommand = new Command('seal')
   .argument('[gates...]', 'Gate IDs to seal (defaults to all gates without valid seals)')
   .option('--force', 'Force seal creation even if gate already has a valid seal')
   .option('--dry-run', 'Show what would be sealed without creating seals')
+  .option('--json', 'Output JSON for machine parsing (non-interactive)')
   .action(async (gates: string[], options: SealOptions) => {
     await runSeal(gates, options)
   })
@@ -34,18 +38,35 @@ export const sealCommand = new Command('seal')
 interface SealOptions {
   force?: boolean
   dryRun?: boolean
+  json?: boolean
 }
 
 interface SealSummary {
-  sealed: string[]
+  sealed: { gate: string; fingerprint: string; sealedBy: string; sealedAt: string }[]
   skipped: {
     gate: string
     reason: string
+    failureClass?: FailureClass
   }[]
   failed: {
     gate: string
     error: string
   }[]
+}
+
+/**
+ * Emit a top-level error, either as a structured JSON object (`--json`) or as a
+ * human-readable line, then exit with the given code. Used for the early-exit
+ * configuration/identity error paths so the `--json` surface never prints
+ * unstructured text.
+ */
+function failFast(message: string, code: number, json: boolean | undefined): never {
+  if (json) {
+    outputJson({ schemaVersion: API_SCHEMA_VERSION, ok: false, error: message })
+  } else {
+    error(message)
+  }
+  process.exit(code)
 }
 
 /**
@@ -56,29 +77,34 @@ interface SealSummary {
  * @public
  */
 async function runSeal(gates: string[], options: SealOptions): Promise<void> {
+  const json = options.json
   try {
     // Load split config (policy + operational, merged)
     const config = await loadSplitConfig()
 
     // Check if gates are defined
     if (!config.gates || Object.keys(config.gates).length === 0) {
-      error('No gates defined in configuration')
-      process.exit(ExitCode.CONFIG_ERROR)
+      failFast('No gates defined in configuration', ExitCode.CONFIG_ERROR, json)
     }
 
     // Load local identity config
     const localConfig = loadLocalConfigSync()
     if (!localConfig) {
-      error('No local identity configuration found')
-      error('Run "attest-it identity create" first to set up your identity')
-      process.exit(ExitCode.CONFIG_ERROR)
+      failFast(
+        'No local identity configuration found. Run "attest-it identity create" first to set up your identity',
+        ExitCode.CONFIG_ERROR,
+        json,
+      )
     }
 
     // Get active identity
     const identity = getActiveIdentity(localConfig)
     if (!identity) {
-      error(`Active identity '${localConfig.activeIdentity}' not found in local config`)
-      process.exit(ExitCode.CONFIG_ERROR)
+      failFast(
+        `Active identity '${localConfig.activeIdentity}' not found in local config`,
+        ExitCode.CONFIG_ERROR,
+        json,
+      )
     }
 
     // Read existing seals
@@ -91,8 +117,7 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
     // Validate that specified gates exist
     for (const gateId of gatesToSeal) {
       if (!config.gates[gateId]) {
-        error(`Gate '${gateId}' not found in configuration`)
-        process.exit(ExitCode.CONFIG_ERROR)
+        failFast(`Gate '${gateId}' not found in configuration`, ExitCode.CONFIG_ERROR, json)
       }
     }
 
@@ -117,10 +142,27 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
           options,
         )
 
-        if (result.sealed) {
-          summary.sealed.push(gateId)
+        if (result.sealed && result.seal) {
+          summary.sealed.push({
+            gate: gateId,
+            fingerprint: result.seal.fingerprint,
+            sealedBy: result.seal.sealedBy,
+            sealedAt: result.seal.timestamp,
+          })
+        } else if (result.sealed) {
+          // Dry-run: report intent without a concrete seal.
+          summary.sealed.push({
+            gate: gateId,
+            fingerprint: '',
+            sealedBy: identitySlug,
+            sealedAt: '',
+          })
         } else if (result.skipped) {
-          summary.skipped.push({ gate: gateId, reason: result.reason ?? 'Unknown' })
+          summary.skipped.push({
+            gate: gateId,
+            reason: result.reason ?? 'Unknown',
+            ...(result.failureClass && { failureClass: result.failureClass }),
+          })
         }
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : 'Unknown error'
@@ -133,8 +175,17 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
       writeSealsSync(projectRoot, sealsFile, config.settings.sealsPath)
     }
 
-    // Display summary
-    displaySummary(summary, options.dryRun)
+    // Output summary
+    if (json) {
+      outputJson({
+        schemaVersion: API_SCHEMA_VERSION,
+        ok: summary.failed.length === 0,
+        dryRun: options.dryRun ?? false,
+        ...summary,
+      })
+    } else {
+      displaySummary(summary, options.dryRun)
+    }
 
     // Exit with appropriate code
     if (summary.failed.length > 0) {
@@ -145,12 +196,8 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
       process.exit(ExitCode.SUCCESS)
     }
   } catch (err) {
-    if (err instanceof Error) {
-      error(err.message)
-    } else {
-      error('Unknown error occurred')
-    }
-    process.exit(ExitCode.CONFIG_ERROR)
+    const message = err instanceof Error ? err.message : 'Unknown error occurred'
+    failFast(message, ExitCode.CONFIG_ERROR, json)
   }
 }
 
@@ -158,6 +205,10 @@ interface ProcessGateResult {
   sealed: boolean
   skipped: boolean
   reason?: string
+  /** Taxonomy class for a skip that maps to a failure taxonomy state. */
+  failureClass?: FailureClass
+  /** The created seal, when one was created (absent for dry-run/skip). */
+  seal?: Seal
 }
 
 /**
@@ -179,7 +230,9 @@ async function processSingleGate(
   sealsFile: SealsFile,
   options: SealOptions,
 ): Promise<ProcessGateResult> {
-  verbose(`Processing gate: ${gateId}`)
+  if (!options.json) {
+    verbose(`Processing gate: ${gateId}`)
+  }
 
   // Get gate config
   const gate = getGate(config, gateId)
@@ -203,7 +256,9 @@ async function processSingleGate(
     packages: gate.fingerprint.paths,
     ...(gate.fingerprint.exclude && { ignore: gate.fingerprint.exclude }),
   })
-  verbose(`  Fingerprint: ${fingerprintResult.fingerprint}`)
+  if (!options.json) {
+    verbose(`  Fingerprint: ${fingerprintResult.fingerprint}`)
+  }
 
   // Check if user is authorized to seal this gate
   const authorized = isAuthorizedSigner(config, gateId, identity.publicKey)
@@ -212,12 +267,15 @@ async function processSingleGate(
       sealed: false,
       skipped: true,
       reason: `Not authorized to seal this gate (authorized signers: ${gate.authorizedSigners.join(', ')})`,
+      failureClass: 'unauthorized-signer',
     }
   }
 
   // If dry-run, stop here
   if (options.dryRun) {
-    log(`  Would seal gate: ${gateId}`)
+    if (!options.json) {
+      log(`  Would seal gate: ${gateId}`)
+    }
     return { sealed: true, skipped: false }
   }
 
@@ -247,11 +305,13 @@ async function processSingleGate(
   // eslint-disable-next-line security/detect-object-injection
   sealsFile.seals[gateId] = seal
 
-  log(`  Sealed gate: ${gateId}`)
-  verbose(`    Sealed by: ${identitySlug} (${identity.name})`)
-  verbose(`    Timestamp: ${seal.timestamp}`)
+  if (!options.json) {
+    log(`  Sealed gate: ${gateId}`)
+    verbose(`    Sealed by: ${identitySlug} (${identity.name})`)
+    verbose(`    Timestamp: ${seal.timestamp}`)
+  }
 
-  return { sealed: true, skipped: false }
+  return { sealed: true, skipped: false, seal }
 }
 
 /**
@@ -276,7 +336,8 @@ function displaySummary(summary: SealSummary, dryRun?: boolean): void {
   const prefix = dryRun ? 'Would seal' : 'Sealed'
 
   if (summary.sealed.length > 0) {
-    success(`${prefix} ${String(summary.sealed.length)} gate(s): ${summary.sealed.join(', ')}`)
+    const gateNames = summary.sealed.map((s) => s.gate).join(', ')
+    success(`${prefix} ${String(summary.sealed.length)} gate(s): ${gateNames}`)
   }
 
   if (summary.skipped.length > 0) {
@@ -367,3 +428,5 @@ function getKeyRefFromIdentity(identity: Identity): string {
     }
   }
 }
+
+export { runSeal }

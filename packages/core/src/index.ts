@@ -175,6 +175,33 @@ export {
   parseDuration,
 } from './authorization.js'
 
+// Embeddable API — the stable, versioned, path-keyed surface for embedders.
+// This is the coherent facade over the lower-level, gate-keyed primitives above.
+export {
+  listGates,
+  status,
+  fingerprint,
+  seal,
+  verifyOne,
+  verifyAll,
+  API_SCHEMA_VERSION,
+  type ApiSchemaVersion,
+  type FailureClass,
+  type ApiResultBase,
+  type ApiFailure,
+  type ApiOptions,
+  type GateDescriptor,
+  type ListGatesResult,
+  type FingerprintResultOk,
+  type VerificationSuccess,
+  type ArtifactVerification,
+  type StatusResult,
+  type VerifyAllResult,
+  type SealResult,
+  type SealParams,
+  type VerifyAllParams,
+} from './api/index.js'
+
 // Seal System
 export {
   createSeal,

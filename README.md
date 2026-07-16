@@ -155,6 +155,7 @@ See [GitHub Integration Guide](docs/github-integration.md) for more details.
 
 - [Getting Started](docs/getting-started.md) - Complete setup guide
 - [Configuration](docs/configuration.md) - All configuration options
+- [Embedding attest-it](docs/embedding.md) - The stable, versioned embeddable API
 - [GitHub Integration](docs/github-integration.md) - CI setup and workflows
 - [Writing Desktop Tests](docs/writing-desktop-tests.md) - Test patterns and examples
 
