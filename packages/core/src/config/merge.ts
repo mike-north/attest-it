@@ -23,10 +23,13 @@ import type { PolicyConfig } from './policy-schema.js'
  * Converts a Zod-inferred suite config to the AttestItConfig suite type.
  * Filters out undefined values to match exactOptionalPropertyTypes requirements.
  */
-function toSuiteConfig(suiteName: string, suite: OperationalConfig['suites'][string]): SuiteConfig {
-  // Gate is required. If suite uses legacy packages definition, use suite name as gate reference
+function toSuiteConfig(
+  _suiteName: string,
+  suite: OperationalConfig['suites'][string],
+): SuiteConfig {
+  // Gate is required on every suite (enforced by the operational schema).
   const result: SuiteConfig = {
-    gate: suite.gate ?? suiteName,
+    gate: suite.gate,
   }
 
   if (suite.description !== undefined) result.description = suite.description

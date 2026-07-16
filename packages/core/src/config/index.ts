@@ -46,6 +46,15 @@ export {
   findOperationalPath,
   SplitConfigNotFoundError,
   CrossConfigValidationError,
+  UnifiedConfigError,
   type PolicySource,
   type LoadSplitConfigOptions,
 } from './load-split.js'
+
+// Unified -> split migration (retired format conversion)
+export {
+  migrateUnifiedConfig,
+  migrateUnifiedContent,
+  UnifiedMigrationError,
+  type SplitConfigResult,
+} from './migrations/index.js'

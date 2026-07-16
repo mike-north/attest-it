@@ -398,6 +398,40 @@ suites:
         )
       })
 
+      // Regression: the retired legacy `packages`-only suite format (a suite
+      // shaped `{ packages: [...] }` with no `gate`) must be rejected at parse
+      // time. It previously bypassed cross-config gate validation entirely
+      // (issue #68). `gate` is now required and `.strict()` rejects `packages`.
+      it('should reject legacy packages-only suite (no gate)', () => {
+        const yaml = `
+version: 1
+suites:
+  unit:
+    packages:
+      - packages/core
+    files:
+      - src/index.ts
+`
+        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(OperationalValidationError)
+        // Fails both on the missing required gate and on the unknown `packages`
+        // key under the strict schema.
+        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow('gate')
+      })
+
+      it('should reject a suite that supplies both packages and a gate', () => {
+        // Even with a valid gate, the retired `packages` field is not a known
+        // key and is rejected by the strict schema.
+        const yaml = `
+version: 1
+suites:
+  unit:
+    gate: unit-gate
+    packages:
+      - packages/core
+`
+        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(OperationalValidationError)
+      })
+
       it('should reject suite with empty string in invalidates', () => {
         const yaml = `
 version: 1

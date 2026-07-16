@@ -14,6 +14,7 @@
 import { readFileSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
+import { parse as parseYaml } from 'yaml'
 import type { AttestItConfig } from '../types.js'
 import { mergeConfigs } from './merge.js'
 import { parsePolicyContent, PolicyValidationError, type PolicyConfig } from './policy-schema.js'
@@ -23,13 +24,6 @@ import {
   type OperationalConfig,
 } from './operational-schema.js'
 import { validateSuiteGateReferences } from './validation.js'
-// Import unified config loading for backward compatibility
-import {
-  loadConfig as loadUnifiedConfig,
-  loadConfigSync as loadUnifiedConfigSync,
-  toAttestItConfig,
-  findConfigPath,
-} from '../config.js'
 
 /**
  * Source for loading policy configuration.
@@ -85,6 +79,69 @@ export class CrossConfigValidationError extends Error {
     super(message)
     this.name = 'CrossConfigValidationError'
   }
+}
+
+/**
+ * Migration guidance surfaced when a repository still uses the retired unified
+ * configuration format instead of split policy + operational config.
+ */
+const UNIFIED_MIGRATION_HINT =
+  'attest-it now requires split configuration: a trust-critical .attest-it/policy.yaml ' +
+  '(team, gates) plus an operational .attest-it/config.yaml (suites, command settings). ' +
+  'The legacy unified config.yaml format is no longer loaded. ' +
+  'Run "attest-it init --migrate" to convert your existing config into policy.yaml + config.yaml, ' +
+  'then commit the generated policy.yaml.'
+
+/**
+ * Error thrown when a repository has no policy.yaml but does have a legacy
+ * unified config.yaml. Points the user at the migration path rather than
+ * silently loading the retired format.
+ * @public
+ */
+export class UnifiedConfigError extends Error {
+  constructor(
+    /** Path to the detected legacy unified config file. */
+    public readonly unifiedPath: string,
+  ) {
+    super(`${UNIFIED_MIGRATION_HINT} (found legacy unified config at ${unifiedPath})`)
+    this.name = 'UnifiedConfigError'
+  }
+}
+
+/**
+ * Determine whether a parsed config object is a legacy unified config.
+ *
+ * The operational config.yaml legitimately lives at `.attest-it/config.yaml`,
+ * so the file name alone is not enough. A unified config is distinguished by
+ * carrying trust-critical `team`/`gates` at the top level — data that only ever
+ * belongs in policy.yaml under the split model.
+ */
+function isUnifiedShape(parsed: unknown): boolean {
+  return typeof parsed === 'object' && parsed !== null && ('team' in parsed || 'gates' in parsed)
+}
+
+/**
+ * Find a legacy unified config file (one carrying top-level team/gates) in the
+ * standard `.attest-it/config.*` locations, if one exists.
+ */
+function findUnifiedConfigPath(baseDir: string): string | null {
+  const configDir = join(baseDir, '.attest-it')
+  const candidates = ['config.yaml', 'config.yml', 'config.json']
+
+  for (const candidate of candidates) {
+    const configPath = join(configDir, candidate)
+    try {
+      const content = readFileSync(configPath, 'utf8')
+      const parsed: unknown = candidate.endsWith('.json') ? JSON.parse(content) : parseYaml(content)
+      if (isUnifiedShape(parsed)) {
+        return configPath
+      }
+    } catch {
+      // File missing or unparseable — not a migratable unified config.
+    }
+  }
+
+  return null
 }
 
 /**
@@ -324,13 +381,14 @@ function validateAndMerge(policy: PolicyConfig, operational: OperationalConfig):
  * This is the primary config loading function for both CLI and GitHub Action.
  * It loads policy and operational configs, validates cross-references, and merges them.
  *
- * For backward compatibility, if no policy.yaml is found and no explicit policy source
- * is provided, it falls back to loading a unified config.yaml that contains both
- * policy (gates, team) and operational (suites) sections.
+ * The retired unified config.yaml format is not loaded. If policy.yaml is absent
+ * but a legacy unified config.yaml is present, this throws {@link UnifiedConfigError}
+ * pointing at the `attest-it init --migrate` migration path.
  *
  * @param options - Loading options
  * @returns Merged configuration
  * @throws {@link SplitConfigNotFoundError} If config files cannot be found
+ * @throws {@link UnifiedConfigError} If only a legacy unified config.yaml is present
  * @throws {@link PolicyValidationError} If policy validation fails
  * @throws {@link OperationalValidationError} If operational config validation fails
  * @throws {@link CrossConfigValidationError} If cross-config validation fails
@@ -349,20 +407,17 @@ export async function loadSplitConfig(
     return validateAndMerge(policy, operational)
   }
 
-  // Try split config loading first
+  // Load split config. If policy.yaml is missing but a legacy unified config.yaml
+  // is present, surface the migration path instead of silently loading it.
   try {
     const policy = await loadPolicyAsync(policySource, baseDir)
     const operational = await loadOperationalAsync(options.operationalPath, baseDir)
     return validateAndMerge(policy, operational)
   } catch (error) {
-    // If policy not found, try unified config as fallback
     if (error instanceof SplitConfigNotFoundError && error.configType === 'policy') {
-      // Check if unified config exists
-      const unifiedPath = findConfigPath(baseDir)
+      const unifiedPath = findUnifiedConfigPath(baseDir)
       if (unifiedPath) {
-        // Load unified config (backward compatibility)
-        const config = await loadUnifiedConfig(unifiedPath)
-        return toAttestItConfig(config)
+        throw new UnifiedConfigError(unifiedPath)
       }
     }
     throw error
@@ -374,13 +429,14 @@ export async function loadSplitConfig(
  *
  * Sync version for CLI commands that need sync loading.
  *
- * For backward compatibility, if no policy.yaml is found and no explicit policy source
- * is provided, it falls back to loading a unified config.yaml that contains both
- * policy (gates, team) and operational (suites) sections.
+ * The retired unified config.yaml format is not loaded. If policy.yaml is absent
+ * but a legacy unified config.yaml is present, this throws {@link UnifiedConfigError}
+ * pointing at the `attest-it init --migrate` migration path.
  *
  * @param options - Loading options
  * @returns Merged configuration
  * @throws {@link SplitConfigNotFoundError} If config files cannot be found
+ * @throws {@link UnifiedConfigError} If only a legacy unified config.yaml is present
  * @throws {@link PolicyValidationError} If policy validation fails
  * @throws {@link OperationalValidationError} If operational config validation fails
  * @throws {@link CrossConfigValidationError} If cross-config validation fails
@@ -397,20 +453,17 @@ export function loadSplitConfigSync(options: LoadSplitConfigOptions = {}): Attes
     return validateAndMerge(policy, operational)
   }
 
-  // Try split config loading first
+  // Load split config. If policy.yaml is missing but a legacy unified config.yaml
+  // is present, surface the migration path instead of silently loading it.
   try {
     const policy = loadPolicySync(policySource, baseDir)
     const operational = loadOperationalSync(options.operationalPath, baseDir)
     return validateAndMerge(policy, operational)
   } catch (error) {
-    // If policy not found, try unified config as fallback
     if (error instanceof SplitConfigNotFoundError && error.configType === 'policy') {
-      // Check if unified config exists
-      const unifiedPath = findConfigPath(baseDir)
+      const unifiedPath = findUnifiedConfigPath(baseDir)
       if (unifiedPath) {
-        // Load unified config (backward compatibility)
-        const config = loadUnifiedConfigSync(unifiedPath)
-        return toAttestItConfig(config)
+        throw new UnifiedConfigError(unifiedPath)
       }
     }
     throw error
