@@ -33,11 +33,12 @@ identities:
       account: alice
 ```
 
-### 2. Project Configuration (`.attest-it/config.yaml`)
+### 2. Project Configuration (split across two files)
 
-Defines team members, gates, and suites:
+Trust-critical data (team, gates) lives in `.attest-it/policy.yaml`, loaded from the repo's default branch so PRs can't tamper with it. Operational data (suites) lives in `.attest-it/config.yaml`; every suite must reference a gate.
 
 ```yaml
+# .attest-it/policy.yaml
 version: 1
 team:
   alice:
@@ -47,6 +48,14 @@ gates:
     authorizedSigners: [alice]
     fingerprint:
       paths: ['src/**/*.ts']
+```
+
+```yaml
+# .attest-it/config.yaml
+version: 1
+suites:
+  desktop-tests:
+    gate: desktop-tests
 ```
 
 ### 3. Seals File (`.attest-it/seals.json`)
@@ -108,8 +117,8 @@ This will add them to the project config and prompt to authorize them for gates.
 Alternatively, the manual process:
 
 1. User exports their public key: `npx attest-it identity export`
-2. Team lead adds them to project config under `team` section
-3. Team lead adds their slug to the gate's `authorizedSigners`
+2. Team lead adds them to `policy.yaml` under the `team` section
+3. Team lead adds their slug to the gate's `authorizedSigners` (also in `policy.yaml`)
 
 ### Error Type 3: Fingerprint Mismatch
 
@@ -255,11 +264,12 @@ npx attest-it status
 
 ## Key Files Reference
 
-| File           | Location                          | Purpose                      |
-| -------------- | --------------------------------- | ---------------------------- |
-| Local identity | `~/.config/attest-it/config.yaml` | User's keypairs and settings |
-| Project config | `.attest-it/config.yaml`          | Team, gates, suites          |
-| Seals          | `.attest-it/seals.json`           | Cryptographic seals          |
+| File               | Location                          | Purpose                      |
+| ------------------ | --------------------------------- | ---------------------------- |
+| Local identity     | `~/.config/attest-it/config.yaml` | User's keypairs and settings |
+| Policy config      | `.attest-it/policy.yaml`          | Team, gates (trust-critical) |
+| Operational config | `.attest-it/config.yaml`          | Suites (reference gates)     |
+| Seals              | `.attest-it/seals.json`           | Cryptographic seals          |
 
 ## Verification States
 

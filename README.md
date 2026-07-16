@@ -42,11 +42,18 @@ The primary threat is an AI assistant creating a fake attestation. attest-it pre
 
 ## Configuration
 
-Create `.attest-it/config.yaml` in your repository. Here's a minimal example:
+`attest-it init` scaffolds a **split configuration** across two files in `.attest-it/`:
+
+- **`policy.yaml`** - trust-critical: team members and gates. Loaded from your repository's default branch so pull requests can't tamper with trust data.
+- **`config.yaml`** - operational: suites (test commands) that each reference a gate defined in `policy.yaml`. Safe to load from PR branches.
 
 ```yaml
+# .attest-it/policy.yaml
 version: 1
 minVersion: '0.9.0' # Optional: minimum attest-it version required
+
+settings:
+  maxAgeDays: 30
 
 # Team members authorized to create seals
 team:
@@ -66,8 +73,15 @@ gates:
       exclude:
         - '**/*.test.ts'
     maxAge: 30d
+```
 
-# Suites add test commands to gates (optional)
+```yaml
+# .attest-it/config.yaml
+version: 1
+
+settings: {}
+
+# Suites bind a runnable command to a gate defined in policy.yaml
 suites:
   desktop-tests:
     gate: desktop-tests
@@ -76,11 +90,13 @@ suites:
 
 **Key concepts:**
 
-- **Team** - People authorized to create seals, identified by their public key
-- **Gates** - Define which files require attestation and who can sign
-- **Fingerprint** - Files to hash; any change invalidates the seal
-- **Suites** - Optional; add `command` to run tests before sealing
+- **Team** - People authorized to create seals, identified by their public key (in `policy.yaml`)
+- **Gates** - Define which files require attestation and who can sign, including the fingerprint config (in `policy.yaml`)
+- **Fingerprint** - Files to hash; any change invalidates the seal (lives on the gate)
+- **Suites** - Test commands that reference a gate; every suite must specify `gate` (in `config.yaml`)
 - **minVersion** - Optional; minimum attest-it version required for this configuration
+
+Already have a legacy unified `config.yaml`? Run `attest-it init --migrate` to split it into `policy.yaml` and `config.yaml` automatically.
 
 See [Configuration Reference](docs/configuration.md) for all options.
 
