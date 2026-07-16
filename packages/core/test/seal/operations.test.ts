@@ -838,3 +838,45 @@ describe('seal operations edge cases', () => {
     }
   })
 })
+
+describe('empty seals aliasing (regression)', () => {
+  // Regression: readSeals(Sync) once returned a shared module-level empty
+  // constant. Callers mutate the result (`seals.seals[gate] = ...`), so the
+  // constant became polluted across independent reads within one process.
+  // Each read must return a fresh, independent object.
+  it('readSealsSync returns an independent object for a missing file', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'attest-empty-sync-'))
+    try {
+      const first = readSealsSync(tmpDir)
+      first.seals.injected = {
+        gateId: 'injected',
+        fingerprint: 'sha256:deadbeef',
+        timestamp: '2024-01-01T00:00:00.000Z',
+        sealedBy: 'nobody',
+        signature: 'x',
+      }
+      const second = readSealsSync(tmpDir)
+      expect(Object.keys(second.seals)).toHaveLength(0)
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true })
+    }
+  })
+
+  it('readSeals returns an independent object for a missing file', async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'attest-empty-async-'))
+    try {
+      const first = await readSeals(tmpDir)
+      first.seals.injected = {
+        gateId: 'injected',
+        fingerprint: 'sha256:deadbeef',
+        timestamp: '2024-01-01T00:00:00.000Z',
+        sealedBy: 'nobody',
+        signature: 'x',
+      }
+      const second = await readSeals(tmpDir)
+      expect(Object.keys(second.seals)).toHaveLength(0)
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true })
+    }
+  })
+})

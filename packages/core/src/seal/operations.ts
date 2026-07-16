@@ -145,12 +145,18 @@ export function verifySeal(seal: Seal, config: AttestItConfig): SignatureVerific
 }
 
 /**
- * Default empty seals file for when no seals file exists.
+ * Build a fresh, empty seals file for when no seals file exists.
+ *
+ * Returns a new object on every call: callers routinely mutate the result
+ * (e.g. `seals.seals[gateId] = ...`), so a shared constant would alias mutable
+ * state across otherwise-independent reads.
  * @internal
  */
-const EMPTY_SEALS_FILE: SealsFile = {
-  version: 1,
-  seals: {},
+function createEmptySealsFile(): SealsFile {
+  return {
+    version: 1,
+    seals: {},
+  }
 }
 
 /**
@@ -225,7 +231,7 @@ export async function readSeals(dir: string, sealsPathOverride?: string): Promis
       content = await fs.promises.readFile(sealsPath, 'utf8')
     } catch (error) {
       if (isFileNotFoundError(error)) {
-        return EMPTY_SEALS_FILE
+        return createEmptySealsFile()
       }
       throw new Error(
         `Failed to read seals file: ${error instanceof Error ? error.message : String(error)}`,
@@ -256,7 +262,7 @@ export async function readSeals(dir: string, sealsPathOverride?: string): Promis
     return parseSealsContent(content, 'json')
   } catch (error) {
     if (isFileNotFoundError(error)) {
-      return EMPTY_SEALS_FILE
+      return createEmptySealsFile()
     }
     throw new Error(
       `Failed to read seals file: ${error instanceof Error ? error.message : String(error)}`,
@@ -287,7 +293,7 @@ export function readSealsSync(dir: string, sealsPathOverride?: string): SealsFil
       content = fs.readFileSync(sealsPath, 'utf8')
     } catch (error) {
       if (isFileNotFoundError(error)) {
-        return EMPTY_SEALS_FILE
+        return createEmptySealsFile()
       }
       throw new Error(
         `Failed to read seals file: ${error instanceof Error ? error.message : String(error)}`,
@@ -318,7 +324,7 @@ export function readSealsSync(dir: string, sealsPathOverride?: string): SealsFil
     return parseSealsContent(content, 'json')
   } catch (error) {
     if (isFileNotFoundError(error)) {
-      return EMPTY_SEALS_FILE
+      return createEmptySealsFile()
     }
     throw new Error(
       `Failed to read seals file: ${error instanceof Error ? error.message : String(error)}`,
