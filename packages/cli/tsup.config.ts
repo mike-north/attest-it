@@ -14,6 +14,7 @@ export default defineConfig([
       // Copy templates directory to dist
       mkdirSync('dist/templates', { recursive: true })
       copyFileSync('templates/config.yaml', 'dist/templates/config.yaml')
+      copyFileSync('templates/policy.yaml', 'dist/templates/policy.yaml')
     },
   },
   // CLI bin (ESM only, executable)

@@ -1,9 +1,6 @@
 version: 1
 
 settings:
-  maxAgeDays: 30
-  publicKeyPath: .attest-it/pubkey.pem
-  attestationsPath: .attest-it/attestations.json
   defaultCommand: echo "tests passed"
   # Optional: Configure key storage provider
   # keyProvider:
@@ -18,35 +15,7 @@ settings:
   #     vault: Development
   #     itemName: attest-it-private-key
 
-# Team members who can create seals
-team:
-  test-user:
-    name: Test User
-    publicKey: placeholder-will-be-set-by-keygen
-
-# Gates for seal-based verification
-gates:
-  example-gate:
-    name: Example Gate
-    description: Example test gate
-    authorizedSigners:
-      - test-user
-    fingerprint:
-      paths:
-        - packages/example
-    maxAge: 30d
-
-  failing-gate:
-    name: Failing Gate
-    description: Gate with failing tests
-    authorizedSigners:
-      - test-user
-    fingerprint:
-      paths:
-        - packages/example
-    maxAge: 30d
-
-# Suites for CLI run command (extends gates with commands)
+# Suites for CLI run command (reference gates defined in policy.yaml)
 suites:
   example:
     description: Example test suite

@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { spawn } from 'node:child_process'
 import type { EventEmitter } from 'node:events'
-import { loadConfig, readAttestations, type Config, type Attestation } from '@attest-it/core'
+import { loadSplitConfig, readSealsSync, type AttestItConfig, type Seal } from '@attest-it/core'
 
 // Mock dependencies
 vi.mock('node:child_process')
@@ -32,24 +32,44 @@ import { loadSession } from '../src/session/session.js'
 import { log, error } from '../src/utils/output.js'
 import { ExitCode } from '../src/utils/exit-codes.js'
 
+// Fixed timestamp for deterministic seal/session fixtures.
+const FIXED_TIMESTAMP = '2024-01-15T10:30:00.000Z'
+
 // Test helpers
-function createMockConfig(): Config {
+function createMockConfig(): AttestItConfig {
   return {
     version: 1,
     settings: {
-      attestationsPath: '.attest-it/attestations.json',
       maxAgeDays: 30,
+      publicKeyPath: '.attest-it/pubkey.pem',
+      attestationsPath: '.attest-it/attestations.json',
+      sealsPath: '.attest-it/seals.json',
       defaultCommand: 'npm test',
-      publicKeyPath: '.attest-it/public.pem',
     },
     suites: {
       unit: {
-        packages: ['src/**/*.ts'],
+        gate: 'unit-gate',
         command: 'npm run test:unit',
       },
       integration: {
-        packages: ['src/**/*.ts'],
+        gate: 'integration-gate',
         command: 'npm run test:integration',
+      },
+    },
+    gates: {
+      'unit-gate': {
+        name: 'Unit Gate',
+        description: 'Gate for unit tests',
+        authorizedSigners: ['testuser'],
+        fingerprint: { paths: ['src/**/*.ts'] },
+        maxAge: '30d',
+      },
+      'integration-gate': {
+        name: 'Integration Gate',
+        description: 'Gate for integration tests',
+        authorizedSigners: ['testuser'],
+        fingerprint: { paths: ['src/**/*.ts'] },
+        maxAge: '30d',
       },
     },
   }
@@ -65,13 +85,13 @@ function createMockSuiteStatus(overrides: Record<string, unknown> = {}) {
   }
 }
 
-function createMockAttestation(overrides: Partial<Attestation> = {}): Attestation {
+function createMockSeal(overrides: Partial<Seal> = {}): Seal {
   return {
-    suite: 'unit',
+    gateId: 'unit-gate',
     fingerprint: 'abc123',
-    command: 'npm run test:unit',
-    attestedAt: new Date().toISOString(),
-    attestedBy: 'testuser',
+    timestamp: FIXED_TIMESTAMP,
+    sealedBy: 'testuser',
+    signature: 'deadbeef',
     ...overrides,
   }
 }
@@ -105,7 +125,7 @@ describe('runInteractive', () => {
     vi.clearAllMocks()
 
     // Setup default mocks
-    vi.mocked(loadConfig).mockResolvedValue(createMockConfig())
+    vi.mocked(loadSplitConfig).mockResolvedValue(createMockConfig())
     vi.mocked(getAllSuiteStatuses).mockResolvedValue([
       createMockSuiteStatus(),
       createMockSuiteStatus({ name: 'integration' }),
@@ -178,7 +198,7 @@ describe('runInteractive', () => {
   describe('session resumption', () => {
     it('should resume from saved session', async () => {
       const mockSession = {
-        started: new Date().toISOString(),
+        started: FIXED_TIMESTAMP,
         selected: ['unit', 'integration'],
         completed: ['unit'],
         failed: [],
@@ -291,17 +311,19 @@ describe('runInteractive', () => {
       // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
       delete config.suites.unit
 
-      vi.mocked(loadConfig).mockResolvedValue(config)
+      vi.mocked(loadSplitConfig).mockResolvedValue(config)
 
       // This would be tested through integration when executor is called
       expect(config.suites.unit).toBeUndefined()
     })
 
-    it('should handle attestation file not existing', async () => {
-      vi.mocked(readAttestations).mockRejectedValue(new Error('ENOENT: file not found'))
+    it('should handle seals file not existing', async () => {
+      vi.mocked(readSealsSync).mockImplementation(() => {
+        throw new Error('ENOENT: file not found')
+      })
 
-      // Should create new attestations file
-      // This is tested through createAttestationCreator
+      // Should fall back to an empty seals file
+      // This is tested through getAllSuiteStatuses (mocked here)
       expect(true).toBe(true)
     })
   })
@@ -332,22 +354,21 @@ describe('test helpers', () => {
     expect(status.status).toBe('VALID')
   })
 
-  it('should create valid mock attestation', () => {
-    const attestation = createMockAttestation()
+  it('should create valid mock seal', () => {
+    const seal = createMockSeal()
 
-    expect(attestation.suite).toBe('unit')
-    expect(attestation.fingerprint).toBe('abc123')
-    expect(attestation.command).toBe('npm run test:unit')
-    expect(attestation.attestedBy).toBe('testuser')
+    expect(seal.gateId).toBe('unit-gate')
+    expect(seal.fingerprint).toBe('abc123')
+    expect(seal.sealedBy).toBe('testuser')
   })
 
-  it('should apply overrides to mock attestation', () => {
-    const attestation = createMockAttestation({
-      suite: 'custom',
+  it('should apply overrides to mock seal', () => {
+    const seal = createMockSeal({
+      gateId: 'custom-gate',
       fingerprint: 'xyz789',
     })
 
-    expect(attestation.suite).toBe('custom')
-    expect(attestation.fingerprint).toBe('xyz789')
+    expect(seal.gateId).toBe('custom-gate')
+    expect(seal.fingerprint).toBe('xyz789')
   })
 })

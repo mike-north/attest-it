@@ -6,7 +6,7 @@
  * they must run in the correct order to ensure dependencies are satisfied.
  */
 
-import type { Config } from '@attest-it/core'
+import type { AttestItConfig } from '@attest-it/core'
 
 /**
  * Error thrown when circular dependencies are detected.
@@ -29,7 +29,7 @@ export class CircularDependencyError extends Error {
  *
  * @public
  */
-export function validateDependencies(config: Config): void {
+export function validateDependencies(config: AttestItConfig): void {
   const suiteNames = new Set(Object.keys(config.suites))
 
   for (const [suiteName, suiteConfig] of Object.entries(config.suites)) {
@@ -59,7 +59,7 @@ export function validateDependencies(config: Config): void {
  *
  * @public
  */
-export function getDependencies(suite: string, config: Config): string[] {
+export function getDependencies(suite: string, config: AttestItConfig): string[] {
   const visited = new Set<string>()
   const visiting = new Set<string>() // For cycle detection
   const result: string[] = []
@@ -131,7 +131,7 @@ export function getDependencies(suite: string, config: Config): string[] {
  *
  * @public
  */
-export function resolveDependencyOrder(suites: string[], config: Config): string[] {
+export function resolveDependencyOrder(suites: string[], config: AttestItConfig): string[] {
   // Validate all suite names exist
   for (const suite of suites) {
     // eslint-disable-next-line security/detect-object-injection -- Safe access with validated suite name from config
@@ -235,7 +235,7 @@ export function resolveDependencyOrder(suites: string[], config: Config): string
  *
  * @public
  */
-export function expandWithDependencies(suites: string[], config: Config): string[] {
+export function expandWithDependencies(suites: string[], config: AttestItConfig): string[] {
   const expanded = new Set<string>()
 
   for (const suite of suites) {

@@ -1,12 +1,11 @@
 import { Command } from 'commander'
 import { input } from '@inquirer/prompts'
-import { loadConfig, toAttestItConfig, findConfigPath } from '@attest-it/core'
 import { log, success, error } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
 import { getTheme } from '../../components/theme.js'
 import { writeFile } from 'node:fs/promises'
 import { stringify as stringifyYaml } from 'yaml'
-import { promptForGateAuthorization, addTeamMemberToConfig } from './utils.js'
+import { promptForGateAuthorization, addTeamMemberToPolicy, loadPolicyForEdit } from './utils.js'
 
 export const addCommand = new Command('add')
   .description('Add a new team member')
@@ -58,10 +57,9 @@ async function runAdd(): Promise<void> {
     log(theme.blue.bold()('Add Team Member'))
     log('')
 
-    // Load existing config
-    const config = await loadConfig()
-    const attestItConfig = toAttestItConfig(config)
-    const existingTeam = attestItConfig.team ?? {}
+    // Load existing policy (team + gates live in policy.yaml)
+    const { policy, path: policyPath } = loadPolicyForEdit()
+    const existingTeam = policy.team ?? {}
 
     // Prompt for member details
     const slug = await input({
@@ -110,10 +108,10 @@ async function runAdd(): Promise<void> {
 
     // Prompt for gate authorizations
     log('')
-    const authorizedGates = await promptForGateAuthorization(attestItConfig.gates)
+    const authorizedGates = await promptForGateAuthorization(policy.gates)
 
     // Update config with new team member
-    const memberData: Parameters<typeof addTeamMemberToConfig>[2] = {
+    const memberData: Parameters<typeof addTeamMemberToPolicy>[2] = {
       name,
       publicKey: publicKey.trim(),
       publicKeyAlgorithm: 'ed25519',
@@ -126,17 +124,11 @@ async function runAdd(): Promise<void> {
     if (trimmedGithub && trimmedGithub.length > 0) {
       memberData.github = trimmedGithub
     }
-    const updatedConfig = addTeamMemberToConfig(config, slug, memberData, authorizedGates)
+    const updatedPolicy = addTeamMemberToPolicy(policy, slug, memberData, authorizedGates)
 
-    // Write config back to file
-    const configPath = findConfigPath()
-    if (!configPath) {
-      error('Configuration file not found')
-      process.exit(ExitCode.CONFIG_ERROR)
-    }
-
-    const yamlContent = stringifyYaml(updatedConfig)
-    await writeFile(configPath, yamlContent, 'utf8')
+    // Write policy back to file
+    const yamlContent = stringifyYaml(updatedPolicy)
+    await writeFile(policyPath, yamlContent, 'utf8')
 
     log('')
     success(`Team member "${slug}" added successfully`)

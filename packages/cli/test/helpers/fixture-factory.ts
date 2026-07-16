@@ -104,70 +104,71 @@ export async function createProjectFixture(options: ProjectFixtureOptions = {}):
     2,
   )
 
-  // Generate YAML content with new config format (team, gates, suites)
-  const yamlLines = ['version: 1', '']
-
-  // Add settings section
+  // Generate split configuration: trust-critical policy.yaml (team, gates,
+  // security settings) plus operational config.yaml (suites, command settings).
   const privateKeyPath = '.attest-it/private.pem'
   const publicKeyPath = '.attest-it/pubkey.pem'
-  const sealsPath = '.attest-it/seals.json'
 
-  yamlLines.push('settings:')
-  yamlLines.push(`  publicKeyPath: ${publicKeyPath}`)
-  yamlLines.push(`  attestationsPath: ${sealsPath}`)
-  yamlLines.push('  keyProvider:')
-  yamlLines.push('    type: filesystem')
-  yamlLines.push('    options:')
-  yamlLines.push(`      privateKeyPath: ${privateKeyPath}`)
+  // --- policy.yaml (trust-critical) ---
+  const policyLines = ['version: 1', '']
+  policyLines.push('settings:')
+  policyLines.push(`  publicKeyPath: ${publicKeyPath}`)
 
   // Add default max age if any suite has one
   const maxAges = suites.map((s) => s.maxAge).filter((age): age is string => age !== undefined)
   if (maxAges.length > 0) {
     const firstMaxAge = maxAges[0]
     const days = parseInt(firstMaxAge.replace(/\D/g, ''), 10)
-    yamlLines.push(`  maxAgeDays: ${String(days)}`)
+    policyLines.push(`  maxAgeDays: ${String(days)}`)
   }
-  yamlLines.push('')
+  policyLines.push('')
 
   // Add team section with test user
-  yamlLines.push('team:')
-  yamlLines.push('  test-user:')
-  yamlLines.push('    name: Test User')
-  yamlLines.push(`    publicKey: ${keyPair.publicKey}`)
-  yamlLines.push('')
+  policyLines.push('team:')
+  policyLines.push('  test-user:')
+  policyLines.push('    name: Test User')
+  policyLines.push(`    publicKey: ${keyPair.publicKey}`)
+  policyLines.push('')
 
   // Add gates section - one gate per suite
-  yamlLines.push('gates:')
+  policyLines.push('gates:')
   suites.forEach((suite) => {
     const gateId = `${suite.name}-gate`
-    yamlLines.push(`  ${gateId}:`)
-    yamlLines.push(`    name: "${suite.name} Gate"`)
-    yamlLines.push(`    description: "Gate for ${suite.name}"`)
-    yamlLines.push('    authorizedSigners:')
-    yamlLines.push('      - test-user')
-    yamlLines.push('    fingerprint:')
-    yamlLines.push('      paths:')
-    yamlLines.push('        - .')
-    yamlLines.push('      exclude:')
-    yamlLines.push('        - .attest-it/**')
-    yamlLines.push(`    maxAge: ${suite.maxAge ?? '30d'}`)
+    policyLines.push(`  ${gateId}:`)
+    policyLines.push(`    name: "${suite.name} Gate"`)
+    policyLines.push(`    description: "Gate for ${suite.name}"`)
+    policyLines.push('    authorizedSigners:')
+    policyLines.push('      - test-user')
+    policyLines.push('    fingerprint:')
+    policyLines.push('      paths:')
+    policyLines.push('        - .')
+    policyLines.push('      exclude:')
+    policyLines.push('        - .attest-it/**')
+    policyLines.push(`    maxAge: ${suite.maxAge ?? '30d'}`)
   })
-  yamlLines.push('')
+  policyLines.push('')
 
-  // Add suites section referencing gates
-  yamlLines.push('suites:')
+  // --- config.yaml (operational) ---
+  const operationalLines = ['version: 1', '']
+  operationalLines.push('settings:')
+  operationalLines.push('  keyProvider:')
+  operationalLines.push('    type: filesystem')
+  operationalLines.push('    options:')
+  operationalLines.push(`      privateKeyPath: ${privateKeyPath}`)
+  operationalLines.push('')
+
+  operationalLines.push('suites:')
   suites.forEach((suite) => {
     const gateId = `${suite.name}-gate`
-    yamlLines.push(`  ${suite.name}:`)
-    yamlLines.push(`    description: "Test suite: ${suite.name}"`)
-    yamlLines.push(`    gate: ${gateId}`)
-    yamlLines.push(`    command: ${suite.command}`)
+    operationalLines.push(`  ${suite.name}:`)
+    operationalLines.push(`    description: "Test suite: ${suite.name}"`)
+    operationalLines.push(`    gate: ${gateId}`)
+    operationalLines.push(`    command: ${suite.command}`)
   })
-
-  const yamlContent = yamlLines.join('\n')
 
   project.files['.attest-it'] = {
-    'config.yaml': yamlContent,
+    'policy.yaml': policyLines.join('\n'),
+    'config.yaml': operationalLines.join('\n'),
     'private.pem': keyPair.privateKey,
     'pubkey.pem': `-----BEGIN PUBLIC KEY-----\n${keyPair.publicKey}\n-----END PUBLIC KEY-----\n`,
     '.gitkeep': '',

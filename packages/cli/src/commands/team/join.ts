@@ -1,18 +1,12 @@
 import { Command } from 'commander'
 import { input } from '@inquirer/prompts'
-import {
-  loadConfig,
-  toAttestItConfig,
-  findConfigPath,
-  loadLocalConfig,
-  getActiveIdentity,
-} from '@attest-it/core'
+import { loadLocalConfig, getActiveIdentity } from '@attest-it/core'
 import { log, success, error, info } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
 import { getTheme } from '../../components/theme.js'
 import { writeFile } from 'node:fs/promises'
 import { stringify as stringifyYaml } from 'yaml'
-import { promptForGateAuthorization, addTeamMemberToConfig } from './utils.js'
+import { promptForGateAuthorization, addTeamMemberToPolicy, loadPolicyForEdit } from './utils.js'
 
 export const joinCommand = new Command('join')
   .description('Add yourself to the project team using your active identity')
@@ -52,10 +46,9 @@ export async function runJoin(): Promise<void> {
     log(`  Public Key: ${activeIdentity.publicKey.slice(0, 32)}...`)
     log('')
 
-    // Load project config
-    const config = await loadConfig()
-    const attestItConfig = toAttestItConfig(config)
-    const existingTeam = attestItConfig.team ?? {}
+    // Load project policy (team + gates live in policy.yaml)
+    const { policy, path: policyPath } = loadPolicyForEdit()
+    const existingTeam = policy.team ?? {}
 
     // Check if public key already exists
     const existingMemberWithKey = Object.entries(existingTeam).find(
@@ -91,10 +84,10 @@ export async function runJoin(): Promise<void> {
 
     // Prompt for gate authorizations
     log('')
-    const authorizedGates = await promptForGateAuthorization(attestItConfig.gates)
+    const authorizedGates = await promptForGateAuthorization(policy.gates)
 
     // Update config with new team member
-    const memberData: Parameters<typeof addTeamMemberToConfig>[2] = {
+    const memberData: Parameters<typeof addTeamMemberToPolicy>[2] = {
       name: activeIdentity.name,
       publicKey: activeIdentity.publicKey,
       publicKeyAlgorithm: 'ed25519',
@@ -105,17 +98,11 @@ export async function runJoin(): Promise<void> {
     if (activeIdentity.github) {
       memberData.github = activeIdentity.github
     }
-    const updatedConfig = addTeamMemberToConfig(config, slug, memberData, authorizedGates)
+    const updatedPolicy = addTeamMemberToPolicy(policy, slug, memberData, authorizedGates)
 
-    // Write config back to file
-    const configPath = findConfigPath()
-    if (!configPath) {
-      error('Configuration file not found')
-      process.exit(ExitCode.CONFIG_ERROR)
-    }
-
-    const yamlContent = stringifyYaml(updatedConfig)
-    await writeFile(configPath, yamlContent, 'utf8')
+    // Write policy back to file
+    const yamlContent = stringifyYaml(updatedPolicy)
+    await writeFile(policyPath, yamlContent, 'utf8')
 
     log('')
     success(`Team member "${slug}" added successfully`)

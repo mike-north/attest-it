@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { runJoin, joinCommand } from '../src/commands/team/join.js'
 import * as core from '@attest-it/core'
+import type { PolicyConfig } from '@attest-it/core'
+
+type PolicyGateConfig = NonNullable<PolicyConfig['gates']>[string]
 import * as fs from 'node:fs/promises'
+import * as fsSync from 'node:fs'
 import * as prompts from '@inquirer/prompts'
 import YAML from 'yaml'
 
@@ -12,15 +16,19 @@ vi.mock('@attest-it/core', async () => {
     ...actual,
     loadLocalConfig: vi.fn(),
     getActiveIdentity: vi.fn(),
-    loadConfig: vi.fn(),
-    toAttestItConfig: vi.fn(),
-    findConfigPath: vi.fn(),
+    findPolicyPath: vi.fn(),
+    parsePolicyContent: vi.fn(),
   }
 })
 
-// Mock fs promises
+// Mock fs promises (used to write the updated policy)
 vi.mock('node:fs/promises', () => ({
   writeFile: vi.fn(),
+}))
+
+// Mock fs sync (used to read the existing policy content)
+vi.mock('node:fs', () => ({
+  readFileSync: vi.fn(() => ''),
 }))
 
 // Mock prompts
@@ -37,6 +45,33 @@ const mockProcessExit = vi
   .mockImplementation((code?: string | number | null | undefined) => {
     throw new Error(`process.exit called with code ${code}`)
   }) as unknown as vi.SpyInstance
+
+/**
+ * Build a fully-populated gate config for test fixtures. Callers only need to
+ * specify the fields relevant to the behavior under test.
+ */
+function makeGate(
+  overrides: Partial<PolicyGateConfig> & Pick<PolicyGateConfig, 'name'>,
+): PolicyGateConfig {
+  return {
+    description: `Description for ${overrides.name}`,
+    authorizedSigners: [],
+    fingerprint: { paths: ['.'] },
+    maxAge: '30d',
+    ...overrides,
+  }
+}
+
+/**
+ * Configure the mocks so that `loadPolicyForEdit()` resolves to the given
+ * policy, as if it had been read from `/test/policy.yaml`.
+ */
+function mockPolicy(policy: PolicyConfig, path = '/test/policy.yaml'): void {
+  vi.mocked(core.findPolicyPath).mockReturnValue(path)
+  vi.mocked(core.parsePolicyContent).mockReturnValue(policy)
+}
+
+const PUBLIC_KEY = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
 
 describe('team join command', () => {
   beforeEach(() => {
@@ -90,15 +125,13 @@ describe('team join command', () => {
     })
 
     it('should error when user is already a team member', async () => {
-      const publicKey = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
-
       // Mock loadLocalConfig with an active identity
       vi.mocked(core.loadLocalConfig).mockResolvedValue({
         activeIdentity: 'test-user',
         identities: {
           'test-user': {
             name: 'Test User',
-            publicKey,
+            publicKey: PUBLIC_KEY,
             privateKey: { type: 'file', path: '/test/path' },
           },
         },
@@ -106,21 +139,26 @@ describe('team join command', () => {
 
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'Test User',
-        publicKey,
+        publicKey: PUBLIC_KEY,
         privateKey: { type: 'file', path: '/test/path' },
       })
 
-      // Mock loadConfig with existing team member
-      const mockConfig = {
+      // Mock the policy with an existing team member using the same public key
+      mockPolicy({
+        version: 1,
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
         team: {
           'existing-user': {
             name: 'Test User',
-            publicKey, // Same public key
+            publicKey: PUBLIC_KEY, // Same public key
           },
         },
-      }
-      vi.mocked(core.loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(core.toAttestItConfig).mockReturnValue(mockConfig)
+      })
 
       // Expect process.exit to be called (vitest intercepts and throws)
       await expect(runJoin()).rejects.toThrow('process.exit')
@@ -130,15 +168,13 @@ describe('team join command', () => {
       )
     })
 
-    it('should error when config file not found', async () => {
-      const publicKey = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
-
+    it('should error when policy file not found', async () => {
       vi.mocked(core.loadLocalConfig).mockResolvedValue({
         activeIdentity: 'test-user',
         identities: {
           'test-user': {
             name: 'Test User',
-            publicKey,
+            publicKey: PUBLIC_KEY,
             privateKey: { type: 'file', path: '/test/path' },
           },
         },
@@ -146,19 +182,17 @@ describe('team join command', () => {
 
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'Test User',
-        publicKey,
+        publicKey: PUBLIC_KEY,
         privateKey: { type: 'file', path: '/test/path' },
       })
 
-      vi.mocked(core.loadConfig).mockResolvedValue({ team: {} })
-      vi.mocked(core.toAttestItConfig).mockReturnValue({ team: {} })
-      vi.mocked(core.findConfigPath).mockReturnValue(null)
+      vi.mocked(core.findPolicyPath).mockReturnValue(null)
       vi.mocked(prompts.checkbox).mockResolvedValue([])
 
       await expect(runJoin()).rejects.toThrow('process.exit')
       // Error messages are prefixed with ✗
       expect(mockConsoleError).toHaveBeenCalledWith(
-        expect.stringMatching(/✗.*Configuration file not found/),
+        expect.stringMatching(/✗.*Policy file not found/),
       )
     })
 
@@ -173,14 +207,12 @@ describe('team join command', () => {
 
   describe('happy path cases', () => {
     it('should successfully add user to team with no gates defined', async () => {
-      const publicKey = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
-
       vi.mocked(core.loadLocalConfig).mockResolvedValue({
         activeIdentity: 'new-user',
         identities: {
           'new-user': {
             name: 'New User',
-            publicKey,
+            publicKey: PUBLIC_KEY,
             privateKey: { type: 'file', path: '/test/path' },
           },
         },
@@ -188,21 +220,25 @@ describe('team join command', () => {
 
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
-        publicKey,
+        publicKey: PUBLIC_KEY,
         privateKey: { type: 'file', path: '/test/path' },
       })
 
-      const mockConfig = {
+      mockPolicy({
         version: 1,
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
         team: {},
-      }
-      vi.mocked(core.loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(core.toAttestItConfig).mockReturnValue(mockConfig)
-      vi.mocked(core.findConfigPath).mockReturnValue('/test/config.yaml')
+      })
 
       await runJoin()
 
-      expect(fs.writeFile).toHaveBeenCalledWith('/test/config.yaml', expect.any(String), 'utf8')
+      expect(fsSync.readFileSync).toHaveBeenCalledWith('/test/policy.yaml', 'utf8')
+      expect(fs.writeFile).toHaveBeenCalledWith('/test/policy.yaml', expect.any(String), 'utf8')
       // Success messages are prefixed with ✓
       expect(mockConsoleLog).toHaveBeenCalledWith(
         expect.stringMatching(/✓.*Team member "new-user" added successfully/),
@@ -210,14 +246,12 @@ describe('team join command', () => {
     })
 
     it('should successfully add user with gate authorizations selected', async () => {
-      const publicKey = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
-
       vi.mocked(core.loadLocalConfig).mockResolvedValue({
         activeIdentity: 'new-user',
         identities: {
           'new-user': {
             name: 'New User',
-            publicKey,
+            publicKey: PUBLIC_KEY,
             privateKey: { type: 'file', path: '/test/path' },
           },
         },
@@ -225,27 +259,24 @@ describe('team join command', () => {
 
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
-        publicKey,
+        publicKey: PUBLIC_KEY,
         privateKey: { type: 'file', path: '/test/path' },
       })
 
-      const mockConfig = {
+      mockPolicy({
         version: 1,
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
         team: {},
         gates: {
-          'gate-1': {
-            name: 'Gate 1',
-            authorizedSigners: [],
-          },
-          'gate-2': {
-            name: 'Gate 2',
-            authorizedSigners: [],
-          },
+          'gate-1': makeGate({ name: 'Gate 1' }),
+          'gate-2': makeGate({ name: 'Gate 2' }),
         },
-      }
-      vi.mocked(core.loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(core.toAttestItConfig).mockReturnValue(mockConfig)
-      vi.mocked(core.findConfigPath).mockReturnValue('/test/config.yaml')
+      })
       vi.mocked(prompts.checkbox).mockResolvedValue(['gate-1', 'gate-2'])
 
       await runJoin()
@@ -253,16 +284,14 @@ describe('team join command', () => {
       const writeCall = vi.mocked(fs.writeFile).mock.calls[0]
       expect(writeCall).toBeDefined()
       const yamlContent = writeCall?.[1] as string
-      const parsedConfig = YAML.parse(yamlContent)
+      const parsedConfig = YAML.parse(yamlContent) as PolicyConfig
 
-      expect(parsedConfig.gates['gate-1'].authorizedSigners).toContain('new-user')
-      expect(parsedConfig.gates['gate-2'].authorizedSigners).toContain('new-user')
+      expect(parsedConfig.gates?.['gate-1']?.authorizedSigners).toContain('new-user')
+      expect(parsedConfig.gates?.['gate-2']?.authorizedSigners).toContain('new-user')
       expect(mockConsoleLog).toHaveBeenCalledWith('Authorized for gates: gate-1, gate-2')
     })
 
     it('should successfully add user with email and github fields populated', async () => {
-      const publicKey = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
-
       vi.mocked(core.loadLocalConfig).mockResolvedValue({
         activeIdentity: 'new-user',
         identities: {
@@ -270,7 +299,7 @@ describe('team join command', () => {
             name: 'New User',
             email: 'new.user@example.com',
             github: 'newuser',
-            publicKey,
+            publicKey: PUBLIC_KEY,
             privateKey: { type: 'file', path: '/test/path' },
           },
         },
@@ -280,42 +309,43 @@ describe('team join command', () => {
         name: 'New User',
         email: 'new.user@example.com',
         github: 'newuser',
-        publicKey,
+        publicKey: PUBLIC_KEY,
         privateKey: { type: 'file', path: '/test/path' },
       })
 
-      const mockConfig = {
+      mockPolicy({
         version: 1,
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
         team: {},
-      }
-      vi.mocked(core.loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(core.toAttestItConfig).mockReturnValue(mockConfig)
-      vi.mocked(core.findConfigPath).mockReturnValue('/test/config.yaml')
+      })
 
       await runJoin()
 
       const writeCall = vi.mocked(fs.writeFile).mock.calls[0]
       expect(writeCall).toBeDefined()
       const yamlContent = writeCall?.[1] as string
-      const parsedConfig = YAML.parse(yamlContent)
+      const parsedConfig = YAML.parse(yamlContent) as PolicyConfig
 
-      const teamMember = parsedConfig.team['new-user']
-      expect(teamMember.name).toBe('New User')
-      expect(teamMember.email).toBe('new.user@example.com')
-      expect(teamMember.github).toBe('newuser')
-      expect(teamMember.publicKey).toBe(publicKey)
-      expect(teamMember.publicKeyAlgorithm).toBe('ed25519')
+      const teamMember = parsedConfig.team?.['new-user']
+      expect(teamMember?.name).toBe('New User')
+      expect(teamMember?.email).toBe('new.user@example.com')
+      expect(teamMember?.github).toBe('newuser')
+      expect(teamMember?.publicKey).toBe(PUBLIC_KEY)
+      expect(teamMember?.publicKeyAlgorithm).toBe('ed25519')
     })
 
-    it('should verify YAML is written correctly to config file', async () => {
-      const publicKey = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
-
+    it('should verify YAML is written correctly to policy file', async () => {
       vi.mocked(core.loadLocalConfig).mockResolvedValue({
         activeIdentity: 'new-user',
         identities: {
           'new-user': {
             name: 'New User',
-            publicKey,
+            publicKey: PUBLIC_KEY,
             privateKey: { type: 'file', path: '/test/path' },
           },
         },
@@ -323,44 +353,44 @@ describe('team join command', () => {
 
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
-        publicKey,
+        publicKey: PUBLIC_KEY,
         privateKey: { type: 'file', path: '/test/path' },
       })
 
-      const mockConfig = {
+      mockPolicy({
         version: 1,
-        settings: { maxAgeDays: 30 },
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
         team: { 'existing-user': { name: 'Existing', publicKey: 'different-key' } },
-      }
-      vi.mocked(core.loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(core.toAttestItConfig).mockReturnValue(mockConfig)
-      vi.mocked(core.findConfigPath).mockReturnValue('/test/config.yaml')
+      })
 
       await runJoin()
 
       const writeCall = vi.mocked(fs.writeFile).mock.calls[0]
       expect(writeCall).toBeDefined()
-      expect(writeCall?.[0]).toBe('/test/config.yaml')
+      expect(writeCall?.[0]).toBe('/test/policy.yaml')
       expect(writeCall?.[2]).toBe('utf8')
 
       const yamlContent = writeCall?.[1] as string
       expect(() => YAML.parse(yamlContent)).not.toThrow()
 
-      const parsedConfig = YAML.parse(yamlContent)
+      const parsedConfig = YAML.parse(yamlContent) as PolicyConfig
       expect(parsedConfig.version).toBe(1)
-      expect(parsedConfig.team['existing-user']).toBeDefined()
-      expect(parsedConfig.team['new-user']).toBeDefined()
+      expect(parsedConfig.team?.['existing-user']).toBeDefined()
+      expect(parsedConfig.team?.['new-user']).toBeDefined()
     })
 
     it('should verify success messages are shown', async () => {
-      const publicKey = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
-
       vi.mocked(core.loadLocalConfig).mockResolvedValue({
         activeIdentity: 'new-user',
         identities: {
           'new-user': {
             name: 'New User',
-            publicKey,
+            publicKey: PUBLIC_KEY,
             privateKey: { type: 'file', path: '/test/path' },
           },
         },
@@ -368,17 +398,20 @@ describe('team join command', () => {
 
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
-        publicKey,
+        publicKey: PUBLIC_KEY,
         privateKey: { type: 'file', path: '/test/path' },
       })
 
-      const mockConfig = {
+      mockPolicy({
         version: 1,
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
         team: {},
-      }
-      vi.mocked(core.loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(core.toAttestItConfig).mockReturnValue(mockConfig)
-      vi.mocked(core.findConfigPath).mockReturnValue('/test/config.yaml')
+      })
 
       await runJoin()
 
@@ -392,14 +425,12 @@ describe('team join command', () => {
 
   describe('slug handling', () => {
     it('should prompt for alternative slug when collision occurs', async () => {
-      const publicKey = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
-
       vi.mocked(core.loadLocalConfig).mockResolvedValue({
         activeIdentity: 'taken-slug',
         identities: {
           'taken-slug': {
             name: 'New User',
-            publicKey,
+            publicKey: PUBLIC_KEY,
             privateKey: { type: 'file', path: '/test/path' },
           },
         },
@@ -407,22 +438,25 @@ describe('team join command', () => {
 
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
-        publicKey,
+        publicKey: PUBLIC_KEY,
         privateKey: { type: 'file', path: '/test/path' },
       })
 
-      const mockConfig = {
+      mockPolicy({
         version: 1,
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
         team: {
           'taken-slug': {
             name: 'Existing User',
             publicKey: 'different-key',
           },
         },
-      }
-      vi.mocked(core.loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(core.toAttestItConfig).mockReturnValue(mockConfig)
-      vi.mocked(core.findConfigPath).mockReturnValue('/test/config.yaml')
+      })
       vi.mocked(prompts.input).mockResolvedValue('new-slug')
 
       await runJoin()
@@ -441,14 +475,12 @@ describe('team join command', () => {
     })
 
     it('should reject invalid slug characters', async () => {
-      const publicKey = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
-
       vi.mocked(core.loadLocalConfig).mockResolvedValue({
         activeIdentity: 'taken-slug',
         identities: {
           'taken-slug': {
             name: 'New User',
-            publicKey,
+            publicKey: PUBLIC_KEY,
             privateKey: { type: 'file', path: '/test/path' },
           },
         },
@@ -456,22 +488,25 @@ describe('team join command', () => {
 
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
-        publicKey,
+        publicKey: PUBLIC_KEY,
         privateKey: { type: 'file', path: '/test/path' },
       })
 
-      const mockConfig = {
+      mockPolicy({
         version: 1,
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
         team: {
           'taken-slug': {
             name: 'Existing User',
             publicKey: 'different-key',
           },
         },
-      }
-      vi.mocked(core.loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(core.toAttestItConfig).mockReturnValue(mockConfig)
-      vi.mocked(core.findConfigPath).mockReturnValue('/test/config.yaml')
+      })
 
       let validateFn: ((value: string) => boolean | string) | undefined
 
@@ -500,14 +535,12 @@ describe('team join command', () => {
     })
 
     it('should use identity slug when available and not taken', async () => {
-      const publicKey = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
-
       vi.mocked(core.loadLocalConfig).mockResolvedValue({
         activeIdentity: 'my-identity',
         identities: {
           'my-identity': {
             name: 'My User',
-            publicKey,
+            publicKey: PUBLIC_KEY,
             privateKey: { type: 'file', path: '/test/path' },
           },
         },
@@ -515,17 +548,20 @@ describe('team join command', () => {
 
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'My User',
-        publicKey,
+        publicKey: PUBLIC_KEY,
         privateKey: { type: 'file', path: '/test/path' },
       })
 
-      const mockConfig = {
+      mockPolicy({
         version: 1,
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
         team: {},
-      }
-      vi.mocked(core.loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(core.toAttestItConfig).mockReturnValue(mockConfig)
-      vi.mocked(core.findConfigPath).mockReturnValue('/test/config.yaml')
+      })
 
       await runJoin()
 
@@ -538,14 +574,12 @@ describe('team join command', () => {
 
   describe('gate authorization flow', () => {
     it('should skip authorization prompt when no gates defined', async () => {
-      const publicKey = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
-
       vi.mocked(core.loadLocalConfig).mockResolvedValue({
         activeIdentity: 'new-user',
         identities: {
           'new-user': {
             name: 'New User',
-            publicKey,
+            publicKey: PUBLIC_KEY,
             privateKey: { type: 'file', path: '/test/path' },
           },
         },
@@ -553,17 +587,20 @@ describe('team join command', () => {
 
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
-        publicKey,
+        publicKey: PUBLIC_KEY,
         privateKey: { type: 'file', path: '/test/path' },
       })
 
-      const mockConfig = {
+      mockPolicy({
         version: 1,
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
         team: {},
-      }
-      vi.mocked(core.loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(core.toAttestItConfig).mockReturnValue(mockConfig)
-      vi.mocked(core.findConfigPath).mockReturnValue('/test/config.yaml')
+      })
 
       await runJoin()
 
@@ -571,14 +608,12 @@ describe('team join command', () => {
     })
 
     it('should skip authorization prompt when gates object is empty', async () => {
-      const publicKey = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
-
       vi.mocked(core.loadLocalConfig).mockResolvedValue({
         activeIdentity: 'new-user',
         identities: {
           'new-user': {
             name: 'New User',
-            publicKey,
+            publicKey: PUBLIC_KEY,
             privateKey: { type: 'file', path: '/test/path' },
           },
         },
@@ -586,18 +621,21 @@ describe('team join command', () => {
 
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
-        publicKey,
+        publicKey: PUBLIC_KEY,
         privateKey: { type: 'file', path: '/test/path' },
       })
 
-      const mockConfig = {
+      mockPolicy({
         version: 1,
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
         team: {},
         gates: {},
-      }
-      vi.mocked(core.loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(core.toAttestItConfig).mockReturnValue(mockConfig)
-      vi.mocked(core.findConfigPath).mockReturnValue('/test/config.yaml')
+      })
 
       await runJoin()
 
@@ -605,14 +643,12 @@ describe('team join command', () => {
     })
 
     it('should display checkbox selection for multiple gates', async () => {
-      const publicKey = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
-
       vi.mocked(core.loadLocalConfig).mockResolvedValue({
         activeIdentity: 'new-user',
         identities: {
           'new-user': {
             name: 'New User',
-            publicKey,
+            publicKey: PUBLIC_KEY,
             privateKey: { type: 'file', path: '/test/path' },
           },
         },
@@ -620,31 +656,25 @@ describe('team join command', () => {
 
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
-        publicKey,
+        publicKey: PUBLIC_KEY,
         privateKey: { type: 'file', path: '/test/path' },
       })
 
-      const mockConfig = {
+      mockPolicy({
         version: 1,
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
         team: {},
         gates: {
-          'gate-1': {
-            name: 'First Gate',
-            authorizedSigners: [],
-          },
-          'gate-2': {
-            name: 'Second Gate',
-            authorizedSigners: [],
-          },
-          'gate-3': {
-            name: 'Third Gate',
-            authorizedSigners: [],
-          },
+          'gate-1': makeGate({ name: 'First Gate' }),
+          'gate-2': makeGate({ name: 'Second Gate' }),
+          'gate-3': makeGate({ name: 'Third Gate' }),
         },
-      }
-      vi.mocked(core.loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(core.toAttestItConfig).mockReturnValue(mockConfig)
-      vi.mocked(core.findConfigPath).mockReturnValue('/test/config.yaml')
+      })
       vi.mocked(prompts.checkbox).mockResolvedValue(['gate-1', 'gate-3'])
 
       await runJoin()
@@ -662,14 +692,12 @@ describe('team join command', () => {
     })
 
     it('should add selected gates to authorizedSigners array', async () => {
-      const publicKey = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
-
       vi.mocked(core.loadLocalConfig).mockResolvedValue({
         activeIdentity: 'new-user',
         identities: {
           'new-user': {
             name: 'New User',
-            publicKey,
+            publicKey: PUBLIC_KEY,
             privateKey: { type: 'file', path: '/test/path' },
           },
         },
@@ -677,27 +705,24 @@ describe('team join command', () => {
 
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
-        publicKey,
+        publicKey: PUBLIC_KEY,
         privateKey: { type: 'file', path: '/test/path' },
       })
 
-      const mockConfig = {
+      mockPolicy({
         version: 1,
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
         team: {},
         gates: {
-          'gate-1': {
-            name: 'First Gate',
-            authorizedSigners: ['existing-user'],
-          },
-          'gate-2': {
-            name: 'Second Gate',
-            authorizedSigners: [],
-          },
+          'gate-1': makeGate({ name: 'First Gate', authorizedSigners: ['existing-user'] }),
+          'gate-2': makeGate({ name: 'Second Gate' }),
         },
-      }
-      vi.mocked(core.loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(core.toAttestItConfig).mockReturnValue(mockConfig)
-      vi.mocked(core.findConfigPath).mockReturnValue('/test/config.yaml')
+      })
       vi.mocked(prompts.checkbox).mockResolvedValue(['gate-1', 'gate-2'])
 
       await runJoin()
@@ -705,24 +730,22 @@ describe('team join command', () => {
       const writeCall = vi.mocked(fs.writeFile).mock.calls[0]
       expect(writeCall).toBeDefined()
       const yamlContent = writeCall?.[1] as string
-      const parsedConfig = YAML.parse(yamlContent)
+      const parsedConfig = YAML.parse(yamlContent) as PolicyConfig
 
-      expect(parsedConfig.gates['gate-1'].authorizedSigners).toContain('existing-user')
-      expect(parsedConfig.gates['gate-1'].authorizedSigners).toContain('new-user')
-      expect(parsedConfig.gates['gate-2'].authorizedSigners).toContain('new-user')
-      expect(parsedConfig.gates['gate-1'].authorizedSigners).toHaveLength(2)
-      expect(parsedConfig.gates['gate-2'].authorizedSigners).toHaveLength(1)
+      expect(parsedConfig.gates?.['gate-1']?.authorizedSigners).toContain('existing-user')
+      expect(parsedConfig.gates?.['gate-1']?.authorizedSigners).toContain('new-user')
+      expect(parsedConfig.gates?.['gate-2']?.authorizedSigners).toContain('new-user')
+      expect(parsedConfig.gates?.['gate-1']?.authorizedSigners).toHaveLength(2)
+      expect(parsedConfig.gates?.['gate-2']?.authorizedSigners).toHaveLength(1)
     })
 
     it('should not duplicate user in authorizedSigners if already present', async () => {
-      const publicKey = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
-
       vi.mocked(core.loadLocalConfig).mockResolvedValue({
         activeIdentity: 'new-user',
         identities: {
           'new-user': {
             name: 'New User',
-            publicKey,
+            publicKey: PUBLIC_KEY,
             privateKey: { type: 'file', path: '/test/path' },
           },
         },
@@ -730,23 +753,23 @@ describe('team join command', () => {
 
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
-        publicKey,
+        publicKey: PUBLIC_KEY,
         privateKey: { type: 'file', path: '/test/path' },
       })
 
-      const mockConfig = {
+      mockPolicy({
         version: 1,
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
         team: {},
         gates: {
-          'gate-1': {
-            name: 'First Gate',
-            authorizedSigners: ['new-user'],
-          },
+          'gate-1': makeGate({ name: 'First Gate', authorizedSigners: ['new-user'] }),
         },
-      }
-      vi.mocked(core.loadConfig).mockResolvedValue(mockConfig)
-      vi.mocked(core.toAttestItConfig).mockReturnValue(mockConfig)
-      vi.mocked(core.findConfigPath).mockReturnValue('/test/config.yaml')
+      })
       vi.mocked(prompts.checkbox).mockResolvedValue(['gate-1'])
 
       await runJoin()
@@ -754,10 +777,10 @@ describe('team join command', () => {
       const writeCall = vi.mocked(fs.writeFile).mock.calls[0]
       expect(writeCall).toBeDefined()
       const yamlContent = writeCall?.[1] as string
-      const parsedConfig = YAML.parse(yamlContent)
+      const parsedConfig = YAML.parse(yamlContent) as PolicyConfig
 
-      expect(parsedConfig.gates['gate-1'].authorizedSigners).toEqual(['new-user'])
-      expect(parsedConfig.gates['gate-1'].authorizedSigners).toHaveLength(1)
+      expect(parsedConfig.gates?.['gate-1']?.authorizedSigners).toEqual(['new-user'])
+      expect(parsedConfig.gates?.['gate-1']?.authorizedSigners).toHaveLength(1)
     })
   })
 })
