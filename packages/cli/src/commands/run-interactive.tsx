@@ -35,6 +35,7 @@ import { getAllSuiteStatuses, type SuiteStatus } from './run-utils.js'
 import { loadSession, saveSession as persistSession, clearSession } from '../session/session.js'
 import { error, log } from '../utils/output.js'
 import { ExitCode } from '../utils/exit-codes.js'
+import { isInteractiveTTY } from '../utils/prompts.js'
 
 /**
  * Options for interactive mode.
@@ -85,6 +86,17 @@ export async function runInteractive(options: InteractiveOptions): Promise<void>
   if (pendingSuites.length === 0) {
     log('All suites are valid. Nothing to run.')
     process.exit(ExitCode.NO_WORK)
+  }
+
+  // The interactive UI reads raw keypresses from stdin and never resolves on
+  // its own; without a TTY it would otherwise hang forever. Fail fast instead
+  // and point at the non-interactive flags. See issue #80.
+  if (!isInteractiveTTY()) {
+    error(
+      'attest-it run requires an interactive terminal when neither --suite nor --all is given ' +
+        '(no TTY detected). Pass --suite <name> or --all to run non-interactively.',
+    )
+    process.exit(ExitCode.CONFIG_ERROR)
   }
 
   // Check for dirty working tree (skip if ATTEST_IT_ALLOW_DIRTY is set - for dogfooding)

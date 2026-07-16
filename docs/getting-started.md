@@ -68,6 +68,30 @@ Next steps:
 
 Your identity is stored locally at `~/.config/attest-it/config.yaml`.
 
+### Non-interactive identity creation
+
+For CI, embedders, or agent-driven setups, pass flags instead of answering
+prompts. `identity create` accepts `--name`, `--slug`, `--storage
+<file|keychain|1password|yubikey>`, `--email`, and `--github`; when every
+required value is supplied, it creates the identity with zero prompts:
+
+```bash
+npx attest-it identity create --name "CI Bot" --storage file --slug ci-bot < /dev/null
+```
+
+If stdin is not an interactive terminal and a required value (like `--name`
+or `--storage`) is missing, the command fails fast with an error naming the
+missing flag instead of hanging. `--slug` is optional even non-interactively
+-- it is derived from `--name` when omitted.
+
+To store an encrypted private key with the `file` backend, pipe a passphrase
+in via `--passphrase-stdin` (never typed into a prompt):
+
+```bash
+echo "$CI_KEY_PASSPHRASE" | npx attest-it identity create \
+  --name "CI Bot" --storage file --slug ci-bot --passphrase-stdin
+```
+
 ### Multiple Identities
 
 You can have multiple identities (e.g., work and personal):
@@ -90,6 +114,14 @@ npx attest-it init
 This creates a **split configuration**: `.attest-it/policy.yaml` (trust-critical: team and gates) and `.attest-it/config.yaml` (operational: suites), with your first gate.
 
 Already have an existing legacy unified `config.yaml` (one file holding `team`, `gates`, and `suites` together)? Run `npx attest-it init --migrate` instead to split it into the pair automatically.
+
+`init` only prompts when `.attest-it/policy.yaml` or `config.yaml` already
+exist and `--force` was not passed; pass `--force` to overwrite them
+non-interactively (or run it in a fresh directory, which never prompts):
+
+```bash
+npx attest-it init --force < /dev/null
+```
 
 ### Example Configuration Session
 
@@ -187,6 +219,25 @@ To get your public key for manual addition:
 npx attest-it identity export
 ```
 
+### Non-interactive team join / add
+
+Pass `--gates` (comma-separated gate IDs) to authorize gates without the
+checkbox prompt; omitting it authorizes no gates rather than prompting or
+failing. `team join` also accepts `--slug` for the rare case where your
+identity slug is already taken by another member:
+
+```bash
+npx attest-it team join --gates desktop-tests < /dev/null
+```
+
+`team add` (adding someone _else's_ public key) similarly accepts `--slug`,
+`--name`, `--public-key`, `--email`, `--github`, and `--gates`:
+
+```bash
+npx attest-it team add --slug bob --name "Bob Jones" \
+  --public-key "MCowBQYDK2VwAyEA..." --gates desktop-tests < /dev/null
+```
+
 ## Step 4: Run Tests and Create Seal
 
 Run your test suite and create a seal:
@@ -226,9 +277,21 @@ Test Files  1 passed (1)
 Commit: git add .attest-it/seals.json && git commit -m "Seal desktop-tests"
 ```
 
+### Non-interactive sealing
+
+Pass `--yes` to skip the "Create seal?" confirmation prompt:
+
+```bash
+npx attest-it run --suite desktop-tests --yes < /dev/null
+```
+
+Without `--yes`, a non-interactive run (no TTY on stdin) fails fast instead
+of hanging, naming `--yes` as the flag needed to confirm sealing.
+
 ### Direct Sealing
 
-If you run tests separately, seal directly:
+If you run tests separately, seal directly (already non-interactive -- `seal`
+takes no confirmation prompt):
 
 ```bash
 npx attest-it seal desktop-tests

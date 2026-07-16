@@ -6,19 +6,34 @@ import { ExitCode } from '../../utils/exit-codes.js'
 import { getTheme } from '../../components/theme.js'
 import { writeFile } from 'node:fs/promises'
 import { stringify as stringifyYaml } from 'yaml'
-import { promptForGateAuthorization, addTeamMemberToPolicy, loadPolicyForEdit } from './utils.js'
+import { resolveOrPrompt } from '../../utils/prompts.js'
+import { resolveGateAuthorization, addTeamMemberToPolicy, loadPolicyForEdit } from './utils.js'
+
+interface JoinOptions {
+  slug?: string
+  gates?: string
+}
 
 export const joinCommand = new Command('join')
   .description('Add yourself to the project team using your active identity')
-  .action(async () => {
-    await runJoin()
+  .option('--slug <slug>', 'Slug to use if your identity slug is already taken by another member')
+  .option('--gates <ids>', 'Comma-separated gate IDs to authorize (default: none)')
+  .action(async (options: JoinOptions) => {
+    await runJoin(options)
   })
 
 /**
  * Run the join command to add the user's active identity to the project team.
+ *
+ * Interactive by default when stdin is a TTY and flags are omitted. Every
+ * prompt is gated behind "flag not supplied AND stdin is an interactive TTY";
+ * when stdin is not a TTY and a required value is missing, this fails fast
+ * with an error naming the missing flag rather than hanging on a prompt that
+ * can never resolve. See issue #80.
+ *
  * @public
  */
-export async function runJoin(): Promise<void> {
+export async function runJoin(options: JoinOptions = {}): Promise<void> {
   try {
     const theme = getTheme()
 
@@ -59,32 +74,36 @@ export async function runJoin(): Promise<void> {
       process.exit(ExitCode.CONFIG_ERROR)
     }
 
-    // Determine slug - use identity slug if available, prompt if taken
+    // Determine slug - use identity slug if available, resolve if taken
     let slug = activeSlug
     // eslint-disable-next-line security/detect-object-injection -- slug comes from validated config
     if (existingTeam[slug]) {
       log(`Slug "${slug}" is already taken by another team member.`)
-      slug = await input({
-        message: 'Choose a different slug:',
-        validate: (value) => {
-          if (!value || value.trim().length === 0) {
-            return 'Slug cannot be empty'
-          }
-          if (!/^[a-z0-9-]+$/.test(value)) {
-            return 'Slug must contain only lowercase letters, numbers, and hyphens'
-          }
-          // eslint-disable-next-line security/detect-object-injection -- value is user input being validated
-          if (existingTeam[value]) {
-            return `Slug "${value}" is already taken`
-          }
-          return true
-        },
-      })
+      const validateAlternateSlug = (value: string): true | string => {
+        if (!value || value.trim().length === 0) {
+          return 'Slug cannot be empty'
+        }
+        if (!/^[a-z0-9-]+$/.test(value)) {
+          return 'Slug must contain only lowercase letters, numbers, and hyphens'
+        }
+        // eslint-disable-next-line security/detect-object-injection -- value is user input being validated
+        if (existingTeam[value]) {
+          return `Slug "${value}" is already taken`
+        }
+        return true
+      }
+      slug = await resolveOrPrompt(options.slug, '--slug', () =>
+        input({ message: 'Choose a different slug:', validate: validateAlternateSlug }),
+      )
+      const slugValidation = validateAlternateSlug(slug)
+      if (slugValidation !== true) {
+        throw new Error(slugValidation)
+      }
     }
 
-    // Prompt for gate authorizations
+    // Resolve gate authorizations
     log('')
-    const authorizedGates = await promptForGateAuthorization(policy.gates)
+    const authorizedGates = await resolveGateAuthorization(policy.gates, options.gates)
 
     // Update config with new team member
     const memberData: Parameters<typeof addTeamMemberToPolicy>[2] = {

@@ -6,6 +6,7 @@
 import { confirm } from '@inquirer/prompts'
 import { loadPreferences, savePreferences } from '@attest-it/core'
 import { log, info, success, error } from './output.js'
+import { isInteractiveTTY } from './prompts.js'
 import tabtab from '@pnpm/tabtab'
 
 /** Primary program name */
@@ -50,10 +51,20 @@ function getSourceCommand(shell: SupportedShell): string {
  * Offer to install shell completions if the user hasn't declined before.
  * Should be called at the end of init and identity create commands.
  *
+ * @remarks
+ * This is purely a cosmetic, optional offer -- never something a
+ * non-interactive caller (CI, an embedder, an agent) needs to answer. It is
+ * skipped entirely when stdin is not an interactive TTY rather than prompting
+ * (which would otherwise hang forever; see issue #80).
+ *
  * @returns true if completions were installed, false otherwise
  */
 export async function offerCompletionInstall(): Promise<boolean> {
   try {
+    if (!isInteractiveTTY()) {
+      return false
+    }
+
     // Check if user has already declined
     const prefs = await loadPreferences()
     if (prefs.cliExperience?.declinedCompletionInstall) {

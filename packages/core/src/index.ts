@@ -97,8 +97,12 @@ export {
   sign as signEd25519,
   verify as verifyEd25519,
   getPublicKeyFromPrivate,
+  isEncryptedPrivateKeyPem,
 } from './crypto/ed25519.js'
-export type { KeyPair as Ed25519KeyPair } from './crypto/ed25519.js'
+export type {
+  KeyPair as Ed25519KeyPair,
+  GenerateKeyPairOptions as Ed25519GenerateKeyPairOptions,
+} from './crypto/ed25519.js'
 
 // Key Providers
 export {

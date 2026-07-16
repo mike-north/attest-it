@@ -74,6 +74,8 @@ function mockPolicy(policy: PolicyConfig, path = '/test/policy.yaml'): void {
 const PUBLIC_KEY = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
 
 describe('team join command', () => {
+  const originalIsTTY = process.stdin.isTTY
+
   beforeEach(() => {
     // Clear mock call history but keep the implementations
     mockConsoleLog.mockClear()
@@ -82,10 +84,17 @@ describe('team join command', () => {
 
     // Also clear mocks from vi.mock
     vi.clearAllMocks()
+
+    // Most of these tests exercise interactive prompts (slug collision,
+    // gate authorization), only reachable with an interactive TTY (see issue
+    // #80's fail-fast guard). The dedicated 'non-interactive' describe block
+    // below overrides this per-test to exercise the guard itself.
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
   })
 
   afterEach(() => {
-    // Don't restore - we want to keep our mocks in place
+    // Don't restore mocks -- we want to keep our mocks in place
+    Object.defineProperty(process.stdin, 'isTTY', { value: originalIsTTY, configurable: true })
   })
 
   it('should be defined', () => {
@@ -781,6 +790,166 @@ describe('team join command', () => {
 
       expect(parsedConfig.gates?.['gate-1']?.authorizedSigners).toEqual(['new-user'])
       expect(parsedConfig.gates?.['gate-1']?.authorizedSigners).toHaveLength(1)
+    })
+  })
+
+  describe('non-interactive (issue #80)', () => {
+    beforeEach(() => {
+      Object.defineProperty(process.stdin, 'isTTY', { value: undefined, configurable: true })
+    })
+
+    it('should resolve a slug collision via --slug without prompting', async () => {
+      vi.mocked(core.loadLocalConfig).mockResolvedValue({
+        activeIdentity: 'taken-slug',
+        identities: {
+          'taken-slug': {
+            name: 'New User',
+            publicKey: PUBLIC_KEY,
+            privateKey: { type: 'file', path: '/test/path' },
+          },
+        },
+      })
+      vi.mocked(core.getActiveIdentity).mockReturnValue({
+        name: 'New User',
+        publicKey: PUBLIC_KEY,
+        privateKey: { type: 'file', path: '/test/path' },
+      })
+      mockPolicy({
+        version: 1,
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
+        team: {
+          'taken-slug': { name: 'Existing User', publicKey: 'different-key' },
+        },
+      })
+
+      await runJoin({ slug: 'new-slug' })
+
+      expect(prompts.input).not.toHaveBeenCalled()
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringMatching(/✓.*Team member "new-slug" added successfully/),
+      )
+    })
+
+    it('should fail fast naming --slug when the slug collides and no TTY is available', async () => {
+      vi.mocked(core.loadLocalConfig).mockResolvedValue({
+        activeIdentity: 'taken-slug',
+        identities: {
+          'taken-slug': {
+            name: 'New User',
+            publicKey: PUBLIC_KEY,
+            privateKey: { type: 'file', path: '/test/path' },
+          },
+        },
+      })
+      vi.mocked(core.getActiveIdentity).mockReturnValue({
+        name: 'New User',
+        publicKey: PUBLIC_KEY,
+        privateKey: { type: 'file', path: '/test/path' },
+      })
+      mockPolicy({
+        version: 1,
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
+        team: {
+          'taken-slug': { name: 'Existing User', publicKey: 'different-key' },
+        },
+      })
+
+      await expect(runJoin()).rejects.toThrow('process.exit')
+
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringMatching(/✗.*--slug/))
+    })
+
+    it('should authorize gates listed in --gates without prompting', async () => {
+      vi.mocked(core.loadLocalConfig).mockResolvedValue({
+        activeIdentity: 'new-user',
+        identities: {
+          'new-user': {
+            name: 'New User',
+            publicKey: PUBLIC_KEY,
+            privateKey: { type: 'file', path: '/test/path' },
+          },
+        },
+      })
+      vi.mocked(core.getActiveIdentity).mockReturnValue({
+        name: 'New User',
+        publicKey: PUBLIC_KEY,
+        privateKey: { type: 'file', path: '/test/path' },
+      })
+      mockPolicy({
+        version: 1,
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
+        team: {},
+        gates: {
+          'gate-1': makeGate({ name: 'First Gate' }),
+          'gate-2': makeGate({ name: 'Second Gate' }),
+        },
+      })
+
+      await runJoin({ gates: 'gate-1' })
+
+      expect(prompts.checkbox).not.toHaveBeenCalled()
+      const writeCall = vi.mocked(fs.writeFile).mock.calls[0]
+      expect(writeCall).toBeDefined()
+      const yamlContent = writeCall?.[1] as string
+      const parsedConfig = YAML.parse(yamlContent) as PolicyConfig
+      expect(parsedConfig.gates?.['gate-1']?.authorizedSigners).toContain('new-user')
+      expect(parsedConfig.gates?.['gate-2']?.authorizedSigners).not.toContain('new-user')
+    })
+
+    it('should default to zero authorized gates when --gates is omitted and no TTY is available', async () => {
+      vi.mocked(core.loadLocalConfig).mockResolvedValue({
+        activeIdentity: 'new-user',
+        identities: {
+          'new-user': {
+            name: 'New User',
+            publicKey: PUBLIC_KEY,
+            privateKey: { type: 'file', path: '/test/path' },
+          },
+        },
+      })
+      vi.mocked(core.getActiveIdentity).mockReturnValue({
+        name: 'New User',
+        publicKey: PUBLIC_KEY,
+        privateKey: { type: 'file', path: '/test/path' },
+      })
+      mockPolicy({
+        version: 1,
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: '.attest-it/seals.json',
+        },
+        team: {},
+        gates: {
+          'gate-1': makeGate({ name: 'First Gate' }),
+        },
+      })
+
+      await runJoin()
+
+      expect(prompts.checkbox).not.toHaveBeenCalled()
+      expect(mockProcessExit).not.toHaveBeenCalled()
+      const writeCall = vi.mocked(fs.writeFile).mock.calls[0]
+      expect(writeCall).toBeDefined()
+      const yamlContent = writeCall?.[1] as string
+      const parsedConfig = YAML.parse(yamlContent) as PolicyConfig
+      expect(parsedConfig.gates?.['gate-1']?.authorizedSigners).not.toContain('new-user')
     })
   })
 })

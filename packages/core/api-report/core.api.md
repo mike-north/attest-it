@@ -84,6 +84,7 @@ export function createSeal(options: CreateSealOptions): Seal;
 export interface CreateSealOptions {
     fingerprint: string;
     gateId: string;
+    passphrase?: string;
     privateKey: string;
     sealedBy: string;
 }
@@ -106,6 +107,11 @@ export interface CryptoVerifyOptions {
     data: Buffer | string;
     publicKeyPath: string;
     signature: string;
+}
+
+// @public
+export interface Ed25519GenerateKeyPairOptions {
+    passphrase?: string;
 }
 
 // @public
@@ -179,7 +185,7 @@ export interface GateDescriptor {
 }
 
 // @public
-export function generateEd25519KeyPair(): Ed25519KeyPair;
+export function generateEd25519KeyPair(options?: Ed25519GenerateKeyPairOptions): Ed25519KeyPair;
 
 // @public
 export function generateKeyPair(options?: KeygenOptions): Promise<KeyPaths>;
@@ -244,6 +250,9 @@ export interface InaccessibleAccount {
 
 // @public
 export function isAuthorizedSigner(config: AttestItConfig, gateId: string, publicKey: string): boolean;
+
+// @public
+export function isEncryptedPrivateKeyPem(privateKeyPem: string): boolean;
 
 // @public
 export function isMacOSKeychainAvailable(): boolean;
@@ -859,7 +868,7 @@ export interface SignatureVerificationResult {
 }
 
 // @public
-export function signEd25519(data: Buffer | string, privateKeyPem: string): string;
+export function signEd25519(data: Buffer | string, privateKeyPem: string, passphrase?: string): string;
 
 // @public
 export interface SignOptions {

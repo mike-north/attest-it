@@ -33,26 +33,55 @@ function isBuffer(value: unknown): value is Buffer {
 }
 
 /**
+ * Options for generating an Ed25519 keypair.
+ * @public
+ */
+export interface GenerateKeyPairOptions {
+  /**
+   * Passphrase to encrypt the private key with (AES-256-CBC over the PKCS8
+   * export). Omit, or pass an empty string, for an unencrypted private key.
+   */
+  passphrase?: string
+}
+
+/**
  * Generate a new Ed25519 keypair.
  *
+ * @param options - Key generation options
  * @returns A keypair with base64-encoded public key and PEM-encoded private key
  * @throws Error if key generation fails
  * @public
  */
-export function generateKeyPair(): KeyPair {
+export function generateKeyPair(options: GenerateKeyPairOptions = {}): KeyPair {
   try {
+    const { passphrase } = options
+
     // Generate Ed25519 keypair using Node.js native crypto
     // When format is 'pem', the keys are returned as strings
-    const keyPair = crypto.generateKeyPairSync('ed25519', {
-      publicKeyEncoding: {
-        type: 'spki',
-        format: 'pem',
-      },
-      privateKeyEncoding: {
-        type: 'pkcs8',
-        format: 'pem',
-      },
-    })
+    const keyPair =
+      passphrase !== undefined && passphrase.length > 0
+        ? crypto.generateKeyPairSync('ed25519', {
+            publicKeyEncoding: {
+              type: 'spki',
+              format: 'pem',
+            },
+            privateKeyEncoding: {
+              type: 'pkcs8',
+              format: 'pem',
+              cipher: 'aes-256-cbc',
+              passphrase,
+            },
+          })
+        : crypto.generateKeyPairSync('ed25519', {
+            publicKeyEncoding: {
+              type: 'spki',
+              format: 'pem',
+            },
+            privateKeyEncoding: {
+              type: 'pkcs8',
+              format: 'pem',
+            },
+          })
 
     const { publicKey, privateKey } = keyPair
     if (typeof publicKey !== 'string' || typeof privateKey !== 'string') {
@@ -91,17 +120,21 @@ export function generateKeyPair(): KeyPair {
  *
  * @param data - Data to sign (Buffer or UTF-8 string)
  * @param privateKeyPem - PEM-encoded private key
+ * @param passphrase - Passphrase to decrypt the private key, if it is encrypted
  * @returns Base64-encoded signature
  * @throws Error if signing fails
  * @public
  */
-export function sign(data: Buffer | string, privateKeyPem: string): string {
+export function sign(data: Buffer | string, privateKeyPem: string, passphrase?: string): string {
   try {
     // Convert string data to Buffer
     const dataBuffer = typeof data === 'string' ? Buffer.from(data, 'utf8') : data
 
-    // Create private key object
-    const privateKeyObj = crypto.createPrivateKey(privateKeyPem)
+    // Create private key object (supplying a passphrase only when the key is encrypted)
+    const privateKeyObj =
+      passphrase !== undefined && passphrase.length > 0
+        ? crypto.createPrivateKey({ key: privateKeyPem, format: 'pem', passphrase })
+        : crypto.createPrivateKey(privateKeyPem)
 
     // Sign the data (null algorithm parameter for Ed25519)
     const signatureResult = crypto.sign(null, dataBuffer, privateKeyObj)
@@ -217,4 +250,21 @@ export function getPublicKeyFromPrivate(privateKeyPem: string): string {
       `Failed to extract public key from Ed25519 private key: ${err instanceof Error ? err.message : String(err)}`,
     )
   }
+}
+
+/**
+ * Check whether a PEM-encoded private key is passphrase-encrypted.
+ *
+ * @remarks
+ * Detects the PKCS8 `ENCRYPTED PRIVATE KEY` PEM header produced when
+ * {@link generateKeyPair} is called with a passphrase. Callers use this to
+ * decide whether a passphrase must be supplied before the key can be used
+ * (e.g. with {@link sign}).
+ *
+ * @param privateKeyPem - PEM-encoded private key content
+ * @returns true if the key is encrypted, false otherwise
+ * @public
+ */
+export function isEncryptedPrivateKeyPem(privateKeyPem: string): boolean {
+  return privateKeyPem.includes('ENCRYPTED PRIVATE KEY')
 }
