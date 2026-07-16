@@ -19944,10 +19944,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
-// ../core/dist/chunk-RPO4GV4Y.js
+// ../core/dist/chunk-DEX33VQV.js
 async function runOpenSSL(args, passphrase) {
   return new Promise((resolve5, reject) => {
-    const stdio = passphrase !== void 0 ? ["ignore", "pipe", "pipe", "pipe"] : ["ignore", "pipe", "pipe"];
+    const stdio = passphrase ? ["ignore", "pipe", "pipe", "pipe"] : ["ignore", "pipe", "pipe"];
     const child = (0, import_child_process.spawn)("openssl", args, { stdio });
     const stdoutChunks = [];
     let stderr = "";
@@ -19967,12 +19967,14 @@ async function runOpenSSL(args, passphrase) {
         stderr
       });
     });
-    if (passphrase !== void 0) {
+    if (passphrase) {
       const passphraseStream = child.stdio[3];
       if (!(passphraseStream instanceof import_stream.Writable)) {
         reject(new Error("Expected a writable stream for the passphrase file descriptor"));
         return;
       }
+      passphraseStream.on("error", () => {
+      });
       passphraseStream.write(passphrase + "\n");
       passphraseStream.end();
     }
@@ -20097,8 +20099,8 @@ async function setKeyPermissions(keyPath) {
   }
 }
 var import_child_process, import_stream, fs, path, os, openSSLChecked;
-var init_chunk_RPO4GV4Y = __esm({
-  "../core/dist/chunk-RPO4GV4Y.js"() {
+var init_chunk_DEX33VQV = __esm({
+  "../core/dist/chunk-DEX33VQV.js"() {
     "use strict";
     init_cjs_shims();
     import_child_process = require("child_process");
@@ -36132,8 +36134,8 @@ var import_node_path = require("path");
 
 // ../core/dist/index.js
 init_cjs_shims();
-init_chunk_RPO4GV4Y();
-init_chunk_RPO4GV4Y();
+init_chunk_DEX33VQV();
+init_chunk_DEX33VQV();
 var fs2 = __toESM(require("fs"), 1);
 var import_fs2 = require("fs");
 var fs7 = __toESM(require("fs/promises"), 1);

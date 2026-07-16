@@ -102,6 +102,14 @@ interface SpawnResult {
  * from. Setting fd 0 to `'ignore'` avoids the fallback; the passphrase is then
  * supplied cleanly through the unrelated fd 3 pipe.
  *
+ * An empty-string passphrase is treated the same as no passphrase at all
+ * (matching the `if (passphrase)` checks in {@link generateKeyPair} and
+ * {@link sign} that decide whether `args` references `fd:3`): fd 3 is only
+ * opened when there is a non-empty passphrase. Opening it whenever
+ * `passphrase !== undefined` would leave slot 3 open with nothing in `args`
+ * to read it for an empty string, an unconsumed pipe that can raise an
+ * unhandled `ECONNRESET` when the child process exits (see issue #75/#79).
+ *
  * @param args - Command-line arguments for OpenSSL
  * @param passphrase - Optional passphrase to supply via an extra fd (args must reference `fd:3`)
  * @returns Process result with exit code and outputs
@@ -109,8 +117,9 @@ interface SpawnResult {
  */
 async function runOpenSSL(args: string[], passphrase?: string): Promise<SpawnResult> {
   return new Promise((resolve, reject) => {
-    const stdio: ('pipe' | 'ignore')[] =
-      passphrase !== undefined ? ['ignore', 'pipe', 'pipe', 'pipe'] : ['ignore', 'pipe', 'pipe']
+    const stdio: ('pipe' | 'ignore')[] = passphrase
+      ? ['ignore', 'pipe', 'pipe', 'pipe']
+      : ['ignore', 'pipe', 'pipe']
 
     const child = spawn('openssl', args, { stdio })
 
@@ -137,12 +146,19 @@ async function runOpenSSL(args: string[], passphrase?: string): Promise<SpawnRes
       })
     })
 
-    if (passphrase !== undefined) {
+    if (passphrase) {
       const passphraseStream = child.stdio[3]
       if (!(passphraseStream instanceof Writable)) {
         reject(new Error('Expected a writable stream for the passphrase file descriptor'))
         return
       }
+      // Defensive: the 'close' handler above already surfaces the child's
+      // real failure via exit code/stderr, so an 'error' here (e.g. the
+      // child exiting before fully reading the passphrase) should not crash
+      // the process as an unhandled event.
+      passphraseStream.on('error', () => {
+        // Intentionally swallowed; see comment above.
+      })
       // Consistently use a newline terminator, matching prior stdin-based behavior.
       passphraseStream.write(passphrase + '\n')
       passphraseStream.end()

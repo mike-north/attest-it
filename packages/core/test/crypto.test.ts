@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as fs from 'node:fs/promises'
 import * as fsSync from 'node:fs'
 import * as path from 'node:path'
 import * as os from 'node:os'
+import { spawn } from 'node:child_process'
 import {
   checkOpenSSL,
   getDefaultPrivateKeyPath,
@@ -13,6 +14,14 @@ import {
   verify,
   setKeyPermissions,
 } from '../src/crypto.js'
+
+// Wraps the real `spawn` in a vi.fn so tests can assert on how crypto.ts
+// invoked OpenSSL (e.g. the `stdio` array) without changing its behavior --
+// every call still runs the real `openssl` binary.
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:child_process')>()
+  return { ...actual, spawn: vi.fn(actual.spawn) }
+})
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures', 'test-keys')
 const TEST_PRIVATE = path.join(FIXTURES_DIR, 'test-private.pem')
@@ -189,6 +198,37 @@ describe('crypto', () => {
 
       expect(fsSync.existsSync(privatePath)).toBe(true)
       expect(fsSync.existsSync(publicPath)).toBe(true)
+    })
+
+    // Regression test for #79: an empty-string passphrase made runOpenSSL()
+    // open a 4th stdio slot (fd 3) for the passphrase pipe -- its guard was
+    // `passphrase !== undefined`, which is true for '' -- while
+    // generateKeyPair()'s `if (passphrase)` guard is falsy for '' and never
+    // pushed `-pass fd:3`/`-passin fd:3` onto the openssl args. That left fd 3
+    // open with nothing reading it: an unconsumed pipe with no 'error'
+    // listener, which raised an unhandled ECONNRESET when the openssl child
+    // process exited (surfaced in CI as 2 unhandled errors attributed to
+    // the "should return encrypted=false for empty passphrase" test in
+    // key-provider/filesystem-provider.test.ts). This asserts the exact
+    // structural invariant directly -- no fd:3 pipe is opened unless an
+    // openssl argument references fd:3 -- rather than relying on the
+    // ECONNRESET race reproducing, which is timing/platform-sensitive.
+    it('should not open an unread fd:3 pipe for an empty-string passphrase', async () => {
+      const spawnMock = vi.mocked(spawn)
+      spawnMock.mockClear()
+
+      const privatePath = path.join(tmpDir, 'empty-pass-private.pem')
+      const publicPath = path.join(tmpDir, 'empty-pass-public.pem')
+
+      await generateKeyPair({ privatePath, publicPath, passphrase: '' })
+
+      expect(spawnMock).toHaveBeenCalled()
+      for (const [, args, options] of spawnMock.mock.calls) {
+        const argList = args as string[]
+        const stdio = (options as { stdio?: unknown[] } | undefined)?.stdio
+        expect(argList).not.toContain('fd:3')
+        expect(stdio).toHaveLength(3)
+      }
     })
 
     it('should use default paths if none specified', async () => {
