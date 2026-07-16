@@ -487,7 +487,7 @@ When `attest-it verify` runs, each gate returns one of these states:
 ```yaml
 # .attest-it/policy.yaml
 settings:
-  attestationsPath: .attest-it/seals.json
+  sealsPath: .attest-it/seals.json
   # Resolves to: /path/to/repo/.attest-it/seals.json
 ```
 
@@ -538,7 +538,7 @@ version: 1
 
 settings:
   maxAgeDays: 30
-  attestationsPath: .attest-it/seals.json
+  sealsPath: .attest-it/seals.json
 
 team:
   alice:

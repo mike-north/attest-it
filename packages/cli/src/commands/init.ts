@@ -153,6 +153,7 @@ async function runMigrate(options: InitOptions, configDir: string): Promise<void
   if (!fs.existsSync(unifiedPath)) {
     error(`No unified config found at ${unifiedPath} to migrate.`)
     process.exit(ExitCode.CONFIG_ERROR)
+    return
   }
 
   const policyPath = path.join(configDir, 'policy.yaml')
@@ -164,6 +165,7 @@ async function runMigrate(options: InitOptions, configDir: string): Promise<void
   if (!(await confirmOverwrite(policyPath, options.force))) {
     error('Migration cancelled')
     process.exit(ExitCode.CANCELLED)
+    return
   }
 
   const policyHeader =
@@ -218,10 +220,12 @@ async function runInit(options: InitOptions): Promise<void> {
     if (!(await confirmOverwrite(policyPath, options.force))) {
       error('Init cancelled')
       process.exit(ExitCode.CANCELLED)
+      return
     }
     if (!(await confirmOverwrite(operationalPath, options.force))) {
       error('Init cancelled')
       process.exit(ExitCode.CANCELLED)
+      return
     }
 
     // Ensure attest-it is in devDependencies

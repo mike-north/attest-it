@@ -49,17 +49,17 @@ Use the official GitHub Action for streamlined integration:
 | `policy-ref`        | Git ref to fetch policy from. Defaults to the PR base branch, or filesystem on push | No       | (PR base branch, or local) |
 | `github-token`      | GitHub token for fetching policy from the base branch (required for PRs)            | No       | `${{ github.token }}`      |
 | `suite`             | Verify specific suite only                                                          | No       | (all suites)               |
-| `fail-on-missing`   | Fail if any suite lacks attestation                                                 | No       | `true`                     |
+| `fail-on-missing`   | Fail if any suite lacks a seal                                                      | No       | `true`                     |
 | `strict`            | Fail on warnings (approaching expiry)                                               | No       | `false`                    |
 
 Because policy is trust-critical, the action always loads `policy.yaml` from the PR's base branch by default (via the GitHub API), never from the PR branch itself — this is what prevents a PR from editing its own gates or team roster to bypass verification. Use `policy-ref` to pin policy to a specific branch (e.g. `production`) regardless of PR target.
 
 ### Action Outputs
 
-| Output   | Description                        | Type              |
-| -------- | ---------------------------------- | ----------------- |
-| `valid`  | Whether all attestations are valid | `true` or `false` |
-| `suites` | JSON object with per-suite status  | JSON string       |
+| Output   | Description                       | Type              |
+| -------- | --------------------------------- | ----------------- |
+| `valid`  | Whether all seals are valid       | `true` or `false` |
+| `suites` | JSON object with per-suite status | JSON string       |
 
 ### Full Example
 
