@@ -42847,7 +42847,7 @@ var VaultKeyProvider = class {
    */
   constructor(options) {
     this.backend = options.backend;
-    this.type = "vaultkeeper";
+    this.type = options.backend.type;
     this.displayName = options.displayName;
   }
   /**
@@ -42951,6 +42951,61 @@ var VaultKeyProvider = class {
     };
   }
 };
+var LegacyFilesystemKeyProvider = class {
+  type = "filesystem-legacy";
+  displayName = "Filesystem (Legacy)";
+  /**
+   * Check if this provider is available.
+   * The legacy filesystem provider is always available.
+   */
+  async isAvailable() {
+    return Promise.resolve(true);
+  }
+  /**
+   * Check if a key exists at the given filesystem path.
+   * @param keyRef - Filesystem path to the private key file
+   */
+  async keyExists(keyRef) {
+    try {
+      await fs7.access(keyRef);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Get the private key path for signing.
+   * Returns the path directly with a no-op cleanup function.
+   * @param keyRef - Filesystem path to the private key file
+   */
+  async getPrivateKey(keyRef) {
+    if (!await this.keyExists(keyRef)) {
+      throw new Error(`Private key not found: ${keyRef}`);
+    }
+    return {
+      keyPath: keyRef,
+      // No-op cleanup — key stays on filesystem
+      cleanup: async () => {
+      }
+    };
+  }
+  /**
+   * Not supported — legacy provider does not create new keys.
+   * @param _options - Unused key generation options
+   * @throws Always throws an informative error directing the user to `identity create`
+   */
+  async generateKeyPair(_options) {
+    throw new Error(
+      'Legacy filesystem provider does not support key generation. Use "attest-it identity create" with a VaultKeeper-backed provider.'
+    );
+  }
+  /**
+   * Get the configuration for this provider.
+   */
+  getConfig() {
+    return { type: this.type, options: {} };
+  }
+};
 var KeyProviderRegistry = class {
   static providers = /* @__PURE__ */ new Map();
   /**
@@ -42999,6 +43054,9 @@ KeyProviderRegistry.register("macos-keychain", (_config) => {
 KeyProviderRegistry.register("yubikey", (_config) => {
   const backend = BackendRegistry.create("yubikey");
   return new VaultKeyProvider({ backend, displayName: "YubiKey" });
+});
+KeyProviderRegistry.register("filesystem-legacy", (_config) => {
+  return new LegacyFilesystemKeyProvider();
 });
 var cliExperienceSchema = external_exports.object({
   declinedCompletionInstall: external_exports.boolean().optional()
