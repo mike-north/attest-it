@@ -114,11 +114,11 @@ var require_command = __commonJS({
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.issue = exports.issueCommand = void 0;
-    var os3 = __importStar(__require("os"));
+    var os2 = __importStar(__require("os"));
     var utils_1 = require_utils();
     function issueCommand(command, properties, message) {
       const cmd = new Command(command, properties, message);
-      process.stdout.write(cmd.toString() + os3.EOL);
+      process.stdout.write(cmd.toString() + os2.EOL);
     }
     exports.issueCommand = issueCommand;
     function issue(name, message = "") {
@@ -203,7 +203,7 @@ var require_file_command = __commonJS({
     exports.prepareKeyValueMessage = exports.issueFileCommand = void 0;
     var crypto = __importStar(__require("crypto"));
     var fs3 = __importStar(__require("fs"));
-    var os3 = __importStar(__require("os"));
+    var os2 = __importStar(__require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
       const filePath = process.env[`GITHUB_${command}`];
@@ -213,7 +213,7 @@ var require_file_command = __commonJS({
       if (!fs3.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs3.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os3.EOL}`, {
+      fs3.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os2.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -227,7 +227,7 @@ var require_file_command = __commonJS({
       if (convertedValue.includes(delimiter)) {
         throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
       }
-      return `${key}<<${delimiter}${os3.EOL}${convertedValue}${os3.EOL}${delimiter}`;
+      return `${key}<<${delimiter}${os2.EOL}${convertedValue}${os2.EOL}${delimiter}`;
     }
     exports.prepareKeyValueMessage = prepareKeyValueMessage;
   }
@@ -4068,8 +4068,8 @@ var require_util2 = __commonJS({
     function createDeferredPromise() {
       let res;
       let rej;
-      const promise2 = new Promise((resolve5, reject) => {
-        res = resolve5;
+      const promise2 = new Promise((resolve4, reject) => {
+        res = resolve4;
         rej = reject;
       });
       return { promise: promise2, resolve: res, reject: rej };
@@ -5580,8 +5580,8 @@ Content-Type: ${value.type || "application/octet-stream"}\r
                 });
               }
             });
-            const busboyResolve = new Promise((resolve5, reject) => {
-              busboy.on("finish", resolve5);
+            const busboyResolve = new Promise((resolve4, reject) => {
+              busboy.on("finish", resolve4);
               busboy.on("error", (err) => reject(new TypeError(err)));
             });
             if (this.body !== null) for await (const chunk of consumeBody(this[kState].body)) busboy.write(chunk);
@@ -6118,9 +6118,9 @@ var require_dispatcher_base = __commonJS({
       }
       close(callback2) {
         if (callback2 === void 0) {
-          return new Promise((resolve5, reject) => {
+          return new Promise((resolve4, reject) => {
             this.close((err, data) => {
-              return err ? reject(err) : resolve5(data);
+              return err ? reject(err) : resolve4(data);
             });
           });
         }
@@ -6158,12 +6158,12 @@ var require_dispatcher_base = __commonJS({
           err = null;
         }
         if (callback2 === void 0) {
-          return new Promise((resolve5, reject) => {
+          return new Promise((resolve4, reject) => {
             this.destroy(err, (err2, data) => {
               return err2 ? (
                 /* istanbul ignore next: should never error */
                 reject(err2)
-              ) : resolve5(data);
+              ) : resolve4(data);
             });
           });
         }
@@ -7233,16 +7233,16 @@ var require_client = __commonJS({
         return this[kNeedDrain] < 2;
       }
       async [kClose]() {
-        return new Promise((resolve5) => {
+        return new Promise((resolve4) => {
           if (!this[kSize]) {
-            resolve5(null);
+            resolve4(null);
           } else {
-            this[kClosedResolve] = resolve5;
+            this[kClosedResolve] = resolve4;
           }
         });
       }
       async [kDestroy](err) {
-        return new Promise((resolve5) => {
+        return new Promise((resolve4) => {
           const requests = this[kQueue].splice(this[kPendingIdx]);
           for (let i = 0; i < requests.length; i++) {
             const request2 = requests[i];
@@ -7253,7 +7253,7 @@ var require_client = __commonJS({
               this[kClosedResolve]();
               this[kClosedResolve] = null;
             }
-            resolve5();
+            resolve4();
           };
           if (this[kHTTP2Session] != null) {
             util2.destroy(this[kHTTP2Session], err);
@@ -7833,7 +7833,7 @@ var require_client = __commonJS({
         });
       }
       try {
-        const socket = await new Promise((resolve5, reject) => {
+        const socket = await new Promise((resolve4, reject) => {
           client[kConnector]({
             host,
             hostname,
@@ -7845,7 +7845,7 @@ var require_client = __commonJS({
             if (err) {
               reject(err);
             } else {
-              resolve5(socket2);
+              resolve4(socket2);
             }
           });
         });
@@ -8469,12 +8469,12 @@ upgrade: ${upgrade}\r
           cb();
         }
       }
-      const waitForDrain = () => new Promise((resolve5, reject) => {
+      const waitForDrain = () => new Promise((resolve4, reject) => {
         assert(callback2 === null);
         if (socket[kError]) {
           reject(socket[kError]);
         } else {
-          callback2 = resolve5;
+          callback2 = resolve4;
         }
       });
       if (client[kHTTPConnVersion] === "h2") {
@@ -8823,8 +8823,8 @@ var require_pool_base = __commonJS({
         if (this[kQueue].isEmpty()) {
           return Promise.all(this[kClients].map((c) => c.close()));
         } else {
-          return new Promise((resolve5) => {
-            this[kClosedResolve] = resolve5;
+          return new Promise((resolve4) => {
+            this[kClosedResolve] = resolve4;
           });
         }
       }
@@ -9407,7 +9407,7 @@ var require_readable = __commonJS({
         if (this.closed) {
           return Promise.resolve(null);
         }
-        return new Promise((resolve5, reject) => {
+        return new Promise((resolve4, reject) => {
           const signalListenerCleanup = signal ? util2.addAbortListener(signal, () => {
             this.destroy();
           }) : noop2;
@@ -9416,7 +9416,7 @@ var require_readable = __commonJS({
             if (signal && signal.aborted) {
               reject(signal.reason || Object.assign(new Error("The operation was aborted"), { name: "AbortError" }));
             } else {
-              resolve5(null);
+              resolve4(null);
             }
           }).on("error", noop2).on("data", function(chunk) {
             limit -= chunk.length;
@@ -9438,11 +9438,11 @@ var require_readable = __commonJS({
         throw new TypeError("unusable");
       }
       assert(!stream[kConsume]);
-      return new Promise((resolve5, reject) => {
+      return new Promise((resolve4, reject) => {
         stream[kConsume] = {
           type,
           stream,
-          resolve: resolve5,
+          resolve: resolve4,
           reject,
           length: 0,
           body: []
@@ -9477,12 +9477,12 @@ var require_readable = __commonJS({
       }
     }
     function consumeEnd(consume2) {
-      const { type, body, resolve: resolve5, stream, length } = consume2;
+      const { type, body, resolve: resolve4, stream, length } = consume2;
       try {
         if (type === "text") {
-          resolve5(toUSVString(Buffer.concat(body)));
+          resolve4(toUSVString(Buffer.concat(body)));
         } else if (type === "json") {
-          resolve5(JSON.parse(Buffer.concat(body)));
+          resolve4(JSON.parse(Buffer.concat(body)));
         } else if (type === "arrayBuffer") {
           const dst = new Uint8Array(length);
           let pos = 0;
@@ -9490,12 +9490,12 @@ var require_readable = __commonJS({
             dst.set(buf, pos);
             pos += buf.byteLength;
           }
-          resolve5(dst.buffer);
+          resolve4(dst.buffer);
         } else if (type === "blob") {
           if (!Blob2) {
             Blob2 = __require("buffer").Blob;
           }
-          resolve5(new Blob2(body, { type: stream[kContentType] }));
+          resolve4(new Blob2(body, { type: stream[kContentType] }));
         }
         consumeFinish(consume2);
       } catch (err) {
@@ -9755,9 +9755,9 @@ var require_api_request = __commonJS({
     };
     function request2(opts, callback2) {
       if (callback2 === void 0) {
-        return new Promise((resolve5, reject) => {
+        return new Promise((resolve4, reject) => {
           request2.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve5(data);
+            return err ? reject(err) : resolve4(data);
           });
         });
       }
@@ -9931,9 +9931,9 @@ var require_api_stream = __commonJS({
     };
     function stream(opts, factory, callback2) {
       if (callback2 === void 0) {
-        return new Promise((resolve5, reject) => {
+        return new Promise((resolve4, reject) => {
           stream.call(this, opts, factory, (err, data) => {
-            return err ? reject(err) : resolve5(data);
+            return err ? reject(err) : resolve4(data);
           });
         });
       }
@@ -10216,9 +10216,9 @@ var require_api_upgrade = __commonJS({
     };
     function upgrade(opts, callback2) {
       if (callback2 === void 0) {
-        return new Promise((resolve5, reject) => {
+        return new Promise((resolve4, reject) => {
           upgrade.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve5(data);
+            return err ? reject(err) : resolve4(data);
           });
         });
       }
@@ -10308,9 +10308,9 @@ var require_api_connect = __commonJS({
     };
     function connect(opts, callback2) {
       if (callback2 === void 0) {
-        return new Promise((resolve5, reject) => {
+        return new Promise((resolve4, reject) => {
           connect.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve5(data);
+            return err ? reject(err) : resolve4(data);
           });
         });
       }
@@ -13951,7 +13951,7 @@ var require_fetch = __commonJS({
       async function dispatch({ body }) {
         const url = requestCurrentURL(request2);
         const agent = fetchParams.controller.dispatcher;
-        return new Promise((resolve5, reject) => agent.dispatch(
+        return new Promise((resolve4, reject) => agent.dispatch(
           {
             path: url.pathname + url.search,
             origin: url.origin,
@@ -14027,7 +14027,7 @@ var require_fetch = __commonJS({
                   }
                 }
               }
-              resolve5({
+              resolve4({
                 status,
                 statusText,
                 headersList: headers[kHeadersList],
@@ -14070,7 +14070,7 @@ var require_fetch = __commonJS({
                 const val = headersList[n + 1].toString("latin1");
                 headers[kHeadersList].append(key, val);
               }
-              resolve5({
+              resolve4({
                 status,
                 statusText: STATUS_CODES[status],
                 headersList: headers[kHeadersList],
@@ -16635,7 +16635,7 @@ var require_receiver = __commonJS({
   "../../node_modules/.pnpm/undici@5.29.0/node_modules/undici/lib/websocket/receiver.js"(exports, module) {
     "use strict";
     init_esm_shims();
-    var { Writable: Writable2 } = __require("stream");
+    var { Writable } = __require("stream");
     var diagnosticsChannel = __require("diagnostics_channel");
     var { parserStates, opcodes, states, emptyBuffer } = require_constants5();
     var { kReadyState, kSentClose, kResponse, kReceivedClose } = require_symbols5();
@@ -16644,7 +16644,7 @@ var require_receiver = __commonJS({
     var channels = {};
     channels.ping = diagnosticsChannel.channel("undici:websocket:ping");
     channels.pong = diagnosticsChannel.channel("undici:websocket:pong");
-    var ByteParser = class extends Writable2 {
+    var ByteParser = class extends Writable {
       #buffers = [];
       #byteOffset = 0;
       #state = parserStates.INFO;
@@ -17447,11 +17447,11 @@ var require_lib = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve5) {
-          resolve5(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve5, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -17467,7 +17467,7 @@ var require_lib = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -17553,26 +17553,26 @@ var require_lib = __commonJS({
       }
       readBody() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve5) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve4) => __awaiter(this, void 0, void 0, function* () {
             let output = Buffer.alloc(0);
             this.message.on("data", (chunk) => {
               output = Buffer.concat([output, chunk]);
             });
             this.message.on("end", () => {
-              resolve5(output.toString());
+              resolve4(output.toString());
             });
           }));
         });
       }
       readBodyBuffer() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve5) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve4) => __awaiter(this, void 0, void 0, function* () {
             const chunks = [];
             this.message.on("data", (chunk) => {
               chunks.push(chunk);
             });
             this.message.on("end", () => {
-              resolve5(Buffer.concat(chunks));
+              resolve4(Buffer.concat(chunks));
             });
           }));
         });
@@ -17781,14 +17781,14 @@ var require_lib = __commonJS({
        */
       requestRaw(info2, data) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve5, reject) => {
+          return new Promise((resolve4, reject) => {
             function callbackForResult(err, res) {
               if (err) {
                 reject(err);
               } else if (!res) {
                 reject(new Error("Unknown error"));
               } else {
-                resolve5(res);
+                resolve4(res);
               }
             }
             this.requestRawWithCallback(info2, data, callbackForResult);
@@ -17970,12 +17970,12 @@ var require_lib = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           retryNumber = Math.min(ExponentialBackoffCeiling, retryNumber);
           const ms2 = ExponentialBackoffTimeSlice * Math.pow(2, retryNumber);
-          return new Promise((resolve5) => setTimeout(() => resolve5(), ms2));
+          return new Promise((resolve4) => setTimeout(() => resolve4(), ms2));
         });
       }
       _processResponse(res, options) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve5, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve4, reject) => __awaiter(this, void 0, void 0, function* () {
             const statusCode = res.message.statusCode || 0;
             const response = {
               statusCode,
@@ -17983,7 +17983,7 @@ var require_lib = __commonJS({
               headers: {}
             };
             if (statusCode === HttpCodes.NotFound) {
-              resolve5(response);
+              resolve4(response);
             }
             function dateTimeDeserializer(key, value) {
               if (typeof value === "string") {
@@ -18022,7 +18022,7 @@ var require_lib = __commonJS({
               err.result = response.result;
               reject(err);
             } else {
-              resolve5(response);
+              resolve4(response);
             }
           }));
         });
@@ -18040,11 +18040,11 @@ var require_auth = __commonJS({
     init_esm_shims();
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve5) {
-          resolve5(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve5, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18060,7 +18060,7 @@ var require_auth = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18145,11 +18145,11 @@ var require_oidc_utils = __commonJS({
     init_esm_shims();
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve5) {
-          resolve5(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve5, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18165,7 +18165,7 @@ var require_oidc_utils = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18244,11 +18244,11 @@ var require_summary = __commonJS({
     init_esm_shims();
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve5) {
-          resolve5(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve5, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18264,7 +18264,7 @@ var require_summary = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18273,7 +18273,7 @@ var require_summary = __commonJS({
     exports.summary = exports.markdownSummary = exports.SUMMARY_DOCS_URL = exports.SUMMARY_ENV_VAR = void 0;
     var os_1 = __require("os");
     var fs_1 = __require("fs");
-    var { access: access3, appendFile, writeFile: writeFile4 } = fs_1.promises;
+    var { access: access2, appendFile, writeFile: writeFile3 } = fs_1.promises;
     exports.SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY";
     exports.SUMMARY_DOCS_URL = "https://docs.github.com/actions/using-workflows/workflow-commands-for-github-actions#adding-a-job-summary";
     var Summary = class {
@@ -18296,7 +18296,7 @@ var require_summary = __commonJS({
             throw new Error(`Unable to find environment variable for $${exports.SUMMARY_ENV_VAR}. Check if your runtime environment supports job summaries.`);
           }
           try {
-            yield access3(pathFromEnv, fs_1.constants.R_OK | fs_1.constants.W_OK);
+            yield access2(pathFromEnv, fs_1.constants.R_OK | fs_1.constants.W_OK);
           } catch (_a) {
             throw new Error(`Unable to access summary file: '${pathFromEnv}'. Check if the file has correct read/write permissions.`);
           }
@@ -18331,7 +18331,7 @@ var require_summary = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           const overwrite = !!(options === null || options === void 0 ? void 0 : options.overwrite);
           const filePath = yield this.filePath();
-          const writeFunc = overwrite ? writeFile4 : appendFile;
+          const writeFunc = overwrite ? writeFile3 : appendFile;
           yield writeFunc(filePath, this._buffer, { encoding: "utf8" });
           return this.emptyBuffer();
         });
@@ -18612,11 +18612,11 @@ var require_io_util = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve5) {
-          resolve5(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve5, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18632,7 +18632,7 @@ var require_io_util = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18786,11 +18786,11 @@ var require_io = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve5) {
-          resolve5(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve5, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18806,7 +18806,7 @@ var require_io = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19035,11 +19035,11 @@ var require_toolrunner = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve5) {
-          resolve5(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve5, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19055,14 +19055,14 @@ var require_toolrunner = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
     };
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.argStringToArray = exports.ToolRunner = void 0;
-    var os3 = __importStar(__require("os"));
+    var os2 = __importStar(__require("os"));
     var events = __importStar(__require("events"));
     var child = __importStar(__require("child_process"));
     var path4 = __importStar(__require("path"));
@@ -19117,12 +19117,12 @@ var require_toolrunner = __commonJS({
       _processLineBuffer(data, strBuffer, onLine) {
         try {
           let s = strBuffer + data.toString();
-          let n = s.indexOf(os3.EOL);
+          let n = s.indexOf(os2.EOL);
           while (n > -1) {
             const line = s.substring(0, n);
             onLine(line);
-            s = s.substring(n + os3.EOL.length);
-            n = s.indexOf(os3.EOL);
+            s = s.substring(n + os2.EOL.length);
+            n = s.indexOf(os2.EOL);
           }
           return s;
         } catch (err) {
@@ -19283,7 +19283,7 @@ var require_toolrunner = __commonJS({
             this.toolPath = path4.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
           }
           this.toolPath = yield io.which(this.toolPath, true);
-          return new Promise((resolve5, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve4, reject) => __awaiter(this, void 0, void 0, function* () {
             this._debug(`exec tool: ${this.toolPath}`);
             this._debug("arguments:");
             for (const arg of this.args) {
@@ -19291,7 +19291,7 @@ var require_toolrunner = __commonJS({
             }
             const optionsNonNull = this._cloneExecOptions(this.options);
             if (!optionsNonNull.silent && optionsNonNull.outStream) {
-              optionsNonNull.outStream.write(this._getCommandString(optionsNonNull) + os3.EOL);
+              optionsNonNull.outStream.write(this._getCommandString(optionsNonNull) + os2.EOL);
             }
             const state = new ExecState(optionsNonNull, this.toolPath);
             state.on("debug", (message) => {
@@ -19366,7 +19366,7 @@ var require_toolrunner = __commonJS({
               if (error2) {
                 reject(error2);
               } else {
-                resolve5(exitCode);
+                resolve4(exitCode);
               }
             });
             if (this.options.input) {
@@ -19520,11 +19520,11 @@ var require_exec = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve5) {
-          resolve5(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve5, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19540,7 +19540,7 @@ var require_exec = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19632,11 +19632,11 @@ var require_platform = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve5) {
-          resolve5(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve5, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19652,7 +19652,7 @@ var require_platform = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19752,11 +19752,11 @@ var require_core = __commonJS({
     };
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve5) {
-          resolve5(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve5, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19772,7 +19772,7 @@ var require_core = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19782,7 +19782,7 @@ var require_core = __commonJS({
     var command_1 = require_command();
     var file_command_1 = require_file_command();
     var utils_1 = require_utils();
-    var os3 = __importStar(__require("os"));
+    var os2 = __importStar(__require("os"));
     var path4 = __importStar(__require("path"));
     var oidc_utils_1 = require_oidc_utils();
     var ExitCode;
@@ -19850,7 +19850,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       if (filePath) {
         return (0, file_command_1.issueFileCommand)("OUTPUT", (0, file_command_1.prepareKeyValueMessage)(name, value));
       }
-      process.stdout.write(os3.EOL);
+      process.stdout.write(os2.EOL);
       (0, command_1.issueCommand)("set-output", { name }, (0, utils_1.toCommandValue)(value));
     }
     exports.setOutput = setOutput2;
@@ -19884,7 +19884,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     }
     exports.notice = notice;
     function info2(message) {
-      process.stdout.write(message + os3.EOL);
+      process.stdout.write(message + os2.EOL);
     }
     exports.info = info2;
     function startGroup2(name) {
@@ -19948,289 +19948,1978 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
-// ../core/dist/chunk-DEX33VQV.js
-import { spawn } from "child_process";
-import { Writable } from "stream";
-import * as fs from "fs/promises";
-import * as path2 from "path";
-import * as os from "os";
-async function runOpenSSL(args, passphrase) {
-  return new Promise((resolve5, reject) => {
-    const stdio = passphrase ? ["ignore", "pipe", "pipe", "pipe"] : ["ignore", "pipe", "pipe"];
-    const child = spawn("openssl", args, { stdio });
-    const stdoutChunks = [];
-    let stderr = "";
-    child.stdout?.on("data", (chunk) => {
-      stdoutChunks.push(chunk);
-    });
-    child.stderr?.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
-    child.on("error", (err) => {
-      reject(new Error(`Failed to spawn OpenSSL: ${err.message}`));
-    });
-    child.on("close", (code) => {
-      resolve5({
-        exitCode: code ?? 1,
-        stdout: Buffer.concat(stdoutChunks),
-        stderr
-      });
-    });
-    if (passphrase) {
-      const passphraseStream = child.stdio[3];
-      if (!(passphraseStream instanceof Writable)) {
-        reject(new Error("Expected a writable stream for the passphrase file descriptor"));
-        return;
-      }
-      passphraseStream.on("error", () => {
-      });
-      passphraseStream.write(passphrase + "\n");
-      passphraseStream.end();
-    }
-  });
-}
-async function checkOpenSSL() {
-  const result = await runOpenSSL(["version"]);
-  if (result.exitCode !== 0) {
-    throw new Error(`OpenSSL check failed: ${result.stderr}`);
-  }
-  return result.stdout.toString().trim();
-}
-async function ensureOpenSSLAvailable() {
-  if (openSSLChecked) {
-    return;
-  }
-  try {
-    await checkOpenSSL();
-    openSSLChecked = true;
-  } catch {
-    throw new Error(
-      "OpenSSL is not installed or not in PATH. Please install OpenSSL to use attest-it. On macOS: brew install openssl. On Ubuntu: apt-get install openssl"
-    );
-  }
-}
-function getDefaultPrivateKeyPath() {
-  const homeDir = os.homedir();
-  if (process.platform === "win32") {
-    const appData = process.env.APPDATA ?? path2.join(homeDir, "AppData", "Roaming");
-    return path2.join(appData, "attest-it", "private.pem");
-  }
-  return path2.join(homeDir, ".config", "attest-it", "private.pem");
-}
-function getDefaultPublicKeyPath() {
-  return path2.join(process.cwd(), "attest-it-public.pem");
-}
-async function ensureDir(dirPath) {
-  try {
-    await fs.mkdir(dirPath, { recursive: true });
-  } catch (err) {
-    if (err instanceof Error && "code" in err && err.code !== "EEXIST") {
-      throw err;
-    }
-  }
-}
-async function fileExists(filePath) {
-  try {
-    await fs.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-async function cleanupFiles(...paths) {
-  for (const filePath of paths) {
-    try {
-      await fs.unlink(filePath);
-    } catch {
-    }
-  }
-}
-async function generateKeyPair(options = {}) {
-  await ensureOpenSSLAvailable();
-  const {
-    privatePath = getDefaultPrivateKeyPath(),
-    publicPath = getDefaultPublicKeyPath(),
-    force = false,
-    passphrase
-  } = options;
-  const privateExists = await fileExists(privatePath);
-  const publicExists = await fileExists(publicPath);
-  if ((privateExists || publicExists) && !force) {
-    const existing = [privateExists ? privatePath : null, publicExists ? publicPath : null].filter(
-      Boolean
-    );
-    throw new Error(
-      `Key files already exist: ${existing.join(", ")}. Use force: true to overwrite.`
-    );
-  }
-  await ensureDir(path2.dirname(privatePath));
-  await ensureDir(path2.dirname(publicPath));
-  try {
-    const genArgs = [
-      "genpkey",
-      "-algorithm",
-      "RSA",
-      "-pkeyopt",
-      "rsa_keygen_bits:2048",
-      "-out",
-      privatePath
-    ];
-    if (passphrase) {
-      genArgs.push("-aes256", "-pass", "fd:3");
-    }
-    const genResult = await runOpenSSL(genArgs, passphrase);
-    if (genResult.exitCode !== 0) {
-      throw new Error(`Failed to generate private key: ${genResult.stderr}`);
-    }
-    await setKeyPermissions(privatePath);
-    const pubArgs = ["pkey", "-in", privatePath, "-pubout", "-out", publicPath];
-    if (passphrase) {
-      pubArgs.push("-passin", "fd:3");
-    }
-    const pubResult = await runOpenSSL(pubArgs, passphrase);
-    if (pubResult.exitCode !== 0) {
-      throw new Error(`Failed to extract public key: ${pubResult.stderr}`);
-    }
-    return {
-      privatePath,
-      publicPath
-    };
-  } catch (err) {
-    await cleanupFiles(privatePath, publicPath);
-    throw err;
-  }
-}
-async function setKeyPermissions(keyPath) {
-  if (process.platform === "win32") {
-    await fs.chmod(keyPath, 384);
-  } else {
-    await fs.chmod(keyPath, 384);
-  }
-}
-var openSSLChecked;
-var init_chunk_DEX33VQV = __esm({
-  "../core/dist/chunk-DEX33VQV.js"() {
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/constants.js
+var require_constants6 = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/constants.js"(exports, module) {
     "use strict";
     init_esm_shims();
-    openSSLChecked = false;
+    var SEMVER_SPEC_VERSION = "2.0.0";
+    var MAX_LENGTH = 256;
+    var MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER || /* istanbul ignore next */
+    9007199254740991;
+    var MAX_SAFE_COMPONENT_LENGTH = 16;
+    var MAX_SAFE_BUILD_LENGTH = MAX_LENGTH - 6;
+    var RELEASE_TYPES = [
+      "major",
+      "premajor",
+      "minor",
+      "preminor",
+      "patch",
+      "prepatch",
+      "prerelease"
+    ];
+    module.exports = {
+      MAX_LENGTH,
+      MAX_SAFE_COMPONENT_LENGTH,
+      MAX_SAFE_BUILD_LENGTH,
+      MAX_SAFE_INTEGER,
+      RELEASE_TYPES,
+      SEMVER_SPEC_VERSION,
+      FLAG_INCLUDE_PRERELEASE: 1,
+      FLAG_LOOSE: 2
+    };
   }
 });
 
-// ../../node_modules/.pnpm/ms@2.1.3/node_modules/ms/index.js
-var require_ms = __commonJS({
-  "../../node_modules/.pnpm/ms@2.1.3/node_modules/ms/index.js"(exports, module) {
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/debug.js
+var require_debug = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/debug.js"(exports, module) {
     "use strict";
     init_esm_shims();
-    var s = 1e3;
-    var m = s * 60;
-    var h = m * 60;
-    var d = h * 24;
-    var w = d * 7;
-    var y = d * 365.25;
-    module.exports = function(val, options) {
-      options = options || {};
-      var type = typeof val;
-      if (type === "string" && val.length > 0) {
-        return parse3(val);
-      } else if (type === "number" && isFinite(val)) {
-        return options.long ? fmtLong(val) : fmtShort(val);
-      }
-      throw new Error(
-        "val is not a non-empty string or a valid number. val=" + JSON.stringify(val)
-      );
+    var debug = typeof process === "object" && process.env && process.env.NODE_DEBUG && /\bsemver\b/i.test(process.env.NODE_DEBUG) ? (...args) => console.error("SEMVER", ...args) : () => {
     };
-    function parse3(str) {
-      str = String(str);
-      if (str.length > 100) {
-        return;
+    module.exports = debug;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/re.js
+var require_re = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/re.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var {
+      MAX_SAFE_COMPONENT_LENGTH,
+      MAX_SAFE_BUILD_LENGTH,
+      MAX_LENGTH
+    } = require_constants6();
+    var debug = require_debug();
+    exports = module.exports = {};
+    var re = exports.re = [];
+    var safeRe = exports.safeRe = [];
+    var src = exports.src = [];
+    var safeSrc = exports.safeSrc = [];
+    var t = exports.t = {};
+    var R = 0;
+    var LETTERDASHNUMBER = "[a-zA-Z0-9-]";
+    var safeRegexReplacements = [
+      ["\\s", 1],
+      ["\\d", MAX_LENGTH],
+      [LETTERDASHNUMBER, MAX_SAFE_BUILD_LENGTH]
+    ];
+    var makeSafeRegex = (value) => {
+      for (const [token, max] of safeRegexReplacements) {
+        value = value.split(`${token}*`).join(`${token}{0,${max}}`).split(`${token}+`).join(`${token}{1,${max}}`);
       }
-      var match = /^(-?(?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|w|years?|yrs?|y)?$/i.exec(
-        str
-      );
-      if (!match) {
-        return;
+      return value;
+    };
+    var createToken = (name, value, isGlobal) => {
+      const safe = makeSafeRegex(value);
+      const index = R++;
+      debug(name, index, value);
+      t[name] = index;
+      src[index] = value;
+      safeSrc[index] = safe;
+      re[index] = new RegExp(value, isGlobal ? "g" : void 0);
+      safeRe[index] = new RegExp(safe, isGlobal ? "g" : void 0);
+    };
+    createToken("NUMERICIDENTIFIER", "0|[1-9]\\d*");
+    createToken("NUMERICIDENTIFIERLOOSE", "\\d+");
+    createToken("NONNUMERICIDENTIFIER", `\\d*[a-zA-Z-]${LETTERDASHNUMBER}*`);
+    createToken("MAINVERSION", `(${src[t.NUMERICIDENTIFIER]})\\.(${src[t.NUMERICIDENTIFIER]})\\.(${src[t.NUMERICIDENTIFIER]})`);
+    createToken("MAINVERSIONLOOSE", `(${src[t.NUMERICIDENTIFIERLOOSE]})\\.(${src[t.NUMERICIDENTIFIERLOOSE]})\\.(${src[t.NUMERICIDENTIFIERLOOSE]})`);
+    createToken("PRERELEASEIDENTIFIER", `(?:${src[t.NONNUMERICIDENTIFIER]}|${src[t.NUMERICIDENTIFIER]})`);
+    createToken("PRERELEASEIDENTIFIERLOOSE", `(?:${src[t.NONNUMERICIDENTIFIER]}|${src[t.NUMERICIDENTIFIERLOOSE]})`);
+    createToken("PRERELEASE", `(?:-(${src[t.PRERELEASEIDENTIFIER]}(?:\\.${src[t.PRERELEASEIDENTIFIER]})*))`);
+    createToken("PRERELEASELOOSE", `(?:-?(${src[t.PRERELEASEIDENTIFIERLOOSE]}(?:\\.${src[t.PRERELEASEIDENTIFIERLOOSE]})*))`);
+    createToken("BUILDIDENTIFIER", `${LETTERDASHNUMBER}+`);
+    createToken("BUILD", `(?:\\+(${src[t.BUILDIDENTIFIER]}(?:\\.${src[t.BUILDIDENTIFIER]})*))`);
+    createToken("FULLPLAIN", `v?${src[t.MAINVERSION]}${src[t.PRERELEASE]}?${src[t.BUILD]}?`);
+    createToken("FULL", `^${src[t.FULLPLAIN]}$`);
+    createToken("LOOSEPLAIN", `[v=\\s]*${src[t.MAINVERSIONLOOSE]}${src[t.PRERELEASELOOSE]}?${src[t.BUILD]}?`);
+    createToken("LOOSE", `^${src[t.LOOSEPLAIN]}$`);
+    createToken("GTLT", "((?:<|>)?=?)");
+    createToken("XRANGEIDENTIFIERLOOSE", `${src[t.NUMERICIDENTIFIERLOOSE]}|x|X|\\*`);
+    createToken("XRANGEIDENTIFIER", `${src[t.NUMERICIDENTIFIER]}|x|X|\\*`);
+    createToken("XRANGEPLAIN", `[v=\\s]*(${src[t.XRANGEIDENTIFIER]})(?:\\.(${src[t.XRANGEIDENTIFIER]})(?:\\.(${src[t.XRANGEIDENTIFIER]})(?:${src[t.PRERELEASE]})?${src[t.BUILD]}?)?)?`);
+    createToken("XRANGEPLAINLOOSE", `[v=\\s]*(${src[t.XRANGEIDENTIFIERLOOSE]})(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})(?:${src[t.PRERELEASELOOSE]})?${src[t.BUILD]}?)?)?`);
+    createToken("XRANGE", `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAIN]}$`);
+    createToken("XRANGELOOSE", `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAINLOOSE]}$`);
+    createToken("COERCEPLAIN", `${"(^|[^\\d])(\\d{1,"}${MAX_SAFE_COMPONENT_LENGTH}})(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?`);
+    createToken("COERCE", `${src[t.COERCEPLAIN]}(?:$|[^\\d])`);
+    createToken("COERCEFULL", src[t.COERCEPLAIN] + `(?:${src[t.PRERELEASE]})?(?:${src[t.BUILD]})?(?:$|[^\\d])`);
+    createToken("COERCERTL", src[t.COERCE], true);
+    createToken("COERCERTLFULL", src[t.COERCEFULL], true);
+    createToken("LONETILDE", "(?:~>?)");
+    createToken("TILDETRIM", `(\\s*)${src[t.LONETILDE]}\\s+`, true);
+    exports.tildeTrimReplace = "$1~";
+    createToken("TILDE", `^${src[t.LONETILDE]}${src[t.XRANGEPLAIN]}$`);
+    createToken("TILDELOOSE", `^${src[t.LONETILDE]}${src[t.XRANGEPLAINLOOSE]}$`);
+    createToken("LONECARET", "(?:\\^)");
+    createToken("CARETTRIM", `(\\s*)${src[t.LONECARET]}\\s+`, true);
+    exports.caretTrimReplace = "$1^";
+    createToken("CARET", `^${src[t.LONECARET]}${src[t.XRANGEPLAIN]}$`);
+    createToken("CARETLOOSE", `^${src[t.LONECARET]}${src[t.XRANGEPLAINLOOSE]}$`);
+    createToken("COMPARATORLOOSE", `^${src[t.GTLT]}\\s*(${src[t.LOOSEPLAIN]})$|^$`);
+    createToken("COMPARATOR", `^${src[t.GTLT]}\\s*(${src[t.FULLPLAIN]})$|^$`);
+    createToken("COMPARATORTRIM", `(\\s*)${src[t.GTLT]}\\s*(${src[t.LOOSEPLAIN]}|${src[t.XRANGEPLAIN]})`, true);
+    exports.comparatorTrimReplace = "$1$2$3";
+    createToken("HYPHENRANGE", `^\\s*(${src[t.XRANGEPLAIN]})\\s+-\\s+(${src[t.XRANGEPLAIN]})\\s*$`);
+    createToken("HYPHENRANGELOOSE", `^\\s*(${src[t.XRANGEPLAINLOOSE]})\\s+-\\s+(${src[t.XRANGEPLAINLOOSE]})\\s*$`);
+    createToken("STAR", "(<|>)?=?\\s*\\*");
+    createToken("GTE0", "^\\s*>=\\s*0\\.0\\.0\\s*$");
+    createToken("GTE0PRE", "^\\s*>=\\s*0\\.0\\.0-0\\s*$");
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/parse-options.js
+var require_parse_options = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/parse-options.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var looseOption = Object.freeze({ loose: true });
+    var emptyOpts = Object.freeze({});
+    var parseOptions = (options) => {
+      if (!options) {
+        return emptyOpts;
       }
-      var n = parseFloat(match[1]);
-      var type = (match[2] || "ms").toLowerCase();
-      switch (type) {
-        case "years":
-        case "year":
-        case "yrs":
-        case "yr":
-        case "y":
-          return n * y;
-        case "weeks":
-        case "week":
-        case "w":
-          return n * w;
-        case "days":
-        case "day":
-        case "d":
-          return n * d;
-        case "hours":
-        case "hour":
-        case "hrs":
-        case "hr":
-        case "h":
-          return n * h;
-        case "minutes":
-        case "minute":
-        case "mins":
-        case "min":
-        case "m":
-          return n * m;
-        case "seconds":
-        case "second":
-        case "secs":
-        case "sec":
-        case "s":
-          return n * s;
-        case "milliseconds":
-        case "millisecond":
-        case "msecs":
-        case "msec":
-        case "ms":
-          return n;
+      if (typeof options !== "object") {
+        return looseOption;
+      }
+      return options;
+    };
+    module.exports = parseOptions;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/identifiers.js
+var require_identifiers = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/identifiers.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var numeric = /^[0-9]+$/;
+    var compareIdentifiers = (a, b) => {
+      if (typeof a === "number" && typeof b === "number") {
+        return a === b ? 0 : a < b ? -1 : 1;
+      }
+      const anum = numeric.test(a);
+      const bnum = numeric.test(b);
+      if (anum && bnum) {
+        a = +a;
+        b = +b;
+      }
+      return a === b ? 0 : anum && !bnum ? -1 : bnum && !anum ? 1 : a < b ? -1 : 1;
+    };
+    var rcompareIdentifiers = (a, b) => compareIdentifiers(b, a);
+    module.exports = {
+      compareIdentifiers,
+      rcompareIdentifiers
+    };
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/classes/semver.js
+var require_semver = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/classes/semver.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var debug = require_debug();
+    var { MAX_LENGTH, MAX_SAFE_INTEGER } = require_constants6();
+    var { safeRe: re, t } = require_re();
+    var parseOptions = require_parse_options();
+    var { compareIdentifiers } = require_identifiers();
+    var SemVer = class _SemVer {
+      constructor(version2, options) {
+        options = parseOptions(options);
+        if (version2 instanceof _SemVer) {
+          if (version2.loose === !!options.loose && version2.includePrerelease === !!options.includePrerelease) {
+            return version2;
+          } else {
+            version2 = version2.version;
+          }
+        } else if (typeof version2 !== "string") {
+          throw new TypeError(`Invalid version. Must be a string. Got type "${typeof version2}".`);
+        }
+        if (version2.length > MAX_LENGTH) {
+          throw new TypeError(
+            `version is longer than ${MAX_LENGTH} characters`
+          );
+        }
+        debug("SemVer", version2, options);
+        this.options = options;
+        this.loose = !!options.loose;
+        this.includePrerelease = !!options.includePrerelease;
+        const m = version2.trim().match(options.loose ? re[t.LOOSE] : re[t.FULL]);
+        if (!m) {
+          throw new TypeError(`Invalid Version: ${version2}`);
+        }
+        this.raw = version2;
+        this.major = +m[1];
+        this.minor = +m[2];
+        this.patch = +m[3];
+        if (this.major > MAX_SAFE_INTEGER || this.major < 0) {
+          throw new TypeError("Invalid major version");
+        }
+        if (this.minor > MAX_SAFE_INTEGER || this.minor < 0) {
+          throw new TypeError("Invalid minor version");
+        }
+        if (this.patch > MAX_SAFE_INTEGER || this.patch < 0) {
+          throw new TypeError("Invalid patch version");
+        }
+        if (!m[4]) {
+          this.prerelease = [];
+        } else {
+          this.prerelease = m[4].split(".").map((id) => {
+            if (/^[0-9]+$/.test(id)) {
+              const num = +id;
+              if (num >= 0 && num < MAX_SAFE_INTEGER) {
+                return num;
+              }
+            }
+            return id;
+          });
+        }
+        this.build = m[5] ? m[5].split(".") : [];
+        this.format();
+      }
+      format() {
+        this.version = `${this.major}.${this.minor}.${this.patch}`;
+        if (this.prerelease.length) {
+          this.version += `-${this.prerelease.join(".")}`;
+        }
+        return this.version;
+      }
+      toString() {
+        return this.version;
+      }
+      compare(other) {
+        debug("SemVer.compare", this.version, this.options, other);
+        if (!(other instanceof _SemVer)) {
+          if (typeof other === "string" && other === this.version) {
+            return 0;
+          }
+          other = new _SemVer(other, this.options);
+        }
+        if (other.version === this.version) {
+          return 0;
+        }
+        return this.compareMain(other) || this.comparePre(other);
+      }
+      compareMain(other) {
+        if (!(other instanceof _SemVer)) {
+          other = new _SemVer(other, this.options);
+        }
+        if (this.major < other.major) {
+          return -1;
+        }
+        if (this.major > other.major) {
+          return 1;
+        }
+        if (this.minor < other.minor) {
+          return -1;
+        }
+        if (this.minor > other.minor) {
+          return 1;
+        }
+        if (this.patch < other.patch) {
+          return -1;
+        }
+        if (this.patch > other.patch) {
+          return 1;
+        }
+        return 0;
+      }
+      comparePre(other) {
+        if (!(other instanceof _SemVer)) {
+          other = new _SemVer(other, this.options);
+        }
+        if (this.prerelease.length && !other.prerelease.length) {
+          return -1;
+        } else if (!this.prerelease.length && other.prerelease.length) {
+          return 1;
+        } else if (!this.prerelease.length && !other.prerelease.length) {
+          return 0;
+        }
+        let i = 0;
+        do {
+          const a = this.prerelease[i];
+          const b = other.prerelease[i];
+          debug("prerelease compare", i, a, b);
+          if (a === void 0 && b === void 0) {
+            return 0;
+          } else if (b === void 0) {
+            return 1;
+          } else if (a === void 0) {
+            return -1;
+          } else if (a === b) {
+            continue;
+          } else {
+            return compareIdentifiers(a, b);
+          }
+        } while (++i);
+      }
+      compareBuild(other) {
+        if (!(other instanceof _SemVer)) {
+          other = new _SemVer(other, this.options);
+        }
+        let i = 0;
+        do {
+          const a = this.build[i];
+          const b = other.build[i];
+          debug("build compare", i, a, b);
+          if (a === void 0 && b === void 0) {
+            return 0;
+          } else if (b === void 0) {
+            return 1;
+          } else if (a === void 0) {
+            return -1;
+          } else if (a === b) {
+            continue;
+          } else {
+            return compareIdentifiers(a, b);
+          }
+        } while (++i);
+      }
+      // preminor will bump the version up to the next minor release, and immediately
+      // down to pre-release. premajor and prepatch work the same way.
+      inc(release, identifier, identifierBase) {
+        if (release.startsWith("pre")) {
+          if (!identifier && identifierBase === false) {
+            throw new Error("invalid increment argument: identifier is empty");
+          }
+          if (identifier) {
+            const match = `-${identifier}`.match(this.options.loose ? re[t.PRERELEASELOOSE] : re[t.PRERELEASE]);
+            if (!match || match[1] !== identifier) {
+              throw new Error(`invalid identifier: ${identifier}`);
+            }
+          }
+        }
+        switch (release) {
+          case "premajor":
+            this.prerelease.length = 0;
+            this.patch = 0;
+            this.minor = 0;
+            this.major++;
+            this.inc("pre", identifier, identifierBase);
+            break;
+          case "preminor":
+            this.prerelease.length = 0;
+            this.patch = 0;
+            this.minor++;
+            this.inc("pre", identifier, identifierBase);
+            break;
+          case "prepatch":
+            this.prerelease.length = 0;
+            this.inc("patch", identifier, identifierBase);
+            this.inc("pre", identifier, identifierBase);
+            break;
+          // If the input is a non-prerelease version, this acts the same as
+          // prepatch.
+          case "prerelease":
+            if (this.prerelease.length === 0) {
+              this.inc("patch", identifier, identifierBase);
+            }
+            this.inc("pre", identifier, identifierBase);
+            break;
+          case "release":
+            if (this.prerelease.length === 0) {
+              throw new Error(`version ${this.raw} is not a prerelease`);
+            }
+            this.prerelease.length = 0;
+            break;
+          case "major":
+            if (this.minor !== 0 || this.patch !== 0 || this.prerelease.length === 0) {
+              this.major++;
+            }
+            this.minor = 0;
+            this.patch = 0;
+            this.prerelease = [];
+            break;
+          case "minor":
+            if (this.patch !== 0 || this.prerelease.length === 0) {
+              this.minor++;
+            }
+            this.patch = 0;
+            this.prerelease = [];
+            break;
+          case "patch":
+            if (this.prerelease.length === 0) {
+              this.patch++;
+            }
+            this.prerelease = [];
+            break;
+          // This probably shouldn't be used publicly.
+          // 1.0.0 'pre' would become 1.0.0-0 which is the wrong direction.
+          case "pre": {
+            const base = Number(identifierBase) ? 1 : 0;
+            if (this.prerelease.length === 0) {
+              this.prerelease = [base];
+            } else {
+              let i = this.prerelease.length;
+              while (--i >= 0) {
+                if (typeof this.prerelease[i] === "number") {
+                  this.prerelease[i]++;
+                  i = -2;
+                }
+              }
+              if (i === -1) {
+                if (identifier === this.prerelease.join(".") && identifierBase === false) {
+                  throw new Error("invalid increment argument: identifier already exists");
+                }
+                this.prerelease.push(base);
+              }
+            }
+            if (identifier) {
+              let prerelease = [identifier, base];
+              if (identifierBase === false) {
+                prerelease = [identifier];
+              }
+              if (compareIdentifiers(this.prerelease[0], identifier) === 0) {
+                if (isNaN(this.prerelease[1])) {
+                  this.prerelease = prerelease;
+                }
+              } else {
+                this.prerelease = prerelease;
+              }
+            }
+            break;
+          }
+          default:
+            throw new Error(`invalid increment argument: ${release}`);
+        }
+        this.raw = this.format();
+        if (this.build.length) {
+          this.raw += `+${this.build.join(".")}`;
+        }
+        return this;
+      }
+    };
+    module.exports = SemVer;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/parse.js
+var require_parse2 = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/parse.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var SemVer = require_semver();
+    var parse3 = (version2, options, throwErrors = false) => {
+      if (version2 instanceof SemVer) {
+        return version2;
+      }
+      try {
+        return new SemVer(version2, options);
+      } catch (er) {
+        if (!throwErrors) {
+          return null;
+        }
+        throw er;
+      }
+    };
+    module.exports = parse3;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/valid.js
+var require_valid = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/valid.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var parse3 = require_parse2();
+    var valid = (version2, options) => {
+      const v = parse3(version2, options);
+      return v ? v.version : null;
+    };
+    module.exports = valid;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/clean.js
+var require_clean = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/clean.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var parse3 = require_parse2();
+    var clean = (version2, options) => {
+      const s = parse3(version2.trim().replace(/^[=v]+/, ""), options);
+      return s ? s.version : null;
+    };
+    module.exports = clean;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/inc.js
+var require_inc = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/inc.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var SemVer = require_semver();
+    var inc = (version2, release, options, identifier, identifierBase) => {
+      if (typeof options === "string") {
+        identifierBase = identifier;
+        identifier = options;
+        options = void 0;
+      }
+      try {
+        return new SemVer(
+          version2 instanceof SemVer ? version2.version : version2,
+          options
+        ).inc(release, identifier, identifierBase).version;
+      } catch (er) {
+        return null;
+      }
+    };
+    module.exports = inc;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/diff.js
+var require_diff = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/diff.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var parse3 = require_parse2();
+    var diff = (version1, version2) => {
+      const v1 = parse3(version1, null, true);
+      const v2 = parse3(version2, null, true);
+      const comparison = v1.compare(v2);
+      if (comparison === 0) {
+        return null;
+      }
+      const v1Higher = comparison > 0;
+      const highVersion = v1Higher ? v1 : v2;
+      const lowVersion = v1Higher ? v2 : v1;
+      const highHasPre = !!highVersion.prerelease.length;
+      const lowHasPre = !!lowVersion.prerelease.length;
+      if (lowHasPre && !highHasPre) {
+        if (!lowVersion.patch && !lowVersion.minor) {
+          return "major";
+        }
+        if (lowVersion.compareMain(highVersion) === 0) {
+          if (lowVersion.minor && !lowVersion.patch) {
+            return "minor";
+          }
+          return "patch";
+        }
+      }
+      const prefix = highHasPre ? "pre" : "";
+      if (v1.major !== v2.major) {
+        return prefix + "major";
+      }
+      if (v1.minor !== v2.minor) {
+        return prefix + "minor";
+      }
+      if (v1.patch !== v2.patch) {
+        return prefix + "patch";
+      }
+      return "prerelease";
+    };
+    module.exports = diff;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/major.js
+var require_major = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/major.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var SemVer = require_semver();
+    var major = (a, loose) => new SemVer(a, loose).major;
+    module.exports = major;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/minor.js
+var require_minor = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/minor.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var SemVer = require_semver();
+    var minor = (a, loose) => new SemVer(a, loose).minor;
+    module.exports = minor;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/patch.js
+var require_patch = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/patch.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var SemVer = require_semver();
+    var patch = (a, loose) => new SemVer(a, loose).patch;
+    module.exports = patch;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/prerelease.js
+var require_prerelease = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/prerelease.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var parse3 = require_parse2();
+    var prerelease = (version2, options) => {
+      const parsed = parse3(version2, options);
+      return parsed && parsed.prerelease.length ? parsed.prerelease : null;
+    };
+    module.exports = prerelease;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/compare.js
+var require_compare = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/compare.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var SemVer = require_semver();
+    var compare = (a, b, loose) => new SemVer(a, loose).compare(new SemVer(b, loose));
+    module.exports = compare;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/rcompare.js
+var require_rcompare = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/rcompare.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var compare = require_compare();
+    var rcompare = (a, b, loose) => compare(b, a, loose);
+    module.exports = rcompare;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/compare-loose.js
+var require_compare_loose = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/compare-loose.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var compare = require_compare();
+    var compareLoose = (a, b) => compare(a, b, true);
+    module.exports = compareLoose;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/compare-build.js
+var require_compare_build = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/compare-build.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var SemVer = require_semver();
+    var compareBuild = (a, b, loose) => {
+      const versionA = new SemVer(a, loose);
+      const versionB = new SemVer(b, loose);
+      return versionA.compare(versionB) || versionA.compareBuild(versionB);
+    };
+    module.exports = compareBuild;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/sort.js
+var require_sort = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/sort.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var compareBuild = require_compare_build();
+    var sort = (list, loose) => list.sort((a, b) => compareBuild(a, b, loose));
+    module.exports = sort;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/rsort.js
+var require_rsort = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/rsort.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var compareBuild = require_compare_build();
+    var rsort = (list, loose) => list.sort((a, b) => compareBuild(b, a, loose));
+    module.exports = rsort;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/gt.js
+var require_gt = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/gt.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var compare = require_compare();
+    var gt = (a, b, loose) => compare(a, b, loose) > 0;
+    module.exports = gt;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/lt.js
+var require_lt = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/lt.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var compare = require_compare();
+    var lt = (a, b, loose) => compare(a, b, loose) < 0;
+    module.exports = lt;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/eq.js
+var require_eq = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/eq.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var compare = require_compare();
+    var eq = (a, b, loose) => compare(a, b, loose) === 0;
+    module.exports = eq;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/neq.js
+var require_neq = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/neq.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var compare = require_compare();
+    var neq = (a, b, loose) => compare(a, b, loose) !== 0;
+    module.exports = neq;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/gte.js
+var require_gte = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/gte.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var compare = require_compare();
+    var gte = (a, b, loose) => compare(a, b, loose) >= 0;
+    module.exports = gte;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/lte.js
+var require_lte = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/lte.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var compare = require_compare();
+    var lte = (a, b, loose) => compare(a, b, loose) <= 0;
+    module.exports = lte;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/cmp.js
+var require_cmp = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/cmp.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var eq = require_eq();
+    var neq = require_neq();
+    var gt = require_gt();
+    var gte = require_gte();
+    var lt = require_lt();
+    var lte = require_lte();
+    var cmp = (a, op, b, loose) => {
+      switch (op) {
+        case "===":
+          if (typeof a === "object") {
+            a = a.version;
+          }
+          if (typeof b === "object") {
+            b = b.version;
+          }
+          return a === b;
+        case "!==":
+          if (typeof a === "object") {
+            a = a.version;
+          }
+          if (typeof b === "object") {
+            b = b.version;
+          }
+          return a !== b;
+        case "":
+        case "=":
+        case "==":
+          return eq(a, b, loose);
+        case "!=":
+          return neq(a, b, loose);
+        case ">":
+          return gt(a, b, loose);
+        case ">=":
+          return gte(a, b, loose);
+        case "<":
+          return lt(a, b, loose);
+        case "<=":
+          return lte(a, b, loose);
         default:
+          throw new TypeError(`Invalid operator: ${op}`);
+      }
+    };
+    module.exports = cmp;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/coerce.js
+var require_coerce = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/coerce.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var SemVer = require_semver();
+    var parse3 = require_parse2();
+    var { safeRe: re, t } = require_re();
+    var coerce2 = (version2, options) => {
+      if (version2 instanceof SemVer) {
+        return version2;
+      }
+      if (typeof version2 === "number") {
+        version2 = String(version2);
+      }
+      if (typeof version2 !== "string") {
+        return null;
+      }
+      options = options || {};
+      let match = null;
+      if (!options.rtl) {
+        match = version2.match(options.includePrerelease ? re[t.COERCEFULL] : re[t.COERCE]);
+      } else {
+        const coerceRtlRegex = options.includePrerelease ? re[t.COERCERTLFULL] : re[t.COERCERTL];
+        let next;
+        while ((next = coerceRtlRegex.exec(version2)) && (!match || match.index + match[0].length !== version2.length)) {
+          if (!match || next.index + next[0].length !== match.index + match[0].length) {
+            match = next;
+          }
+          coerceRtlRegex.lastIndex = next.index + next[1].length + next[2].length;
+        }
+        coerceRtlRegex.lastIndex = -1;
+      }
+      if (match === null) {
+        return null;
+      }
+      const major = match[2];
+      const minor = match[3] || "0";
+      const patch = match[4] || "0";
+      const prerelease = options.includePrerelease && match[5] ? `-${match[5]}` : "";
+      const build2 = options.includePrerelease && match[6] ? `+${match[6]}` : "";
+      return parse3(`${major}.${minor}.${patch}${prerelease}${build2}`, options);
+    };
+    module.exports = coerce2;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/lrucache.js
+var require_lrucache = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/lrucache.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var LRUCache = class {
+      constructor() {
+        this.max = 1e3;
+        this.map = /* @__PURE__ */ new Map();
+      }
+      get(key) {
+        const value = this.map.get(key);
+        if (value === void 0) {
           return void 0;
+        } else {
+          this.map.delete(key);
+          this.map.set(key, value);
+          return value;
+        }
       }
-    }
-    function fmtShort(ms2) {
-      var msAbs = Math.abs(ms2);
-      if (msAbs >= d) {
-        return Math.round(ms2 / d) + "d";
+      delete(key) {
+        return this.map.delete(key);
       }
-      if (msAbs >= h) {
-        return Math.round(ms2 / h) + "h";
+      set(key, value) {
+        const deleted = this.delete(key);
+        if (!deleted && value !== void 0) {
+          if (this.map.size >= this.max) {
+            const firstKey = this.map.keys().next().value;
+            this.delete(firstKey);
+          }
+          this.map.set(key, value);
+        }
+        return this;
       }
-      if (msAbs >= m) {
-        return Math.round(ms2 / m) + "m";
+    };
+    module.exports = LRUCache;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/classes/range.js
+var require_range = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/classes/range.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var SPACE_CHARACTERS = /\s+/g;
+    var Range = class _Range {
+      constructor(range, options) {
+        options = parseOptions(options);
+        if (range instanceof _Range) {
+          if (range.loose === !!options.loose && range.includePrerelease === !!options.includePrerelease) {
+            return range;
+          } else {
+            return new _Range(range.raw, options);
+          }
+        }
+        if (range instanceof Comparator) {
+          this.raw = range.value;
+          this.set = [[range]];
+          this.formatted = void 0;
+          return this;
+        }
+        this.options = options;
+        this.loose = !!options.loose;
+        this.includePrerelease = !!options.includePrerelease;
+        this.raw = range.trim().replace(SPACE_CHARACTERS, " ");
+        this.set = this.raw.split("||").map((r) => this.parseRange(r.trim())).filter((c) => c.length);
+        if (!this.set.length) {
+          throw new TypeError(`Invalid SemVer Range: ${this.raw}`);
+        }
+        if (this.set.length > 1) {
+          const first = this.set[0];
+          this.set = this.set.filter((c) => !isNullSet(c[0]));
+          if (this.set.length === 0) {
+            this.set = [first];
+          } else if (this.set.length > 1) {
+            for (const c of this.set) {
+              if (c.length === 1 && isAny(c[0])) {
+                this.set = [c];
+                break;
+              }
+            }
+          }
+        }
+        this.formatted = void 0;
       }
-      if (msAbs >= s) {
-        return Math.round(ms2 / s) + "s";
+      get range() {
+        if (this.formatted === void 0) {
+          this.formatted = "";
+          for (let i = 0; i < this.set.length; i++) {
+            if (i > 0) {
+              this.formatted += "||";
+            }
+            const comps = this.set[i];
+            for (let k = 0; k < comps.length; k++) {
+              if (k > 0) {
+                this.formatted += " ";
+              }
+              this.formatted += comps[k].toString().trim();
+            }
+          }
+        }
+        return this.formatted;
       }
-      return ms2 + "ms";
-    }
-    function fmtLong(ms2) {
-      var msAbs = Math.abs(ms2);
-      if (msAbs >= d) {
-        return plural(ms2, msAbs, d, "day");
+      format() {
+        return this.range;
       }
-      if (msAbs >= h) {
-        return plural(ms2, msAbs, h, "hour");
+      toString() {
+        return this.range;
       }
-      if (msAbs >= m) {
-        return plural(ms2, msAbs, m, "minute");
+      parseRange(range) {
+        const memoOpts = (this.options.includePrerelease && FLAG_INCLUDE_PRERELEASE) | (this.options.loose && FLAG_LOOSE);
+        const memoKey = memoOpts + ":" + range;
+        const cached = cache.get(memoKey);
+        if (cached) {
+          return cached;
+        }
+        const loose = this.options.loose;
+        const hr = loose ? re[t.HYPHENRANGELOOSE] : re[t.HYPHENRANGE];
+        range = range.replace(hr, hyphenReplace(this.options.includePrerelease));
+        debug("hyphen replace", range);
+        range = range.replace(re[t.COMPARATORTRIM], comparatorTrimReplace);
+        debug("comparator trim", range);
+        range = range.replace(re[t.TILDETRIM], tildeTrimReplace);
+        debug("tilde trim", range);
+        range = range.replace(re[t.CARETTRIM], caretTrimReplace);
+        debug("caret trim", range);
+        let rangeList = range.split(" ").map((comp) => parseComparator(comp, this.options)).join(" ").split(/\s+/).map((comp) => replaceGTE0(comp, this.options));
+        if (loose) {
+          rangeList = rangeList.filter((comp) => {
+            debug("loose invalid filter", comp, this.options);
+            return !!comp.match(re[t.COMPARATORLOOSE]);
+          });
+        }
+        debug("range list", rangeList);
+        const rangeMap = /* @__PURE__ */ new Map();
+        const comparators = rangeList.map((comp) => new Comparator(comp, this.options));
+        for (const comp of comparators) {
+          if (isNullSet(comp)) {
+            return [comp];
+          }
+          rangeMap.set(comp.value, comp);
+        }
+        if (rangeMap.size > 1 && rangeMap.has("")) {
+          rangeMap.delete("");
+        }
+        const result = [...rangeMap.values()];
+        cache.set(memoKey, result);
+        return result;
       }
-      if (msAbs >= s) {
-        return plural(ms2, msAbs, s, "second");
+      intersects(range, options) {
+        if (!(range instanceof _Range)) {
+          throw new TypeError("a Range is required");
+        }
+        return this.set.some((thisComparators) => {
+          return isSatisfiable(thisComparators, options) && range.set.some((rangeComparators) => {
+            return isSatisfiable(rangeComparators, options) && thisComparators.every((thisComparator) => {
+              return rangeComparators.every((rangeComparator) => {
+                return thisComparator.intersects(rangeComparator, options);
+              });
+            });
+          });
+        });
       }
-      return ms2 + " ms";
-    }
-    function plural(ms2, msAbs, n, name) {
-      var isPlural = msAbs >= n * 1.5;
-      return Math.round(ms2 / n) + " " + name + (isPlural ? "s" : "");
-    }
+      // if ANY of the sets match ALL of its comparators, then pass
+      test(version2) {
+        if (!version2) {
+          return false;
+        }
+        if (typeof version2 === "string") {
+          try {
+            version2 = new SemVer(version2, this.options);
+          } catch (er) {
+            return false;
+          }
+        }
+        for (let i = 0; i < this.set.length; i++) {
+          if (testSet(this.set[i], version2, this.options)) {
+            return true;
+          }
+        }
+        return false;
+      }
+    };
+    module.exports = Range;
+    var LRU = require_lrucache();
+    var cache = new LRU();
+    var parseOptions = require_parse_options();
+    var Comparator = require_comparator();
+    var debug = require_debug();
+    var SemVer = require_semver();
+    var {
+      safeRe: re,
+      t,
+      comparatorTrimReplace,
+      tildeTrimReplace,
+      caretTrimReplace
+    } = require_re();
+    var { FLAG_INCLUDE_PRERELEASE, FLAG_LOOSE } = require_constants6();
+    var isNullSet = (c) => c.value === "<0.0.0-0";
+    var isAny = (c) => c.value === "";
+    var isSatisfiable = (comparators, options) => {
+      let result = true;
+      const remainingComparators = comparators.slice();
+      let testComparator = remainingComparators.pop();
+      while (result && remainingComparators.length) {
+        result = remainingComparators.every((otherComparator) => {
+          return testComparator.intersects(otherComparator, options);
+        });
+        testComparator = remainingComparators.pop();
+      }
+      return result;
+    };
+    var parseComparator = (comp, options) => {
+      comp = comp.replace(re[t.BUILD], "");
+      debug("comp", comp, options);
+      comp = replaceCarets(comp, options);
+      debug("caret", comp);
+      comp = replaceTildes(comp, options);
+      debug("tildes", comp);
+      comp = replaceXRanges(comp, options);
+      debug("xrange", comp);
+      comp = replaceStars(comp, options);
+      debug("stars", comp);
+      return comp;
+    };
+    var isX = (id) => !id || id.toLowerCase() === "x" || id === "*";
+    var replaceTildes = (comp, options) => {
+      return comp.trim().split(/\s+/).map((c) => replaceTilde(c, options)).join(" ");
+    };
+    var replaceTilde = (comp, options) => {
+      const r = options.loose ? re[t.TILDELOOSE] : re[t.TILDE];
+      return comp.replace(r, (_, M, m, p, pr) => {
+        debug("tilde", comp, _, M, m, p, pr);
+        let ret;
+        if (isX(M)) {
+          ret = "";
+        } else if (isX(m)) {
+          ret = `>=${M}.0.0 <${+M + 1}.0.0-0`;
+        } else if (isX(p)) {
+          ret = `>=${M}.${m}.0 <${M}.${+m + 1}.0-0`;
+        } else if (pr) {
+          debug("replaceTilde pr", pr);
+          ret = `>=${M}.${m}.${p}-${pr} <${M}.${+m + 1}.0-0`;
+        } else {
+          ret = `>=${M}.${m}.${p} <${M}.${+m + 1}.0-0`;
+        }
+        debug("tilde return", ret);
+        return ret;
+      });
+    };
+    var replaceCarets = (comp, options) => {
+      return comp.trim().split(/\s+/).map((c) => replaceCaret(c, options)).join(" ");
+    };
+    var replaceCaret = (comp, options) => {
+      debug("caret", comp, options);
+      const r = options.loose ? re[t.CARETLOOSE] : re[t.CARET];
+      const z = options.includePrerelease ? "-0" : "";
+      return comp.replace(r, (_, M, m, p, pr) => {
+        debug("caret", comp, _, M, m, p, pr);
+        let ret;
+        if (isX(M)) {
+          ret = "";
+        } else if (isX(m)) {
+          ret = `>=${M}.0.0${z} <${+M + 1}.0.0-0`;
+        } else if (isX(p)) {
+          if (M === "0") {
+            ret = `>=${M}.${m}.0${z} <${M}.${+m + 1}.0-0`;
+          } else {
+            ret = `>=${M}.${m}.0${z} <${+M + 1}.0.0-0`;
+          }
+        } else if (pr) {
+          debug("replaceCaret pr", pr);
+          if (M === "0") {
+            if (m === "0") {
+              ret = `>=${M}.${m}.${p}-${pr} <${M}.${m}.${+p + 1}-0`;
+            } else {
+              ret = `>=${M}.${m}.${p}-${pr} <${M}.${+m + 1}.0-0`;
+            }
+          } else {
+            ret = `>=${M}.${m}.${p}-${pr} <${+M + 1}.0.0-0`;
+          }
+        } else {
+          debug("no pr");
+          if (M === "0") {
+            if (m === "0") {
+              ret = `>=${M}.${m}.${p}${z} <${M}.${m}.${+p + 1}-0`;
+            } else {
+              ret = `>=${M}.${m}.${p}${z} <${M}.${+m + 1}.0-0`;
+            }
+          } else {
+            ret = `>=${M}.${m}.${p} <${+M + 1}.0.0-0`;
+          }
+        }
+        debug("caret return", ret);
+        return ret;
+      });
+    };
+    var replaceXRanges = (comp, options) => {
+      debug("replaceXRanges", comp, options);
+      return comp.split(/\s+/).map((c) => replaceXRange(c, options)).join(" ");
+    };
+    var replaceXRange = (comp, options) => {
+      comp = comp.trim();
+      const r = options.loose ? re[t.XRANGELOOSE] : re[t.XRANGE];
+      return comp.replace(r, (ret, gtlt, M, m, p, pr) => {
+        debug("xRange", comp, ret, gtlt, M, m, p, pr);
+        const xM = isX(M);
+        const xm = xM || isX(m);
+        const xp = xm || isX(p);
+        const anyX = xp;
+        if (gtlt === "=" && anyX) {
+          gtlt = "";
+        }
+        pr = options.includePrerelease ? "-0" : "";
+        if (xM) {
+          if (gtlt === ">" || gtlt === "<") {
+            ret = "<0.0.0-0";
+          } else {
+            ret = "*";
+          }
+        } else if (gtlt && anyX) {
+          if (xm) {
+            m = 0;
+          }
+          p = 0;
+          if (gtlt === ">") {
+            gtlt = ">=";
+            if (xm) {
+              M = +M + 1;
+              m = 0;
+              p = 0;
+            } else {
+              m = +m + 1;
+              p = 0;
+            }
+          } else if (gtlt === "<=") {
+            gtlt = "<";
+            if (xm) {
+              M = +M + 1;
+            } else {
+              m = +m + 1;
+            }
+          }
+          if (gtlt === "<") {
+            pr = "-0";
+          }
+          ret = `${gtlt + M}.${m}.${p}${pr}`;
+        } else if (xm) {
+          ret = `>=${M}.0.0${pr} <${+M + 1}.0.0-0`;
+        } else if (xp) {
+          ret = `>=${M}.${m}.0${pr} <${M}.${+m + 1}.0-0`;
+        }
+        debug("xRange return", ret);
+        return ret;
+      });
+    };
+    var replaceStars = (comp, options) => {
+      debug("replaceStars", comp, options);
+      return comp.trim().replace(re[t.STAR], "");
+    };
+    var replaceGTE0 = (comp, options) => {
+      debug("replaceGTE0", comp, options);
+      return comp.trim().replace(re[options.includePrerelease ? t.GTE0PRE : t.GTE0], "");
+    };
+    var hyphenReplace = (incPr) => ($0, from, fM, fm, fp, fpr, fb, to, tM, tm, tp, tpr) => {
+      if (isX(fM)) {
+        from = "";
+      } else if (isX(fm)) {
+        from = `>=${fM}.0.0${incPr ? "-0" : ""}`;
+      } else if (isX(fp)) {
+        from = `>=${fM}.${fm}.0${incPr ? "-0" : ""}`;
+      } else if (fpr) {
+        from = `>=${from}`;
+      } else {
+        from = `>=${from}${incPr ? "-0" : ""}`;
+      }
+      if (isX(tM)) {
+        to = "";
+      } else if (isX(tm)) {
+        to = `<${+tM + 1}.0.0-0`;
+      } else if (isX(tp)) {
+        to = `<${tM}.${+tm + 1}.0-0`;
+      } else if (tpr) {
+        to = `<=${tM}.${tm}.${tp}-${tpr}`;
+      } else if (incPr) {
+        to = `<${tM}.${tm}.${+tp + 1}-0`;
+      } else {
+        to = `<=${to}`;
+      }
+      return `${from} ${to}`.trim();
+    };
+    var testSet = (set, version2, options) => {
+      for (let i = 0; i < set.length; i++) {
+        if (!set[i].test(version2)) {
+          return false;
+        }
+      }
+      if (version2.prerelease.length && !options.includePrerelease) {
+        for (let i = 0; i < set.length; i++) {
+          debug(set[i].semver);
+          if (set[i].semver === Comparator.ANY) {
+            continue;
+          }
+          if (set[i].semver.prerelease.length > 0) {
+            const allowed = set[i].semver;
+            if (allowed.major === version2.major && allowed.minor === version2.minor && allowed.patch === version2.patch) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+      return true;
+    };
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/classes/comparator.js
+var require_comparator = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/classes/comparator.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var ANY = /* @__PURE__ */ Symbol("SemVer ANY");
+    var Comparator = class _Comparator {
+      static get ANY() {
+        return ANY;
+      }
+      constructor(comp, options) {
+        options = parseOptions(options);
+        if (comp instanceof _Comparator) {
+          if (comp.loose === !!options.loose) {
+            return comp;
+          } else {
+            comp = comp.value;
+          }
+        }
+        comp = comp.trim().split(/\s+/).join(" ");
+        debug("comparator", comp, options);
+        this.options = options;
+        this.loose = !!options.loose;
+        this.parse(comp);
+        if (this.semver === ANY) {
+          this.value = "";
+        } else {
+          this.value = this.operator + this.semver.version;
+        }
+        debug("comp", this);
+      }
+      parse(comp) {
+        const r = this.options.loose ? re[t.COMPARATORLOOSE] : re[t.COMPARATOR];
+        const m = comp.match(r);
+        if (!m) {
+          throw new TypeError(`Invalid comparator: ${comp}`);
+        }
+        this.operator = m[1] !== void 0 ? m[1] : "";
+        if (this.operator === "=") {
+          this.operator = "";
+        }
+        if (!m[2]) {
+          this.semver = ANY;
+        } else {
+          this.semver = new SemVer(m[2], this.options.loose);
+        }
+      }
+      toString() {
+        return this.value;
+      }
+      test(version2) {
+        debug("Comparator.test", version2, this.options.loose);
+        if (this.semver === ANY || version2 === ANY) {
+          return true;
+        }
+        if (typeof version2 === "string") {
+          try {
+            version2 = new SemVer(version2, this.options);
+          } catch (er) {
+            return false;
+          }
+        }
+        return cmp(version2, this.operator, this.semver, this.options);
+      }
+      intersects(comp, options) {
+        if (!(comp instanceof _Comparator)) {
+          throw new TypeError("a Comparator is required");
+        }
+        if (this.operator === "") {
+          if (this.value === "") {
+            return true;
+          }
+          return new Range(comp.value, options).test(this.value);
+        } else if (comp.operator === "") {
+          if (comp.value === "") {
+            return true;
+          }
+          return new Range(this.value, options).test(comp.semver);
+        }
+        options = parseOptions(options);
+        if (options.includePrerelease && (this.value === "<0.0.0-0" || comp.value === "<0.0.0-0")) {
+          return false;
+        }
+        if (!options.includePrerelease && (this.value.startsWith("<0.0.0") || comp.value.startsWith("<0.0.0"))) {
+          return false;
+        }
+        if (this.operator.startsWith(">") && comp.operator.startsWith(">")) {
+          return true;
+        }
+        if (this.operator.startsWith("<") && comp.operator.startsWith("<")) {
+          return true;
+        }
+        if (this.semver.version === comp.semver.version && this.operator.includes("=") && comp.operator.includes("=")) {
+          return true;
+        }
+        if (cmp(this.semver, "<", comp.semver, options) && this.operator.startsWith(">") && comp.operator.startsWith("<")) {
+          return true;
+        }
+        if (cmp(this.semver, ">", comp.semver, options) && this.operator.startsWith("<") && comp.operator.startsWith(">")) {
+          return true;
+        }
+        return false;
+      }
+    };
+    module.exports = Comparator;
+    var parseOptions = require_parse_options();
+    var { safeRe: re, t } = require_re();
+    var cmp = require_cmp();
+    var debug = require_debug();
+    var SemVer = require_semver();
+    var Range = require_range();
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/satisfies.js
+var require_satisfies = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/satisfies.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var Range = require_range();
+    var satisfies = (version2, range, options) => {
+      try {
+        range = new Range(range, options);
+      } catch (er) {
+        return false;
+      }
+      return range.test(version2);
+    };
+    module.exports = satisfies;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/to-comparators.js
+var require_to_comparators = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/to-comparators.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var Range = require_range();
+    var toComparators = (range, options) => new Range(range, options).set.map((comp) => comp.map((c) => c.value).join(" ").trim().split(" "));
+    module.exports = toComparators;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/max-satisfying.js
+var require_max_satisfying = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/max-satisfying.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var SemVer = require_semver();
+    var Range = require_range();
+    var maxSatisfying = (versions, range, options) => {
+      let max = null;
+      let maxSV = null;
+      let rangeObj = null;
+      try {
+        rangeObj = new Range(range, options);
+      } catch (er) {
+        return null;
+      }
+      versions.forEach((v) => {
+        if (rangeObj.test(v)) {
+          if (!max || maxSV.compare(v) === -1) {
+            max = v;
+            maxSV = new SemVer(max, options);
+          }
+        }
+      });
+      return max;
+    };
+    module.exports = maxSatisfying;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/min-satisfying.js
+var require_min_satisfying = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/min-satisfying.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var SemVer = require_semver();
+    var Range = require_range();
+    var minSatisfying = (versions, range, options) => {
+      let min = null;
+      let minSV = null;
+      let rangeObj = null;
+      try {
+        rangeObj = new Range(range, options);
+      } catch (er) {
+        return null;
+      }
+      versions.forEach((v) => {
+        if (rangeObj.test(v)) {
+          if (!min || minSV.compare(v) === 1) {
+            min = v;
+            minSV = new SemVer(min, options);
+          }
+        }
+      });
+      return min;
+    };
+    module.exports = minSatisfying;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/min-version.js
+var require_min_version = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/min-version.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var SemVer = require_semver();
+    var Range = require_range();
+    var gt = require_gt();
+    var minVersion = (range, loose) => {
+      range = new Range(range, loose);
+      let minver = new SemVer("0.0.0");
+      if (range.test(minver)) {
+        return minver;
+      }
+      minver = new SemVer("0.0.0-0");
+      if (range.test(minver)) {
+        return minver;
+      }
+      minver = null;
+      for (let i = 0; i < range.set.length; ++i) {
+        const comparators = range.set[i];
+        let setMin = null;
+        comparators.forEach((comparator) => {
+          const compver = new SemVer(comparator.semver.version);
+          switch (comparator.operator) {
+            case ">":
+              if (compver.prerelease.length === 0) {
+                compver.patch++;
+              } else {
+                compver.prerelease.push(0);
+              }
+              compver.raw = compver.format();
+            /* fallthrough */
+            case "":
+            case ">=":
+              if (!setMin || gt(compver, setMin)) {
+                setMin = compver;
+              }
+              break;
+            case "<":
+            case "<=":
+              break;
+            /* istanbul ignore next */
+            default:
+              throw new Error(`Unexpected operation: ${comparator.operator}`);
+          }
+        });
+        if (setMin && (!minver || gt(minver, setMin))) {
+          minver = setMin;
+        }
+      }
+      if (minver && range.test(minver)) {
+        return minver;
+      }
+      return null;
+    };
+    module.exports = minVersion;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/valid.js
+var require_valid2 = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/valid.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var Range = require_range();
+    var validRange = (range, options) => {
+      try {
+        return new Range(range, options).range || "*";
+      } catch (er) {
+        return null;
+      }
+    };
+    module.exports = validRange;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/outside.js
+var require_outside = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/outside.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var SemVer = require_semver();
+    var Comparator = require_comparator();
+    var { ANY } = Comparator;
+    var Range = require_range();
+    var satisfies = require_satisfies();
+    var gt = require_gt();
+    var lt = require_lt();
+    var lte = require_lte();
+    var gte = require_gte();
+    var outside = (version2, range, hilo, options) => {
+      version2 = new SemVer(version2, options);
+      range = new Range(range, options);
+      let gtfn, ltefn, ltfn, comp, ecomp;
+      switch (hilo) {
+        case ">":
+          gtfn = gt;
+          ltefn = lte;
+          ltfn = lt;
+          comp = ">";
+          ecomp = ">=";
+          break;
+        case "<":
+          gtfn = lt;
+          ltefn = gte;
+          ltfn = gt;
+          comp = "<";
+          ecomp = "<=";
+          break;
+        default:
+          throw new TypeError('Must provide a hilo val of "<" or ">"');
+      }
+      if (satisfies(version2, range, options)) {
+        return false;
+      }
+      for (let i = 0; i < range.set.length; ++i) {
+        const comparators = range.set[i];
+        let high = null;
+        let low = null;
+        comparators.forEach((comparator) => {
+          if (comparator.semver === ANY) {
+            comparator = new Comparator(">=0.0.0");
+          }
+          high = high || comparator;
+          low = low || comparator;
+          if (gtfn(comparator.semver, high.semver, options)) {
+            high = comparator;
+          } else if (ltfn(comparator.semver, low.semver, options)) {
+            low = comparator;
+          }
+        });
+        if (high.operator === comp || high.operator === ecomp) {
+          return false;
+        }
+        if ((!low.operator || low.operator === comp) && ltefn(version2, low.semver)) {
+          return false;
+        } else if (low.operator === ecomp && ltfn(version2, low.semver)) {
+          return false;
+        }
+      }
+      return true;
+    };
+    module.exports = outside;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/gtr.js
+var require_gtr = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/gtr.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var outside = require_outside();
+    var gtr = (version2, range, options) => outside(version2, range, ">", options);
+    module.exports = gtr;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/ltr.js
+var require_ltr = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/ltr.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var outside = require_outside();
+    var ltr = (version2, range, options) => outside(version2, range, "<", options);
+    module.exports = ltr;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/intersects.js
+var require_intersects = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/intersects.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var Range = require_range();
+    var intersects = (r1, r2, options) => {
+      r1 = new Range(r1, options);
+      r2 = new Range(r2, options);
+      return r1.intersects(r2, options);
+    };
+    module.exports = intersects;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/simplify.js
+var require_simplify = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/simplify.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var satisfies = require_satisfies();
+    var compare = require_compare();
+    module.exports = (versions, range, options) => {
+      const set = [];
+      let first = null;
+      let prev = null;
+      const v = versions.sort((a, b) => compare(a, b, options));
+      for (const version2 of v) {
+        const included = satisfies(version2, range, options);
+        if (included) {
+          prev = version2;
+          if (!first) {
+            first = version2;
+          }
+        } else {
+          if (prev) {
+            set.push([first, prev]);
+          }
+          prev = null;
+          first = null;
+        }
+      }
+      if (first) {
+        set.push([first, null]);
+      }
+      const ranges = [];
+      for (const [min, max] of set) {
+        if (min === max) {
+          ranges.push(min);
+        } else if (!max && min === v[0]) {
+          ranges.push("*");
+        } else if (!max) {
+          ranges.push(`>=${min}`);
+        } else if (min === v[0]) {
+          ranges.push(`<=${max}`);
+        } else {
+          ranges.push(`${min} - ${max}`);
+        }
+      }
+      const simplified = ranges.join(" || ");
+      const original = typeof range.raw === "string" ? range.raw : String(range);
+      return simplified.length < original.length ? simplified : range;
+    };
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/subset.js
+var require_subset = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/subset.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var Range = require_range();
+    var Comparator = require_comparator();
+    var { ANY } = Comparator;
+    var satisfies = require_satisfies();
+    var compare = require_compare();
+    var subset = (sub, dom, options = {}) => {
+      if (sub === dom) {
+        return true;
+      }
+      sub = new Range(sub, options);
+      dom = new Range(dom, options);
+      let sawNonNull = false;
+      OUTER: for (const simpleSub of sub.set) {
+        for (const simpleDom of dom.set) {
+          const isSub = simpleSubset(simpleSub, simpleDom, options);
+          sawNonNull = sawNonNull || isSub !== null;
+          if (isSub) {
+            continue OUTER;
+          }
+        }
+        if (sawNonNull) {
+          return false;
+        }
+      }
+      return true;
+    };
+    var minimumVersionWithPreRelease = [new Comparator(">=0.0.0-0")];
+    var minimumVersion = [new Comparator(">=0.0.0")];
+    var simpleSubset = (sub, dom, options) => {
+      if (sub === dom) {
+        return true;
+      }
+      if (sub.length === 1 && sub[0].semver === ANY) {
+        if (dom.length === 1 && dom[0].semver === ANY) {
+          return true;
+        } else if (options.includePrerelease) {
+          sub = minimumVersionWithPreRelease;
+        } else {
+          sub = minimumVersion;
+        }
+      }
+      if (dom.length === 1 && dom[0].semver === ANY) {
+        if (options.includePrerelease) {
+          return true;
+        } else {
+          dom = minimumVersion;
+        }
+      }
+      const eqSet = /* @__PURE__ */ new Set();
+      let gt, lt;
+      for (const c of sub) {
+        if (c.operator === ">" || c.operator === ">=") {
+          gt = higherGT(gt, c, options);
+        } else if (c.operator === "<" || c.operator === "<=") {
+          lt = lowerLT(lt, c, options);
+        } else {
+          eqSet.add(c.semver);
+        }
+      }
+      if (eqSet.size > 1) {
+        return null;
+      }
+      let gtltComp;
+      if (gt && lt) {
+        gtltComp = compare(gt.semver, lt.semver, options);
+        if (gtltComp > 0) {
+          return null;
+        } else if (gtltComp === 0 && (gt.operator !== ">=" || lt.operator !== "<=")) {
+          return null;
+        }
+      }
+      for (const eq of eqSet) {
+        if (gt && !satisfies(eq, String(gt), options)) {
+          return null;
+        }
+        if (lt && !satisfies(eq, String(lt), options)) {
+          return null;
+        }
+        for (const c of dom) {
+          if (!satisfies(eq, String(c), options)) {
+            return false;
+          }
+        }
+        return true;
+      }
+      let higher, lower;
+      let hasDomLT, hasDomGT;
+      let needDomLTPre = lt && !options.includePrerelease && lt.semver.prerelease.length ? lt.semver : false;
+      let needDomGTPre = gt && !options.includePrerelease && gt.semver.prerelease.length ? gt.semver : false;
+      if (needDomLTPre && needDomLTPre.prerelease.length === 1 && lt.operator === "<" && needDomLTPre.prerelease[0] === 0) {
+        needDomLTPre = false;
+      }
+      for (const c of dom) {
+        hasDomGT = hasDomGT || c.operator === ">" || c.operator === ">=";
+        hasDomLT = hasDomLT || c.operator === "<" || c.operator === "<=";
+        if (gt) {
+          if (needDomGTPre) {
+            if (c.semver.prerelease && c.semver.prerelease.length && c.semver.major === needDomGTPre.major && c.semver.minor === needDomGTPre.minor && c.semver.patch === needDomGTPre.patch) {
+              needDomGTPre = false;
+            }
+          }
+          if (c.operator === ">" || c.operator === ">=") {
+            higher = higherGT(gt, c, options);
+            if (higher === c && higher !== gt) {
+              return false;
+            }
+          } else if (gt.operator === ">=" && !satisfies(gt.semver, String(c), options)) {
+            return false;
+          }
+        }
+        if (lt) {
+          if (needDomLTPre) {
+            if (c.semver.prerelease && c.semver.prerelease.length && c.semver.major === needDomLTPre.major && c.semver.minor === needDomLTPre.minor && c.semver.patch === needDomLTPre.patch) {
+              needDomLTPre = false;
+            }
+          }
+          if (c.operator === "<" || c.operator === "<=") {
+            lower = lowerLT(lt, c, options);
+            if (lower === c && lower !== lt) {
+              return false;
+            }
+          } else if (lt.operator === "<=" && !satisfies(lt.semver, String(c), options)) {
+            return false;
+          }
+        }
+        if (!c.operator && (lt || gt) && gtltComp !== 0) {
+          return false;
+        }
+      }
+      if (gt && hasDomLT && !lt && gtltComp !== 0) {
+        return false;
+      }
+      if (lt && hasDomGT && !gt && gtltComp !== 0) {
+        return false;
+      }
+      if (needDomGTPre || needDomLTPre) {
+        return false;
+      }
+      return true;
+    };
+    var higherGT = (a, b, options) => {
+      if (!a) {
+        return b;
+      }
+      const comp = compare(a.semver, b.semver, options);
+      return comp > 0 ? a : comp < 0 ? b : b.operator === ">" && a.operator === ">=" ? b : a;
+    };
+    var lowerLT = (a, b, options) => {
+      if (!a) {
+        return b;
+      }
+      const comp = compare(a.semver, b.semver, options);
+      return comp < 0 ? a : comp > 0 ? b : b.operator === "<" && a.operator === "<=" ? b : a;
+    };
+    module.exports = subset;
+  }
+});
+
+// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/index.js
+var require_semver2 = __commonJS({
+  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/index.js"(exports, module) {
+    "use strict";
+    init_esm_shims();
+    var internalRe = require_re();
+    var constants = require_constants6();
+    var SemVer = require_semver();
+    var identifiers = require_identifiers();
+    var parse3 = require_parse2();
+    var valid = require_valid();
+    var clean = require_clean();
+    var inc = require_inc();
+    var diff = require_diff();
+    var major = require_major();
+    var minor = require_minor();
+    var patch = require_patch();
+    var prerelease = require_prerelease();
+    var compare = require_compare();
+    var rcompare = require_rcompare();
+    var compareLoose = require_compare_loose();
+    var compareBuild = require_compare_build();
+    var sort = require_sort();
+    var rsort = require_rsort();
+    var gt = require_gt();
+    var lt = require_lt();
+    var eq = require_eq();
+    var neq = require_neq();
+    var gte = require_gte();
+    var lte = require_lte();
+    var cmp = require_cmp();
+    var coerce2 = require_coerce();
+    var Comparator = require_comparator();
+    var Range = require_range();
+    var satisfies = require_satisfies();
+    var toComparators = require_to_comparators();
+    var maxSatisfying = require_max_satisfying();
+    var minSatisfying = require_min_satisfying();
+    var minVersion = require_min_version();
+    var validRange = require_valid2();
+    var outside = require_outside();
+    var gtr = require_gtr();
+    var ltr = require_ltr();
+    var intersects = require_intersects();
+    var simplifyRange = require_simplify();
+    var subset = require_subset();
+    module.exports = {
+      parse: parse3,
+      valid,
+      clean,
+      inc,
+      diff,
+      major,
+      minor,
+      patch,
+      prerelease,
+      compare,
+      rcompare,
+      compareLoose,
+      compareBuild,
+      sort,
+      rsort,
+      gt,
+      lt,
+      eq,
+      neq,
+      gte,
+      lte,
+      cmp,
+      coerce: coerce2,
+      Comparator,
+      Range,
+      satisfies,
+      toComparators,
+      maxSatisfying,
+      minSatisfying,
+      minVersion,
+      validRange,
+      outside,
+      gtr,
+      ltr,
+      intersects,
+      simplifyRange,
+      subset,
+      SemVer,
+      re: internalRe.re,
+      src: internalRe.src,
+      tokens: internalRe.t,
+      SEMVER_SPEC_VERSION: constants.SEMVER_SPEC_VERSION,
+      RELEASE_TYPES: constants.RELEASE_TYPES,
+      compareIdentifiers: identifiers.compareIdentifiers,
+      rcompareIdentifiers: identifiers.rcompareIdentifiers
+    };
   }
 });
 
@@ -23119,8 +24808,8 @@ var require_int2 = __commonJS({
     var stringifyNumber = require_stringifyNumber();
     var intIdentify = (value) => typeof value === "bigint" || Number.isInteger(value);
     function intResolve(str, offset, radix, { intAsBigInt }) {
-      const sign3 = str[0];
-      if (sign3 === "-" || sign3 === "+")
+      const sign2 = str[0];
+      if (sign2 === "-" || sign2 === "+")
         offset += 1;
       str = str.substring(offset).replace(/_/g, "");
       if (intAsBigInt) {
@@ -23136,10 +24825,10 @@ var require_int2 = __commonJS({
             break;
         }
         const n2 = BigInt(str);
-        return sign3 === "-" ? BigInt(-1) * n2 : n2;
+        return sign2 === "-" ? BigInt(-1) * n2 : n2;
       }
       const n = parseInt(str, radix);
-      return sign3 === "-" ? -1 * n : n;
+      return sign2 === "-" ? -1 * n : n;
     }
     function intStringify(node, radix, prefix) {
       const { value } = node;
@@ -23288,11 +24977,11 @@ var require_timestamp = __commonJS({
     init_esm_shims();
     var stringifyNumber = require_stringifyNumber();
     function parseSexagesimal(str, asBigInt) {
-      const sign3 = str[0];
-      const parts = sign3 === "-" || sign3 === "+" ? str.substring(1) : str;
+      const sign2 = str[0];
+      const parts = sign2 === "-" || sign2 === "+" ? str.substring(1) : str;
       const num = (n) => asBigInt ? BigInt(n) : Number(n);
       const res = parts.replace(/_/g, "").split(":").reduce((res2, p) => res2 * num(60) + num(p), num(0));
-      return sign3 === "-" ? num(-1) * res : res;
+      return sign2 === "-" ? num(-1) * res : res;
     }
     function stringifySexagesimal(node) {
       let { value } = node;
@@ -23301,9 +24990,9 @@ var require_timestamp = __commonJS({
         num = (n) => BigInt(n);
       else if (isNaN(value) || !isFinite(value))
         return stringifyNumber.stringifyNumber(node);
-      let sign3 = "";
+      let sign2 = "";
       if (value < 0) {
-        sign3 = "-";
+        sign2 = "-";
         value *= num(-1);
       }
       const _60 = num(60);
@@ -23318,7 +25007,7 @@ var require_timestamp = __commonJS({
           parts.unshift(value);
         }
       }
-      return sign3 + parts.map((n) => String(n).padStart(2, "0")).join(":").replace(/000000\d*$/, "");
+      return sign2 + parts.map((n) => String(n).padStart(2, "0")).join(":").replace(/000000\d*$/, "");
     }
     var intTime = {
       identify: (value) => typeof value === "bigint" || Number.isInteger(value),
@@ -27595,1978 +29284,121 @@ var require_dist = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/constants.js
-var require_constants6 = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/constants.js"(exports, module) {
+// ../../node_modules/.pnpm/ms@2.1.3/node_modules/ms/index.js
+var require_ms = __commonJS({
+  "../../node_modules/.pnpm/ms@2.1.3/node_modules/ms/index.js"(exports, module) {
     "use strict";
     init_esm_shims();
-    var SEMVER_SPEC_VERSION = "2.0.0";
-    var MAX_LENGTH = 256;
-    var MAX_SAFE_INTEGER = Number.MAX_SAFE_INTEGER || /* istanbul ignore next */
-    9007199254740991;
-    var MAX_SAFE_COMPONENT_LENGTH = 16;
-    var MAX_SAFE_BUILD_LENGTH = MAX_LENGTH - 6;
-    var RELEASE_TYPES = [
-      "major",
-      "premajor",
-      "minor",
-      "preminor",
-      "patch",
-      "prepatch",
-      "prerelease"
-    ];
-    module.exports = {
-      MAX_LENGTH,
-      MAX_SAFE_COMPONENT_LENGTH,
-      MAX_SAFE_BUILD_LENGTH,
-      MAX_SAFE_INTEGER,
-      RELEASE_TYPES,
-      SEMVER_SPEC_VERSION,
-      FLAG_INCLUDE_PRERELEASE: 1,
-      FLAG_LOOSE: 2
-    };
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/debug.js
-var require_debug = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/debug.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var debug = typeof process === "object" && process.env && process.env.NODE_DEBUG && /\bsemver\b/i.test(process.env.NODE_DEBUG) ? (...args) => console.error("SEMVER", ...args) : () => {
-    };
-    module.exports = debug;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/re.js
-var require_re = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/re.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var {
-      MAX_SAFE_COMPONENT_LENGTH,
-      MAX_SAFE_BUILD_LENGTH,
-      MAX_LENGTH
-    } = require_constants6();
-    var debug = require_debug();
-    exports = module.exports = {};
-    var re = exports.re = [];
-    var safeRe = exports.safeRe = [];
-    var src = exports.src = [];
-    var safeSrc = exports.safeSrc = [];
-    var t = exports.t = {};
-    var R = 0;
-    var LETTERDASHNUMBER = "[a-zA-Z0-9-]";
-    var safeRegexReplacements = [
-      ["\\s", 1],
-      ["\\d", MAX_LENGTH],
-      [LETTERDASHNUMBER, MAX_SAFE_BUILD_LENGTH]
-    ];
-    var makeSafeRegex = (value) => {
-      for (const [token, max] of safeRegexReplacements) {
-        value = value.split(`${token}*`).join(`${token}{0,${max}}`).split(`${token}+`).join(`${token}{1,${max}}`);
-      }
-      return value;
-    };
-    var createToken = (name, value, isGlobal) => {
-      const safe = makeSafeRegex(value);
-      const index = R++;
-      debug(name, index, value);
-      t[name] = index;
-      src[index] = value;
-      safeSrc[index] = safe;
-      re[index] = new RegExp(value, isGlobal ? "g" : void 0);
-      safeRe[index] = new RegExp(safe, isGlobal ? "g" : void 0);
-    };
-    createToken("NUMERICIDENTIFIER", "0|[1-9]\\d*");
-    createToken("NUMERICIDENTIFIERLOOSE", "\\d+");
-    createToken("NONNUMERICIDENTIFIER", `\\d*[a-zA-Z-]${LETTERDASHNUMBER}*`);
-    createToken("MAINVERSION", `(${src[t.NUMERICIDENTIFIER]})\\.(${src[t.NUMERICIDENTIFIER]})\\.(${src[t.NUMERICIDENTIFIER]})`);
-    createToken("MAINVERSIONLOOSE", `(${src[t.NUMERICIDENTIFIERLOOSE]})\\.(${src[t.NUMERICIDENTIFIERLOOSE]})\\.(${src[t.NUMERICIDENTIFIERLOOSE]})`);
-    createToken("PRERELEASEIDENTIFIER", `(?:${src[t.NONNUMERICIDENTIFIER]}|${src[t.NUMERICIDENTIFIER]})`);
-    createToken("PRERELEASEIDENTIFIERLOOSE", `(?:${src[t.NONNUMERICIDENTIFIER]}|${src[t.NUMERICIDENTIFIERLOOSE]})`);
-    createToken("PRERELEASE", `(?:-(${src[t.PRERELEASEIDENTIFIER]}(?:\\.${src[t.PRERELEASEIDENTIFIER]})*))`);
-    createToken("PRERELEASELOOSE", `(?:-?(${src[t.PRERELEASEIDENTIFIERLOOSE]}(?:\\.${src[t.PRERELEASEIDENTIFIERLOOSE]})*))`);
-    createToken("BUILDIDENTIFIER", `${LETTERDASHNUMBER}+`);
-    createToken("BUILD", `(?:\\+(${src[t.BUILDIDENTIFIER]}(?:\\.${src[t.BUILDIDENTIFIER]})*))`);
-    createToken("FULLPLAIN", `v?${src[t.MAINVERSION]}${src[t.PRERELEASE]}?${src[t.BUILD]}?`);
-    createToken("FULL", `^${src[t.FULLPLAIN]}$`);
-    createToken("LOOSEPLAIN", `[v=\\s]*${src[t.MAINVERSIONLOOSE]}${src[t.PRERELEASELOOSE]}?${src[t.BUILD]}?`);
-    createToken("LOOSE", `^${src[t.LOOSEPLAIN]}$`);
-    createToken("GTLT", "((?:<|>)?=?)");
-    createToken("XRANGEIDENTIFIERLOOSE", `${src[t.NUMERICIDENTIFIERLOOSE]}|x|X|\\*`);
-    createToken("XRANGEIDENTIFIER", `${src[t.NUMERICIDENTIFIER]}|x|X|\\*`);
-    createToken("XRANGEPLAIN", `[v=\\s]*(${src[t.XRANGEIDENTIFIER]})(?:\\.(${src[t.XRANGEIDENTIFIER]})(?:\\.(${src[t.XRANGEIDENTIFIER]})(?:${src[t.PRERELEASE]})?${src[t.BUILD]}?)?)?`);
-    createToken("XRANGEPLAINLOOSE", `[v=\\s]*(${src[t.XRANGEIDENTIFIERLOOSE]})(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})(?:\\.(${src[t.XRANGEIDENTIFIERLOOSE]})(?:${src[t.PRERELEASELOOSE]})?${src[t.BUILD]}?)?)?`);
-    createToken("XRANGE", `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAIN]}$`);
-    createToken("XRANGELOOSE", `^${src[t.GTLT]}\\s*${src[t.XRANGEPLAINLOOSE]}$`);
-    createToken("COERCEPLAIN", `${"(^|[^\\d])(\\d{1,"}${MAX_SAFE_COMPONENT_LENGTH}})(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?(?:\\.(\\d{1,${MAX_SAFE_COMPONENT_LENGTH}}))?`);
-    createToken("COERCE", `${src[t.COERCEPLAIN]}(?:$|[^\\d])`);
-    createToken("COERCEFULL", src[t.COERCEPLAIN] + `(?:${src[t.PRERELEASE]})?(?:${src[t.BUILD]})?(?:$|[^\\d])`);
-    createToken("COERCERTL", src[t.COERCE], true);
-    createToken("COERCERTLFULL", src[t.COERCEFULL], true);
-    createToken("LONETILDE", "(?:~>?)");
-    createToken("TILDETRIM", `(\\s*)${src[t.LONETILDE]}\\s+`, true);
-    exports.tildeTrimReplace = "$1~";
-    createToken("TILDE", `^${src[t.LONETILDE]}${src[t.XRANGEPLAIN]}$`);
-    createToken("TILDELOOSE", `^${src[t.LONETILDE]}${src[t.XRANGEPLAINLOOSE]}$`);
-    createToken("LONECARET", "(?:\\^)");
-    createToken("CARETTRIM", `(\\s*)${src[t.LONECARET]}\\s+`, true);
-    exports.caretTrimReplace = "$1^";
-    createToken("CARET", `^${src[t.LONECARET]}${src[t.XRANGEPLAIN]}$`);
-    createToken("CARETLOOSE", `^${src[t.LONECARET]}${src[t.XRANGEPLAINLOOSE]}$`);
-    createToken("COMPARATORLOOSE", `^${src[t.GTLT]}\\s*(${src[t.LOOSEPLAIN]})$|^$`);
-    createToken("COMPARATOR", `^${src[t.GTLT]}\\s*(${src[t.FULLPLAIN]})$|^$`);
-    createToken("COMPARATORTRIM", `(\\s*)${src[t.GTLT]}\\s*(${src[t.LOOSEPLAIN]}|${src[t.XRANGEPLAIN]})`, true);
-    exports.comparatorTrimReplace = "$1$2$3";
-    createToken("HYPHENRANGE", `^\\s*(${src[t.XRANGEPLAIN]})\\s+-\\s+(${src[t.XRANGEPLAIN]})\\s*$`);
-    createToken("HYPHENRANGELOOSE", `^\\s*(${src[t.XRANGEPLAINLOOSE]})\\s+-\\s+(${src[t.XRANGEPLAINLOOSE]})\\s*$`);
-    createToken("STAR", "(<|>)?=?\\s*\\*");
-    createToken("GTE0", "^\\s*>=\\s*0\\.0\\.0\\s*$");
-    createToken("GTE0PRE", "^\\s*>=\\s*0\\.0\\.0-0\\s*$");
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/parse-options.js
-var require_parse_options = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/parse-options.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var looseOption = Object.freeze({ loose: true });
-    var emptyOpts = Object.freeze({});
-    var parseOptions = (options) => {
-      if (!options) {
-        return emptyOpts;
-      }
-      if (typeof options !== "object") {
-        return looseOption;
-      }
-      return options;
-    };
-    module.exports = parseOptions;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/identifiers.js
-var require_identifiers = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/identifiers.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var numeric = /^[0-9]+$/;
-    var compareIdentifiers = (a, b) => {
-      if (typeof a === "number" && typeof b === "number") {
-        return a === b ? 0 : a < b ? -1 : 1;
-      }
-      const anum = numeric.test(a);
-      const bnum = numeric.test(b);
-      if (anum && bnum) {
-        a = +a;
-        b = +b;
-      }
-      return a === b ? 0 : anum && !bnum ? -1 : bnum && !anum ? 1 : a < b ? -1 : 1;
-    };
-    var rcompareIdentifiers = (a, b) => compareIdentifiers(b, a);
-    module.exports = {
-      compareIdentifiers,
-      rcompareIdentifiers
-    };
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/classes/semver.js
-var require_semver = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/classes/semver.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var debug = require_debug();
-    var { MAX_LENGTH, MAX_SAFE_INTEGER } = require_constants6();
-    var { safeRe: re, t } = require_re();
-    var parseOptions = require_parse_options();
-    var { compareIdentifiers } = require_identifiers();
-    var SemVer = class _SemVer {
-      constructor(version2, options) {
-        options = parseOptions(options);
-        if (version2 instanceof _SemVer) {
-          if (version2.loose === !!options.loose && version2.includePrerelease === !!options.includePrerelease) {
-            return version2;
-          } else {
-            version2 = version2.version;
-          }
-        } else if (typeof version2 !== "string") {
-          throw new TypeError(`Invalid version. Must be a string. Got type "${typeof version2}".`);
-        }
-        if (version2.length > MAX_LENGTH) {
-          throw new TypeError(
-            `version is longer than ${MAX_LENGTH} characters`
-          );
-        }
-        debug("SemVer", version2, options);
-        this.options = options;
-        this.loose = !!options.loose;
-        this.includePrerelease = !!options.includePrerelease;
-        const m = version2.trim().match(options.loose ? re[t.LOOSE] : re[t.FULL]);
-        if (!m) {
-          throw new TypeError(`Invalid Version: ${version2}`);
-        }
-        this.raw = version2;
-        this.major = +m[1];
-        this.minor = +m[2];
-        this.patch = +m[3];
-        if (this.major > MAX_SAFE_INTEGER || this.major < 0) {
-          throw new TypeError("Invalid major version");
-        }
-        if (this.minor > MAX_SAFE_INTEGER || this.minor < 0) {
-          throw new TypeError("Invalid minor version");
-        }
-        if (this.patch > MAX_SAFE_INTEGER || this.patch < 0) {
-          throw new TypeError("Invalid patch version");
-        }
-        if (!m[4]) {
-          this.prerelease = [];
-        } else {
-          this.prerelease = m[4].split(".").map((id) => {
-            if (/^[0-9]+$/.test(id)) {
-              const num = +id;
-              if (num >= 0 && num < MAX_SAFE_INTEGER) {
-                return num;
-              }
-            }
-            return id;
-          });
-        }
-        this.build = m[5] ? m[5].split(".") : [];
-        this.format();
-      }
-      format() {
-        this.version = `${this.major}.${this.minor}.${this.patch}`;
-        if (this.prerelease.length) {
-          this.version += `-${this.prerelease.join(".")}`;
-        }
-        return this.version;
-      }
-      toString() {
-        return this.version;
-      }
-      compare(other) {
-        debug("SemVer.compare", this.version, this.options, other);
-        if (!(other instanceof _SemVer)) {
-          if (typeof other === "string" && other === this.version) {
-            return 0;
-          }
-          other = new _SemVer(other, this.options);
-        }
-        if (other.version === this.version) {
-          return 0;
-        }
-        return this.compareMain(other) || this.comparePre(other);
-      }
-      compareMain(other) {
-        if (!(other instanceof _SemVer)) {
-          other = new _SemVer(other, this.options);
-        }
-        if (this.major < other.major) {
-          return -1;
-        }
-        if (this.major > other.major) {
-          return 1;
-        }
-        if (this.minor < other.minor) {
-          return -1;
-        }
-        if (this.minor > other.minor) {
-          return 1;
-        }
-        if (this.patch < other.patch) {
-          return -1;
-        }
-        if (this.patch > other.patch) {
-          return 1;
-        }
-        return 0;
-      }
-      comparePre(other) {
-        if (!(other instanceof _SemVer)) {
-          other = new _SemVer(other, this.options);
-        }
-        if (this.prerelease.length && !other.prerelease.length) {
-          return -1;
-        } else if (!this.prerelease.length && other.prerelease.length) {
-          return 1;
-        } else if (!this.prerelease.length && !other.prerelease.length) {
-          return 0;
-        }
-        let i = 0;
-        do {
-          const a = this.prerelease[i];
-          const b = other.prerelease[i];
-          debug("prerelease compare", i, a, b);
-          if (a === void 0 && b === void 0) {
-            return 0;
-          } else if (b === void 0) {
-            return 1;
-          } else if (a === void 0) {
-            return -1;
-          } else if (a === b) {
-            continue;
-          } else {
-            return compareIdentifiers(a, b);
-          }
-        } while (++i);
-      }
-      compareBuild(other) {
-        if (!(other instanceof _SemVer)) {
-          other = new _SemVer(other, this.options);
-        }
-        let i = 0;
-        do {
-          const a = this.build[i];
-          const b = other.build[i];
-          debug("build compare", i, a, b);
-          if (a === void 0 && b === void 0) {
-            return 0;
-          } else if (b === void 0) {
-            return 1;
-          } else if (a === void 0) {
-            return -1;
-          } else if (a === b) {
-            continue;
-          } else {
-            return compareIdentifiers(a, b);
-          }
-        } while (++i);
-      }
-      // preminor will bump the version up to the next minor release, and immediately
-      // down to pre-release. premajor and prepatch work the same way.
-      inc(release, identifier, identifierBase) {
-        if (release.startsWith("pre")) {
-          if (!identifier && identifierBase === false) {
-            throw new Error("invalid increment argument: identifier is empty");
-          }
-          if (identifier) {
-            const match = `-${identifier}`.match(this.options.loose ? re[t.PRERELEASELOOSE] : re[t.PRERELEASE]);
-            if (!match || match[1] !== identifier) {
-              throw new Error(`invalid identifier: ${identifier}`);
-            }
-          }
-        }
-        switch (release) {
-          case "premajor":
-            this.prerelease.length = 0;
-            this.patch = 0;
-            this.minor = 0;
-            this.major++;
-            this.inc("pre", identifier, identifierBase);
-            break;
-          case "preminor":
-            this.prerelease.length = 0;
-            this.patch = 0;
-            this.minor++;
-            this.inc("pre", identifier, identifierBase);
-            break;
-          case "prepatch":
-            this.prerelease.length = 0;
-            this.inc("patch", identifier, identifierBase);
-            this.inc("pre", identifier, identifierBase);
-            break;
-          // If the input is a non-prerelease version, this acts the same as
-          // prepatch.
-          case "prerelease":
-            if (this.prerelease.length === 0) {
-              this.inc("patch", identifier, identifierBase);
-            }
-            this.inc("pre", identifier, identifierBase);
-            break;
-          case "release":
-            if (this.prerelease.length === 0) {
-              throw new Error(`version ${this.raw} is not a prerelease`);
-            }
-            this.prerelease.length = 0;
-            break;
-          case "major":
-            if (this.minor !== 0 || this.patch !== 0 || this.prerelease.length === 0) {
-              this.major++;
-            }
-            this.minor = 0;
-            this.patch = 0;
-            this.prerelease = [];
-            break;
-          case "minor":
-            if (this.patch !== 0 || this.prerelease.length === 0) {
-              this.minor++;
-            }
-            this.patch = 0;
-            this.prerelease = [];
-            break;
-          case "patch":
-            if (this.prerelease.length === 0) {
-              this.patch++;
-            }
-            this.prerelease = [];
-            break;
-          // This probably shouldn't be used publicly.
-          // 1.0.0 'pre' would become 1.0.0-0 which is the wrong direction.
-          case "pre": {
-            const base = Number(identifierBase) ? 1 : 0;
-            if (this.prerelease.length === 0) {
-              this.prerelease = [base];
-            } else {
-              let i = this.prerelease.length;
-              while (--i >= 0) {
-                if (typeof this.prerelease[i] === "number") {
-                  this.prerelease[i]++;
-                  i = -2;
-                }
-              }
-              if (i === -1) {
-                if (identifier === this.prerelease.join(".") && identifierBase === false) {
-                  throw new Error("invalid increment argument: identifier already exists");
-                }
-                this.prerelease.push(base);
-              }
-            }
-            if (identifier) {
-              let prerelease = [identifier, base];
-              if (identifierBase === false) {
-                prerelease = [identifier];
-              }
-              if (compareIdentifiers(this.prerelease[0], identifier) === 0) {
-                if (isNaN(this.prerelease[1])) {
-                  this.prerelease = prerelease;
-                }
-              } else {
-                this.prerelease = prerelease;
-              }
-            }
-            break;
-          }
-          default:
-            throw new Error(`invalid increment argument: ${release}`);
-        }
-        this.raw = this.format();
-        if (this.build.length) {
-          this.raw += `+${this.build.join(".")}`;
-        }
-        return this;
-      }
-    };
-    module.exports = SemVer;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/parse.js
-var require_parse2 = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/parse.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var SemVer = require_semver();
-    var parse3 = (version2, options, throwErrors = false) => {
-      if (version2 instanceof SemVer) {
-        return version2;
-      }
-      try {
-        return new SemVer(version2, options);
-      } catch (er) {
-        if (!throwErrors) {
-          return null;
-        }
-        throw er;
-      }
-    };
-    module.exports = parse3;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/valid.js
-var require_valid = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/valid.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var parse3 = require_parse2();
-    var valid = (version2, options) => {
-      const v = parse3(version2, options);
-      return v ? v.version : null;
-    };
-    module.exports = valid;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/clean.js
-var require_clean = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/clean.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var parse3 = require_parse2();
-    var clean = (version2, options) => {
-      const s = parse3(version2.trim().replace(/^[=v]+/, ""), options);
-      return s ? s.version : null;
-    };
-    module.exports = clean;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/inc.js
-var require_inc = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/inc.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var SemVer = require_semver();
-    var inc = (version2, release, options, identifier, identifierBase) => {
-      if (typeof options === "string") {
-        identifierBase = identifier;
-        identifier = options;
-        options = void 0;
-      }
-      try {
-        return new SemVer(
-          version2 instanceof SemVer ? version2.version : version2,
-          options
-        ).inc(release, identifier, identifierBase).version;
-      } catch (er) {
-        return null;
-      }
-    };
-    module.exports = inc;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/diff.js
-var require_diff = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/diff.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var parse3 = require_parse2();
-    var diff = (version1, version2) => {
-      const v1 = parse3(version1, null, true);
-      const v2 = parse3(version2, null, true);
-      const comparison = v1.compare(v2);
-      if (comparison === 0) {
-        return null;
-      }
-      const v1Higher = comparison > 0;
-      const highVersion = v1Higher ? v1 : v2;
-      const lowVersion = v1Higher ? v2 : v1;
-      const highHasPre = !!highVersion.prerelease.length;
-      const lowHasPre = !!lowVersion.prerelease.length;
-      if (lowHasPre && !highHasPre) {
-        if (!lowVersion.patch && !lowVersion.minor) {
-          return "major";
-        }
-        if (lowVersion.compareMain(highVersion) === 0) {
-          if (lowVersion.minor && !lowVersion.patch) {
-            return "minor";
-          }
-          return "patch";
-        }
-      }
-      const prefix = highHasPre ? "pre" : "";
-      if (v1.major !== v2.major) {
-        return prefix + "major";
-      }
-      if (v1.minor !== v2.minor) {
-        return prefix + "minor";
-      }
-      if (v1.patch !== v2.patch) {
-        return prefix + "patch";
-      }
-      return "prerelease";
-    };
-    module.exports = diff;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/major.js
-var require_major = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/major.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var SemVer = require_semver();
-    var major = (a, loose) => new SemVer(a, loose).major;
-    module.exports = major;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/minor.js
-var require_minor = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/minor.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var SemVer = require_semver();
-    var minor = (a, loose) => new SemVer(a, loose).minor;
-    module.exports = minor;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/patch.js
-var require_patch = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/patch.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var SemVer = require_semver();
-    var patch = (a, loose) => new SemVer(a, loose).patch;
-    module.exports = patch;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/prerelease.js
-var require_prerelease = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/prerelease.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var parse3 = require_parse2();
-    var prerelease = (version2, options) => {
-      const parsed = parse3(version2, options);
-      return parsed && parsed.prerelease.length ? parsed.prerelease : null;
-    };
-    module.exports = prerelease;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/compare.js
-var require_compare = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/compare.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var SemVer = require_semver();
-    var compare = (a, b, loose) => new SemVer(a, loose).compare(new SemVer(b, loose));
-    module.exports = compare;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/rcompare.js
-var require_rcompare = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/rcompare.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var compare = require_compare();
-    var rcompare = (a, b, loose) => compare(b, a, loose);
-    module.exports = rcompare;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/compare-loose.js
-var require_compare_loose = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/compare-loose.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var compare = require_compare();
-    var compareLoose = (a, b) => compare(a, b, true);
-    module.exports = compareLoose;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/compare-build.js
-var require_compare_build = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/compare-build.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var SemVer = require_semver();
-    var compareBuild = (a, b, loose) => {
-      const versionA = new SemVer(a, loose);
-      const versionB = new SemVer(b, loose);
-      return versionA.compare(versionB) || versionA.compareBuild(versionB);
-    };
-    module.exports = compareBuild;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/sort.js
-var require_sort = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/sort.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var compareBuild = require_compare_build();
-    var sort = (list, loose) => list.sort((a, b) => compareBuild(a, b, loose));
-    module.exports = sort;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/rsort.js
-var require_rsort = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/rsort.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var compareBuild = require_compare_build();
-    var rsort = (list, loose) => list.sort((a, b) => compareBuild(b, a, loose));
-    module.exports = rsort;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/gt.js
-var require_gt = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/gt.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var compare = require_compare();
-    var gt = (a, b, loose) => compare(a, b, loose) > 0;
-    module.exports = gt;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/lt.js
-var require_lt = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/lt.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var compare = require_compare();
-    var lt = (a, b, loose) => compare(a, b, loose) < 0;
-    module.exports = lt;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/eq.js
-var require_eq = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/eq.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var compare = require_compare();
-    var eq = (a, b, loose) => compare(a, b, loose) === 0;
-    module.exports = eq;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/neq.js
-var require_neq = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/neq.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var compare = require_compare();
-    var neq = (a, b, loose) => compare(a, b, loose) !== 0;
-    module.exports = neq;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/gte.js
-var require_gte = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/gte.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var compare = require_compare();
-    var gte = (a, b, loose) => compare(a, b, loose) >= 0;
-    module.exports = gte;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/lte.js
-var require_lte = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/lte.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var compare = require_compare();
-    var lte = (a, b, loose) => compare(a, b, loose) <= 0;
-    module.exports = lte;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/cmp.js
-var require_cmp = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/cmp.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var eq = require_eq();
-    var neq = require_neq();
-    var gt = require_gt();
-    var gte = require_gte();
-    var lt = require_lt();
-    var lte = require_lte();
-    var cmp = (a, op, b, loose) => {
-      switch (op) {
-        case "===":
-          if (typeof a === "object") {
-            a = a.version;
-          }
-          if (typeof b === "object") {
-            b = b.version;
-          }
-          return a === b;
-        case "!==":
-          if (typeof a === "object") {
-            a = a.version;
-          }
-          if (typeof b === "object") {
-            b = b.version;
-          }
-          return a !== b;
-        case "":
-        case "=":
-        case "==":
-          return eq(a, b, loose);
-        case "!=":
-          return neq(a, b, loose);
-        case ">":
-          return gt(a, b, loose);
-        case ">=":
-          return gte(a, b, loose);
-        case "<":
-          return lt(a, b, loose);
-        case "<=":
-          return lte(a, b, loose);
-        default:
-          throw new TypeError(`Invalid operator: ${op}`);
-      }
-    };
-    module.exports = cmp;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/coerce.js
-var require_coerce = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/coerce.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var SemVer = require_semver();
-    var parse3 = require_parse2();
-    var { safeRe: re, t } = require_re();
-    var coerce2 = (version2, options) => {
-      if (version2 instanceof SemVer) {
-        return version2;
-      }
-      if (typeof version2 === "number") {
-        version2 = String(version2);
-      }
-      if (typeof version2 !== "string") {
-        return null;
-      }
+    var s = 1e3;
+    var m = s * 60;
+    var h = m * 60;
+    var d = h * 24;
+    var w = d * 7;
+    var y = d * 365.25;
+    module.exports = function(val, options) {
       options = options || {};
-      let match = null;
-      if (!options.rtl) {
-        match = version2.match(options.includePrerelease ? re[t.COERCEFULL] : re[t.COERCE]);
-      } else {
-        const coerceRtlRegex = options.includePrerelease ? re[t.COERCERTLFULL] : re[t.COERCERTL];
-        let next;
-        while ((next = coerceRtlRegex.exec(version2)) && (!match || match.index + match[0].length !== version2.length)) {
-          if (!match || next.index + next[0].length !== match.index + match[0].length) {
-            match = next;
-          }
-          coerceRtlRegex.lastIndex = next.index + next[1].length + next[2].length;
-        }
-        coerceRtlRegex.lastIndex = -1;
+      var type = typeof val;
+      if (type === "string" && val.length > 0) {
+        return parse3(val);
+      } else if (type === "number" && isFinite(val)) {
+        return options.long ? fmtLong(val) : fmtShort(val);
       }
-      if (match === null) {
-        return null;
-      }
-      const major = match[2];
-      const minor = match[3] || "0";
-      const patch = match[4] || "0";
-      const prerelease = options.includePrerelease && match[5] ? `-${match[5]}` : "";
-      const build2 = options.includePrerelease && match[6] ? `+${match[6]}` : "";
-      return parse3(`${major}.${minor}.${patch}${prerelease}${build2}`, options);
+      throw new Error(
+        "val is not a non-empty string or a valid number. val=" + JSON.stringify(val)
+      );
     };
-    module.exports = coerce2;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/lrucache.js
-var require_lrucache = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/internal/lrucache.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var LRUCache = class {
-      constructor() {
-        this.max = 1e3;
-        this.map = /* @__PURE__ */ new Map();
+    function parse3(str) {
+      str = String(str);
+      if (str.length > 100) {
+        return;
       }
-      get(key) {
-        const value = this.map.get(key);
-        if (value === void 0) {
-          return void 0;
-        } else {
-          this.map.delete(key);
-          this.map.set(key, value);
-          return value;
-        }
+      var match = /^(-?(?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|w|years?|yrs?|y)?$/i.exec(
+        str
+      );
+      if (!match) {
+        return;
       }
-      delete(key) {
-        return this.map.delete(key);
-      }
-      set(key, value) {
-        const deleted = this.delete(key);
-        if (!deleted && value !== void 0) {
-          if (this.map.size >= this.max) {
-            const firstKey = this.map.keys().next().value;
-            this.delete(firstKey);
-          }
-          this.map.set(key, value);
-        }
-        return this;
-      }
-    };
-    module.exports = LRUCache;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/classes/range.js
-var require_range = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/classes/range.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var SPACE_CHARACTERS = /\s+/g;
-    var Range = class _Range {
-      constructor(range, options) {
-        options = parseOptions(options);
-        if (range instanceof _Range) {
-          if (range.loose === !!options.loose && range.includePrerelease === !!options.includePrerelease) {
-            return range;
-          } else {
-            return new _Range(range.raw, options);
-          }
-        }
-        if (range instanceof Comparator) {
-          this.raw = range.value;
-          this.set = [[range]];
-          this.formatted = void 0;
-          return this;
-        }
-        this.options = options;
-        this.loose = !!options.loose;
-        this.includePrerelease = !!options.includePrerelease;
-        this.raw = range.trim().replace(SPACE_CHARACTERS, " ");
-        this.set = this.raw.split("||").map((r) => this.parseRange(r.trim())).filter((c) => c.length);
-        if (!this.set.length) {
-          throw new TypeError(`Invalid SemVer Range: ${this.raw}`);
-        }
-        if (this.set.length > 1) {
-          const first = this.set[0];
-          this.set = this.set.filter((c) => !isNullSet(c[0]));
-          if (this.set.length === 0) {
-            this.set = [first];
-          } else if (this.set.length > 1) {
-            for (const c of this.set) {
-              if (c.length === 1 && isAny(c[0])) {
-                this.set = [c];
-                break;
-              }
-            }
-          }
-        }
-        this.formatted = void 0;
-      }
-      get range() {
-        if (this.formatted === void 0) {
-          this.formatted = "";
-          for (let i = 0; i < this.set.length; i++) {
-            if (i > 0) {
-              this.formatted += "||";
-            }
-            const comps = this.set[i];
-            for (let k = 0; k < comps.length; k++) {
-              if (k > 0) {
-                this.formatted += " ";
-              }
-              this.formatted += comps[k].toString().trim();
-            }
-          }
-        }
-        return this.formatted;
-      }
-      format() {
-        return this.range;
-      }
-      toString() {
-        return this.range;
-      }
-      parseRange(range) {
-        const memoOpts = (this.options.includePrerelease && FLAG_INCLUDE_PRERELEASE) | (this.options.loose && FLAG_LOOSE);
-        const memoKey = memoOpts + ":" + range;
-        const cached = cache.get(memoKey);
-        if (cached) {
-          return cached;
-        }
-        const loose = this.options.loose;
-        const hr = loose ? re[t.HYPHENRANGELOOSE] : re[t.HYPHENRANGE];
-        range = range.replace(hr, hyphenReplace(this.options.includePrerelease));
-        debug("hyphen replace", range);
-        range = range.replace(re[t.COMPARATORTRIM], comparatorTrimReplace);
-        debug("comparator trim", range);
-        range = range.replace(re[t.TILDETRIM], tildeTrimReplace);
-        debug("tilde trim", range);
-        range = range.replace(re[t.CARETTRIM], caretTrimReplace);
-        debug("caret trim", range);
-        let rangeList = range.split(" ").map((comp) => parseComparator(comp, this.options)).join(" ").split(/\s+/).map((comp) => replaceGTE0(comp, this.options));
-        if (loose) {
-          rangeList = rangeList.filter((comp) => {
-            debug("loose invalid filter", comp, this.options);
-            return !!comp.match(re[t.COMPARATORLOOSE]);
-          });
-        }
-        debug("range list", rangeList);
-        const rangeMap = /* @__PURE__ */ new Map();
-        const comparators = rangeList.map((comp) => new Comparator(comp, this.options));
-        for (const comp of comparators) {
-          if (isNullSet(comp)) {
-            return [comp];
-          }
-          rangeMap.set(comp.value, comp);
-        }
-        if (rangeMap.size > 1 && rangeMap.has("")) {
-          rangeMap.delete("");
-        }
-        const result = [...rangeMap.values()];
-        cache.set(memoKey, result);
-        return result;
-      }
-      intersects(range, options) {
-        if (!(range instanceof _Range)) {
-          throw new TypeError("a Range is required");
-        }
-        return this.set.some((thisComparators) => {
-          return isSatisfiable(thisComparators, options) && range.set.some((rangeComparators) => {
-            return isSatisfiable(rangeComparators, options) && thisComparators.every((thisComparator) => {
-              return rangeComparators.every((rangeComparator) => {
-                return thisComparator.intersects(rangeComparator, options);
-              });
-            });
-          });
-        });
-      }
-      // if ANY of the sets match ALL of its comparators, then pass
-      test(version2) {
-        if (!version2) {
-          return false;
-        }
-        if (typeof version2 === "string") {
-          try {
-            version2 = new SemVer(version2, this.options);
-          } catch (er) {
-            return false;
-          }
-        }
-        for (let i = 0; i < this.set.length; i++) {
-          if (testSet(this.set[i], version2, this.options)) {
-            return true;
-          }
-        }
-        return false;
-      }
-    };
-    module.exports = Range;
-    var LRU = require_lrucache();
-    var cache = new LRU();
-    var parseOptions = require_parse_options();
-    var Comparator = require_comparator();
-    var debug = require_debug();
-    var SemVer = require_semver();
-    var {
-      safeRe: re,
-      t,
-      comparatorTrimReplace,
-      tildeTrimReplace,
-      caretTrimReplace
-    } = require_re();
-    var { FLAG_INCLUDE_PRERELEASE, FLAG_LOOSE } = require_constants6();
-    var isNullSet = (c) => c.value === "<0.0.0-0";
-    var isAny = (c) => c.value === "";
-    var isSatisfiable = (comparators, options) => {
-      let result = true;
-      const remainingComparators = comparators.slice();
-      let testComparator = remainingComparators.pop();
-      while (result && remainingComparators.length) {
-        result = remainingComparators.every((otherComparator) => {
-          return testComparator.intersects(otherComparator, options);
-        });
-        testComparator = remainingComparators.pop();
-      }
-      return result;
-    };
-    var parseComparator = (comp, options) => {
-      comp = comp.replace(re[t.BUILD], "");
-      debug("comp", comp, options);
-      comp = replaceCarets(comp, options);
-      debug("caret", comp);
-      comp = replaceTildes(comp, options);
-      debug("tildes", comp);
-      comp = replaceXRanges(comp, options);
-      debug("xrange", comp);
-      comp = replaceStars(comp, options);
-      debug("stars", comp);
-      return comp;
-    };
-    var isX = (id) => !id || id.toLowerCase() === "x" || id === "*";
-    var replaceTildes = (comp, options) => {
-      return comp.trim().split(/\s+/).map((c) => replaceTilde(c, options)).join(" ");
-    };
-    var replaceTilde = (comp, options) => {
-      const r = options.loose ? re[t.TILDELOOSE] : re[t.TILDE];
-      return comp.replace(r, (_, M, m, p, pr) => {
-        debug("tilde", comp, _, M, m, p, pr);
-        let ret;
-        if (isX(M)) {
-          ret = "";
-        } else if (isX(m)) {
-          ret = `>=${M}.0.0 <${+M + 1}.0.0-0`;
-        } else if (isX(p)) {
-          ret = `>=${M}.${m}.0 <${M}.${+m + 1}.0-0`;
-        } else if (pr) {
-          debug("replaceTilde pr", pr);
-          ret = `>=${M}.${m}.${p}-${pr} <${M}.${+m + 1}.0-0`;
-        } else {
-          ret = `>=${M}.${m}.${p} <${M}.${+m + 1}.0-0`;
-        }
-        debug("tilde return", ret);
-        return ret;
-      });
-    };
-    var replaceCarets = (comp, options) => {
-      return comp.trim().split(/\s+/).map((c) => replaceCaret(c, options)).join(" ");
-    };
-    var replaceCaret = (comp, options) => {
-      debug("caret", comp, options);
-      const r = options.loose ? re[t.CARETLOOSE] : re[t.CARET];
-      const z = options.includePrerelease ? "-0" : "";
-      return comp.replace(r, (_, M, m, p, pr) => {
-        debug("caret", comp, _, M, m, p, pr);
-        let ret;
-        if (isX(M)) {
-          ret = "";
-        } else if (isX(m)) {
-          ret = `>=${M}.0.0${z} <${+M + 1}.0.0-0`;
-        } else if (isX(p)) {
-          if (M === "0") {
-            ret = `>=${M}.${m}.0${z} <${M}.${+m + 1}.0-0`;
-          } else {
-            ret = `>=${M}.${m}.0${z} <${+M + 1}.0.0-0`;
-          }
-        } else if (pr) {
-          debug("replaceCaret pr", pr);
-          if (M === "0") {
-            if (m === "0") {
-              ret = `>=${M}.${m}.${p}-${pr} <${M}.${m}.${+p + 1}-0`;
-            } else {
-              ret = `>=${M}.${m}.${p}-${pr} <${M}.${+m + 1}.0-0`;
-            }
-          } else {
-            ret = `>=${M}.${m}.${p}-${pr} <${+M + 1}.0.0-0`;
-          }
-        } else {
-          debug("no pr");
-          if (M === "0") {
-            if (m === "0") {
-              ret = `>=${M}.${m}.${p}${z} <${M}.${m}.${+p + 1}-0`;
-            } else {
-              ret = `>=${M}.${m}.${p}${z} <${M}.${+m + 1}.0-0`;
-            }
-          } else {
-            ret = `>=${M}.${m}.${p} <${+M + 1}.0.0-0`;
-          }
-        }
-        debug("caret return", ret);
-        return ret;
-      });
-    };
-    var replaceXRanges = (comp, options) => {
-      debug("replaceXRanges", comp, options);
-      return comp.split(/\s+/).map((c) => replaceXRange(c, options)).join(" ");
-    };
-    var replaceXRange = (comp, options) => {
-      comp = comp.trim();
-      const r = options.loose ? re[t.XRANGELOOSE] : re[t.XRANGE];
-      return comp.replace(r, (ret, gtlt, M, m, p, pr) => {
-        debug("xRange", comp, ret, gtlt, M, m, p, pr);
-        const xM = isX(M);
-        const xm = xM || isX(m);
-        const xp = xm || isX(p);
-        const anyX = xp;
-        if (gtlt === "=" && anyX) {
-          gtlt = "";
-        }
-        pr = options.includePrerelease ? "-0" : "";
-        if (xM) {
-          if (gtlt === ">" || gtlt === "<") {
-            ret = "<0.0.0-0";
-          } else {
-            ret = "*";
-          }
-        } else if (gtlt && anyX) {
-          if (xm) {
-            m = 0;
-          }
-          p = 0;
-          if (gtlt === ">") {
-            gtlt = ">=";
-            if (xm) {
-              M = +M + 1;
-              m = 0;
-              p = 0;
-            } else {
-              m = +m + 1;
-              p = 0;
-            }
-          } else if (gtlt === "<=") {
-            gtlt = "<";
-            if (xm) {
-              M = +M + 1;
-            } else {
-              m = +m + 1;
-            }
-          }
-          if (gtlt === "<") {
-            pr = "-0";
-          }
-          ret = `${gtlt + M}.${m}.${p}${pr}`;
-        } else if (xm) {
-          ret = `>=${M}.0.0${pr} <${+M + 1}.0.0-0`;
-        } else if (xp) {
-          ret = `>=${M}.${m}.0${pr} <${M}.${+m + 1}.0-0`;
-        }
-        debug("xRange return", ret);
-        return ret;
-      });
-    };
-    var replaceStars = (comp, options) => {
-      debug("replaceStars", comp, options);
-      return comp.trim().replace(re[t.STAR], "");
-    };
-    var replaceGTE0 = (comp, options) => {
-      debug("replaceGTE0", comp, options);
-      return comp.trim().replace(re[options.includePrerelease ? t.GTE0PRE : t.GTE0], "");
-    };
-    var hyphenReplace = (incPr) => ($0, from, fM, fm, fp, fpr, fb, to, tM, tm, tp, tpr) => {
-      if (isX(fM)) {
-        from = "";
-      } else if (isX(fm)) {
-        from = `>=${fM}.0.0${incPr ? "-0" : ""}`;
-      } else if (isX(fp)) {
-        from = `>=${fM}.${fm}.0${incPr ? "-0" : ""}`;
-      } else if (fpr) {
-        from = `>=${from}`;
-      } else {
-        from = `>=${from}${incPr ? "-0" : ""}`;
-      }
-      if (isX(tM)) {
-        to = "";
-      } else if (isX(tm)) {
-        to = `<${+tM + 1}.0.0-0`;
-      } else if (isX(tp)) {
-        to = `<${tM}.${+tm + 1}.0-0`;
-      } else if (tpr) {
-        to = `<=${tM}.${tm}.${tp}-${tpr}`;
-      } else if (incPr) {
-        to = `<${tM}.${tm}.${+tp + 1}-0`;
-      } else {
-        to = `<=${to}`;
-      }
-      return `${from} ${to}`.trim();
-    };
-    var testSet = (set, version2, options) => {
-      for (let i = 0; i < set.length; i++) {
-        if (!set[i].test(version2)) {
-          return false;
-        }
-      }
-      if (version2.prerelease.length && !options.includePrerelease) {
-        for (let i = 0; i < set.length; i++) {
-          debug(set[i].semver);
-          if (set[i].semver === Comparator.ANY) {
-            continue;
-          }
-          if (set[i].semver.prerelease.length > 0) {
-            const allowed = set[i].semver;
-            if (allowed.major === version2.major && allowed.minor === version2.minor && allowed.patch === version2.patch) {
-              return true;
-            }
-          }
-        }
-        return false;
-      }
-      return true;
-    };
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/classes/comparator.js
-var require_comparator = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/classes/comparator.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var ANY = /* @__PURE__ */ Symbol("SemVer ANY");
-    var Comparator = class _Comparator {
-      static get ANY() {
-        return ANY;
-      }
-      constructor(comp, options) {
-        options = parseOptions(options);
-        if (comp instanceof _Comparator) {
-          if (comp.loose === !!options.loose) {
-            return comp;
-          } else {
-            comp = comp.value;
-          }
-        }
-        comp = comp.trim().split(/\s+/).join(" ");
-        debug("comparator", comp, options);
-        this.options = options;
-        this.loose = !!options.loose;
-        this.parse(comp);
-        if (this.semver === ANY) {
-          this.value = "";
-        } else {
-          this.value = this.operator + this.semver.version;
-        }
-        debug("comp", this);
-      }
-      parse(comp) {
-        const r = this.options.loose ? re[t.COMPARATORLOOSE] : re[t.COMPARATOR];
-        const m = comp.match(r);
-        if (!m) {
-          throw new TypeError(`Invalid comparator: ${comp}`);
-        }
-        this.operator = m[1] !== void 0 ? m[1] : "";
-        if (this.operator === "=") {
-          this.operator = "";
-        }
-        if (!m[2]) {
-          this.semver = ANY;
-        } else {
-          this.semver = new SemVer(m[2], this.options.loose);
-        }
-      }
-      toString() {
-        return this.value;
-      }
-      test(version2) {
-        debug("Comparator.test", version2, this.options.loose);
-        if (this.semver === ANY || version2 === ANY) {
-          return true;
-        }
-        if (typeof version2 === "string") {
-          try {
-            version2 = new SemVer(version2, this.options);
-          } catch (er) {
-            return false;
-          }
-        }
-        return cmp(version2, this.operator, this.semver, this.options);
-      }
-      intersects(comp, options) {
-        if (!(comp instanceof _Comparator)) {
-          throw new TypeError("a Comparator is required");
-        }
-        if (this.operator === "") {
-          if (this.value === "") {
-            return true;
-          }
-          return new Range(comp.value, options).test(this.value);
-        } else if (comp.operator === "") {
-          if (comp.value === "") {
-            return true;
-          }
-          return new Range(this.value, options).test(comp.semver);
-        }
-        options = parseOptions(options);
-        if (options.includePrerelease && (this.value === "<0.0.0-0" || comp.value === "<0.0.0-0")) {
-          return false;
-        }
-        if (!options.includePrerelease && (this.value.startsWith("<0.0.0") || comp.value.startsWith("<0.0.0"))) {
-          return false;
-        }
-        if (this.operator.startsWith(">") && comp.operator.startsWith(">")) {
-          return true;
-        }
-        if (this.operator.startsWith("<") && comp.operator.startsWith("<")) {
-          return true;
-        }
-        if (this.semver.version === comp.semver.version && this.operator.includes("=") && comp.operator.includes("=")) {
-          return true;
-        }
-        if (cmp(this.semver, "<", comp.semver, options) && this.operator.startsWith(">") && comp.operator.startsWith("<")) {
-          return true;
-        }
-        if (cmp(this.semver, ">", comp.semver, options) && this.operator.startsWith("<") && comp.operator.startsWith(">")) {
-          return true;
-        }
-        return false;
-      }
-    };
-    module.exports = Comparator;
-    var parseOptions = require_parse_options();
-    var { safeRe: re, t } = require_re();
-    var cmp = require_cmp();
-    var debug = require_debug();
-    var SemVer = require_semver();
-    var Range = require_range();
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/satisfies.js
-var require_satisfies = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/functions/satisfies.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var Range = require_range();
-    var satisfies = (version2, range, options) => {
-      try {
-        range = new Range(range, options);
-      } catch (er) {
-        return false;
-      }
-      return range.test(version2);
-    };
-    module.exports = satisfies;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/to-comparators.js
-var require_to_comparators = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/to-comparators.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var Range = require_range();
-    var toComparators = (range, options) => new Range(range, options).set.map((comp) => comp.map((c) => c.value).join(" ").trim().split(" "));
-    module.exports = toComparators;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/max-satisfying.js
-var require_max_satisfying = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/max-satisfying.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var SemVer = require_semver();
-    var Range = require_range();
-    var maxSatisfying = (versions, range, options) => {
-      let max = null;
-      let maxSV = null;
-      let rangeObj = null;
-      try {
-        rangeObj = new Range(range, options);
-      } catch (er) {
-        return null;
-      }
-      versions.forEach((v) => {
-        if (rangeObj.test(v)) {
-          if (!max || maxSV.compare(v) === -1) {
-            max = v;
-            maxSV = new SemVer(max, options);
-          }
-        }
-      });
-      return max;
-    };
-    module.exports = maxSatisfying;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/min-satisfying.js
-var require_min_satisfying = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/min-satisfying.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var SemVer = require_semver();
-    var Range = require_range();
-    var minSatisfying = (versions, range, options) => {
-      let min = null;
-      let minSV = null;
-      let rangeObj = null;
-      try {
-        rangeObj = new Range(range, options);
-      } catch (er) {
-        return null;
-      }
-      versions.forEach((v) => {
-        if (rangeObj.test(v)) {
-          if (!min || minSV.compare(v) === 1) {
-            min = v;
-            minSV = new SemVer(min, options);
-          }
-        }
-      });
-      return min;
-    };
-    module.exports = minSatisfying;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/min-version.js
-var require_min_version = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/min-version.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var SemVer = require_semver();
-    var Range = require_range();
-    var gt = require_gt();
-    var minVersion = (range, loose) => {
-      range = new Range(range, loose);
-      let minver = new SemVer("0.0.0");
-      if (range.test(minver)) {
-        return minver;
-      }
-      minver = new SemVer("0.0.0-0");
-      if (range.test(minver)) {
-        return minver;
-      }
-      minver = null;
-      for (let i = 0; i < range.set.length; ++i) {
-        const comparators = range.set[i];
-        let setMin = null;
-        comparators.forEach((comparator) => {
-          const compver = new SemVer(comparator.semver.version);
-          switch (comparator.operator) {
-            case ">":
-              if (compver.prerelease.length === 0) {
-                compver.patch++;
-              } else {
-                compver.prerelease.push(0);
-              }
-              compver.raw = compver.format();
-            /* fallthrough */
-            case "":
-            case ">=":
-              if (!setMin || gt(compver, setMin)) {
-                setMin = compver;
-              }
-              break;
-            case "<":
-            case "<=":
-              break;
-            /* istanbul ignore next */
-            default:
-              throw new Error(`Unexpected operation: ${comparator.operator}`);
-          }
-        });
-        if (setMin && (!minver || gt(minver, setMin))) {
-          minver = setMin;
-        }
-      }
-      if (minver && range.test(minver)) {
-        return minver;
-      }
-      return null;
-    };
-    module.exports = minVersion;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/valid.js
-var require_valid2 = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/valid.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var Range = require_range();
-    var validRange = (range, options) => {
-      try {
-        return new Range(range, options).range || "*";
-      } catch (er) {
-        return null;
-      }
-    };
-    module.exports = validRange;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/outside.js
-var require_outside = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/outside.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var SemVer = require_semver();
-    var Comparator = require_comparator();
-    var { ANY } = Comparator;
-    var Range = require_range();
-    var satisfies = require_satisfies();
-    var gt = require_gt();
-    var lt = require_lt();
-    var lte = require_lte();
-    var gte = require_gte();
-    var outside = (version2, range, hilo, options) => {
-      version2 = new SemVer(version2, options);
-      range = new Range(range, options);
-      let gtfn, ltefn, ltfn, comp, ecomp;
-      switch (hilo) {
-        case ">":
-          gtfn = gt;
-          ltefn = lte;
-          ltfn = lt;
-          comp = ">";
-          ecomp = ">=";
-          break;
-        case "<":
-          gtfn = lt;
-          ltefn = gte;
-          ltfn = gt;
-          comp = "<";
-          ecomp = "<=";
-          break;
+      var n = parseFloat(match[1]);
+      var type = (match[2] || "ms").toLowerCase();
+      switch (type) {
+        case "years":
+        case "year":
+        case "yrs":
+        case "yr":
+        case "y":
+          return n * y;
+        case "weeks":
+        case "week":
+        case "w":
+          return n * w;
+        case "days":
+        case "day":
+        case "d":
+          return n * d;
+        case "hours":
+        case "hour":
+        case "hrs":
+        case "hr":
+        case "h":
+          return n * h;
+        case "minutes":
+        case "minute":
+        case "mins":
+        case "min":
+        case "m":
+          return n * m;
+        case "seconds":
+        case "second":
+        case "secs":
+        case "sec":
+        case "s":
+          return n * s;
+        case "milliseconds":
+        case "millisecond":
+        case "msecs":
+        case "msec":
+        case "ms":
+          return n;
         default:
-          throw new TypeError('Must provide a hilo val of "<" or ">"');
+          return void 0;
       }
-      if (satisfies(version2, range, options)) {
-        return false;
+    }
+    function fmtShort(ms2) {
+      var msAbs = Math.abs(ms2);
+      if (msAbs >= d) {
+        return Math.round(ms2 / d) + "d";
       }
-      for (let i = 0; i < range.set.length; ++i) {
-        const comparators = range.set[i];
-        let high = null;
-        let low = null;
-        comparators.forEach((comparator) => {
-          if (comparator.semver === ANY) {
-            comparator = new Comparator(">=0.0.0");
-          }
-          high = high || comparator;
-          low = low || comparator;
-          if (gtfn(comparator.semver, high.semver, options)) {
-            high = comparator;
-          } else if (ltfn(comparator.semver, low.semver, options)) {
-            low = comparator;
-          }
-        });
-        if (high.operator === comp || high.operator === ecomp) {
-          return false;
-        }
-        if ((!low.operator || low.operator === comp) && ltefn(version2, low.semver)) {
-          return false;
-        } else if (low.operator === ecomp && ltfn(version2, low.semver)) {
-          return false;
-        }
+      if (msAbs >= h) {
+        return Math.round(ms2 / h) + "h";
       }
-      return true;
-    };
-    module.exports = outside;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/gtr.js
-var require_gtr = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/gtr.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var outside = require_outside();
-    var gtr = (version2, range, options) => outside(version2, range, ">", options);
-    module.exports = gtr;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/ltr.js
-var require_ltr = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/ltr.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var outside = require_outside();
-    var ltr = (version2, range, options) => outside(version2, range, "<", options);
-    module.exports = ltr;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/intersects.js
-var require_intersects = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/intersects.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var Range = require_range();
-    var intersects = (r1, r2, options) => {
-      r1 = new Range(r1, options);
-      r2 = new Range(r2, options);
-      return r1.intersects(r2, options);
-    };
-    module.exports = intersects;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/simplify.js
-var require_simplify = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/simplify.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var satisfies = require_satisfies();
-    var compare = require_compare();
-    module.exports = (versions, range, options) => {
-      const set = [];
-      let first = null;
-      let prev = null;
-      const v = versions.sort((a, b) => compare(a, b, options));
-      for (const version2 of v) {
-        const included = satisfies(version2, range, options);
-        if (included) {
-          prev = version2;
-          if (!first) {
-            first = version2;
-          }
-        } else {
-          if (prev) {
-            set.push([first, prev]);
-          }
-          prev = null;
-          first = null;
-        }
+      if (msAbs >= m) {
+        return Math.round(ms2 / m) + "m";
       }
-      if (first) {
-        set.push([first, null]);
+      if (msAbs >= s) {
+        return Math.round(ms2 / s) + "s";
       }
-      const ranges = [];
-      for (const [min, max] of set) {
-        if (min === max) {
-          ranges.push(min);
-        } else if (!max && min === v[0]) {
-          ranges.push("*");
-        } else if (!max) {
-          ranges.push(`>=${min}`);
-        } else if (min === v[0]) {
-          ranges.push(`<=${max}`);
-        } else {
-          ranges.push(`${min} - ${max}`);
-        }
+      return ms2 + "ms";
+    }
+    function fmtLong(ms2) {
+      var msAbs = Math.abs(ms2);
+      if (msAbs >= d) {
+        return plural(ms2, msAbs, d, "day");
       }
-      const simplified = ranges.join(" || ");
-      const original = typeof range.raw === "string" ? range.raw : String(range);
-      return simplified.length < original.length ? simplified : range;
-    };
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/subset.js
-var require_subset = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/ranges/subset.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var Range = require_range();
-    var Comparator = require_comparator();
-    var { ANY } = Comparator;
-    var satisfies = require_satisfies();
-    var compare = require_compare();
-    var subset = (sub, dom, options = {}) => {
-      if (sub === dom) {
-        return true;
+      if (msAbs >= h) {
+        return plural(ms2, msAbs, h, "hour");
       }
-      sub = new Range(sub, options);
-      dom = new Range(dom, options);
-      let sawNonNull = false;
-      OUTER: for (const simpleSub of sub.set) {
-        for (const simpleDom of dom.set) {
-          const isSub = simpleSubset(simpleSub, simpleDom, options);
-          sawNonNull = sawNonNull || isSub !== null;
-          if (isSub) {
-            continue OUTER;
-          }
-        }
-        if (sawNonNull) {
-          return false;
-        }
+      if (msAbs >= m) {
+        return plural(ms2, msAbs, m, "minute");
       }
-      return true;
-    };
-    var minimumVersionWithPreRelease = [new Comparator(">=0.0.0-0")];
-    var minimumVersion = [new Comparator(">=0.0.0")];
-    var simpleSubset = (sub, dom, options) => {
-      if (sub === dom) {
-        return true;
+      if (msAbs >= s) {
+        return plural(ms2, msAbs, s, "second");
       }
-      if (sub.length === 1 && sub[0].semver === ANY) {
-        if (dom.length === 1 && dom[0].semver === ANY) {
-          return true;
-        } else if (options.includePrerelease) {
-          sub = minimumVersionWithPreRelease;
-        } else {
-          sub = minimumVersion;
-        }
-      }
-      if (dom.length === 1 && dom[0].semver === ANY) {
-        if (options.includePrerelease) {
-          return true;
-        } else {
-          dom = minimumVersion;
-        }
-      }
-      const eqSet = /* @__PURE__ */ new Set();
-      let gt, lt;
-      for (const c of sub) {
-        if (c.operator === ">" || c.operator === ">=") {
-          gt = higherGT(gt, c, options);
-        } else if (c.operator === "<" || c.operator === "<=") {
-          lt = lowerLT(lt, c, options);
-        } else {
-          eqSet.add(c.semver);
-        }
-      }
-      if (eqSet.size > 1) {
-        return null;
-      }
-      let gtltComp;
-      if (gt && lt) {
-        gtltComp = compare(gt.semver, lt.semver, options);
-        if (gtltComp > 0) {
-          return null;
-        } else if (gtltComp === 0 && (gt.operator !== ">=" || lt.operator !== "<=")) {
-          return null;
-        }
-      }
-      for (const eq of eqSet) {
-        if (gt && !satisfies(eq, String(gt), options)) {
-          return null;
-        }
-        if (lt && !satisfies(eq, String(lt), options)) {
-          return null;
-        }
-        for (const c of dom) {
-          if (!satisfies(eq, String(c), options)) {
-            return false;
-          }
-        }
-        return true;
-      }
-      let higher, lower;
-      let hasDomLT, hasDomGT;
-      let needDomLTPre = lt && !options.includePrerelease && lt.semver.prerelease.length ? lt.semver : false;
-      let needDomGTPre = gt && !options.includePrerelease && gt.semver.prerelease.length ? gt.semver : false;
-      if (needDomLTPre && needDomLTPre.prerelease.length === 1 && lt.operator === "<" && needDomLTPre.prerelease[0] === 0) {
-        needDomLTPre = false;
-      }
-      for (const c of dom) {
-        hasDomGT = hasDomGT || c.operator === ">" || c.operator === ">=";
-        hasDomLT = hasDomLT || c.operator === "<" || c.operator === "<=";
-        if (gt) {
-          if (needDomGTPre) {
-            if (c.semver.prerelease && c.semver.prerelease.length && c.semver.major === needDomGTPre.major && c.semver.minor === needDomGTPre.minor && c.semver.patch === needDomGTPre.patch) {
-              needDomGTPre = false;
-            }
-          }
-          if (c.operator === ">" || c.operator === ">=") {
-            higher = higherGT(gt, c, options);
-            if (higher === c && higher !== gt) {
-              return false;
-            }
-          } else if (gt.operator === ">=" && !satisfies(gt.semver, String(c), options)) {
-            return false;
-          }
-        }
-        if (lt) {
-          if (needDomLTPre) {
-            if (c.semver.prerelease && c.semver.prerelease.length && c.semver.major === needDomLTPre.major && c.semver.minor === needDomLTPre.minor && c.semver.patch === needDomLTPre.patch) {
-              needDomLTPre = false;
-            }
-          }
-          if (c.operator === "<" || c.operator === "<=") {
-            lower = lowerLT(lt, c, options);
-            if (lower === c && lower !== lt) {
-              return false;
-            }
-          } else if (lt.operator === "<=" && !satisfies(lt.semver, String(c), options)) {
-            return false;
-          }
-        }
-        if (!c.operator && (lt || gt) && gtltComp !== 0) {
-          return false;
-        }
-      }
-      if (gt && hasDomLT && !lt && gtltComp !== 0) {
-        return false;
-      }
-      if (lt && hasDomGT && !gt && gtltComp !== 0) {
-        return false;
-      }
-      if (needDomGTPre || needDomLTPre) {
-        return false;
-      }
-      return true;
-    };
-    var higherGT = (a, b, options) => {
-      if (!a) {
-        return b;
-      }
-      const comp = compare(a.semver, b.semver, options);
-      return comp > 0 ? a : comp < 0 ? b : b.operator === ">" && a.operator === ">=" ? b : a;
-    };
-    var lowerLT = (a, b, options) => {
-      if (!a) {
-        return b;
-      }
-      const comp = compare(a.semver, b.semver, options);
-      return comp < 0 ? a : comp > 0 ? b : b.operator === "<" && a.operator === "<=" ? b : a;
-    };
-    module.exports = subset;
-  }
-});
-
-// ../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/index.js
-var require_semver2 = __commonJS({
-  "../../node_modules/.pnpm/semver@7.7.3/node_modules/semver/index.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    var internalRe = require_re();
-    var constants = require_constants6();
-    var SemVer = require_semver();
-    var identifiers = require_identifiers();
-    var parse3 = require_parse2();
-    var valid = require_valid();
-    var clean = require_clean();
-    var inc = require_inc();
-    var diff = require_diff();
-    var major = require_major();
-    var minor = require_minor();
-    var patch = require_patch();
-    var prerelease = require_prerelease();
-    var compare = require_compare();
-    var rcompare = require_rcompare();
-    var compareLoose = require_compare_loose();
-    var compareBuild = require_compare_build();
-    var sort = require_sort();
-    var rsort = require_rsort();
-    var gt = require_gt();
-    var lt = require_lt();
-    var eq = require_eq();
-    var neq = require_neq();
-    var gte = require_gte();
-    var lte = require_lte();
-    var cmp = require_cmp();
-    var coerce2 = require_coerce();
-    var Comparator = require_comparator();
-    var Range = require_range();
-    var satisfies = require_satisfies();
-    var toComparators = require_to_comparators();
-    var maxSatisfying = require_max_satisfying();
-    var minSatisfying = require_min_satisfying();
-    var minVersion = require_min_version();
-    var validRange = require_valid2();
-    var outside = require_outside();
-    var gtr = require_gtr();
-    var ltr = require_ltr();
-    var intersects = require_intersects();
-    var simplifyRange = require_simplify();
-    var subset = require_subset();
-    module.exports = {
-      parse: parse3,
-      valid,
-      clean,
-      inc,
-      diff,
-      major,
-      minor,
-      patch,
-      prerelease,
-      compare,
-      rcompare,
-      compareLoose,
-      compareBuild,
-      sort,
-      rsort,
-      gt,
-      lt,
-      eq,
-      neq,
-      gte,
-      lte,
-      cmp,
-      coerce: coerce2,
-      Comparator,
-      Range,
-      satisfies,
-      toComparators,
-      maxSatisfying,
-      minSatisfying,
-      minVersion,
-      validRange,
-      outside,
-      gtr,
-      ltr,
-      intersects,
-      simplifyRange,
-      subset,
-      SemVer,
-      re: internalRe.re,
-      src: internalRe.src,
-      tokens: internalRe.t,
-      SEMVER_SPEC_VERSION: constants.SEMVER_SPEC_VERSION,
-      RELEASE_TYPES: constants.RELEASE_TYPES,
-      compareIdentifiers: identifiers.compareIdentifiers,
-      rcompareIdentifiers: identifiers.rcompareIdentifiers
-    };
+      return ms2 + " ms";
+    }
+    function plural(ms2, msAbs, n, name) {
+      var isPlural = msAbs >= n * 1.5;
+      return Math.round(ms2 / n) + " " + name + (isPlural ? "s" : "");
+    }
   }
 });
 
@@ -31130,44 +30962,6 @@ var require_picomatch2 = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/canonicalize@2.1.0/node_modules/canonicalize/lib/canonicalize.js
-var require_canonicalize = __commonJS({
-  "../../node_modules/.pnpm/canonicalize@2.1.0/node_modules/canonicalize/lib/canonicalize.js"(exports, module) {
-    "use strict";
-    init_esm_shims();
-    module.exports = function serialize2(object) {
-      if (typeof object === "number" && isNaN(object)) {
-        throw new Error("NaN is not allowed");
-      }
-      if (typeof object === "number" && !isFinite(object)) {
-        throw new Error("Infinity is not allowed");
-      }
-      if (object === null || typeof object !== "object") {
-        return JSON.stringify(object);
-      }
-      if (object.toJSON instanceof Function) {
-        return serialize2(object.toJSON());
-      }
-      if (Array.isArray(object)) {
-        const values2 = object.reduce((t, cv, ci) => {
-          const comma = ci === 0 ? "" : ",";
-          const value = cv === void 0 || typeof cv === "symbol" ? null : cv;
-          return `${t}${comma}${serialize2(value)}`;
-        }, "");
-        return `[${values2}]`;
-      }
-      const values = Object.keys(object).sort().reduce((t, cv) => {
-        if (object[cv] === void 0 || typeof object[cv] === "symbol") {
-          return t;
-        }
-        const comma = t.length === 0 ? "" : ",";
-        return `${t}${comma}${serialize2(cv)}:${serialize2(object[cv])}`;
-      }, "");
-      return `{${values}}`;
-    };
-  }
-});
-
 // ../../node_modules/.pnpm/@actions+github@7.0.0/node_modules/@actions/github/lib/context.js
 var require_context = __commonJS({
   "../../node_modules/.pnpm/@actions+github@7.0.0/node_modules/@actions/github/lib/context.js"(exports) {
@@ -31354,11 +31148,11 @@ var require_lib2 = __commonJS({
     })();
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve5) {
-          resolve5(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve5, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -31374,7 +31168,7 @@ var require_lib2 = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -31461,26 +31255,26 @@ var require_lib2 = __commonJS({
       }
       readBody() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve5) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve4) => __awaiter(this, void 0, void 0, function* () {
             let output = Buffer.alloc(0);
             this.message.on("data", (chunk) => {
               output = Buffer.concat([output, chunk]);
             });
             this.message.on("end", () => {
-              resolve5(output.toString());
+              resolve4(output.toString());
             });
           }));
         });
       }
       readBodyBuffer() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve5) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve4) => __awaiter(this, void 0, void 0, function* () {
             const chunks = [];
             this.message.on("data", (chunk) => {
               chunks.push(chunk);
             });
             this.message.on("end", () => {
-              resolve5(Buffer.concat(chunks));
+              resolve4(Buffer.concat(chunks));
             });
           }));
         });
@@ -31688,14 +31482,14 @@ var require_lib2 = __commonJS({
        */
       requestRaw(info2, data) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve5, reject) => {
+          return new Promise((resolve4, reject) => {
             function callbackForResult(err, res) {
               if (err) {
                 reject(err);
               } else if (!res) {
                 reject(new Error("Unknown error"));
               } else {
-                resolve5(res);
+                resolve4(res);
               }
             }
             this.requestRawWithCallback(info2, data, callbackForResult);
@@ -31939,12 +31733,12 @@ var require_lib2 = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           retryNumber = Math.min(ExponentialBackoffCeiling, retryNumber);
           const ms2 = ExponentialBackoffTimeSlice * Math.pow(2, retryNumber);
-          return new Promise((resolve5) => setTimeout(() => resolve5(), ms2));
+          return new Promise((resolve4) => setTimeout(() => resolve4(), ms2));
         });
       }
       _processResponse(res, options) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve5, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve4, reject) => __awaiter(this, void 0, void 0, function* () {
             const statusCode = res.message.statusCode || 0;
             const response = {
               statusCode,
@@ -31952,7 +31746,7 @@ var require_lib2 = __commonJS({
               headers: {}
             };
             if (statusCode === HttpCodes.NotFound) {
-              resolve5(response);
+              resolve4(response);
             }
             function dateTimeDeserializer(key, value) {
               if (typeof value === "string") {
@@ -31991,7 +31785,7 @@ var require_lib2 = __commonJS({
               err.result = response.result;
               reject(err);
             } else {
-              resolve5(response);
+              resolve4(response);
             }
           }));
         });
@@ -32046,11 +31840,11 @@ var require_utils4 = __commonJS({
     })();
     var __awaiter = exports && exports.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve5) {
-          resolve5(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve5, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -32066,7 +31860,7 @@ var require_utils4 = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve5(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -36129,20 +35923,16 @@ var require_github = __commonJS({
 // src/index.ts
 init_esm_shims();
 var core = __toESM(require_core(), 1);
-import { resolve as resolve4 } from "path";
+import { resolve as resolve3 } from "path";
 
 // ../core/dist/index.js
 init_esm_shims();
-init_chunk_DEX33VQV();
-init_chunk_DEX33VQV();
-var import_ms = __toESM(require_ms(), 1);
-var import_yaml = __toESM(require_dist(), 1);
-import * as fs2 from "fs";
+import * as fs from "fs";
 import { readFileSync as readFileSync2, mkdirSync as mkdirSync2, writeFileSync as writeFileSync2 } from "fs";
-import * as fs7 from "fs/promises";
-import { readFile as readFile3, mkdir as mkdir3, writeFile as writeFile3 } from "fs/promises";
-import * as path9 from "path";
-import { join as join3, resolve as resolve3, dirname as dirname4 } from "path";
+var import_semver = __toESM(require_semver2(), 1);
+var import_yaml = __toESM(require_dist(), 1);
+import * as path3 from "path";
+import { join as join2, dirname as dirname3 } from "path";
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/index.js
 init_esm_shims();
@@ -40205,7 +39995,7 @@ var coerce = {
 var NEVER = INVALID;
 
 // ../core/dist/index.js
-var import_semver = __toESM(require_semver2(), 1);
+var import_ms = __toESM(require_ms(), 1);
 
 // ../../node_modules/.pnpm/@migrex+core@0.2.0-alpha.1/node_modules/@migrex/core/dist/index.js
 init_esm_shims();
@@ -41218,18 +41008,20 @@ function fromZod(version2, zodSchema, options) {
 }
 
 // ../core/dist/index.js
+import * as fs2 from "fs/promises";
+import { readFile as readFile2, mkdir as mkdir2, writeFile as writeFile2 } from "fs/promises";
 import * as crypto3 from "crypto";
 
 // ../../node_modules/.pnpm/tinyglobby@0.2.15/node_modules/tinyglobby/dist/index.mjs
 init_esm_shims();
 import nativeFs2 from "fs";
-import path3, { posix } from "path";
+import path2, { posix } from "path";
 import { fileURLToPath as fileURLToPath2 } from "url";
 
 // ../../node_modules/.pnpm/fdir@6.5.0_picomatch@4.0.3/node_modules/fdir/dist/index.mjs
 init_esm_shims();
 import { createRequire } from "module";
-import { basename, dirname as dirname2, normalize, relative, resolve, sep } from "path";
+import { basename, dirname, normalize, relative, resolve, sep } from "path";
 import * as nativeFs from "fs";
 var __require2 = /* @__PURE__ */ createRequire(import.meta.url);
 function cleanPath(path4) {
@@ -41373,13 +41165,13 @@ function build$2(options, isSynchronous) {
 }
 function isRecursive(path4, resolved, state) {
   if (state.options.useRealPaths) return isRecursiveUsingRealPaths(resolved, state);
-  let parent = dirname2(path4);
+  let parent = dirname(path4);
   let depth = 1;
   while (parent !== state.root && depth < 2) {
     const resolvedPath = state.symlinks.get(parent);
     const isSameRoot = !!resolvedPath && (resolvedPath === resolved || resolvedPath.startsWith(resolved) || resolved.startsWith(resolvedPath));
     if (isSameRoot) depth++;
-    else parent = dirname2(parent);
+    else parent = dirname(parent);
   }
   state.symlinks.set(path4, resolved);
   return depth > 1;
@@ -41567,7 +41359,7 @@ var Walker = class {
           } else {
             resolvedPath = useRealPaths ? resolvedPath : path4;
             const filename = basename(resolvedPath);
-            const directoryPath$1 = normalizePath(dirname2(resolvedPath), this.state.options);
+            const directoryPath$1 = normalizePath(dirname(resolvedPath), this.state.options);
             resolvedPath = this.joinPath(filename, directoryPath$1);
             this.pushFile(resolvedPath, files, this.state.counts, filters);
           }
@@ -41833,7 +41625,7 @@ function normalizePattern(pattern, expandDirectories, cwd, props, isIgnore) {
   if (pattern.endsWith("/")) result = pattern.slice(0, -1);
   if (!result.endsWith("*") && expandDirectories) result += "/**";
   const escapedCwd = escapePath(cwd);
-  if (path3.isAbsolute(result.replace(ESCAPING_BACKSLASHES, ""))) result = posix.relative(escapedCwd, result);
+  if (path2.isAbsolute(result.replace(ESCAPING_BACKSLASHES, ""))) result = posix.relative(escapedCwd, result);
   else result = posix.normalize(result);
   const parentDirectoryMatch = PARENT_DIRECTORY.exec(result);
   const parts = splitPattern(result);
@@ -41900,7 +41692,7 @@ function formatPaths(paths, relative2) {
 function normalizeCwd(cwd) {
   if (!cwd) return process.cwd().replace(BACKSLASHES, "/");
   if (cwd instanceof URL) return fileURLToPath2(cwd).replace(BACKSLASHES, "/");
-  return path3.resolve(cwd).replace(BACKSLASHES, "/");
+  return path2.resolve(cwd).replace(BACKSLASHES, "/");
 }
 function getCrawler(patterns, inputOptions = {}) {
   const options = process.env.TINYGLOBBY_DEBUG ? {
@@ -42004,55 +41796,9 @@ async function glob(patternsOrOptions, options) {
 }
 
 // ../core/dist/index.js
-var canonicalizeNamespace = __toESM(require_canonicalize(), 1);
-import * as os2 from "os";
+import { spawn } from "child_process";
+import * as os from "os";
 import { homedir as homedir2 } from "os";
-import { spawn as spawn2 } from "child_process";
-var semverSchema = external_exports.string().regex(
-  /^\d+\.\d+\.\d+(-[\w.]+)?(\+[\w.]+)?$/,
-  'Must be a valid semver version (e.g., "0.8.0", "1.0.0-beta.1")'
-);
-var teamMemberSchema = external_exports.object({
-  name: external_exports.string().min(1, "Team member name cannot be empty"),
-  email: external_exports.string().email().optional(),
-  github: external_exports.string().min(1).optional(),
-  publicKey: external_exports.string().min(1, "Public key is required"),
-  publicKeyAlgorithm: external_exports.literal("ed25519").optional()
-}).strict();
-var fingerprintConfigSchema = external_exports.object({
-  paths: external_exports.array(external_exports.string().min(1, "Path cannot be empty")).min(1, "At least one path is required"),
-  exclude: external_exports.array(external_exports.string().min(1, "Exclude pattern cannot be empty")).optional()
-}).strict();
-var durationSchema = external_exports.string().refine(
-  (val) => {
-    try {
-      const parsed = (0, import_ms.default)(val);
-      return typeof parsed === "number" && parsed > 0;
-    } catch {
-      return false;
-    }
-  },
-  {
-    message: 'Duration must be a valid duration string (e.g., "30d", "7d", "24h")'
-  }
-);
-var gateSchema = external_exports.object({
-  name: external_exports.string().min(1, "Gate name cannot be empty"),
-  description: external_exports.string().min(1, "Gate description cannot be empty"),
-  authorizedSigners: external_exports.array(external_exports.string().min(1, "Authorized signer slug cannot be empty")).min(1, "At least one authorized signer is required"),
-  fingerprint: fingerprintConfigSchema,
-  maxAge: durationSchema
-}).strict();
-var keyProviderOptionsSchema = external_exports.object({
-  privateKeyPath: external_exports.string().optional(),
-  account: external_exports.string().optional(),
-  vault: external_exports.string().optional(),
-  itemName: external_exports.string().optional()
-}).passthrough();
-var keyProviderSchema = external_exports.object({
-  type: external_exports.enum(["filesystem", "1password"]).or(external_exports.string()),
-  options: keyProviderOptionsSchema.optional()
-}).strict();
 var cachedVersion;
 function getPackageVersion() {
   if (cachedVersion !== void 0) {
@@ -42103,28 +41849,22 @@ function checkVersionCompatibility(minVersion) {
     throw new VersionIncompatibleError(minVersion, currentVersion);
   }
 }
-var keyProviderOptionsSchema2 = external_exports.object({
-  privateKeyPath: external_exports.string().optional(),
-  account: external_exports.string().optional(),
-  vault: external_exports.string().optional(),
-  itemName: external_exports.string().optional()
-}).strict();
-var keyProviderSchema2 = external_exports.object({
-  type: external_exports.enum(["filesystem", "1password"]).or(external_exports.string()),
-  options: keyProviderOptionsSchema2.optional()
-}).strict();
-var teamMemberSchema2 = external_exports.object({
+var semverSchema = external_exports.string().regex(
+  /^\d+\.\d+\.\d+(-[\w.]+)?(\+[\w.]+)?$/,
+  'Must be a valid semver version (e.g., "0.8.0", "1.0.0-beta.1")'
+);
+var teamMemberSchema = external_exports.object({
   name: external_exports.string().min(1, "Team member name cannot be empty"),
   email: external_exports.string().email().optional(),
   github: external_exports.string().min(1).optional(),
   publicKey: external_exports.string().min(1, "Public key is required"),
-  publicKeyAlgorithm: external_exports.enum(["ed25519"]).optional()
+  publicKeyAlgorithm: external_exports.literal("ed25519").optional()
 }).strict();
-var fingerprintConfigSchema2 = external_exports.object({
+var fingerprintConfigSchema = external_exports.object({
   paths: external_exports.array(external_exports.string().min(1, "Path cannot be empty")).min(1, "At least one path is required"),
   exclude: external_exports.array(external_exports.string().min(1, "Exclude pattern cannot be empty")).optional()
 }).strict();
-var durationSchema2 = external_exports.string().refine(
+var durationSchema = external_exports.string().refine(
   (val) => {
     try {
       const parsed = (0, import_ms.default)(val);
@@ -42137,175 +41877,23 @@ var durationSchema2 = external_exports.string().refine(
     message: 'Duration must be a valid duration string (e.g., "30d", "7d", "24h")'
   }
 );
-var gateSchema2 = external_exports.object({
+var gateSchema = external_exports.object({
   name: external_exports.string().min(1, "Gate name cannot be empty"),
   description: external_exports.string().min(1, "Gate description cannot be empty"),
   authorizedSigners: external_exports.array(external_exports.string().min(1, "Authorized signer slug cannot be empty")).min(1, "At least one authorized signer is required"),
-  fingerprint: fingerprintConfigSchema2,
-  maxAge: durationSchema2
+  fingerprint: fingerprintConfigSchema,
+  maxAge: durationSchema
 }).strict();
-var settingsSchema = external_exports.object({
-  maxAgeDays: external_exports.number().int().positive().default(30),
-  publicKeyPath: external_exports.string().default(".attest-it/pubkey.pem"),
-  attestationsPath: external_exports.string().default(".attest-it/attestations.json"),
-  sealsPath: external_exports.string().default(".attest-it/seals.json"),
-  defaultCommand: external_exports.string().optional(),
-  keyProvider: keyProviderSchema2.optional()
-  // Note: algorithm field was removed - RSA is the only supported algorithm
+var keyProviderOptionsSchema = external_exports.object({
+  privateKeyPath: external_exports.string().optional(),
+  account: external_exports.string().optional(),
+  vault: external_exports.string().optional(),
+  itemName: external_exports.string().optional()
 }).passthrough();
-var suiteSchema = external_exports.object({
-  gate: external_exports.string().min(1, "Gate reference cannot be empty"),
-  description: external_exports.string().optional(),
-  command: external_exports.string().optional(),
-  timeout: external_exports.string().optional(),
-  interactive: external_exports.boolean().optional(),
-  invalidates: external_exports.array(external_exports.string().min(1, "Invalidated suite name cannot be empty")).optional(),
-  depends_on: external_exports.array(external_exports.string().min(1, "Dependency suite name cannot be empty")).optional()
+var keyProviderSchema = external_exports.object({
+  type: external_exports.enum(["filesystem", "1password"]).or(external_exports.string()),
+  options: keyProviderOptionsSchema.optional()
 }).strict();
-var configSchema = external_exports.object({
-  version: external_exports.literal(1),
-  minVersion: semverSchema.optional(),
-  settings: settingsSchema.default({}),
-  team: external_exports.record(external_exports.string(), teamMemberSchema2).optional(),
-  gates: external_exports.record(external_exports.string(), gateSchema2).optional(),
-  suites: external_exports.record(external_exports.string(), suiteSchema).refine((suites) => Object.keys(suites).length >= 1, {
-    message: "At least one suite must be defined"
-  }),
-  groups: external_exports.record(external_exports.string(), external_exports.array(external_exports.string().min(1, "Suite name in group cannot be empty"))).optional()
-}).strict();
-var ConfigValidationError = class extends Error {
-  constructor(message, issues) {
-    super(message);
-    this.issues = issues;
-    this.name = "ConfigValidationError";
-  }
-};
-var ConfigNotFoundError = class extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "ConfigNotFoundError";
-  }
-};
-function parseConfigContent(content, format) {
-  let rawConfig;
-  try {
-    if (format === "yaml") {
-      rawConfig = (0, import_yaml.parse)(content);
-    } else {
-      rawConfig = JSON.parse(content);
-    }
-  } catch (error2) {
-    throw new ConfigValidationError(
-      `Failed to parse ${format.toUpperCase()}: ${error2 instanceof Error ? error2.message : String(error2)}`,
-      []
-    );
-  }
-  const result = configSchema.safeParse(rawConfig);
-  if (!result.success) {
-    throw new ConfigValidationError(
-      "Configuration validation failed:\n" + result.error.issues.map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`).join("\n"),
-      result.error.issues
-    );
-  }
-  if (result.data.minVersion !== void 0) {
-    checkVersionCompatibility(result.data.minVersion);
-  }
-  return result.data;
-}
-function getConfigFormat(filePath) {
-  const ext = filePath.toLowerCase();
-  if (ext.endsWith(".yaml") || ext.endsWith(".yml")) {
-    return "yaml";
-  }
-  if (ext.endsWith(".json")) {
-    return "json";
-  }
-  return "yaml";
-}
-function findConfigPath(startDir = process.cwd()) {
-  const configDir = join3(startDir, ".attest-it");
-  const candidates = ["config.yaml", "config.yml", "config.json"];
-  for (const candidate of candidates) {
-    const configPath = join3(configDir, candidate);
-    try {
-      readFileSync2(configPath, "utf8");
-      return configPath;
-    } catch {
-      continue;
-    }
-  }
-  return null;
-}
-async function loadConfig(configPath) {
-  const resolvedPath = configPath ?? findConfigPath();
-  if (!resolvedPath) {
-    throw new ConfigNotFoundError(
-      "Configuration file not found. Expected .attest-it/config.yaml, .attest-it/config.yml, or .attest-it/config.json"
-    );
-  }
-  try {
-    const content = await readFile3(resolvedPath, "utf8");
-    const format = getConfigFormat(resolvedPath);
-    return parseConfigContent(content, format);
-  } catch (error2) {
-    if (error2 instanceof ConfigValidationError || error2 instanceof VersionIncompatibleError) {
-      throw error2;
-    }
-    throw new ConfigNotFoundError(
-      `Failed to read configuration file at ${resolvedPath}: ${String(error2)}`
-    );
-  }
-}
-function toAttestItConfig(config) {
-  const result = {
-    version: config.version,
-    settings: {
-      maxAgeDays: config.settings.maxAgeDays,
-      publicKeyPath: config.settings.publicKeyPath,
-      attestationsPath: config.settings.attestationsPath,
-      sealsPath: config.settings.sealsPath
-    },
-    suites: {}
-  };
-  if (config.minVersion !== void 0) {
-    result.minVersion = config.minVersion;
-  }
-  if (config.settings.defaultCommand !== void 0) {
-    result.settings.defaultCommand = config.settings.defaultCommand;
-  }
-  if (config.settings.keyProvider !== void 0) {
-    result.settings.keyProvider = {
-      type: config.settings.keyProvider.type,
-      ...config.settings.keyProvider.options !== void 0 && {
-        options: config.settings.keyProvider.options
-      }
-    };
-  }
-  if (config.team !== void 0) {
-    result.team = config.team;
-  }
-  if (config.gates !== void 0) {
-    result.gates = config.gates;
-  }
-  if (config.groups !== void 0) {
-    result.groups = config.groups;
-  }
-  result.suites = Object.fromEntries(
-    Object.entries(config.suites).map(([name, suite]) => {
-      const mappedSuite = {
-        gate: suite.gate
-      };
-      if (suite.description !== void 0) mappedSuite.description = suite.description;
-      if (suite.command !== void 0) mappedSuite.command = suite.command;
-      if (suite.timeout !== void 0) mappedSuite.timeout = suite.timeout;
-      if (suite.interactive !== void 0) mappedSuite.interactive = suite.interactive;
-      if (suite.invalidates !== void 0) mappedSuite.invalidates = suite.invalidates;
-      if (suite.depends_on !== void 0) mappedSuite.depends_on = suite.depends_on;
-      return [name, mappedSuite];
-    })
-  );
-  return result;
-}
 function optionalVersionSchema(version2) {
   return external_exports.union([external_exports.literal(version2), external_exports.literal(String(version2)), external_exports.undefined()]).transform((v) => v === void 0 ? void 0 : version2);
 }
@@ -42407,13 +41995,9 @@ var operationalSettingsSchemaV1 = external_exports.object({
   keyProvider: keyProviderSchema.optional()
 }).strict();
 var suiteSchemaV1 = external_exports.object({
-  // Gate fields (if present, this suite references a gate)
-  gate: external_exports.string().min(1, "Gate reference cannot be empty").optional(),
-  // Legacy fingerprint definition (for backward compatibility)
+  // Reference to a gate (required — defines fingerprint config and authorization)
+  gate: external_exports.string().min(1, "Gate reference cannot be empty"),
   description: external_exports.string().optional(),
-  packages: external_exports.array(external_exports.string().min(1, "Package path cannot be empty")).optional(),
-  files: external_exports.array(external_exports.string().min(1, "File path cannot be empty")).optional(),
-  ignore: external_exports.array(external_exports.string().min(1, "Ignore pattern cannot be empty")).optional(),
   // CLI-specific fields
   command: external_exports.string().optional(),
   timeout: external_exports.string().optional(),
@@ -42421,14 +42005,7 @@ var suiteSchemaV1 = external_exports.object({
   // Relationship fields
   invalidates: external_exports.array(external_exports.string().min(1, "Invalidated suite name cannot be empty")).optional(),
   depends_on: external_exports.array(external_exports.string().min(1, "Dependency suite name cannot be empty")).optional()
-}).strict().refine(
-  (suite) => {
-    return suite.gate !== void 0 || suite.packages !== void 0 && suite.packages.length > 0;
-  },
-  {
-    message: "Suite must either reference a gate or define packages for fingerprinting"
-  }
-);
+}).strict();
 var operationalSchemaV1 = external_exports.object({
   version: versionSchema3(1),
   minVersion: semverSchema.optional(),
@@ -42445,6 +42022,34 @@ createMigrationGraph({
   schemas: [schemaV14],
   migrations: []
 });
+var unifiedSuiteSchema = external_exports.object({
+  gate: external_exports.string().min(1, "Gate reference cannot be empty"),
+  description: external_exports.string().optional(),
+  command: external_exports.string().optional(),
+  timeout: external_exports.string().optional(),
+  interactive: external_exports.boolean().optional(),
+  invalidates: external_exports.array(external_exports.string().min(1)).optional(),
+  depends_on: external_exports.array(external_exports.string().min(1)).optional()
+}).strict();
+var unifiedSettingsSchema = external_exports.object({
+  maxAgeDays: external_exports.number().int().positive().default(30),
+  publicKeyPath: external_exports.string().default(".attest-it/pubkey.pem"),
+  attestationsPath: external_exports.string().default(".attest-it/attestations.json"),
+  sealsPath: external_exports.string().default(".attest-it/seals.json"),
+  defaultCommand: external_exports.string().optional(),
+  keyProvider: keyProviderSchema.optional()
+}).passthrough();
+var unifiedConfigSchema = external_exports.object({
+  version: external_exports.literal(1),
+  minVersion: semverSchema.optional(),
+  settings: unifiedSettingsSchema.default({}),
+  team: external_exports.record(external_exports.string(), teamMemberSchema).optional(),
+  gates: external_exports.record(external_exports.string(), gateSchema).optional(),
+  suites: external_exports.record(external_exports.string(), unifiedSuiteSchema).refine((suites) => Object.keys(suites).length >= 1, {
+    message: "At least one suite must be defined"
+  }),
+  groups: external_exports.record(external_exports.string(), external_exports.array(external_exports.string().min(1))).optional()
+}).strict();
 var policySchema = policySchemaV1;
 var PolicyValidationError = class extends Error {
   constructor(message, issues) {
@@ -42513,9 +42118,9 @@ function parseOperationalContent(content, format) {
   }
   return result.data;
 }
-function toSuiteConfig(suiteName, suite) {
+function toSuiteConfig(_suiteName, suite) {
   const result = {
-    gate: suite.gate ?? suiteName
+    gate: suite.gate
   };
   if (suite.description !== void 0) result.description = suite.description;
   if (suite.command !== void 0) result.command = suite.command;
@@ -42626,9 +42231,6 @@ function validateSuiteGateReferences(policy, operational) {
   const team = policy.team ?? {};
   for (const [suiteName, suiteConfig] of Object.entries(operational.suites)) {
     const gateName = suiteConfig.gate;
-    if (gateName === void 0) {
-      continue;
-    }
     const gate = gates[gateName];
     if (gate === void 0) {
       errors.push({
@@ -42667,11 +42269,38 @@ var CrossConfigValidationError = class extends Error {
     this.name = "CrossConfigValidationError";
   }
 };
+var UNIFIED_MIGRATION_HINT = 'attest-it now requires split configuration: a trust-critical .attest-it/policy.yaml (team, gates) plus an operational .attest-it/config.yaml (suites, command settings). The legacy unified config.yaml format is no longer loaded. Run "attest-it init --migrate" to convert your existing config into policy.yaml + config.yaml, then commit the generated policy.yaml.';
+var UnifiedConfigError = class extends Error {
+  constructor(unifiedPath) {
+    super(`${UNIFIED_MIGRATION_HINT} (found legacy unified config at ${unifiedPath})`);
+    this.unifiedPath = unifiedPath;
+    this.name = "UnifiedConfigError";
+  }
+};
+function isUnifiedShape(parsed) {
+  return typeof parsed === "object" && parsed !== null && ("team" in parsed || "gates" in parsed);
+}
+function findUnifiedConfigPath(baseDir) {
+  const configDir = join2(baseDir, ".attest-it");
+  const candidates = ["config.yaml", "config.yml", "config.json"];
+  for (const candidate of candidates) {
+    const configPath = join2(configDir, candidate);
+    try {
+      const content = readFileSync2(configPath, "utf8");
+      const parsed = candidate.endsWith(".json") ? JSON.parse(content) : (0, import_yaml.parse)(content);
+      if (isUnifiedShape(parsed)) {
+        return configPath;
+      }
+    } catch {
+    }
+  }
+  return null;
+}
 function findPolicyPath(startDir = process.cwd()) {
-  const configDir = join3(startDir, ".attest-it");
+  const configDir = join2(startDir, ".attest-it");
   const candidates = ["policy.yaml", "policy.yml", "policy.json"];
   for (const candidate of candidates) {
-    const configPath = join3(configDir, candidate);
+    const configPath = join2(configDir, candidate);
     try {
       readFileSync2(configPath, "utf8");
       return configPath;
@@ -42681,10 +42310,10 @@ function findPolicyPath(startDir = process.cwd()) {
   return null;
 }
 function findOperationalPath(startDir = process.cwd()) {
-  const configDir = join3(startDir, ".attest-it");
+  const configDir = join2(startDir, ".attest-it");
   const candidates = ["config.yaml", "config.yml", "config.json"];
   for (const candidate of candidates) {
-    const configPath = join3(configDir, candidate);
+    const configPath = join2(configDir, candidate);
     try {
       readFileSync2(configPath, "utf8");
       return configPath;
@@ -42693,7 +42322,7 @@ function findOperationalPath(startDir = process.cwd()) {
   }
   return null;
 }
-function getConfigFormat2(filePath) {
+function getConfigFormat(filePath) {
   return filePath.endsWith(".json") ? "json" : "yaml";
 }
 async function loadPolicyAsync(source, baseDir) {
@@ -42720,8 +42349,8 @@ async function loadPolicyAsync(source, baseDir) {
     );
   }
   try {
-    const content = await readFile3(policyPath, "utf8");
-    const format = getConfigFormat2(policyPath);
+    const content = await readFile2(policyPath, "utf8");
+    const format = getConfigFormat(policyPath);
     return parsePolicyContent(content, format);
   } catch (error2) {
     if (error2 instanceof PolicyValidationError) {
@@ -42742,8 +42371,8 @@ async function loadOperationalAsync(operationalPath, baseDir) {
     );
   }
   try {
-    const content = await readFile3(resolvedPath, "utf8");
-    const format = getConfigFormat2(resolvedPath);
+    const content = await readFile2(resolvedPath, "utf8");
+    const format = getConfigFormat(resolvedPath);
     return parseOperationalContent(content, format);
   } catch (error2) {
     if (error2 instanceof OperationalValidationError) {
@@ -42780,10 +42409,9 @@ async function loadSplitConfig(options = {}) {
     return validateAndMerge(policy, operational);
   } catch (error2) {
     if (error2 instanceof SplitConfigNotFoundError && error2.configType === "policy") {
-      const unifiedPath = findConfigPath(baseDir);
+      const unifiedPath = findUnifiedConfigPath(baseDir);
       if (unifiedPath) {
-        const config = await loadConfig(unifiedPath);
-        return toAttestItConfig(config);
+        throw new UnifiedConfigError(unifiedPath);
       }
     }
     throw error2;
@@ -42798,7 +42426,7 @@ function sortFiles(files) {
   });
 }
 function normalizePath2(filePath) {
-  return filePath.split(path9.sep).join("/");
+  return filePath.split(path3.sep).join("/");
 }
 function computeFinalFingerprint(fileHashes) {
   const sorted = [...fileHashes].sort((a, b) => {
@@ -42813,21 +42441,21 @@ function computeFinalFingerprint(fileHashes) {
 }
 async function hashFileAsync(realPath, normalizedPath, stats) {
   if (stats.size > LARGE_FILE_THRESHOLD) {
-    return new Promise((resolve5, reject) => {
+    return new Promise((resolve4, reject) => {
       const hash2 = crypto3.createHash("sha256");
       hash2.update(normalizedPath);
       hash2.update(":");
-      const stream = fs2.createReadStream(realPath);
+      const stream = fs.createReadStream(realPath);
       stream.on("data", (chunk) => {
         hash2.update(chunk);
       });
       stream.on("end", () => {
-        resolve5(hash2.digest());
+        resolve4(hash2.digest());
       });
       stream.on("error", reject);
     });
   }
-  const content = await fs2.promises.readFile(realPath);
+  const content = await fs.promises.readFile(realPath);
   const hash = crypto3.createHash("sha256");
   hash.update(normalizedPath);
   hash.update(":");
@@ -42844,8 +42472,8 @@ function validateOptions(options) {
   const baseDir = options.baseDir ?? process.cwd();
   for (const pkg of options.packages) {
     if (!isGlobPattern(pkg)) {
-      const pkgPath = path9.resolve(baseDir, pkg);
-      if (!fs2.existsSync(pkgPath)) {
+      const pkgPath = path3.resolve(baseDir, pkg);
+      if (!fs.existsSync(pkgPath)) {
         throw new Error(`Package path does not exist: ${pkgPath}`);
       }
     }
@@ -42859,17 +42487,17 @@ async function computeFingerprint(options) {
   const fileHashCache = /* @__PURE__ */ new Map();
   const fileHashInputs = [];
   for (const file of sortedFiles) {
-    const filePath = path9.resolve(baseDir, file);
+    const filePath = path3.resolve(baseDir, file);
     let realPath = filePath;
-    let stats = await fs2.promises.lstat(filePath);
+    let stats = await fs.promises.lstat(filePath);
     if (stats.isSymbolicLink()) {
       try {
-        realPath = await fs2.promises.realpath(filePath);
+        realPath = await fs.promises.realpath(filePath);
       } catch {
         continue;
       }
       try {
-        stats = await fs2.promises.stat(realPath);
+        stats = await fs.promises.stat(realPath);
       } catch {
         continue;
       }
@@ -42899,9 +42527,9 @@ function resolvePackagePattern(pkg, baseDir) {
   if (isGlobPattern(pkg)) {
     return pkg;
   }
-  const fullPath = path9.resolve(baseDir, pkg);
+  const fullPath = path3.resolve(baseDir, pkg);
   try {
-    const stats = fs2.statSync(fullPath);
+    const stats = fs.statSync(fullPath);
     return stats.isFile() ? pkg : `${pkg}/**/*`;
   } catch {
     return pkg;
@@ -42930,22 +42558,160 @@ async function listPackageFiles(packages, ignore = [], baseDir = process.cwd()) 
   }
   return allFiles;
 }
-var canonicalize = canonicalizeNamespace;
-var serialize = canonicalize.default;
-var attestationSchema = external_exports.object({
-  suite: external_exports.string().min(1),
-  fingerprint: external_exports.string().regex(/^sha256:[a-f0-9]{64}$/),
-  attestedAt: external_exports.string().datetime(),
-  attestedBy: external_exports.string().min(1),
-  command: external_exports.string().min(1),
-  exitCode: external_exports.literal(0)
-});
-var attestationsFileSchema = external_exports.object({
-  schemaVersion: external_exports.literal("1"),
-  attestations: external_exports.array(attestationSchema),
-  signature: external_exports.string()
-  // Will be validated by crypto module
-});
+async function runOpenSSL(args, stdin) {
+  return new Promise((resolve4, reject) => {
+    const child = spawn("openssl", args, {
+      stdio: ["pipe", "pipe", "pipe"]
+    });
+    const stdoutChunks = [];
+    let stderr = "";
+    child.stdout.on("data", (chunk) => {
+      stdoutChunks.push(chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on("error", (err) => {
+      reject(new Error(`Failed to spawn OpenSSL: ${err.message}`));
+    });
+    child.on("close", (code) => {
+      resolve4({
+        exitCode: code ?? 1,
+        stdout: Buffer.concat(stdoutChunks),
+        stderr
+      });
+    });
+    if (stdin) {
+      child.stdin.write(stdin);
+    }
+    child.stdin.end();
+  });
+}
+async function checkOpenSSL() {
+  const result = await runOpenSSL(["version"]);
+  if (result.exitCode !== 0) {
+    throw new Error(`OpenSSL check failed: ${result.stderr}`);
+  }
+  return result.stdout.toString().trim();
+}
+var openSSLChecked = false;
+async function ensureOpenSSLAvailable() {
+  if (openSSLChecked) {
+    return;
+  }
+  try {
+    await checkOpenSSL();
+    openSSLChecked = true;
+  } catch {
+    throw new Error(
+      "OpenSSL is not installed or not in PATH. Please install OpenSSL to use attest-it. On macOS: brew install openssl. On Ubuntu: apt-get install openssl"
+    );
+  }
+}
+function getDefaultPrivateKeyPath() {
+  const homeDir = os.homedir();
+  if (process.platform === "win32") {
+    const appData = process.env.APPDATA ?? path3.join(homeDir, "AppData", "Roaming");
+    return path3.join(appData, "attest-it", "private.pem");
+  }
+  return path3.join(homeDir, ".config", "attest-it", "private.pem");
+}
+function getDefaultPublicKeyPath() {
+  return path3.join(process.cwd(), "attest-it-public.pem");
+}
+async function ensureDir(dirPath) {
+  try {
+    await fs2.mkdir(dirPath, { recursive: true });
+  } catch (err) {
+    if (err instanceof Error && "code" in err && err.code !== "EEXIST") {
+      throw err;
+    }
+  }
+}
+async function fileExists(filePath) {
+  try {
+    await fs2.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function cleanupFiles(...paths) {
+  for (const filePath of paths) {
+    try {
+      await fs2.unlink(filePath);
+    } catch {
+    }
+  }
+}
+async function generateKeyPair(options = {}) {
+  await ensureOpenSSLAvailable();
+  const {
+    privatePath = getDefaultPrivateKeyPath(),
+    publicPath = getDefaultPublicKeyPath(),
+    force = false,
+    passphrase
+  } = options;
+  const privateExists = await fileExists(privatePath);
+  const publicExists = await fileExists(publicPath);
+  if ((privateExists || publicExists) && !force) {
+    const existing = [privateExists ? privatePath : null, publicExists ? publicPath : null].filter(
+      Boolean
+    );
+    throw new Error(
+      `Key files already exist: ${existing.join(", ")}. Use force: true to overwrite.`
+    );
+  }
+  await ensureDir(path3.dirname(privatePath));
+  await ensureDir(path3.dirname(publicPath));
+  try {
+    const genArgs = [
+      "genpkey",
+      "-algorithm",
+      "RSA",
+      "-pkeyopt",
+      "rsa_keygen_bits:2048",
+      "-out",
+      privatePath
+    ];
+    if (passphrase) {
+      genArgs.push("-aes256", "-pass", "stdin");
+    }
+    const genResult = await runOpenSSL(
+      genArgs,
+      passphrase ? Buffer.from(passphrase + "\n") : void 0
+    );
+    if (genResult.exitCode !== 0) {
+      throw new Error(`Failed to generate private key: ${genResult.stderr}`);
+    }
+    await setKeyPermissions(privatePath);
+    const pubArgs = ["pkey", "-in", privatePath, "-pubout", "-out", publicPath];
+    if (passphrase) {
+      pubArgs.push("-passin", "stdin");
+    }
+    const pubResult = await runOpenSSL(
+      pubArgs,
+      passphrase ? Buffer.from(passphrase + "\n") : void 0
+    );
+    if (pubResult.exitCode !== 0) {
+      throw new Error(`Failed to extract public key: ${pubResult.stderr}`);
+    }
+    return {
+      privatePath,
+      publicPath
+    };
+  } catch (err) {
+    await cleanupFiles(privatePath, publicPath);
+    throw err;
+  }
+}
+async function setKeyPermissions(keyPath) {
+  if (process.platform === "win32") {
+    await fs2.chmod(keyPath, 384);
+  } else {
+    await fs2.chmod(keyPath, 384);
+  }
+}
 function isBuffer(value) {
   return Buffer.isBuffer(value);
 }
@@ -43053,7 +42819,7 @@ var FilesystemKeyProvider = class {
    */
   async keyExists(keyRef) {
     try {
-      await fs7.access(keyRef);
+      await fs2.access(keyRef);
       return true;
     } catch {
       return false;
@@ -43167,7 +42933,7 @@ var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
       let lastError;
       for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
         if (attempt > 0 || accountResults.length > 0) {
-          await new Promise((resolve5) => setTimeout(resolve5, RETRY_DELAY_MS));
+          await new Promise((resolve4) => setTimeout(resolve4, RETRY_DELAY_MS));
         }
         try {
           const detailOutput = await execCommand("op", [
@@ -43288,8 +43054,8 @@ ${reasons}`
         `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` + (this.accountUuid ? ` (accountUuid: ${this.accountUuid})` : "")
       );
     }
-    const tempDir = await fs7.mkdtemp(path9.join(os2.tmpdir(), "attest-it-"));
-    const tempKeyPath = path9.join(tempDir, "private.pem");
+    const tempDir = await fs2.mkdtemp(path3.join(os.tmpdir(), "attest-it-"));
+    const tempKeyPath = path3.join(tempDir, "private.pem");
     try {
       const args = ["document", "get", keyRef, "--vault", this.vault, "--out-file", tempKeyPath];
       if (this.accountUuid) {
@@ -43301,8 +43067,8 @@ ${reasons}`
         keyPath: tempKeyPath,
         cleanup: async () => {
           try {
-            await fs7.unlink(tempKeyPath);
-            await fs7.rmdir(tempDir);
+            await fs2.unlink(tempKeyPath);
+            await fs2.rmdir(tempDir);
           } catch (cleanupError) {
             console.warn(
               `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -43312,7 +43078,7 @@ ${reasons}`
       };
     } catch (error2) {
       try {
-        await fs7.rm(tempDir, { recursive: true, force: true });
+        await fs2.rm(tempDir, { recursive: true, force: true });
       } catch (cleanupError) {
         console.warn(
           `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -43330,7 +43096,7 @@ ${reasons}`
     const { publicKeyPath, force = false } = options;
     if (!force) {
       try {
-        await fs7.access(publicKeyPath);
+        await fs2.access(publicKeyPath);
         throw new Error(
           `Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`
         );
@@ -43341,14 +43107,14 @@ ${reasons}`
         }
       }
     }
-    const tempDir = await fs7.mkdtemp(path9.join(os2.tmpdir(), "attest-it-keygen-"));
-    const tempPrivateKeyPath = path9.join(tempDir, "private.pem");
+    const tempDir = await fs2.mkdtemp(path3.join(os.tmpdir(), "attest-it-keygen-"));
+    const tempPrivateKeyPath = path3.join(tempDir, "private.pem");
     try {
       const keyPair = generateKeyPair2();
-      await fs7.writeFile(tempPrivateKeyPath, keyPair.privateKey, "utf-8");
+      await fs2.writeFile(tempPrivateKeyPath, keyPair.privateKey, "utf-8");
       await setKeyPermissions(tempPrivateKeyPath);
-      await fs7.mkdir(path9.dirname(publicKeyPath), { recursive: true });
-      await fs7.writeFile(publicKeyPath, keyPair.publicKey, "utf-8");
+      await fs2.mkdir(path3.dirname(publicKeyPath), { recursive: true });
+      await fs2.writeFile(publicKeyPath, keyPair.publicKey, "utf-8");
       const args = [
         "document",
         "create",
@@ -43362,8 +43128,8 @@ ${reasons}`
         args.push("--account", this.accountUuid);
       }
       await execCommand("op", args);
-      await fs7.unlink(tempPrivateKeyPath);
-      await fs7.rmdir(tempDir);
+      await fs2.unlink(tempPrivateKeyPath);
+      await fs2.rmdir(tempDir);
       return {
         privateKeyRef: this.itemName,
         publicKeyPath,
@@ -43371,7 +43137,7 @@ ${reasons}`
       };
     } catch (error2) {
       try {
-        await fs7.rm(tempDir, { recursive: true, force: true });
+        await fs2.rm(tempDir, { recursive: true, force: true });
       } catch (cleanupError) {
         console.warn(
           `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -43404,8 +43170,8 @@ function getCleanEnvironment() {
   return env;
 }
 async function execCommand(command, args) {
-  return new Promise((resolve5, reject) => {
-    const proc = spawn2(command, args, {
+  return new Promise((resolve4, reject) => {
+    const proc = spawn(command, args, {
       stdio: ["inherit", "pipe", "pipe"],
       env: getCleanEnvironment()
     });
@@ -43419,7 +43185,7 @@ async function execCommand(command, args) {
     });
     proc.on("close", (code) => {
       if (code === 0) {
-        resolve5(stdout.trim());
+        resolve4(stdout.trim());
       } else {
         reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
       }
@@ -43430,23 +43196,23 @@ async function execCommand(command, args) {
   });
 }
 async function execInteractiveCommand(command, args) {
-  return new Promise((resolve5, reject) => {
+  return new Promise((resolve4, reject) => {
     const platform = process.platform;
     let proc;
     if (platform === "win32") {
-      proc = spawn2(command, args, {
+      proc = spawn(command, args, {
         stdio: ["inherit", "pipe", "pipe"],
         env: getCleanEnvironment()
       });
     } else if (platform === "darwin") {
-      proc = spawn2("script", ["-q", "/dev/null", command, ...args], {
+      proc = spawn("script", ["-q", "/dev/null", command, ...args], {
         stdio: ["inherit", "pipe", "pipe"],
         env: getCleanEnvironment()
       });
     } else {
       const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "'\\''")}'`).join(" ");
       const fullCommand = `${command} ${quotedArgs}`;
-      proc = spawn2("script", ["-q", "/dev/null", "-c", fullCommand], {
+      proc = spawn("script", ["-q", "/dev/null", "-c", fullCommand], {
         stdio: ["inherit", "pipe", "pipe"],
         env: getCleanEnvironment()
       });
@@ -43461,7 +43227,7 @@ async function execInteractiveCommand(command, args) {
     });
     proc.on("close", (code) => {
       if (code === 0) {
-        resolve5(stdout.trim());
+        resolve4(stdout.trim());
       } else {
         reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
       }
@@ -43554,8 +43320,8 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
         `Key not found in macOS Keychain: "${keyRef}" (account: ${_MacOSKeychainKeyProvider.ACCOUNT})`
       );
     }
-    const tempDir = await fs7.mkdtemp(path9.join(os2.tmpdir(), "attest-it-"));
-    const tempKeyPath = path9.join(tempDir, "private.pem");
+    const tempDir = await fs2.mkdtemp(path3.join(os.tmpdir(), "attest-it-"));
+    const tempKeyPath = path3.join(tempDir, "private.pem");
     try {
       const findArgs = [
         "find-generic-password",
@@ -43570,14 +43336,14 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
       }
       const base64Key = await execCommand2("security", findArgs);
       const keyContent = Buffer.from(base64Key, "base64").toString("utf8");
-      await fs7.writeFile(tempKeyPath, keyContent, { mode: 384 });
+      await fs2.writeFile(tempKeyPath, keyContent, { mode: 384 });
       await setKeyPermissions(tempKeyPath);
       return {
         keyPath: tempKeyPath,
         cleanup: async () => {
           try {
-            await fs7.unlink(tempKeyPath);
-            await fs7.rmdir(tempDir);
+            await fs2.unlink(tempKeyPath);
+            await fs2.rmdir(tempDir);
           } catch (cleanupError) {
             console.warn(
               `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -43587,7 +43353,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
       };
     } catch (error2) {
       try {
-        await fs7.rm(tempDir, { recursive: true, force: true });
+        await fs2.rm(tempDir, { recursive: true, force: true });
       } catch (cleanupError) {
         console.warn(
           `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
@@ -43605,7 +43371,7 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
     const { publicKeyPath, force = false } = options;
     let publicKeyExists = false;
     try {
-      await fs7.access(publicKeyPath);
+      await fs2.access(publicKeyPath);
       publicKeyExists = true;
     } catch (error2) {
       if (error2 instanceof Error && "code" in error2 && error2.code !== "ENOENT") {
@@ -43618,13 +43384,13 @@ var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
       );
     }
     const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = generateKeyPair2();
-    const publicKeyDir = path9.dirname(publicKeyPath);
-    await fs7.mkdir(publicKeyDir, { recursive: true });
+    const publicKeyDir = path3.dirname(publicKeyPath);
+    await fs2.mkdir(publicKeyDir, { recursive: true });
     const publicKeyPem = `-----BEGIN PUBLIC KEY-----
 ${publicKeyBase64}
 -----END PUBLIC KEY-----
 `;
-    await fs7.writeFile(publicKeyPath, publicKeyPem, { mode: 420 });
+    await fs2.writeFile(publicKeyPath, publicKeyPem, { mode: 420 });
     const base64Key = Buffer.from(privateKeyPem, "utf8").toString("base64");
     const addArgs = [
       "add-generic-password",
@@ -43661,8 +43427,8 @@ ${publicKeyBase64}
   }
 };
 async function execCommand2(command, args) {
-  return new Promise((resolve5, reject) => {
-    const proc = spawn2(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+  return new Promise((resolve4, reject) => {
+    const proc = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     proc.stdout.on("data", (data) => {
@@ -43673,7 +43439,7 @@ async function execCommand2(command, args) {
     });
     proc.on("close", (code) => {
       if (code === 0) {
-        resolve5(stdout.trim());
+        resolve4(stdout.trim());
       } else {
         reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
       }
@@ -43700,7 +43466,7 @@ function getIdentityConfigDir(homeDir) {
   if (override) {
     return override;
   }
-  return join3(homedir2(), ".config", "attest-it");
+  return join2(homedir2(), ".config", "attest-it");
 }
 var EncryptedKeyFileSchema = external_exports.object({
   version: external_exports.literal(1),
@@ -43772,7 +43538,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
    * @throws Error if encryptedKeyPath is outside the attest-it config directory
    */
   constructor(options) {
-    const resolvedPath = path9.resolve(options.encryptedKeyPath);
+    const resolvedPath = path3.resolve(options.encryptedKeyPath);
     const configDir = getIdentityConfigDir();
     if (!resolvedPath.startsWith(configDir)) {
       throw new Error(
@@ -43876,7 +43642,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
    */
   async keyExists(keyRef) {
     try {
-      await fs7.access(keyRef);
+      await fs2.access(keyRef);
       return true;
     } catch {
       return false;
@@ -43897,7 +43663,7 @@ var YubiKeyProvider = class _YubiKeyProvider {
     if (!await this.keyExists(keyRef)) {
       throw new Error(`Encrypted key file not found: ${keyRef}`);
     }
-    const encryptedData = await fs7.readFile(keyRef, "utf8");
+    const encryptedData = await fs2.readFile(keyRef, "utf8");
     let keyFile;
     try {
       const parsed = JSON.parse(encryptedData);
@@ -43946,20 +43712,20 @@ var YubiKeyProvider = class _YubiKeyProvider {
         "Failed to decrypt private key. Verify you are using the correct YubiKey and the encrypted key file has not been corrupted or tampered with."
       );
     }
-    const tempDir = await fs7.mkdtemp(path9.join(os2.tmpdir(), "attest-it-"));
-    const tempKeyPath = path9.join(tempDir, "private.pem");
+    const tempDir = await fs2.mkdtemp(path3.join(os.tmpdir(), "attest-it-"));
+    const tempKeyPath = path3.join(tempDir, "private.pem");
     const cleanup = async () => {
       activeCleanupHandlers.delete(cleanup);
       try {
         const keySize = Buffer.byteLength(privateKeyContent);
-        await fs7.writeFile(tempKeyPath, crypto3.randomBytes(keySize));
-        await fs7.unlink(tempKeyPath);
-        await fs7.rmdir(tempDir);
+        await fs2.writeFile(tempKeyPath, crypto3.randomBytes(keySize));
+        await fs2.unlink(tempKeyPath);
+        await fs2.rmdir(tempDir);
       } catch {
       }
     };
     try {
-      await fs7.writeFile(tempKeyPath, privateKeyContent, { mode: 384 });
+      await fs2.writeFile(tempKeyPath, privateKeyContent, { mode: 384 });
       await setKeyPermissions(tempKeyPath);
       activeCleanupHandlers.add(cleanup);
       return {
@@ -44005,13 +43771,13 @@ var YubiKeyProvider = class _YubiKeyProvider {
       }
     }
     const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = generateKeyPair2();
-    const publicKeyDir = path9.dirname(publicKeyPath);
-    await fs7.mkdir(publicKeyDir, { recursive: true });
+    const publicKeyDir = path3.dirname(publicKeyPath);
+    await fs2.mkdir(publicKeyDir, { recursive: true });
     const publicKeyPemFile = `-----BEGIN PUBLIC KEY-----
 ${publicKeyBase64}
 -----END PUBLIC KEY-----
 `;
-    await fs7.writeFile(publicKeyPath, publicKeyPemFile, { mode: 420 });
+    await fs2.writeFile(publicKeyPath, publicKeyPemFile, { mode: 420 });
     const privateKeyContent = privateKeyPem;
     const challenge = crypto3.randomBytes(32);
     const salt = crypto3.randomBytes(32);
@@ -44037,8 +43803,8 @@ ${publicKeyBase64}
       aad: aad.toString("base64"),
       ...serial && { serial }
     };
-    await fs7.mkdir(path9.dirname(this.encryptedKeyPath), { recursive: true });
-    await fs7.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
+    await fs2.mkdir(path3.dirname(this.encryptedKeyPath), { recursive: true });
+    await fs2.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
     await setKeyPermissions(this.encryptedKeyPath);
     return {
       privateKeyRef: this.encryptedKeyPath,
@@ -44062,7 +43828,7 @@ ${publicKeyBase64}
    */
   static async encryptPrivateKey(options) {
     const { privateKey, encryptedKeyPath, slot = 2, serial } = options;
-    const resolvedPath = path9.resolve(encryptedKeyPath);
+    const resolvedPath = path3.resolve(encryptedKeyPath);
     const configDir = getIdentityConfigDir();
     if (!resolvedPath.startsWith(configDir)) {
       throw new Error(
@@ -44103,8 +43869,8 @@ ${publicKeyBase64}
       aad: aad.toString("base64"),
       ...serial && { serial }
     };
-    await fs7.mkdir(path9.dirname(resolvedPath), { recursive: true });
-    await fs7.writeFile(resolvedPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
+    await fs2.mkdir(path3.dirname(resolvedPath), { recursive: true });
+    await fs2.writeFile(resolvedPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
     await setKeyPermissions(resolvedPath);
     return {
       encryptedKeyPath: resolvedPath,
@@ -44126,8 +43892,8 @@ ${publicKeyBase64}
   }
 };
 async function execCommand3(command, args) {
-  return new Promise((resolve5, reject) => {
-    const proc = spawn2(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+  return new Promise((resolve4, reject) => {
+    const proc = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
     proc.stdout.on("data", (data) => {
@@ -44138,7 +43904,7 @@ async function execCommand3(command, args) {
     });
     proc.on("close", (code) => {
       if (code === 0) {
-        resolve5(stdout.trim());
+        resolve4(stdout.trim());
       } else {
         reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
       }
@@ -44149,15 +43915,15 @@ async function execCommand3(command, args) {
   });
 }
 async function execInteractiveCommand2(command, args) {
-  return new Promise((resolve5, reject) => {
-    const proc = spawn2(command, args, { stdio: ["inherit", "pipe", "inherit"] });
+  return new Promise((resolve4, reject) => {
+    const proc = spawn(command, args, { stdio: ["inherit", "pipe", "inherit"] });
     let stdout = "";
     proc.stdout.on("data", (data) => {
       stdout += data.toString();
     });
     proc.on("close", (code) => {
       if (code === 0) {
-        resolve5(stdout.trim());
+        resolve4(stdout.trim());
       } else {
         reject(new Error(`Command failed with exit code ${String(code)}`));
       }
@@ -44399,10 +44165,10 @@ function parseSealsContent(content, format) {
 }
 async function readSeals(dir, sealsPathOverride) {
   if (sealsPathOverride) {
-    const sealsPath = path9.resolve(dir, sealsPathOverride);
+    const sealsPath = path3.resolve(dir, sealsPathOverride);
     let content;
     try {
-      content = await fs2.promises.readFile(sealsPath, "utf8");
+      content = await fs.promises.readFile(sealsPath, "utf8");
     } catch (error2) {
       if (isFileNotFoundError(error2)) {
         return EMPTY_SEALS_FILE;
@@ -44413,10 +44179,10 @@ async function readSeals(dir, sealsPathOverride) {
     }
     return parseSealsContent(content, detectFormat2(sealsPath));
   }
-  const yamlPath = path9.join(dir, ".attest-it", "seals.yaml");
-  const jsonPath = path9.join(dir, ".attest-it", "seals.json");
+  const yamlPath = path3.join(dir, ".attest-it", "seals.yaml");
+  const jsonPath = path3.join(dir, ".attest-it", "seals.json");
   try {
-    const content = await fs2.promises.readFile(yamlPath, "utf8");
+    const content = await fs.promises.readFile(yamlPath, "utf8");
     return parseSealsContent(content, "yaml");
   } catch (error2) {
     if (!isFileNotFoundError(error2)) {
@@ -44426,7 +44192,7 @@ async function readSeals(dir, sealsPathOverride) {
     }
   }
   try {
-    const content = await fs2.promises.readFile(jsonPath, "utf8");
+    const content = await fs.promises.readFile(jsonPath, "utf8");
     return parseSealsContent(content, "json");
   } catch (error2) {
     if (isFileNotFoundError(error2)) {
@@ -44644,7 +44410,7 @@ async function run() {
             content: policyResult.content,
             format: policyFormat
           },
-          operationalPath: resolve4(process.cwd(), operationalConfigPath)
+          operationalPath: resolve3(process.cwd(), operationalConfigPath)
         });
       } else {
         core.info("Loading configuration from filesystem");
@@ -44652,9 +44418,9 @@ async function run() {
         config = await loadSplitConfig({
           policySource: {
             type: "filesystem",
-            path: resolve4(process.cwd(), policyPath)
+            path: resolve3(process.cwd(), policyPath)
           },
-          operationalPath: resolve4(process.cwd(), operationalConfigPath)
+          operationalPath: resolve3(process.cwd(), operationalConfigPath)
         });
       }
     } catch (err) {

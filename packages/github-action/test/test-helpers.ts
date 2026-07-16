@@ -1,60 +1,50 @@
-import type {
-  VerifyResult,
-  SuiteVerificationResult,
-  AttestItConfig,
-  SealVerificationResult,
-  SealsFile,
-  Seal,
-} from '@attest-it/core'
+import type { AttestItConfig, SealVerificationResult, SealsFile, Seal } from '@attest-it/core'
 
 /**
- * Creates a mock VerifyResult with sensible defaults (legacy)
+ * Fixed reference "now" for deterministic seal-age assertions.
+ * Tests that exercise age-dependent logic (e.g. strict-mode expiry warnings)
+ * should pair this with `vi.useFakeTimers()` / `vi.setSystemTime(MOCK_NOW)` so
+ * that `Date.now()` inside the code under test matches this reference point.
  */
-export function createMockVerifyResult(overrides: Partial<VerifyResult> = {}): VerifyResult {
-  return {
-    success: true,
-    signatureValid: true,
-    suites: [],
-    errors: [],
-    ...overrides,
-  }
-}
+export const MOCK_NOW = new Date('2026-01-15T00:00:00.000Z')
 
 /**
- * Creates a mock SuiteVerificationResult with sensible defaults (legacy)
+ * Overrides for {@link createMockSealResult}.
+ *
+ * `seal` is widened to `Seal | undefined` (rather than inheriting
+ * `SealVerificationResult`'s `seal?: Seal`) so callers can explicitly clear
+ * the default seal to model a `MISSING` result, which under
+ * `exactOptionalPropertyTypes` is distinct from omitting the property.
  */
-export function createMockSuiteStatus(
-  overrides: Partial<SuiteVerificationResult> = {},
-): SuiteVerificationResult {
-  const base: SuiteVerificationResult = {
-    suite: 'test-suite',
-    status: 'VALID',
-    fingerprint: 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
-    age: 5,
-  }
-
-  return {
-    ...base,
-    ...overrides,
-  }
+type SealResultOverrides = Partial<Omit<SealVerificationResult, 'seal'>> & {
+  seal?: Seal | undefined
 }
 
 /**
  * Creates a mock SealVerificationResult with sensible defaults
  */
-export function createMockSealResult(
-  overrides: Partial<SealVerificationResult> = {},
-): SealVerificationResult {
+export function createMockSealResult(overrides: SealResultOverrides = {}): SealVerificationResult {
+  const { seal: sealOverride, ...rest } = overrides
   const base: SealVerificationResult = {
     gateId: 'test-gate',
     state: 'VALID',
     seal: createMockSeal(),
   }
 
-  return {
-    ...base,
-    ...overrides,
+  const merged: SealVerificationResult = { ...base, ...rest }
+
+  // An explicit `seal: undefined` override models a MISSING result (no seal
+  // exists yet); drop the key entirely rather than keeping `seal: undefined`,
+  // which `exactOptionalPropertyTypes` treats differently from an absent key.
+  if ('seal' in overrides) {
+    if (sealOverride === undefined) {
+      delete merged.seal
+    } else {
+      merged.seal = sealOverride
+    }
   }
+
+  return merged
 }
 
 /**
@@ -64,7 +54,8 @@ export function createMockSeal(overrides: Partial<Seal> = {}): Seal {
   return {
     gateId: 'test-gate',
     fingerprint: 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
-    timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+    // 5 days before the fixed reference point (see MOCK_NOW)
+    timestamp: new Date(MOCK_NOW.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     sealedBy: 'test-user',
     signature: 'base64signature',
     ...overrides,
@@ -93,11 +84,11 @@ export function createMockConfig(overrides: Partial<AttestItConfig> = {}): Attes
       publicKeyPath: '.attest-it/public.pem',
       attestationsPath: '.attest-it/attestations.json',
       sealsPath: '.attest-it/seals.json',
-      algorithm: 'ed25519',
     },
     gates: {
       'test-gate': {
         name: 'Test Gate',
+        description: 'Test gate for verification',
         authorizedSigners: ['test-user'],
         fingerprint: {
           paths: ['packages/core'],
