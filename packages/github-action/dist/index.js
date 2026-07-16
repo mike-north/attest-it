@@ -42993,6 +42993,8 @@ var LegacyFilesystemKeyProvider = class {
    * @param _options - Unused key generation options
    * @throws Always throws an informative error directing the user to `identity create`
    */
+  // Must stay async so the throw below becomes a rejected Promise, matching the KeyProvider interface contract
+  // eslint-disable-next-line @typescript-eslint/require-await
   async generateKeyPair(_options) {
     throw new Error(
       'Legacy filesystem provider does not support key generation. Use "attest-it identity create" with a VaultKeeper-backed provider.'

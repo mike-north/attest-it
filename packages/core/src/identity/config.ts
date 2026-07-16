@@ -221,7 +221,8 @@ export async function loadLocalConfig(configPath?: string): Promise<LocalConfig 
   // Detect version and migrate to v2 if needed
   const sourceVersion =
     rawData && typeof rawData === 'object' && 'version' in rawData
-      ? String((rawData as Record<string, unknown>).version)
+      ? // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        String((rawData as Record<string, unknown>).version)
       : '1'
 
   let migratedData: unknown
