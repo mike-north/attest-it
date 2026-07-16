@@ -24,7 +24,12 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const GUARD_MARKER = 'attest-it-guard: real-policy-gate'
-const POLICY_REF_PATTERN = /^\s*policy-ref\s*:/
+// Case-insensitive and tolerant of a quoted key (single or double quotes) so a
+// human-written variant like `"policy-ref":` or `Policy-Ref:` can't slip past
+// the guard. YAML keys are technically case-sensitive, but this is a
+// defense-in-depth check, not a YAML parser — it must catch every way a
+// human might write this key, not just the canonical unquoted lowercase form.
+const POLICY_REF_PATTERN = /^\s*["']?policy-ref["']?\s*:/i
 
 /**
  * Find policy-ref violations in a single workflow file's content.
@@ -87,6 +92,30 @@ jobs:
           policy-ref: \${{ github.head_ref }}
 `
 
+  const QUOTED_KEY_WORKFLOW = `name: Verify Manual Test Attestations
+# attest-it-guard: real-policy-gate
+on:
+  pull_request:
+jobs:
+  verify:
+    steps:
+      - uses: ./packages/github-action
+        with:
+          "policy-ref": \${{ github.head_ref }}
+`
+
+  const UPPERCASED_KEY_WORKFLOW = `name: Verify Manual Test Attestations
+# attest-it-guard: real-policy-gate
+on:
+  pull_request:
+jobs:
+  verify:
+    steps:
+      - uses: ./packages/github-action
+        with:
+          Policy-Ref: \${{ github.head_ref }}
+`
+
   const cases = [
     {
       name: 'old workflow with reinstated override',
@@ -98,6 +127,16 @@ jobs:
       name: 'unmarked fixture workflow',
       content: UNMARKED_FIXTURE_WORKFLOW,
       expectViolation: false,
+    },
+    {
+      name: 'quoted-key override',
+      content: QUOTED_KEY_WORKFLOW,
+      expectViolation: true,
+    },
+    {
+      name: 'uppercased-key override',
+      content: UPPERCASED_KEY_WORKFLOW,
+      expectViolation: true,
     },
   ]
 

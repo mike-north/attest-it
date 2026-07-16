@@ -1,8 +1,10 @@
 name: Verify Manual Test Attestations
 
 # This workflow verifies that manual test attestations exist and are valid.
-# The config file contains both trust model (team, gates) and operational
-# config (suites, commands) in a single file.
+# Trust model (team, gates, authorizedSigners) lives in .attest-it/policy.yaml;
+# operational config (suites, commands) lives in .attest-it/config.yaml. This
+# workflow references config.yaml, and the Action resolves policy.yaml itself
+# via its safe base-branch default (see below).
 #
 # attest-it-guard: real-policy-gate
 # This workflow gates the real .attest-it/policy.yaml, which holds every team
