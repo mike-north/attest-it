@@ -583,6 +583,33 @@ describe('crypto', () => {
         // Keys should be different
         expect(secondPrivate).not.toBe(firstPrivate)
       })
+
+      // Regression test for #75: `openssl pkey -in <priv> -pubout -passin stdin`
+      // failed under OpenSSL 3.6.x when driven by Node's spawn pipe stdio,
+      // throwing "Could not find private key of key from <path>" /
+      // "UI routines:open_console:unknown ttyget errno value" — even though
+      // the immediately preceding `openssl genpkey ... -pass stdin` step (in
+      // the same function) succeeded. This exercises the public-key
+      // extraction step repeatedly, since the underlying bug was a pipe/fd
+      // interaction rather than a pure logic error and could pass
+      // intermittently if only exercised once.
+      it('should extract public key from an encrypted private key across repeated invocations', async () => {
+        for (let i = 0; i < 3; i++) {
+          const iteration = i.toString()
+          const iterPrivate = path.join(tmpDir, `repeat-private-${iteration}.pem`)
+          const iterPublic = path.join(tmpDir, `repeat-public-${iteration}.pem`)
+
+          const result = await generateKeyPair({
+            privatePath: iterPrivate,
+            publicPath: iterPublic,
+            passphrase: testPassphrase,
+          })
+
+          expect(result.publicPath).toBe(iterPublic)
+          const publicKeyContent = await fs.readFile(iterPublic, 'utf8')
+          expect(publicKeyContent).toMatch(/PUBLIC KEY/)
+        }
+      })
     })
 
     describe('sign with encrypted key', () => {
@@ -626,6 +653,25 @@ describe('crypto', () => {
             // No passphrase provided
           }),
         ).rejects.toThrow()
+      })
+
+      // Regression test for #75: `openssl dgst -sha256 -passin stdin -sign <priv>`
+      // failed the same way as the pkey extraction step under OpenSSL 3.6.x
+      // when driven by Node's spawn pipe stdio. Signs repeatedly with the same
+      // encrypted key, since the underlying pipe/fd interaction was
+      // order/timing-sensitive and could pass intermittently if only
+      // exercised once.
+      it('should sign repeatedly with an encrypted key without a console-fallback error', async () => {
+        for (let i = 0; i < 3; i++) {
+          const signature = await sign({
+            privateKeyPath: privatePath,
+            data: `repeat signing test data ${i.toString()}`,
+            passphrase: testPassphrase,
+          })
+
+          expect(signature).toBeTruthy()
+          expect(() => Buffer.from(signature, 'base64')).not.toThrow()
+        }
       })
     })
 

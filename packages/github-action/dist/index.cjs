@@ -16631,7 +16631,7 @@ var require_receiver = __commonJS({
   "../../node_modules/.pnpm/undici@5.29.0/node_modules/undici/lib/websocket/receiver.js"(exports2, module2) {
     "use strict";
     init_cjs_shims();
-    var { Writable } = require("stream");
+    var { Writable: Writable2 } = require("stream");
     var diagnosticsChannel = require("diagnostics_channel");
     var { parserStates, opcodes, states, emptyBuffer } = require_constants5();
     var { kReadyState, kSentClose, kResponse, kReceivedClose } = require_symbols5();
@@ -16640,7 +16640,7 @@ var require_receiver = __commonJS({
     var channels = {};
     channels.ping = diagnosticsChannel.channel("undici:websocket:ping");
     channels.pong = diagnosticsChannel.channel("undici:websocket:pong");
-    var ByteParser = class extends Writable {
+    var ByteParser = class extends Writable2 {
       #buffers = [];
       #byteOffset = 0;
       #state = parserStates.INFO;
@@ -19944,18 +19944,17 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
   }
 });
 
-// ../core/dist/chunk-FGYLU2HL.js
-async function runOpenSSL(args, stdin) {
+// ../core/dist/chunk-RPO4GV4Y.js
+async function runOpenSSL(args, passphrase) {
   return new Promise((resolve5, reject) => {
-    const child = (0, import_child_process.spawn)("openssl", args, {
-      stdio: ["pipe", "pipe", "pipe"]
-    });
+    const stdio = passphrase !== void 0 ? ["ignore", "pipe", "pipe", "pipe"] : ["ignore", "pipe", "pipe"];
+    const child = (0, import_child_process.spawn)("openssl", args, { stdio });
     const stdoutChunks = [];
     let stderr = "";
-    child.stdout.on("data", (chunk) => {
+    child.stdout?.on("data", (chunk) => {
       stdoutChunks.push(chunk);
     });
-    child.stderr.on("data", (chunk) => {
+    child.stderr?.on("data", (chunk) => {
       stderr += chunk.toString();
     });
     child.on("error", (err) => {
@@ -19968,10 +19967,15 @@ async function runOpenSSL(args, stdin) {
         stderr
       });
     });
-    if (stdin) {
-      child.stdin.write(stdin);
+    if (passphrase !== void 0) {
+      const passphraseStream = child.stdio[3];
+      if (!(passphraseStream instanceof import_stream.Writable)) {
+        reject(new Error("Expected a writable stream for the passphrase file descriptor"));
+        return;
+      }
+      passphraseStream.write(passphrase + "\n");
+      passphraseStream.end();
     }
-    child.stdin.end();
   });
 }
 async function checkOpenSSL() {
@@ -20061,24 +20065,18 @@ async function generateKeyPair(options = {}) {
       privatePath
     ];
     if (passphrase) {
-      genArgs.push("-aes256", "-pass", "stdin");
+      genArgs.push("-aes256", "-pass", "fd:3");
     }
-    const genResult = await runOpenSSL(
-      genArgs,
-      passphrase ? Buffer.from(passphrase + "\n") : void 0
-    );
+    const genResult = await runOpenSSL(genArgs, passphrase);
     if (genResult.exitCode !== 0) {
       throw new Error(`Failed to generate private key: ${genResult.stderr}`);
     }
     await setKeyPermissions(privatePath);
     const pubArgs = ["pkey", "-in", privatePath, "-pubout", "-out", publicPath];
     if (passphrase) {
-      pubArgs.push("-passin", "stdin");
+      pubArgs.push("-passin", "fd:3");
     }
-    const pubResult = await runOpenSSL(
-      pubArgs,
-      passphrase ? Buffer.from(passphrase + "\n") : void 0
-    );
+    const pubResult = await runOpenSSL(pubArgs, passphrase);
     if (pubResult.exitCode !== 0) {
       throw new Error(`Failed to extract public key: ${pubResult.stderr}`);
     }
@@ -20098,12 +20096,13 @@ async function setKeyPermissions(keyPath) {
     await fs.chmod(keyPath, 384);
   }
 }
-var import_child_process, fs, path, os, openSSLChecked;
-var init_chunk_FGYLU2HL = __esm({
-  "../core/dist/chunk-FGYLU2HL.js"() {
+var import_child_process, import_stream, fs, path, os, openSSLChecked;
+var init_chunk_RPO4GV4Y = __esm({
+  "../core/dist/chunk-RPO4GV4Y.js"() {
     "use strict";
     init_cjs_shims();
     import_child_process = require("child_process");
+    import_stream = require("stream");
     fs = __toESM(require("fs/promises"), 1);
     path = __toESM(require("path"), 1);
     os = __toESM(require("os"), 1);
@@ -36133,8 +36132,8 @@ var import_node_path = require("path");
 
 // ../core/dist/index.js
 init_cjs_shims();
-init_chunk_FGYLU2HL();
-init_chunk_FGYLU2HL();
+init_chunk_RPO4GV4Y();
+init_chunk_RPO4GV4Y();
 var fs2 = __toESM(require("fs"), 1);
 var import_fs2 = require("fs");
 var fs7 = __toESM(require("fs/promises"), 1);

@@ -10,6 +10,7 @@
  */
 
 import { spawn } from 'node:child_process'
+import { Writable } from 'node:stream'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import * as os from 'node:os'
@@ -85,33 +86,50 @@ interface SpawnResult {
 
 /**
  * Run OpenSSL with the given arguments.
+ *
+ * @remarks
+ * When `passphrase` is supplied, it is written to an extra pipe on stdio slot
+ * 3, which `args` must reference as `fd:3` (e.g. `-pass fd:3`, `-passin fd:3`).
+ * stdin (fd 0) is deliberately left as `'ignore'` rather than `'pipe'`.
+ *
+ * Investigation (see issue #75) found the root cause is not which fd carries
+ * the passphrase: a passphrase piped via `fd:3` fails identically to one piped
+ * via `stdin` as long as fd 0 is *also* a Node `spawn`-created pipe. OpenSSL
+ * 3.6.x's passphrase-reading UI routine — used by the `pkey` and `dgst`
+ * subcommands, though apparently not `genpkey` — falls back to an interactive
+ * console prompt (`UI routines:open_console`, fatal outside a TTY) whenever fd
+ * 0 is that kind of pipe, regardless of where the actual passphrase comes
+ * from. Setting fd 0 to `'ignore'` avoids the fallback; the passphrase is then
+ * supplied cleanly through the unrelated fd 3 pipe.
+ *
  * @param args - Command-line arguments for OpenSSL
- * @param stdin - Optional data to write to stdin
+ * @param passphrase - Optional passphrase to supply via an extra fd (args must reference `fd:3`)
  * @returns Process result with exit code and outputs
  * @internal
  */
-async function runOpenSSL(args: string[], stdin?: Buffer): Promise<SpawnResult> {
+async function runOpenSSL(args: string[], passphrase?: string): Promise<SpawnResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn('openssl', args, {
-      stdio: ['pipe', 'pipe', 'pipe'],
-    })
+    const stdio: ('pipe' | 'ignore')[] =
+      passphrase !== undefined ? ['ignore', 'pipe', 'pipe', 'pipe'] : ['ignore', 'pipe', 'pipe']
+
+    const child = spawn('openssl', args, { stdio })
 
     const stdoutChunks: Buffer[] = []
     let stderr = ''
 
-    child.stdout.on('data', (chunk: Buffer) => {
+    child.stdout?.on('data', (chunk: Buffer) => {
       stdoutChunks.push(chunk)
     })
 
-    child.stderr.on('data', (chunk: Buffer) => {
+    child.stderr?.on('data', (chunk: Buffer) => {
       stderr += chunk.toString()
     })
 
-    child.on('error', (err) => {
+    child.on('error', (err: Error) => {
       reject(new Error(`Failed to spawn OpenSSL: ${err.message}`))
     })
 
-    child.on('close', (code) => {
+    child.on('close', (code: number | null) => {
       resolve({
         exitCode: code ?? 1,
         stdout: Buffer.concat(stdoutChunks),
@@ -119,10 +137,16 @@ async function runOpenSSL(args: string[], stdin?: Buffer): Promise<SpawnResult> 
       })
     })
 
-    if (stdin) {
-      child.stdin.write(stdin)
+    if (passphrase !== undefined) {
+      const passphraseStream = child.stdio[3]
+      if (!(passphraseStream instanceof Writable)) {
+        reject(new Error('Expected a writable stream for the passphrase file descriptor'))
+        return
+      }
+      // Consistently use a newline terminator, matching prior stdin-based behavior.
+      passphraseStream.write(passphrase + '\n')
+      passphraseStream.end()
     }
-    child.stdin.end()
   })
 }
 
@@ -311,16 +335,10 @@ export async function generateKeyPair(options: KeygenOptions = {}): Promise<KeyP
 
     // Add encryption if passphrase is provided
     if (passphrase) {
-      genArgs.push('-aes256', '-pass', 'stdin')
+      genArgs.push('-aes256', '-pass', 'fd:3')
     }
 
-    // Note: OpenSSL reads passphrase from stdin. While OpenSSL accepts passphrases
-    // with or without trailing newlines, we consistently use newline terminators
-    // across all operations for predictable behavior.
-    const genResult = await runOpenSSL(
-      genArgs,
-      passphrase ? Buffer.from(passphrase + '\n') : undefined,
-    )
+    const genResult = await runOpenSSL(genArgs, passphrase)
     if (genResult.exitCode !== 0) {
       throw new Error(`Failed to generate private key: ${genResult.stderr}`)
     }
@@ -331,12 +349,9 @@ export async function generateKeyPair(options: KeygenOptions = {}): Promise<KeyP
     // Extract public key (need passphrase if key is encrypted)
     const pubArgs = ['pkey', '-in', privatePath, '-pubout', '-out', publicPath]
     if (passphrase) {
-      pubArgs.push('-passin', 'stdin')
+      pubArgs.push('-passin', 'fd:3')
     }
-    const pubResult = await runOpenSSL(
-      pubArgs,
-      passphrase ? Buffer.from(passphrase + '\n') : undefined,
-    )
+    const pubResult = await runOpenSSL(pubArgs, passphrase)
 
     if (pubResult.exitCode !== 0) {
       throw new Error(`Failed to extract public key: ${pubResult.stderr}`)
@@ -417,16 +432,12 @@ export async function sign(options: SignOptions): Promise<string> {
 
       // Add passphrase support for encrypted keys
       if (passphrase) {
-        signArgs.push('-passin', 'stdin')
+        signArgs.push('-passin', 'fd:3')
       }
 
       signArgs.push('-sign', effectiveKeyPath, '-out', sigFile, dataFile)
 
-      // Note: We consistently use newline terminators for passphrases passed via stdin
-      const result = await runOpenSSL(
-        signArgs,
-        passphrase ? Buffer.from(passphrase + '\n') : undefined,
-      )
+      const result = await runOpenSSL(signArgs, passphrase)
 
       if (result.exitCode !== 0) {
         // Detect passphrase-related errors and provide a clearer message
