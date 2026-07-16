@@ -27,6 +27,32 @@ const FIXTURES_DIR = path.join(__dirname, 'fixtures', 'test-keys')
 const TEST_PRIVATE = path.join(FIXTURES_DIR, 'test-private.pem')
 const TEST_PUBLIC = path.join(FIXTURES_DIR, 'test-public.pem')
 
+// Byte length of an RSA-2048 PKCS#1 v1.5 signature (2048 bits / 8), which is
+// fixed regardless of the signed message. crypto.ts always generates
+// RSA-2048 keys (see generateKeyPair's `rsa_keygen_bits:2048`).
+const RSA_2048_SIGNATURE_BYTE_LENGTH = 256
+
+/**
+ * Asserts that `signature` is well-formed base64 encoding a signature of the
+ * expected RSA-2048 byte length.
+ *
+ * `Buffer.from(str, 'base64')` does not reliably throw on malformed
+ * base64 -- Node's decoder silently ignores characters outside the base64
+ * alphabet rather than raising an error -- so `expect(() =>
+ * Buffer.from(signature, 'base64')).not.toThrow()` does not meaningfully
+ * validate the output. This instead checks the string against the base64
+ * character set, decodes to the expected Ed25519/RSA signature length for
+ * this codebase's RSA-2048 keys, and confirms re-encoding the decoded bytes
+ * reproduces the original string (catching truncation or trailing garbage
+ * that lenient decoding would otherwise hide).
+ */
+function expectValidRsaSignature(signature: string): void {
+  expect(signature).toMatch(/^[A-Za-z0-9+/]+={0,2}$/)
+  const decoded = Buffer.from(signature, 'base64')
+  expect(decoded).toHaveLength(RSA_2048_SIGNATURE_BYTE_LENGTH)
+  expect(decoded.toString('base64')).toBe(signature)
+}
+
 describe('crypto', () => {
   describe('checkOpenSSL', () => {
     it('should return OpenSSL/LibreSSL version string', async () => {
@@ -258,8 +284,7 @@ describe('crypto', () => {
 
       expect(signature).toBeTruthy()
       expect(typeof signature).toBe('string')
-      // Base64 signature should be valid
-      expect(() => Buffer.from(signature, 'base64')).not.toThrow()
+      expectValidRsaSignature(signature)
     })
 
     it('should throw on missing private key', async () => {
@@ -682,8 +707,7 @@ describe('crypto', () => {
 
         expect(signature).toBeTruthy()
         expect(typeof signature).toBe('string')
-        // Base64 signature should be valid
-        expect(() => Buffer.from(signature, 'base64')).not.toThrow()
+        expectValidRsaSignature(signature)
       })
 
       it('should fail to sign with wrong passphrase with clear error message', async () => {
@@ -721,7 +745,7 @@ describe('crypto', () => {
           })
 
           expect(signature).toBeTruthy()
-          expect(() => Buffer.from(signature, 'base64')).not.toThrow()
+          expectValidRsaSignature(signature)
         }
       })
     })
