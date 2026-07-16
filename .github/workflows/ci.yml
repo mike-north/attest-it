@@ -31,6 +31,12 @@ jobs:
       - name: Test
         run: pnpm run test
 
+      - name: Check policy-ref guard self-test
+        run: node scripts/check-policy-ref-guard.mjs --self-test
+
+      - name: Check no unsafe policy-ref overrides in workflows
+        run: node scripts/check-policy-ref-guard.mjs
+
   # Test the GitHub Action using act (runs action in simulated GitHub environment)
   test-action:
     runs-on: ubuntu-latest
