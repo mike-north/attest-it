@@ -1,8 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import * as fs from 'node:fs/promises'
 import * as fsSync from 'node:fs'
 import * as path from 'node:path'
 import * as os from 'node:os'
+import { spawn } from 'node:child_process'
 import {
   checkOpenSSL,
   getDefaultPrivateKeyPath,
@@ -14,9 +15,43 @@ import {
   setKeyPermissions,
 } from '../src/crypto.js'
 
+// Wraps the real `spawn` in a vi.fn so tests can assert on how crypto.ts
+// invoked OpenSSL (e.g. the `stdio` array) without changing its behavior --
+// every call still runs the real `openssl` binary.
+vi.mock('node:child_process', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:child_process')>()
+  return { ...actual, spawn: vi.fn(actual.spawn) }
+})
+
 const FIXTURES_DIR = path.join(__dirname, 'fixtures', 'test-keys')
 const TEST_PRIVATE = path.join(FIXTURES_DIR, 'test-private.pem')
 const TEST_PUBLIC = path.join(FIXTURES_DIR, 'test-public.pem')
+
+// Byte length of an RSA-2048 PKCS#1 v1.5 signature (2048 bits / 8), which is
+// fixed regardless of the signed message. crypto.ts always generates
+// RSA-2048 keys (see generateKeyPair's `rsa_keygen_bits:2048`).
+const RSA_2048_SIGNATURE_BYTE_LENGTH = 256
+
+/**
+ * Asserts that `signature` is well-formed base64 encoding a signature of the
+ * expected RSA-2048 byte length.
+ *
+ * `Buffer.from(str, 'base64')` does not reliably throw on malformed
+ * base64 -- Node's decoder silently ignores characters outside the base64
+ * alphabet rather than raising an error -- so `expect(() =>
+ * Buffer.from(signature, 'base64')).not.toThrow()` does not meaningfully
+ * validate the output. This instead checks the string against the base64
+ * character set, decodes to the expected Ed25519/RSA signature length for
+ * this codebase's RSA-2048 keys, and confirms re-encoding the decoded bytes
+ * reproduces the original string (catching truncation or trailing garbage
+ * that lenient decoding would otherwise hide).
+ */
+function expectValidRsaSignature(signature: string): void {
+  expect(signature).toMatch(/^[A-Za-z0-9+/]+={0,2}$/)
+  const decoded = Buffer.from(signature, 'base64')
+  expect(decoded).toHaveLength(RSA_2048_SIGNATURE_BYTE_LENGTH)
+  expect(decoded.toString('base64')).toBe(signature)
+}
 
 describe('crypto', () => {
   describe('checkOpenSSL', () => {
@@ -191,6 +226,48 @@ describe('crypto', () => {
       expect(fsSync.existsSync(publicPath)).toBe(true)
     })
 
+    // Regression test for #79: an empty-string passphrase made runOpenSSL()
+    // open a 4th stdio slot (fd 3) for the passphrase pipe -- its guard was
+    // `passphrase !== undefined`, which is true for '' -- while
+    // generateKeyPair()'s `if (passphrase)` guard is falsy for '' and never
+    // pushed `-pass fd:3`/`-passin fd:3` onto the openssl args. That left fd 3
+    // open with nothing reading it: an unconsumed pipe with no 'error'
+    // listener, which raised an unhandled ECONNRESET when the openssl child
+    // process exited (surfaced in CI as 2 unhandled errors attributed to
+    // the "should return encrypted=false for empty passphrase" test in
+    // key-provider/filesystem-provider.test.ts). This asserts the exact
+    // structural invariant directly -- no fd:3 pipe is opened unless an
+    // openssl argument references fd:3 -- rather than relying on the
+    // ECONNRESET race reproducing, which is timing/platform-sensitive.
+    it('should not open an unread fd:3 pipe for an empty-string passphrase', async () => {
+      const spawnMock = vi.mocked(spawn)
+      spawnMock.mockClear()
+
+      const privatePath = path.join(tmpDir, 'empty-pass-private.pem')
+      const publicPath = path.join(tmpDir, 'empty-pass-public.pem')
+
+      await generateKeyPair({ privatePath, publicPath, passphrase: '' })
+
+      expect(spawnMock).toHaveBeenCalled()
+      for (const [, args, options] of spawnMock.mock.calls) {
+        expect(Array.isArray(args)).toBe(true)
+        if (!Array.isArray(args)) {
+          continue
+        }
+        expect(args).not.toContain('fd:3')
+
+        expect(options).toBeTypeOf('object')
+        if (typeof options !== 'object') {
+          continue
+        }
+        expect('stdio' in options && Array.isArray(options.stdio)).toBe(true)
+        if (!('stdio' in options) || !Array.isArray(options.stdio)) {
+          continue
+        }
+        expect(options.stdio).toHaveLength(3)
+      }
+    })
+
     it('should use default paths if none specified', async () => {
       // This test is tricky because it would create files in the actual system
       // We'll skip it to avoid side effects, but the functionality is tested
@@ -207,8 +284,7 @@ describe('crypto', () => {
 
       expect(signature).toBeTruthy()
       expect(typeof signature).toBe('string')
-      // Base64 signature should be valid
-      expect(() => Buffer.from(signature, 'base64')).not.toThrow()
+      expectValidRsaSignature(signature)
     })
 
     it('should throw on missing private key', async () => {
@@ -583,6 +659,33 @@ describe('crypto', () => {
         // Keys should be different
         expect(secondPrivate).not.toBe(firstPrivate)
       })
+
+      // Regression test for #75: `openssl pkey -in <priv> -pubout -passin stdin`
+      // failed under OpenSSL 3.6.x when driven by Node's spawn pipe stdio,
+      // throwing "Could not find private key of key from <path>" /
+      // "UI routines:open_console:unknown ttyget errno value" — even though
+      // the immediately preceding `openssl genpkey ... -pass stdin` step (in
+      // the same function) succeeded. This exercises the public-key
+      // extraction step repeatedly, since the underlying bug was a pipe/fd
+      // interaction rather than a pure logic error and could pass
+      // intermittently if only exercised once.
+      it('should extract public key from an encrypted private key across repeated invocations', async () => {
+        for (let i = 0; i < 3; i++) {
+          const iteration = i.toString()
+          const iterPrivate = path.join(tmpDir, `repeat-private-${iteration}.pem`)
+          const iterPublic = path.join(tmpDir, `repeat-public-${iteration}.pem`)
+
+          const result = await generateKeyPair({
+            privatePath: iterPrivate,
+            publicPath: iterPublic,
+            passphrase: testPassphrase,
+          })
+
+          expect(result.publicPath).toBe(iterPublic)
+          const publicKeyContent = await fs.readFile(iterPublic, 'utf8')
+          expect(publicKeyContent).toMatch(/PUBLIC KEY/)
+        }
+      })
     })
 
     describe('sign with encrypted key', () => {
@@ -604,8 +707,7 @@ describe('crypto', () => {
 
         expect(signature).toBeTruthy()
         expect(typeof signature).toBe('string')
-        // Base64 signature should be valid
-        expect(() => Buffer.from(signature, 'base64')).not.toThrow()
+        expectValidRsaSignature(signature)
       })
 
       it('should fail to sign with wrong passphrase with clear error message', async () => {
@@ -626,6 +728,25 @@ describe('crypto', () => {
             // No passphrase provided
           }),
         ).rejects.toThrow()
+      })
+
+      // Regression test for #75: `openssl dgst -sha256 -passin stdin -sign <priv>`
+      // failed the same way as the pkey extraction step under OpenSSL 3.6.x
+      // when driven by Node's spawn pipe stdio. Signs repeatedly with the same
+      // encrypted key, since the underlying pipe/fd interaction was
+      // order/timing-sensitive and could pass intermittently if only
+      // exercised once.
+      it('should sign repeatedly with an encrypted key without a console-fallback error', async () => {
+        for (let i = 0; i < 3; i++) {
+          const signature = await sign({
+            privateKeyPath: privatePath,
+            data: `repeat signing test data ${i.toString()}`,
+            passphrase: testPassphrase,
+          })
+
+          expect(signature).toBeTruthy()
+          expectValidRsaSignature(signature)
+        }
       })
     })
 
