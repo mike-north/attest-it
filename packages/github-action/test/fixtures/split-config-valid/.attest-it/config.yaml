@@ -5,5 +5,3 @@ suites:
     gate: unit-tests
     description: Unit test suite
     command: echo "tests passed"
-    packages:
-      - src

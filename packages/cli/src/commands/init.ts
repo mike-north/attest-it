@@ -3,6 +3,8 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { stringify as stringifyYaml } from 'yaml'
+import { migrateUnifiedContent } from '@attest-it/core'
 import { log, success, error } from '../utils/output.js'
 import { confirmAction } from '../utils/prompts.js'
 import { ExitCode } from '../utils/exit-codes.js'
@@ -10,50 +12,50 @@ import { offerCompletionInstall } from '../utils/completion-offer.js'
 import { getPackageVersion } from '../utils/version.js'
 
 export const initCommand = new Command('init')
-  .description('Initialize attest-it configuration')
-  .option('-p, --path <path>', 'Config file path', '.attest-it/config.yaml')
+  .description('Initialize attest-it split configuration (policy.yaml + config.yaml)')
+  .option('-d, --dir <dir>', 'Config directory', '.attest-it')
   .option('-f, --force', 'Overwrite existing config')
+  .option('--migrate', 'Migrate an existing unified config.yaml into split policy + config')
   .action(async (options: InitOptions) => {
     await runInit(options)
   })
 
 interface InitOptions {
-  path: string
+  dir: string
   force?: boolean
+  migrate?: boolean
 }
 
 /**
- * Load the configuration template from the templates directory.
+ * Load a configuration template from the templates directory.
  *
- * This function reads the config.yaml template at build time from the templates directory.
- * It handles different bundle output locations created by tsup.
+ * Templates are read at runtime from the bundled templates directory. tsup
+ * emits bundles at different depths, so several candidate paths are tried.
+ *
+ * @param name - Template file name (e.g. "policy.yaml").
  */
-function loadConfigTemplate(): string {
+function loadTemplate(name: string): string {
   const __filename = fileURLToPath(import.meta.url)
   const __dirname = dirname(__filename)
 
-  // Try multiple paths since tsup creates separate bundles:
-  // - dist/commands/init.js needs ../../templates/config.yaml
-  // - dist/bin/attest-it.js (when bundled) needs ../templates/config.yaml
   const possiblePaths = [
-    join(__dirname, '../../templates/config.yaml'),
-    join(__dirname, '../templates/config.yaml'),
+    join(__dirname, `../../templates/${name}`),
+    join(__dirname, `../templates/${name}`),
   ]
 
   for (const templatePath of possiblePaths) {
     try {
       return fs.readFileSync(templatePath, 'utf-8')
-    } catch (error) {
+    } catch (err) {
       // Only suppress "file not found" errors; rethrow anything else
-      if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-        // Try next path
+      if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
         continue
       }
-      throw error
+      throw err
     }
   }
 
-  throw new Error('Could not find config.yaml template')
+  throw new Error(`Could not find template ${name}`)
 }
 
 /**
@@ -129,31 +131,101 @@ async function ensureDevDependency(): Promise<{ packageManager: string; created:
 }
 
 /**
- * Run the init command to create a new attest-it configuration.
+ * Confirm overwrite of an existing file unless --force is set.
  *
- * Creates a configuration file with sensible defaults and commented
- * examples showing how to define test suites. Also ensures attest-it
- * is added as a devDependency to package.json.
+ * @returns True if it is safe to write, false if the user declined.
+ */
+async function confirmOverwrite(filePath: string, force: boolean | undefined): Promise<boolean> {
+  if (!fs.existsSync(filePath) || force) {
+    return true
+  }
+  return confirmAction({
+    message: `Config already exists at ${filePath}. Overwrite?`,
+    default: false,
+  })
+}
+
+/**
+ * Migrate an existing unified config.yaml into split policy + operational files.
+ */
+async function runMigrate(options: InitOptions, configDir: string): Promise<void> {
+  const unifiedPath = path.join(configDir, 'config.yaml')
+  if (!fs.existsSync(unifiedPath)) {
+    error(`No unified config found at ${unifiedPath} to migrate.`)
+    process.exit(ExitCode.CONFIG_ERROR)
+    return
+  }
+
+  const policyPath = path.join(configDir, 'policy.yaml')
+  const operationalPath = unifiedPath // operational config keeps the config.yaml name
+
+  const content = await fs.promises.readFile(unifiedPath, 'utf8')
+  const { policy, operational } = migrateUnifiedContent(content, 'yaml')
+
+  if (!(await confirmOverwrite(policyPath, options.force))) {
+    error('Migration cancelled')
+    process.exit(ExitCode.CANCELLED)
+    return
+  }
+
+  const policyHeader =
+    '# yaml-language-server: $schema=https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/policy.schema.json\n' +
+    '# attest-it policy configuration (trust-critical) — migrated from unified config\n\n'
+  const operationalHeader =
+    '# yaml-language-server: $schema=https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/config.schema.json\n' +
+    '# attest-it operational configuration — migrated from unified config\n\n'
+
+  await fs.promises.writeFile(policyPath, policyHeader + stringifyYaml(policy), 'utf8')
+  await fs.promises.writeFile(
+    operationalPath,
+    operationalHeader + stringifyYaml(operational),
+    'utf8',
+  )
+
+  success('Migrated unified config into split configuration:')
+  log(`  - ${policyPath} (team, gates, security settings)`)
+  log(`  - ${operationalPath} (suites, command settings)`)
+  log('')
+  log('Next steps:')
+  log(`  1. Review and commit ${policyPath} on your default branch`)
+  log('  2. Run: attest-it verify')
+}
+
+/**
+ * Run the init command to create a new attest-it split configuration.
+ *
+ * By default this scaffolds `.attest-it/policy.yaml` (trust-critical) and
+ * `.attest-it/config.yaml` (operational) with commented examples, and ensures
+ * attest-it is a devDependency. With `--migrate`, it instead converts an
+ * existing unified `config.yaml` into the split pair.
  *
  * @param options - Command options
- * @param options.path - Config file path (default: .attest-it/config.yaml)
+ * @param options.dir - Config directory (default: .attest-it)
  * @param options.force - Overwrite existing config without prompting
+ * @param options.migrate - Migrate an existing unified config.yaml
  * @public
  */
 async function runInit(options: InitOptions): Promise<void> {
   try {
-    const configPath = path.resolve(options.path)
-    const configDir = path.dirname(configPath)
+    const configDir = path.resolve(options.dir)
 
-    if (fs.existsSync(configPath) && !options.force) {
-      const overwrite = await confirmAction({
-        message: `Config already exists at ${configPath}. Overwrite?`,
-        default: false,
-      })
-      if (!overwrite) {
-        error('Init cancelled')
-        process.exit(ExitCode.CANCELLED)
-      }
+    if (options.migrate) {
+      await runMigrate(options, configDir)
+      return
+    }
+
+    const policyPath = path.join(configDir, 'policy.yaml')
+    const operationalPath = path.join(configDir, 'config.yaml')
+
+    if (!(await confirmOverwrite(policyPath, options.force))) {
+      error('Init cancelled')
+      process.exit(ExitCode.CANCELLED)
+      return
+    }
+    if (!(await confirmOverwrite(operationalPath, options.force))) {
+      error('Init cancelled')
+      process.exit(ExitCode.CANCELLED)
+      return
     }
 
     // Ensure attest-it is in devDependencies
@@ -164,18 +236,20 @@ async function runInit(options: InitOptions): Promise<void> {
       success('Updated package.json with attest-it devDependency')
     }
 
-    // Create directory and write config
+    // Create directory and write both split config files
     await fs.promises.mkdir(configDir, { recursive: true })
-    const configTemplate = loadConfigTemplate()
-    await fs.promises.writeFile(configPath, configTemplate, 'utf-8')
+    await fs.promises.writeFile(policyPath, loadTemplate('policy.yaml'), 'utf-8')
+    await fs.promises.writeFile(operationalPath, loadTemplate('config.yaml'), 'utf-8')
 
-    success(`Configuration created at ${configPath}`)
+    success(`Configuration created:`)
+    log(`  - ${policyPath} (team, gates, security settings)`)
+    log(`  - ${operationalPath} (suites, command settings)`)
     log('')
     log('Next steps:')
     log(`  1. Run: ${packageManager} install`)
     log("  2. Run: attest-it identity create  (if you haven't already)")
     log('  3. Run: attest-it team join')
-    log('  4. Edit .attest-it/config.yaml to define your gates and suites')
+    log(`  4. Edit ${policyPath} to define your gates, and ${operationalPath} to define suites`)
 
     // Offer to install shell completions
     await offerCompletionInstall()

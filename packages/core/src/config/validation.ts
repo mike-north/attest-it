@@ -72,14 +72,11 @@ export function validateSuiteGateReferences(
   const gates = policy.gates ?? {}
   const team = policy.team ?? {}
 
-  // Validate each suite that references a gate
+  // Validate every suite. Each suite references a gate (required by the
+  // operational schema), so there is no gate-less shape that can skip this
+  // check and evade authorization validation against the trusted policy.
   for (const [suiteName, suiteConfig] of Object.entries(operational.suites)) {
     const gateName = suiteConfig.gate
-
-    // Skip suites without explicit gate references (legacy suites with packages)
-    if (gateName === undefined) {
-      continue
-    }
 
     // Check if the referenced gate exists in the policy
     // eslint-disable-next-line security/detect-object-injection

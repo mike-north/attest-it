@@ -237,11 +237,11 @@ function createRealSealsFile(
 }
 
 /**
- * Update the config.yaml to set the public key for the test-user.
+ * Update policy.yaml to set the public key for the test-user.
  * Uses direct string replacement to avoid YAML formatting issues.
  */
 async function updateConfigPublicKey(tempDir: string, publicKeyBase64: string): Promise<void> {
-  const configPath = path.join(tempDir, '.attest-it', 'config.yaml')
+  const configPath = path.join(tempDir, '.attest-it', 'policy.yaml')
   const content = await fs.promises.readFile(configPath, 'utf8')
 
   // Replace the placeholder with the actual public key
@@ -420,7 +420,7 @@ describe('CLI Integration Tests', () => {
       const result = await runCli(['run', '--suite', 'example', '--no-attest'], tempDir)
       expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('Tests passed')
-      expect(result.stdout).toContain('Skipping attestation')
+      expect(result.stdout).toContain('Skipping seal creation')
     })
 
     it('exits with code 1 on test failure', async () => {
@@ -433,11 +433,11 @@ describe('CLI Integration Tests', () => {
     it('skips attestation with --no-attest', async () => {
       const result = await runCli(['run', '--suite', 'example', '--no-attest'], tempDir)
       expect(result.exitCode).toBe(0)
-      expect(result.stdout).toContain('Skipping attestation')
+      expect(result.stdout).toContain('Skipping seal creation')
 
-      // Verify no attestation file created
-      const attestPath = path.join(tempDir, '.attest-it', 'attestations.json')
-      expect(fs.existsSync(attestPath)).toBe(false)
+      // Verify no seal file created
+      const sealsPath = path.join(tempDir, '.attest-it', 'seals.json')
+      expect(fs.existsSync(sealsPath)).toBe(false)
     })
 
     it('fails on dirty working tree', async () => {
@@ -516,15 +516,16 @@ describe('CLI Integration Tests', () => {
       const sealsPath = path.join(tempDir, '.attest-it', 'seals.json')
       await fs.promises.writeFile(sealsPath, JSON.stringify(sealsFile, null, 2))
 
-      // Update config to use a very short maxAge so the seal becomes stale immediately
-      const configPath = path.join(tempDir, '.attest-it', 'config.yaml')
-      const configContent = await fs.promises.readFile(configPath, 'utf8')
-      const config = yaml.parse(configContent) as Record<string, unknown>
-      const gates = config.gates as Record<string, { maxAge?: string }>
+      // Update policy to use a very short maxAge so the seal becomes stale
+      // immediately (gates live in the trust-critical policy.yaml).
+      const policyPath = path.join(tempDir, '.attest-it', 'policy.yaml')
+      const policyContent = await fs.promises.readFile(policyPath, 'utf8')
+      const policy = yaml.parse(policyContent) as Record<string, unknown>
+      const gates = policy.gates as Record<string, { maxAge?: string }>
       if (gates && gates['example-gate']) {
         gates['example-gate'].maxAge = '1ms' // 1 millisecond - seal is immediately stale
       }
-      await fs.promises.writeFile(configPath, yaml.stringify(config), 'utf8')
+      await fs.promises.writeFile(policyPath, yaml.stringify(policy), 'utf8')
 
       await runCommand('git add . && git commit -m "add stale seal"', tempDir)
 

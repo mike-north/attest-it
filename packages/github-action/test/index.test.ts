@@ -1,12 +1,10 @@
-/* eslint-disable @typescript-eslint/consistent-type-assertions -- Type assertions are necessary for mocking in tests */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
-  createMockVerifyResult,
-  createMockSuiteStatus,
   createMockConfig,
   createMockSealResult,
   createMockSealsFile,
   createMockSeal,
+  MOCK_NOW,
 } from './test-helpers.js'
 
 // Mock @actions/core
@@ -21,17 +19,11 @@ vi.mock('@actions/core', () => ({
   endGroup: vi.fn(),
 }))
 
-// Mock @attest-it/core
+// Mock @attest-it/core.
+// Only the surface actually imported by src/index.ts is mocked here: split
+// config loading, the seal verification API, and the split-config error types.
 vi.mock('@attest-it/core', () => ({
-  loadConfig: vi.fn(),
-  verifyAttestations: vi.fn(),
-  toAttestItConfig: vi.fn(),
-  parsePolicyContent: vi.fn(),
-  parseOperationalContent: vi.fn(),
-  mergeConfigs: vi.fn(),
-  validateSuiteGateReferences: vi.fn(),
   loadSplitConfig: vi.fn(),
-  // New seal-based verification functions
   readSeals: vi.fn(),
   verifyAllSeals: vi.fn(),
   computeFingerprint: vi.fn(),
@@ -56,8 +48,8 @@ vi.mock('@attest-it/core', () => ({
     }
   },
   CrossConfigValidationError: class CrossConfigValidationError extends Error {
-    errors: Array<{ type: string; message: string }>
-    constructor(message: string, errors: Array<{ type: string; message: string }>) {
+    errors: { type: string; message: string }[]
+    constructor(message: string, errors: { type: string; message: string }[]) {
       super(message)
       this.name = 'CrossConfigValidationError'
       this.errors = errors
@@ -73,17 +65,11 @@ vi.mock('../src/fetch-policy.js', () => ({
   isPullRequest: vi.fn(),
 }))
 
-// Mock node:fs/promises
-vi.mock('node:fs/promises', () => ({
-  readFile: vi.fn(),
-}))
-
 // Import after mocks are set up
 const { run } = await import('../src/index.js')
 const mockCoreModule = await import('@actions/core')
 const mockAttestItCoreModule = await import('@attest-it/core')
 const mockFetchPolicyModule = await import('../src/fetch-policy.js')
-const mockFsModule = await import('node:fs/promises')
 
 // Use vi.mocked to get properly typed mocks
 const mockCore = {
@@ -97,15 +83,8 @@ const mockCore = {
   endGroup: vi.mocked(mockCoreModule.endGroup),
 }
 
-const mockVerifyAttestations = vi.mocked(mockAttestItCoreModule.verifyAttestations)
 const mockLoadSplitConfig = vi.mocked(mockAttestItCoreModule.loadSplitConfig)
-const mockParsePolicyContent = vi.mocked(mockAttestItCoreModule.parsePolicyContent)
-const mockParseOperationalContent = vi.mocked(mockAttestItCoreModule.parseOperationalContent)
-const mockMergeConfigs = vi.mocked(mockAttestItCoreModule.mergeConfigs)
-const mockValidateSuiteGateReferences = vi.mocked(
-  mockAttestItCoreModule.validateSuiteGateReferences,
-)
-// New seal-based mocks
+// Seal-based verification mocks
 const mockReadSeals = vi.mocked(mockAttestItCoreModule.readSeals)
 const mockVerifyAllSeals = vi.mocked(mockAttestItCoreModule.verifyAllSeals)
 const mockComputeFingerprint = vi.mocked(mockAttestItCoreModule.computeFingerprint)
@@ -117,8 +96,6 @@ const mockFetchPolicy = {
   isPullRequest: vi.mocked(mockFetchPolicyModule.isPullRequest),
 }
 
-const mockReadFile = vi.mocked(mockFsModule.readFile)
-
 describe('GitHub Action', () => {
   let originalEnv: typeof process.env
   let originalCwd: string
@@ -126,6 +103,11 @@ describe('GitHub Action', () => {
   beforeEach(() => {
     // Reset all mocks
     vi.clearAllMocks()
+
+    // Fix "now" so seal age calculations (index.ts uses Date.now() directly)
+    // are deterministic across runs instead of depending on wall-clock time.
+    vi.useFakeTimers()
+    vi.setSystemTime(MOCK_NOW)
 
     // Save environment
     originalEnv = process.env
@@ -155,12 +137,14 @@ describe('GitHub Action', () => {
     mockReadSeals.mockResolvedValue(createMockSealsFile())
     mockComputeFingerprint.mockResolvedValue({
       fingerprint: 'sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
-      fileHashes: [],
+      files: [],
+      fileCount: 0,
     })
     mockVerifyAllSeals.mockReturnValue([])
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     process.env = originalEnv
     try {
       process.chdir(originalCwd)
@@ -210,12 +194,14 @@ describe('GitHub Action', () => {
         gates: {
           'unit-gate': {
             name: 'Unit Tests Gate',
+            description: 'Unit tests gate',
             authorizedSigners: ['test-user'],
             fingerprint: { paths: ['src'] },
             maxAge: '30d',
           },
           'integration-gate': {
             name: 'Integration Tests Gate',
+            description: 'Integration tests gate',
             authorizedSigners: ['test-user'],
             fingerprint: { paths: ['tests'] },
             maxAge: '30d',
@@ -289,7 +275,6 @@ describe('GitHub Action', () => {
         createMockSealResult({
           gateId: 'test-gate',
           state: 'MISSING',
-          seal: undefined,
           message: 'No seal found',
         }),
       ])
@@ -318,7 +303,8 @@ describe('GitHub Action', () => {
 
   describe('Strict mode', () => {
     beforeEach(() => {
-      const mockConfig = createMockConfig({ settings: { maxAgeDays: 30 } })
+      // Default createMockConfig() settings already use maxAgeDays: 30.
+      const mockConfig = createMockConfig()
 
       mockLoadSplitConfig.mockResolvedValue(mockConfig)
     })
@@ -330,9 +316,9 @@ describe('GitHub Action', () => {
         return ''
       })
 
-      // Age of 25 days with maxAgeDays of 30 is within 7-day warning threshold
+      // Age of 25 days with maxAgeDays of 30 is within the 7-day warning threshold
       const oldSeal = createMockSeal({
-        timestamp: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
+        timestamp: new Date(MOCK_NOW.getTime() - 25 * 24 * 60 * 60 * 1000).toISOString(),
       })
 
       mockVerifyAllSeals.mockReturnValue([
@@ -355,7 +341,7 @@ describe('GitHub Action', () => {
 
       // Fresh seal (5 days old)
       const freshSeal = createMockSeal({
-        timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+        timestamp: new Date(MOCK_NOW.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(),
       })
 
       mockVerifyAllSeals.mockReturnValue([

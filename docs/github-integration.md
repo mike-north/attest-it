@@ -41,19 +41,25 @@ Use the official GitHub Action for streamlined integration:
 
 ### Action Inputs
 
-| Input             | Description                           | Required | Default                  |
-| ----------------- | ------------------------------------- | -------- | ------------------------ |
-| `config-path`     | Path to attest-it config file         | No       | `.attest-it/config.yaml` |
-| `gate`            | Verify specific gate only             | No       | (all gates)              |
-| `fail-on-missing` | Fail if any gate lacks a seal         | No       | `true`                   |
-| `strict`          | Fail on warnings (approaching expiry) | No       | `false`                  |
+| Input               | Description                                                                         | Required | Default                    |
+| ------------------- | ----------------------------------------------------------------------------------- | -------- | -------------------------- |
+| `working-directory` | Directory to run attest-it from                                                     | No       | `.`                        |
+| `config-path`       | Path to operational config file (relative to `working-directory`)                   | No       | `.attest-it/config.yaml`   |
+| `policy-path`       | Path to policy file (relative to repo root)                                         | No       | `.attest-it/policy.yaml`   |
+| `policy-ref`        | Git ref to fetch policy from. Defaults to the PR base branch, or filesystem on push | No       | (PR base branch, or local) |
+| `github-token`      | GitHub token for fetching policy from the base branch (required for PRs)            | No       | `${{ github.token }}`      |
+| `suite`             | Verify specific suite only                                                          | No       | (all suites)               |
+| `fail-on-missing`   | Fail if any suite lacks a seal                                                      | No       | `true`                     |
+| `strict`            | Fail on warnings (approaching expiry)                                               | No       | `false`                    |
+
+Because policy is trust-critical, the action always loads `policy.yaml` from the PR's base branch by default (via the GitHub API), never from the PR branch itself — this is what prevents a PR from editing its own gates or team roster to bypass verification. Use `policy-ref` to pin policy to a specific branch (e.g. `production`) regardless of PR target.
 
 ### Action Outputs
 
-| Output  | Description                      | Type              |
-| ------- | -------------------------------- | ----------------- |
-| `valid` | Whether all seals are valid      | `true` or `false` |
-| `gates` | JSON object with per-gate status | JSON string       |
+| Output   | Description                       | Type              |
+| -------- | --------------------------------- | ----------------- |
+| `valid`  | Whether all seals are valid       | `true` or `false` |
+| `suites` | JSON object with per-suite status | JSON string       |
 
 ### Full Example
 
@@ -456,12 +462,14 @@ Ensure seals are verified before merge:
 
 ### Prevent Seal Bypass
 
-Block changes to config without review:
+`policy.yaml` is trust-critical (it defines team members, gates, and fingerprints), so require review for any change to it on the default branch:
 
 ```yaml
 # .github/CODEOWNERS
-.attest-it/config.yaml @your-team/admins
+.attest-it/policy.yaml @your-team/admins
 ```
+
+`config.yaml` (suites) is operational and safe to allow through normal PR review — the action always verifies gates against the `policy.yaml` on the base branch, not the PR branch, so a PR can't grant itself new signers or loosen a gate's fingerprint by editing `config.yaml`.
 
 ## Troubleshooting
 
@@ -490,11 +498,11 @@ Forks can't access secrets. For public repos:
 
 ### Stale Seals
 
-Update `maxAge` in config or re-seal:
+Update the gate's `maxAge` or re-seal:
 
 ```bash
-# Option 1: Update config to extend maxAge
-vim .attest-it/config.yaml
+# Option 1: Update policy.yaml to extend the gate's maxAge
+vim .attest-it/policy.yaml
 
 # Option 2: Re-seal
 npx attest-it seal <gate-name>

@@ -4,16 +4,22 @@ Complete reference for configuring attest-it.
 
 ## Overview
 
-attest-it uses two types of configuration:
+attest-it uses three types of configuration, split by trust level:
 
-1. **Project configuration** (`.attest-it/config.yaml`) - Team members, gates, and suites for your repository
-2. **Local identity configuration** (`~/.config/attest-it/config.yaml`) - Your personal signing identity
+1. **Policy configuration** (`.attest-it/policy.yaml`) - Trust-critical: team members and gates. Loaded from your repository's **default branch**, so pull requests cannot tamper with trust data.
+2. **Operational configuration** (`.attest-it/config.yaml`) - Non-security-critical: suites (test commands) and groups. Every suite must reference a gate defined in `policy.yaml`. Safe to load from PR branches.
+3. **Local identity configuration** (`~/.config/attest-it/config.yaml`) - Your personal signing identity.
+
+Run `attest-it init` to scaffold both `policy.yaml` and `config.yaml`. If you have an existing legacy unified `config.yaml` (a single file that held `team`, `gates`, and `suites` together), run `attest-it init --migrate` to split it into the pair automatically.
 
 ## Quick Start Example
 
 ```yaml
-# .attest-it/config.yaml
+# .attest-it/policy.yaml
 version: 1
+
+settings:
+  maxAgeDays: 30
 
 team:
   alice:
@@ -29,6 +35,13 @@ gates:
       paths:
         - src/**/*.ts
     maxAge: 30d
+```
+
+```yaml
+# .attest-it/config.yaml
+version: 1
+
+settings: {}
 
 suites:
   desktop-tests:
@@ -38,7 +51,7 @@ suites:
 
 ---
 
-## Project Configuration Schema
+## Policy Configuration Schema (`policy.yaml`)
 
 ### Root Fields
 
@@ -46,23 +59,47 @@ suites:
 | ------------ | ------ | -------- | ------- | ------------------------------------------------- |
 | `version`    | `1`    | Yes      | -       | Schema version (must be `1`)                      |
 | `minVersion` | string | No       | -       | Minimum attest-it version required (e.g. "0.9.0") |
-| `settings`   | object | No       | `{}`    | Global settings                                   |
-| `team`       | object | No       | `{}`    | Team member definitions                           |
-| `gates`      | object | No       | `{}`    | Gate definitions                                  |
+| `settings`   | object | No       | `{}`    | Policy settings                                   |
+| `team`       | object | No       | -       | Team member definitions                           |
+| `gates`      | object | No       | -       | Gate definitions                                  |
+
+## Operational Configuration Schema (`config.yaml`)
+
+### Root Fields
+
+| Field        | Type   | Required | Default | Description                                       |
+| ------------ | ------ | -------- | ------- | ------------------------------------------------- |
+| `version`    | `1`    | Yes      | -       | Schema version (must be `1`)                      |
+| `minVersion` | string | No       | -       | Minimum attest-it version required (e.g. "0.9.0") |
+| `settings`   | object | No       | `{}`    | Operational settings                              |
 | `suites`     | object | Yes      | -       | Suite definitions (min 1 suite)                   |
-| `groups`     | object | No       | `{}`    | Named groups of suites                            |
+| `groups`     | object | No       | -       | Named groups of suites                            |
 
 ---
 
 ## Settings
 
-Global settings that apply to the project.
+### Policy Settings (`policy.yaml`)
 
 ```yaml
 settings:
   maxAgeDays: 30
   publicKeyPath: .attest-it/pubkey.pem
   attestationsPath: .attest-it/attestations.json
+  sealsPath: .attest-it/seals.json
+```
+
+| Field              | Type    | Required | Default                        | Description                      |
+| ------------------ | ------- | -------- | ------------------------------ | -------------------------------- |
+| `maxAgeDays`       | integer | No       | `30`                           | Default maximum seal age in days |
+| `publicKeyPath`    | string  | No       | `.attest-it/pubkey.pem`        | Path to public key file          |
+| `attestationsPath` | string  | No       | `.attest-it/attestations.json` | Path to attestations file        |
+| `sealsPath`        | string  | No       | `.attest-it/seals.json`        | Path to seals file               |
+
+### Operational Settings (`config.yaml`)
+
+```yaml
+settings:
   defaultCommand: pnpm test
   keyProvider:
     type: filesystem
@@ -70,15 +107,10 @@ settings:
       privateKeyPath: ~/.config/attest-it/key.pem
 ```
 
-### Settings Fields
-
-| Field              | Type    | Required | Default                        | Description                      |
-| ------------------ | ------- | -------- | ------------------------------ | -------------------------------- |
-| `maxAgeDays`       | integer | No       | `30`                           | Default maximum seal age in days |
-| `publicKeyPath`    | string  | No       | `.attest-it/pubkey.pem`        | Path to public key file          |
-| `attestationsPath` | string  | No       | `.attest-it/attestations.json` | Path to seals/attestations file  |
-| `defaultCommand`   | string  | No       | -                              | Default command for suites       |
-| `keyProvider`      | object  | No       | -                              | Key provider configuration       |
+| Field            | Type   | Required | Default | Description                |
+| ---------------- | ------ | -------- | ------- | -------------------------- |
+| `defaultCommand` | string | No       | -       | Default command for suites |
+| `keyProvider`    | object | No       | -       | Key provider configuration |
 
 ### Key Provider Configuration
 
@@ -112,7 +144,7 @@ keyProvider:
 
 ## Minimum Version Requirement
 
-You can specify a minimum version of attest-it required to use your configuration:
+Either `policy.yaml` or `config.yaml` can specify a minimum version of attest-it required to use it:
 
 ```yaml
 version: 1
@@ -153,9 +185,10 @@ The `minVersion` field supports semantic versioning including pre-release tags (
 
 ## Team
 
-Team members who can create seals. Each member has a unique slug identifier (the key).
+Defined in `policy.yaml`. Team members who can create seals. Each member has a unique slug identifier (the key).
 
 ```yaml
+# .attest-it/policy.yaml
 team:
   alice:
     name: Alice Smith
@@ -195,9 +228,10 @@ npx attest-it team add
 
 ## Gates
 
-Gates define checkpoints that require human attestation. A gate specifies which code is covered and who can sign.
+Defined in `policy.yaml`. Gates define checkpoints that require human attestation. A gate specifies which code is covered (via its fingerprint) and who can sign.
 
 ```yaml
+# .attest-it/policy.yaml
 gates:
   desktop-tests:
     name: Desktop Tests
@@ -227,7 +261,7 @@ gates:
 
 ### Fingerprint Configuration
 
-The fingerprint determines which files are hashed. When any fingerprinted file changes, the seal becomes invalid.
+The fingerprint determines which files are hashed. When any fingerprinted file changes, the seal becomes invalid. Fingerprint configuration always lives on the **gate** (in `policy.yaml`), never on a suite.
 
 ```yaml
 fingerprint:
@@ -269,9 +303,10 @@ The `maxAge` field accepts duration strings:
 
 ## Suites
 
-Suites extend gates with test commands. Use suites when you want to run tests before sealing.
+Defined in `config.yaml`. Suites bind a runnable command to a gate. Every suite **must** reference a gate defined in `policy.yaml` — the gate is the single source of truth for the suite's fingerprint configuration and authorized signers. There is no gate-less suite shape.
 
 ```yaml
+# .attest-it/config.yaml
 suites:
   desktop-tests:
     gate: desktop-tests
@@ -291,7 +326,7 @@ suites:
 
 | Field         | Type     | Required | Default | Description                                    |
 | ------------- | -------- | -------- | ------- | ---------------------------------------------- |
-| `gate`        | string   | Yes\*    | -       | Gate slug this suite references                |
+| `gate`        | string   | Yes      | -       | Gate slug this suite references                |
 | `description` | string   | No       | -       | Human-readable description                     |
 | `command`     | string   | No       | -       | Command to execute                             |
 | `timeout`     | string   | No       | -       | Command timeout (duration string)              |
@@ -299,40 +334,14 @@ suites:
 | `invalidates` | string[] | No       | -       | Other suite slugs this invalidates when sealed |
 | `depends_on`  | string[] | No       | -       | Suite slugs that must be sealed first          |
 
-\*Or define `packages` for legacy fingerprint-based suites.
-
-### Legacy Suite Format
-
-For backward compatibility, suites can define their own fingerprint instead of referencing a gate:
-
-```yaml
-suites:
-  unit-tests:
-    packages:
-      - '@myorg/core'
-      - '@myorg/utils'
-    files:
-      - src/**/*.ts
-    ignore:
-      - '**/*.test.ts'
-    command: pnpm test:unit
-```
-
-| Field      | Type     | Required | Description                  |
-| ---------- | -------- | -------- | ---------------------------- |
-| `packages` | string[] | Yes\*    | Package names to fingerprint |
-| `files`    | string[] | No       | Additional file patterns     |
-| `ignore`   | string[] | No       | Patterns to exclude          |
-
-\*Required if `gate` is not specified.
-
 ---
 
 ## Groups
 
-Groups organize suites for convenience.
+Defined in `config.yaml`. Groups organize suites for convenience.
 
 ```yaml
+# .attest-it/config.yaml
 groups:
   fast:
     - unit-tests
@@ -476,8 +485,9 @@ When `attest-it verify` runs, each gate returns one of these states:
 **Repository-relative paths** (default):
 
 ```yaml
+# .attest-it/policy.yaml
 settings:
-  attestationsPath: .attest-it/seals.json
+  sealsPath: .attest-it/seals.json
   # Resolves to: /path/to/repo/.attest-it/seals.json
 ```
 
@@ -496,10 +506,10 @@ privateKey:
 
 JSON Schema files are available for editor validation and autocompletion:
 
-- **Policy/combined config:** `schemas/policy.schema.json`
-- **Operational config:** `schemas/config.schema.json`
+- **Policy config:** `schemas/v1/policy.schema.json`
+- **Operational config:** `schemas/v1/config.schema.json`
 
-Configure your editor to use these schemas for `.attest-it/config.yaml` files.
+Configure your editor to use these schemas for `.attest-it/policy.yaml` and `.attest-it/config.yaml` respectively.
 
 ### VS Code Example
 
@@ -508,24 +518,27 @@ Add to `.vscode/settings.json`:
 ```json
 {
   "yaml.schemas": {
-    "./schemas/policy.schema.json": ".attest-it/config.yaml"
+    "./schemas/v1/policy.schema.json": ".attest-it/policy.yaml",
+    "./schemas/v1/config.schema.json": ".attest-it/config.yaml"
   }
 }
 ```
+
+Or, since `attest-it init` writes a `# yaml-language-server: $schema=...` directive at the top of each generated file, most editors (including VS Code with the YAML extension) will pick up schema validation automatically without any additional settings.
 
 ---
 
 ## Complete Example
 
-### Project Configuration
+### Policy Configuration
 
 ```yaml
-# .attest-it/config.yaml
+# .attest-it/policy.yaml
 version: 1
 
 settings:
   maxAgeDays: 30
-  attestationsPath: .attest-it/seals.json
+  sealsPath: .attest-it/seals.json
 
 team:
   alice:
@@ -570,6 +583,15 @@ gates:
       paths:
         - packages/ui-components/**/*.tsx
     maxAge: 7d
+```
+
+### Operational Configuration
+
+```yaml
+# .attest-it/config.yaml
+version: 1
+
+settings: {}
 
 suites:
   desktop-vscode:
@@ -606,7 +628,7 @@ groups:
 Error: Configuration file not found
 ```
 
-**Solution:** Run `npx attest-it init` or create `.attest-it/config.yaml` manually.
+**Solution:** Run `npx attest-it init` or create `.attest-it/policy.yaml` and `.attest-it/config.yaml` manually.
 
 ### Version Incompatible Error
 
@@ -635,7 +657,7 @@ Error: No active identity found
 Error: Not authorized to seal gate 'my-gate'
 ```
 
-**Solution:** Add your team member slug to the gate's `authorizedSigners` array.
+**Solution:** Add your team member slug to the gate's `authorizedSigners` array in `policy.yaml`.
 
 ### Key Provider Not Available
 
@@ -652,6 +674,17 @@ Error: Duration must be a valid duration string
 ```
 
 **Solution:** Use formats like `30d`, `7d`, `24h`, `1w`.
+
+### Suite Missing Gate Reference
+
+```
+Error: Operational configuration validation failed:
+  - suites.my-suite.gate: Required
+```
+
+**Cause:** Every suite must reference a gate; there is no gate-less suite shape.
+
+**Solution:** Add a `gate: <gate-slug>` field to the suite, referencing a gate defined in `policy.yaml`.
 
 ---
 

@@ -1,0 +1,33 @@
+version: 1
+
+settings:
+  maxAgeDays: 30
+  publicKeyPath: .attest-it/pubkey.pem
+
+# Team members who can create seals
+team:
+  test-user:
+    name: Test User
+    publicKey: placeholder-will-be-set-by-keygen
+
+# Gates for seal-based verification
+gates:
+  example-gate:
+    name: Example Gate
+    description: Example test gate
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - packages/example
+    maxAge: 30d
+
+  failing-gate:
+    name: Failing Gate
+    description: Gate with failing tests
+    authorizedSigners:
+      - test-user
+    fingerprint:
+      paths:
+        - packages/example
+    maxAge: 30d

@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { runInit } from '../src/commands/init.js'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import YAML from 'yaml'
+import { runInit } from '../src/commands/init.js'
+import { ExitCode } from '../src/utils/exit-codes.js'
 
-// Mock fs module
+// Mock fs module. Filesystem writes/reads/mkdir are stubbed; existsSync is
+// stubbed per-test to control the overwrite-confirmation flow.
 vi.mock('node:fs', async () => {
   const actual = await vi.importActual<typeof import('node:fs')>('node:fs')
   return {
@@ -12,6 +15,7 @@ vi.mock('node:fs', async () => {
     existsSync: vi.fn(),
     readFileSync: vi.fn(),
     promises: {
+      ...actual.promises,
       mkdir: vi.fn(),
       writeFile: vi.fn(),
       readFile: vi.fn(),
@@ -29,6 +33,15 @@ vi.mock('../src/utils/completion-offer.js', () => ({
   offerCompletionInstall: vi.fn().mockResolvedValue(false),
 }))
 
+// Mock @attest-it/core, only overriding migrateUnifiedContent (used by --migrate)
+vi.mock('@attest-it/core', async () => {
+  const actual = await vi.importActual<typeof import('@attest-it/core')>('@attest-it/core')
+  return {
+    ...actual,
+    migrateUnifiedContent: vi.fn(),
+  }
+})
+
 // Mock console methods
 const mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {
   // Intentionally empty
@@ -42,529 +55,424 @@ const mockProcessExit = vi.spyOn(process, 'exit').mockImplementation(() => {
 
 // Import mocked functions
 const { confirmAction } = await import('../src/utils/prompts.js')
+const { migrateUnifiedContent } = await import('@attest-it/core')
 
-interface ConfigStructure {
-  version: number
-  settings: {
-    maxAgeDays: number
-    attestationsPath: string
-  }
-  team: Record<string, unknown>
-  gates: Record<string, unknown>
-  suites: Record<string, unknown>
-}
+// Load the *real* template files from disk (via the unmocked fs module) so the
+// test fixtures never drift from the actual bundled templates.
+const actualFs = await vi.importActual<typeof import('node:fs')>('node:fs')
+const testDir = path.dirname(fileURLToPath(import.meta.url))
+const POLICY_TEMPLATE_CONTENT = actualFs.readFileSync(
+  path.join(testDir, '../templates/policy.yaml'),
+  'utf-8',
+)
+const CONFIG_TEMPLATE_CONTENT = actualFs.readFileSync(
+  path.join(testDir, '../templates/config.yaml'),
+  'utf-8',
+)
 
-function hasVersionField(value: object): value is { version: unknown } {
-  return 'version' in value
-}
+const CLI_PACKAGE_JSON = JSON.stringify({ name: '@attest-it/cli', version: '0.8.0' })
+const DEFAULT_DIR = '.attest-it'
 
-function hasSettingsField(value: object): value is { settings: unknown } {
-  return 'settings' in value
-}
-
-function hasSuitesField(value: object): value is { suites: unknown } {
-  return 'suites' in value
-}
-
-function hasTeamField(value: object): value is { team: unknown } {
-  return 'team' in value
-}
-
-function hasGatesField(value: object): value is { gates: unknown } {
-  return 'gates' in value
-}
-
-function hasRequiredSettingsFields(value: object): value is {
-  maxAgeDays: unknown
-  attestationsPath: unknown
+function resolvedPaths(dir = DEFAULT_DIR): {
+  configDir: string
+  policyPath: string
+  operationalPath: string
 } {
-  return 'maxAgeDays' in value && 'attestationsPath' in value
+  const configDir = path.resolve(dir)
+  return {
+    configDir,
+    policyPath: path.join(configDir, 'policy.yaml'),
+    operationalPath: path.join(configDir, 'config.yaml'),
+  }
 }
 
-function isConfigStructure(value: unknown): value is ConfigStructure {
-  if (typeof value !== 'object' || value === null) return false
-
-  if (!hasVersionField(value)) return false
-  if (typeof value.version !== 'number') return false
-
-  if (!hasSettingsField(value)) return false
-  if (typeof value.settings !== 'object' || value.settings === null) return false
-
-  if (!hasRequiredSettingsFields(value.settings)) return false
-  if (typeof value.settings.maxAgeDays !== 'number') return false
-  if (typeof value.settings.attestationsPath !== 'string') return false
-
-  if (!hasTeamField(value)) return false
-  if (typeof value.team !== 'object' || value.team === null) return false
-
-  if (!hasGatesField(value)) return false
-  if (typeof value.gates !== 'object' || value.gates === null) return false
-
-  if (!hasSuitesField(value)) return false
-  if (typeof value.suites !== 'object' || value.suites === null) return false
-
-  return true
+/** Read the string content written by a specific fs.promises.writeFile call, matched by suffix. */
+function findWrittenContent(suffix: string): string {
+  const writeCalls = vi.mocked(fs.promises.writeFile).mock.calls
+  const call = writeCalls.find((c) => c[0].toString().endsWith(suffix))
+  if (!call) throw new Error(`Expected a writeFile call targeting a path ending with ${suffix}`)
+  const content: unknown = call[1]
+  if (typeof content !== 'string') throw new Error('Expected written content to be a string')
+  return content
 }
 
 describe('init command', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    // Default mock implementations
-    vi.mocked(fs.existsSync).mockImplementation((filePath) => {
-      const path = filePath.toString()
-      // CLI's package.json exists (for getPackageVersion)
-      if (path.includes('dist') && path.includes('package.json')) {
-        return true
-      }
-      // Template file exists (for loadConfigTemplate)
-      if (path.includes('templates') && path.includes('config.yaml')) {
-        return true
-      }
-      // User's package.json doesn't exist by default (will be created)
-      if (path === 'package.json') {
-        return false
-      }
-      // Lock files don't exist by default
-      return false
-    })
+    // By default: nothing exists on disk (fresh init), no lock files.
+    vi.mocked(fs.existsSync).mockReturnValue(false)
+
     vi.mocked(fs.promises.mkdir).mockResolvedValue(undefined)
     vi.mocked(fs.promises.writeFile).mockResolvedValue(undefined)
     // User's package.json read (when it exists) - return valid JSON
     vi.mocked(fs.promises.readFile).mockResolvedValue(
       JSON.stringify({ name: 'test-project', version: '1.0.0', devDependencies: {} }),
     )
+
     vi.mocked(fs.readFileSync).mockImplementation((filePath) => {
-      const path = filePath.toString()
-
-      // Mock CLI's package.json content (for getPackageVersion)
-      if (path.includes('package.json')) {
-        return JSON.stringify({ name: '@attest-it/cli', version: '0.8.0' })
+      const p = filePath.toString()
+      if (p.includes('templates') && p.includes('policy.yaml')) {
+        return POLICY_TEMPLATE_CONTENT
       }
-
-      // Mock config template file
-      if (path.includes('config.yaml')) {
-        return `# attest-it configuration
-# See https://github.com/attest-it/attest-it for documentation
-
-version: 1
-
-settings:
-  # How long attestations remain valid (in days)
-  maxAgeDays: 30
-  # Path to the attestations file
-  attestationsPath: .attest-it/attestations.json
-
-# Team members who can sign attestations.
-# Add members with: attest-it team join (for yourself) or team add (for others)
-#
-# team:
-#   mike-north:
-#     name: Mike North
-#     email: mike@example.com
-#     github: mike-north
-#     publicKey: Fzpq2YHEvpA2BwjGnW5ZcZF+WyUbsiyTFFMjPEK3SfA=
-#     publicKeyAlgorithm: ed25519
-
-team: {}
-
-# Gates define what code areas require attestation and who can sign.
-#
-# Example:
-#
-# gates:
-#   cli-interactive:
-#     name: CLI Interactive Tests
-#     description: Manual verification of interactive CLI experiences
-#     authorizedSigners:
-#       - mike-north
-#     fingerprint:
-#       paths:
-#         - packages/cli/src/commands
-#       exclude:
-#         - '**/*.spec.ts'
-#     maxAge: 90d
-
-gates: {}
-
-# Suites define test commands that produce attestations.
-#
-# Example:
-#
-# suites:
-#   visual-tests:
-#     description: Visual regression tests requiring human review
-#     gate: cli-interactive
-#     command: pnpm vitest packages/ui
-
-suites: {}
-`
+      if (p.includes('templates') && p.includes('config.yaml')) {
+        return CONFIG_TEMPLATE_CONTENT
       }
-
-      return ''
+      if (p.includes('package.json')) {
+        return CLI_PACKAGE_JSON
+      }
+      throw Object.assign(new Error(`ENOENT: no such file or directory, open '${p}'`), {
+        code: 'ENOENT',
+      })
     })
-    vi.mocked(confirmAction).mockResolvedValue(false)
+
+    vi.mocked(confirmAction).mockResolvedValue(true)
   })
 
   afterEach(() => {
     vi.clearAllMocks()
   })
 
-  describe('positive cases', () => {
-    it('should create config file in correct location', async () => {
-      await runInit({
-        path: '.attest-it/config.yaml',
-      })
+  describe('positive cases (default split scaffold)', () => {
+    it('should write both policy.yaml and config.yaml from the bundled templates', async () => {
+      const { policyPath, operationalPath } = resolvedPaths()
+
+      await runInit({ dir: DEFAULT_DIR })
 
       expect(fs.promises.writeFile).toHaveBeenCalledWith(
-        path.resolve('.attest-it/config.yaml'),
-        expect.any(String),
+        policyPath,
+        POLICY_TEMPLATE_CONTENT,
+        'utf-8',
+      )
+      expect(fs.promises.writeFile).toHaveBeenCalledWith(
+        operationalPath,
+        CONFIG_TEMPLATE_CONTENT,
         'utf-8',
       )
     })
 
-    it('should create parent directories', async () => {
-      await runInit({
-        path: '.attest-it/config.yaml',
-      })
+    it('should create the config directory recursively', async () => {
+      const { configDir } = resolvedPaths()
 
-      expect(fs.promises.mkdir).toHaveBeenCalledWith(path.resolve('.attest-it'), {
-        recursive: true,
-      })
+      await runInit({ dir: DEFAULT_DIR })
+
+      expect(fs.promises.mkdir).toHaveBeenCalledWith(configDir, { recursive: true })
     })
 
-    it('should output valid YAML', async () => {
-      await runInit({
-        path: '.attest-it/config.yaml',
-      })
+    it('should write policy.yaml content that parses as valid YAML with version 1 and empty team/gates', async () => {
+      await runInit({ dir: DEFAULT_DIR })
+
+      const content = findWrittenContent('policy.yaml')
+      const parsed: unknown = YAML.parse(content)
+
+      expect(parsed).toMatchObject({ version: 1, team: {}, gates: {} })
+    })
+
+    it('should write config.yaml content that parses as valid YAML with version 1 and empty suites', async () => {
+      await runInit({ dir: DEFAULT_DIR })
+
+      const content = findWrittenContent('config.yaml')
+      const parsed: unknown = YAML.parse(content)
+
+      expect(parsed).toMatchObject({ version: 1, suites: {} })
+    })
+
+    it('should create package.json when it does not exist', async () => {
+      // existsSync('package.json') already false by default beforeEach setup
+      await runInit({ dir: DEFAULT_DIR })
 
       const writeCalls = vi.mocked(fs.promises.writeFile).mock.calls
-      const configWrite = writeCalls.find((call) => call[0].toString().includes('config.yaml'))
-      expect(configWrite).toBeDefined()
-      if (!configWrite) throw new Error('Expected config writeFile to be called')
+      const packageJsonWrite = writeCalls.find((c) => c[0].toString() === 'package.json')
+      expect(packageJsonWrite).toBeDefined()
 
-      const contentArg: unknown = configWrite[1]
-      expect(typeof contentArg).toBe('string')
-
-      if (typeof contentArg !== 'string') {
-        throw new Error('Expected content to be string')
-      }
-
-      // Should be valid YAML
-      expect(() => {
-        YAML.parse(contentArg)
-      }).not.toThrow()
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Created package.json'))
     })
 
-    it('should include sensible default settings', async () => {
-      await runInit({
-        path: '.attest-it/config.yaml',
-      })
+    it('should update package.json with attest-it devDependency when it already exists', async () => {
+      vi.mocked(fs.existsSync).mockImplementation((filePath) => filePath === 'package.json')
 
-      // Find the config file write (second writeFile call, first is package.json)
+      await runInit({ dir: DEFAULT_DIR })
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Updated package.json with attest-it devDependency'),
+      )
+
       const writeCalls = vi.mocked(fs.promises.writeFile).mock.calls
-      const configWrite = writeCalls.find((call) => call[0].toString().includes('config.yaml'))
-      expect(configWrite).toBeDefined()
-      if (!configWrite) throw new Error('Expected config writeFile to be called')
-
-      const contentArg: unknown = configWrite[1]
-      if (typeof contentArg !== 'string') {
-        throw new Error('Expected content to be string')
-      }
-
-      const config: unknown = YAML.parse(contentArg)
-
-      if (!isConfigStructure(config)) {
-        throw new Error('Expected valid config structure')
-      }
-
-      expect(config.settings.maxAgeDays).toBe(30)
-      expect(config.settings.attestationsPath).toBe('.attest-it/attestations.json')
+      const packageJsonWrite = writeCalls.find((c) => c[0].toString() === 'package.json')
+      expect(packageJsonWrite).toBeDefined()
+      if (!packageJsonWrite) throw new Error('expected package.json write')
+      const content: unknown = packageJsonWrite[1]
+      if (typeof content !== 'string') throw new Error('expected string content')
+      const packageJson: unknown = JSON.parse(content)
+      expect(packageJson).toMatchObject({
+        devDependencies: { 'attest-it': expect.stringMatching(/^\^0\.\d+\.\d+$/) },
+      })
     })
 
-    it('should overwrite with --force flag', async () => {
-      vi.mocked(fs.existsSync).mockImplementation((filePath) => {
-        // Return true for both CLI package.json and config file
-        return true
-      })
+    it('should not prompt for confirmation when neither file exists', async () => {
+      await runInit({ dir: DEFAULT_DIR })
 
-      await runInit({
-        path: '.attest-it/config.yaml',
-        force: true,
-      })
+      expect(confirmAction).not.toHaveBeenCalled()
+    })
 
-      // Should not prompt for confirmation
+    it('should overwrite existing files without prompting when --force is set', async () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true)
+
+      await runInit({ dir: DEFAULT_DIR, force: true })
+
       expect(confirmAction).not.toHaveBeenCalled()
       expect(fs.promises.writeFile).toHaveBeenCalled()
     })
 
-    it('should display success message', async () => {
-      await runInit({
-        path: '.attest-it/config.yaml',
-      })
+    it('should prompt once per existing file and proceed when confirmed', async () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(confirmAction).mockResolvedValue(true)
 
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Configuration created'))
+      const { policyPath, operationalPath } = resolvedPaths()
+
+      await runInit({ dir: DEFAULT_DIR })
+
+      expect(confirmAction).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining(policyPath) }),
+      )
+      expect(confirmAction).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining(operationalPath) }),
+      )
+      expect(fs.promises.writeFile).toHaveBeenCalledWith(
+        policyPath,
+        POLICY_TEMPLATE_CONTENT,
+        'utf-8',
+      )
     })
 
-    it('should display next steps', async () => {
-      await runInit({
-        path: '.attest-it/config.yaml',
-      })
+    it('should display the "Configuration created" success message', async () => {
+      await runInit({ dir: DEFAULT_DIR })
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Configuration created:'))
+    })
+
+    it('should display next steps referencing both config files', async () => {
+      const { policyPath, operationalPath } = resolvedPaths()
+
+      await runInit({ dir: DEFAULT_DIR })
 
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Next steps:'))
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('install'))
       expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('attest-it identity create'),
+        expect.stringContaining("attest-it identity create  (if you haven't already)"),
       )
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('attest-it team join'))
       expect(mockConsoleLog).toHaveBeenCalledWith(
-        expect.stringContaining('Edit .attest-it/config.yaml'),
+        expect.stringContaining(`Edit ${policyPath} to define your gates, and ${operationalPath}`),
       )
     })
 
-    it('should set config version to 1', async () => {
-      await runInit({
-        path: '.attest-it/config.yaml',
-      })
+    it('should offer shell completion install after a successful default scaffold', async () => {
+      const { offerCompletionInstall } = await import('../src/utils/completion-offer.js')
 
-      const writeCalls = vi.mocked(fs.promises.writeFile).mock.calls
-      const configWrite = writeCalls.find((call) => call[0].toString().includes('config.yaml'))
-      expect(configWrite).toBeDefined()
-      if (!configWrite) throw new Error('Expected config writeFile to be called')
+      await runInit({ dir: DEFAULT_DIR })
 
-      const contentArg: unknown = configWrite[1]
-      if (typeof contentArg !== 'string') {
-        throw new Error('Expected content to be string')
-      }
-      const config: unknown = YAML.parse(contentArg)
-
-      if (!isConfigStructure(config)) {
-        throw new Error('Expected valid config structure')
-      }
-
-      expect(config.version).toBe(1)
+      expect(offerCompletionInstall).toHaveBeenCalledTimes(1)
     })
 
-    it('should create config directory', async () => {
-      await runInit({
-        path: '.attest-it/config.yaml',
-      })
+    it('should detect pnpm from a pnpm-lock.yaml file and mention it in next steps', async () => {
+      vi.mocked(fs.existsSync).mockImplementation((filePath) => filePath === 'pnpm-lock.yaml')
 
-      expect(fs.promises.mkdir).toHaveBeenCalledWith(expect.stringContaining('.attest-it'), {
-        recursive: true,
-      })
-    })
+      await runInit({ dir: DEFAULT_DIR })
 
-    it('should include commented example suites in template', async () => {
-      await runInit({
-        path: '.attest-it/config.yaml',
-      })
-
-      const writeCalls = vi.mocked(fs.promises.writeFile).mock.calls
-      const configWrite = writeCalls.find((call) => call[0].toString().includes('config.yaml'))
-      expect(configWrite).toBeDefined()
-      if (!configWrite) throw new Error('Expected config writeFile to be called')
-
-      const contentArg: unknown = configWrite[1]
-      if (typeof contentArg !== 'string') {
-        throw new Error('Expected content to be string')
-      }
-
-      // Should contain commented examples for gates and suites
-      expect(contentArg).toContain('# Example:')
-      expect(contentArg).toContain('# gates:')
-      expect(contentArg).toContain('# suites:')
-      expect(contentArg).toContain('#   visual-tests:')
-    })
-
-    it('should have empty suites object by default', async () => {
-      await runInit({
-        path: '.attest-it/config.yaml',
-      })
-
-      const writeCalls = vi.mocked(fs.promises.writeFile).mock.calls
-      const configWrite = writeCalls.find((call) => call[0].toString().includes('config.yaml'))
-      expect(configWrite).toBeDefined()
-      if (!configWrite) throw new Error('Expected config writeFile to be called')
-
-      const contentArg: unknown = configWrite[1]
-      if (typeof contentArg !== 'string') {
-        throw new Error('Expected content to be string')
-      }
-      const config: unknown = YAML.parse(contentArg)
-
-      if (!isConfigStructure(config)) {
-        throw new Error('Expected valid config structure')
-      }
-
-      expect(config.suites).toEqual({})
-    })
-
-    it('should create or update package.json with attest-it devDependency', async () => {
-      await runInit({
-        path: '.attest-it/config.yaml',
-      })
-
-      // Find the package.json write call
-      const writeCalls = vi.mocked(fs.promises.writeFile).mock.calls
-      const packageJsonWrite = writeCalls.find((call) =>
-        call[0].toString().includes('package.json'),
-      )
-      expect(packageJsonWrite).toBeDefined()
-      if (!packageJsonWrite) throw new Error('Expected package.json writeFile to be called')
-
-      const contentArg: unknown = packageJsonWrite[1]
-      if (typeof contentArg !== 'string') {
-        throw new Error('Expected content to be string')
-      }
-
-      const packageJson = JSON.parse(contentArg)
-      expect(packageJson.devDependencies).toBeDefined()
-      expect(packageJson.devDependencies['attest-it']).toMatch(/^\^0\.\d+\.\d+$/)
-    })
-
-    it('should include team and gates sections', async () => {
-      await runInit({
-        path: '.attest-it/config.yaml',
-      })
-
-      const writeCalls = vi.mocked(fs.promises.writeFile).mock.calls
-      const configWrite = writeCalls.find((call) => call[0].toString().includes('config.yaml'))
-      expect(configWrite).toBeDefined()
-      if (!configWrite) throw new Error('Expected config writeFile to be called')
-
-      const contentArg: unknown = configWrite[1]
-      if (typeof contentArg !== 'string') {
-        throw new Error('Expected content to be string')
-      }
-
-      const config: unknown = YAML.parse(contentArg)
-
-      if (!isConfigStructure(config)) {
-        throw new Error('Expected valid config structure')
-      }
-
-      expect(config.team).toEqual({})
-      expect(config.gates).toEqual({})
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('pnpm install'))
     })
   })
 
-  describe('negative cases', () => {
-    it('should exit when user declines overwrite', async () => {
-      vi.mocked(fs.existsSync).mockImplementation((filePath) => {
-        // Return true for all files (config exists, CLI package.json exists)
-        return true
-      })
+  describe('negative cases (default split scaffold)', () => {
+    it('should exit with CANCELLED when the user declines to overwrite policy.yaml', async () => {
+      vi.mocked(fs.existsSync).mockImplementation((filePath) =>
+        filePath.toString().endsWith('policy.yaml'),
+      )
       vi.mocked(confirmAction).mockResolvedValue(false)
 
-      await expect(async () => {
-        await runInit({
-          path: '.attest-it/config.yaml',
-        })
-      }).rejects.toThrow('process.exit called')
+      await expect(runInit({ dir: DEFAULT_DIR })).rejects.toThrow('process.exit called')
 
-      expect(mockProcessExit).toHaveBeenCalledWith(3)
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CANCELLED)
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Init cancelled'))
       expect(fs.promises.writeFile).not.toHaveBeenCalled()
     })
 
-    it('should prompt for confirmation when config exists', async () => {
-      vi.mocked(fs.existsSync).mockImplementation((filePath) => {
-        // Return true for all files (config exists, CLI package.json exists)
-        return true
-      })
-      vi.mocked(confirmAction).mockResolvedValue(true)
-
-      await runInit({
-        path: '.attest-it/config.yaml',
-      })
-
-      expect(confirmAction).toHaveBeenCalledWith(
-        expect.objectContaining({
-          message: expect.stringContaining('Overwrite'),
-        }),
+    it('should exit with CANCELLED when the user declines to overwrite config.yaml', async () => {
+      vi.mocked(fs.existsSync).mockImplementation(
+        (filePath) =>
+          filePath.toString().endsWith('.attest-it/config.yaml') ||
+          filePath.toString().endsWith('.attest-it\\config.yaml'),
       )
-      expect(fs.promises.writeFile).toHaveBeenCalled()
+      // First confirm (policy.yaml, which doesn't exist) never happens; second
+      // confirm (config.yaml, which exists) is declined.
+      vi.mocked(confirmAction).mockResolvedValue(false)
+
+      await expect(runInit({ dir: DEFAULT_DIR })).rejects.toThrow('process.exit called')
+
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CANCELLED)
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Init cancelled'))
+      expect(fs.promises.writeFile).not.toHaveBeenCalled()
     })
 
-    it('should handle file write errors', async () => {
+    it('should exit with CONFIG_ERROR when writing a config file fails', async () => {
       vi.mocked(fs.promises.writeFile).mockRejectedValue(new Error('Permission denied'))
 
-      await expect(async () => {
-        await runInit({
-          path: '.attest-it/config.yaml',
-        })
-      }).rejects.toThrow('process.exit called')
+      await expect(runInit({ dir: DEFAULT_DIR })).rejects.toThrow('process.exit called')
 
-      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CONFIG_ERROR)
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Permission denied'))
     })
 
-    it('should handle directory creation errors', async () => {
+    it('should exit with CONFIG_ERROR when creating the config directory fails', async () => {
       vi.mocked(fs.promises.mkdir).mockRejectedValue(new Error('Cannot create directory'))
 
-      await expect(async () => {
-        await runInit({
-          path: '.attest-it/config.yaml',
-        })
-      }).rejects.toThrow('process.exit called')
+      await expect(runInit({ dir: DEFAULT_DIR })).rejects.toThrow('process.exit called')
 
-      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CONFIG_ERROR)
       expect(mockConsoleError).toHaveBeenCalledWith(
         expect.stringContaining('Cannot create directory'),
       )
     })
 
-    it('should handle unknown error types', async () => {
+    it('should exit with CONFIG_ERROR and a generic message for non-Error throwables', async () => {
       vi.mocked(fs.promises.writeFile).mockRejectedValue('string error')
 
-      await expect(async () => {
-        await runInit({
-          path: '.attest-it/config.yaml',
-        })
-      }).rejects.toThrow('process.exit called')
+      await expect(runInit({ dir: DEFAULT_DIR })).rejects.toThrow('process.exit called')
 
-      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CONFIG_ERROR)
       expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Unknown error'))
     })
   })
 
-  describe('edge cases', () => {
-    it('should resolve relative config paths', async () => {
-      await runInit({
-        path: '../some/path/config.yaml',
-      })
+  describe('edge cases (default split scaffold)', () => {
+    it('should resolve a custom --dir option', async () => {
+      const { configDir, policyPath, operationalPath } = resolvedPaths('custom-dir')
 
-      // Should resolve to absolute path
+      await runInit({ dir: 'custom-dir' })
+
+      expect(fs.promises.mkdir).toHaveBeenCalledWith(configDir, { recursive: true })
       expect(fs.promises.writeFile).toHaveBeenCalledWith(
-        path.resolve('../some/path/config.yaml'),
-        expect.any(String),
+        policyPath,
+        POLICY_TEMPLATE_CONTENT,
+        'utf-8',
+      )
+      expect(fs.promises.writeFile).toHaveBeenCalledWith(
+        operationalPath,
+        CONFIG_TEMPLATE_CONTENT,
         'utf-8',
       )
     })
 
-    it('should create directories for nested paths', async () => {
-      await runInit({
-        path: 'deep/nested/path/config.yaml',
-      })
+    it('should create nested directories', async () => {
+      const { configDir } = resolvedPaths('deep/nested/dir')
 
-      expect(fs.promises.mkdir).toHaveBeenCalledWith(path.resolve('deep/nested/path'), {
-        recursive: true,
+      await runInit({ dir: 'deep/nested/dir' })
+
+      expect(fs.promises.mkdir).toHaveBeenCalledWith(configDir, { recursive: true })
+    })
+  })
+
+  describe('--migrate', () => {
+    const unifiedContent = 'version: 1\nsettings: {}\nsuites: {}\n'
+    const mockPolicy = { version: 1, settings: {}, team: {}, gates: {} }
+    const mockOperational = { version: 1, settings: {}, suites: {} }
+
+    beforeEach(() => {
+      // Unified config.yaml exists; nothing else does.
+      vi.mocked(fs.existsSync).mockImplementation((filePath) =>
+        filePath.toString().endsWith('config.yaml'),
+      )
+      vi.mocked(fs.promises.readFile).mockImplementation((filePath) => {
+        if (filePath.toString().endsWith('config.yaml')) {
+          return Promise.resolve(unifiedContent)
+        }
+        return Promise.resolve(
+          JSON.stringify({ name: 'test-project', version: '1.0.0', devDependencies: {} }),
+        )
       })
+      vi.mocked(migrateUnifiedContent).mockReturnValue({
+        policy: mockPolicy,
+        operational: mockOperational,
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- test double for the core migration return shape
+      } as ReturnType<typeof migrateUnifiedContent>)
     })
 
-    it('should detect package manager from lock files', async () => {
-      // Test pnpm detection
-      vi.mocked(fs.existsSync).mockImplementation((path) => {
-        if (path === 'pnpm-lock.yaml') return true
-        return false
-      })
+    it('should migrate an existing unified config.yaml into policy.yaml and config.yaml', async () => {
+      const { policyPath, operationalPath } = resolvedPaths()
 
-      await runInit({
-        path: '.attest-it/config.yaml',
-      })
+      await runInit({ dir: DEFAULT_DIR, migrate: true })
 
-      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('pnpm install'))
+      expect(migrateUnifiedContent).toHaveBeenCalledWith(unifiedContent, 'yaml')
+
+      const policyContent = findWrittenContent('policy.yaml')
+      expect(YAML.parse(policyContent)).toEqual(mockPolicy)
+      expect(policyContent).toContain('migrated from unified config')
+
+      const operationalContent = findWrittenContent(path.join('.attest-it', 'config.yaml'))
+      expect(YAML.parse(operationalContent)).toEqual(mockOperational)
+      expect(operationalContent).toContain('migrated from unified config')
+      expect(operationalPath).toBe(path.join(path.resolve(DEFAULT_DIR), 'config.yaml'))
+    })
+
+    it('should print migration success and next-step messages', async () => {
+      const { policyPath } = resolvedPaths()
+
+      await runInit({ dir: DEFAULT_DIR, migrate: true })
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining('Migrated unified config into split configuration:'),
+      )
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('Next steps:'))
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringContaining(`Review and commit ${policyPath} on your default branch`),
+      )
+      expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('attest-it verify'))
+    })
+
+    it('should not offer shell completion install on the migrate path', async () => {
+      const { offerCompletionInstall } = await import('../src/utils/completion-offer.js')
+
+      await runInit({ dir: DEFAULT_DIR, migrate: true })
+
+      expect(offerCompletionInstall).not.toHaveBeenCalled()
+    })
+
+    it('should exit with CONFIG_ERROR when no unified config.yaml exists to migrate', async () => {
+      vi.mocked(fs.existsSync).mockReturnValue(false)
+
+      await expect(runInit({ dir: DEFAULT_DIR, migrate: true })).rejects.toThrow(
+        'process.exit called',
+      )
+
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CONFIG_ERROR)
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('No unified config found'),
+      )
+      expect(migrateUnifiedContent).not.toHaveBeenCalled()
+    })
+
+    it('should exit with CANCELLED when the user declines to overwrite policy.yaml during migration', async () => {
+      // Both the unified config.yaml and an existing policy.yaml are present.
+      vi.mocked(fs.existsSync).mockReturnValue(true)
+      vi.mocked(confirmAction).mockResolvedValue(false)
+
+      await expect(runInit({ dir: DEFAULT_DIR, migrate: true })).rejects.toThrow(
+        'process.exit called',
+      )
+
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CANCELLED)
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('Migration cancelled'))
+      expect(fs.promises.writeFile).not.toHaveBeenCalled()
+    })
+
+    it('should skip the overwrite prompt with --force even if policy.yaml exists', async () => {
+      vi.mocked(fs.existsSync).mockReturnValue(true)
+
+      await runInit({ dir: DEFAULT_DIR, migrate: true, force: true })
+
+      expect(confirmAction).not.toHaveBeenCalled()
+      expect(fs.promises.writeFile).toHaveBeenCalled()
     })
   })
 })

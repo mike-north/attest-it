@@ -1,12 +1,12 @@
 import { Command } from 'commander'
 import { confirm } from '@inquirer/prompts'
-import { loadConfig, toAttestItConfig, findConfigPath, readSealsSync } from '@attest-it/core'
-import type { Config } from '@attest-it/core'
+import { readSealsSync, type PolicyConfig } from '@attest-it/core'
 import { log, success, error, warn } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
 import { getTheme } from '../../components/theme.js'
 import { writeFile } from 'node:fs/promises'
 import { stringify as stringifyYaml } from 'yaml'
+import { loadPolicyForEdit } from './utils.js'
 
 export const removeCommand = new Command('remove')
   .description('Remove a team member')
@@ -23,13 +23,12 @@ async function runRemove(slug: string, options: { force?: boolean }): Promise<vo
   try {
     const theme = getTheme()
 
-    // Load existing config
-    const config = await loadConfig()
-    const attestItConfig = toAttestItConfig(config)
+    // Load existing policy (team + gates live in policy.yaml)
+    const { policy, path: policyPath } = loadPolicyForEdit()
 
     // Check if member exists
     // eslint-disable-next-line security/detect-object-injection
-    const existingMember = attestItConfig.team?.[slug]
+    const existingMember = policy.team?.[slug]
     if (!existingMember) {
       error(`Team member "${slug}" not found`)
       process.exit(ExitCode.CONFIG_ERROR)
@@ -51,7 +50,7 @@ async function runRemove(slug: string, options: { force?: boolean }): Promise<vo
     const projectRoot = process.cwd()
     let sealsFile
     try {
-      sealsFile = readSealsSync(projectRoot, attestItConfig.settings.sealsPath)
+      sealsFile = readSealsSync(projectRoot, policy.settings.sealsPath)
     } catch {
       // No seals file exists yet
       sealsFile = { version: 1, seals: {} }
@@ -76,8 +75,8 @@ async function runRemove(slug: string, options: { force?: boolean }): Promise<vo
 
     // Get gates this member is authorized for
     const authorizedGates: string[] = []
-    if (attestItConfig.gates) {
-      for (const [gateId, gate] of Object.entries(attestItConfig.gates)) {
+    if (policy.gates) {
+      for (const [gateId, gate] of Object.entries(policy.gates)) {
         if (gate.authorizedSigners.includes(slug)) {
           authorizedGates.push(gateId)
         }
@@ -106,32 +105,26 @@ async function runRemove(slug: string, options: { force?: boolean }): Promise<vo
     }
 
     // Remove from team
-    const updatedTeam = { ...attestItConfig.team }
+    const updatedTeam = { ...policy.team }
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete, security/detect-object-injection
     delete updatedTeam[slug]
 
-    // Update config
-    const updatedConfig: Config = {
-      ...config,
+    // Update policy
+    const updatedPolicy: PolicyConfig = {
+      ...policy,
       team: updatedTeam,
     }
 
     // Remove from all gate authorizations
-    if (updatedConfig.gates) {
-      for (const gate of Object.values(updatedConfig.gates)) {
+    if (updatedPolicy.gates) {
+      for (const gate of Object.values(updatedPolicy.gates)) {
         gate.authorizedSigners = gate.authorizedSigners.filter((s) => s !== slug)
       }
     }
 
-    // Write config back to file
-    const configPath = findConfigPath()
-    if (!configPath) {
-      error('Configuration file not found')
-      process.exit(ExitCode.CONFIG_ERROR)
-    }
-
-    const yamlContent = stringifyYaml(updatedConfig)
-    await writeFile(configPath, yamlContent, 'utf8')
+    // Write policy back to file
+    const yamlContent = stringifyYaml(updatedPolicy)
+    await writeFile(policyPath, yamlContent, 'utf8')
 
     log('')
     success(`Team member "${slug}" removed successfully`)

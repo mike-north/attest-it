@@ -632,16 +632,28 @@ afterEach(() => {
 
 ## attest-it Integration
 
-Configure attest-it for desktop tests:
+Configure attest-it for desktop tests. Define the gate (fingerprint and authorized signers) in `policy.yaml`, then reference it from a suite in `config.yaml`:
+
+```yaml
+# .attest-it/policy.yaml
+gates:
+  desktop:
+    name: Desktop Tests
+    description: Tests requiring human verification
+    authorizedSigners: [alice]
+    fingerprint:
+      paths:
+        - test/desktop/**
+        - src/ui/**
+    maxAge: 30d
+```
 
 ```yaml
 # .attest-it/config.yaml
 suites:
   desktop:
+    gate: desktop
     description: Tests requiring human verification
-    packages:
-      - test/desktop
-      - src/ui
     command: pnpm vitest --project desktop
 ```
 

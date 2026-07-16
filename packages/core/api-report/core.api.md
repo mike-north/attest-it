@@ -11,23 +11,6 @@ import { z } from 'zod';
 export const ATTEST_IT_HOME_ENV = "ATTEST_IT_HOME";
 
 // @public
-export interface Attestation {
-    attestedAt: string;
-    attestedBy: string;
-    command: string;
-    exitCode: 0;
-    fingerprint: string;
-    suite: string;
-}
-
-// @public
-export interface AttestationsFile {
-    attestations: Attestation[];
-    schemaVersion: '1';
-    signature: string;
-}
-
-// @public
 export interface AttestItConfig {
     gates?: Record<string, GateConfig>;
     groups?: Record<string, string[]>;
@@ -49,9 +32,6 @@ export interface AttestItSettings {
 }
 
 // @public
-export function canonicalizeAttestations(attestations: Attestation[]): string;
-
-// @public
 export function checkOpenSSL(): Promise<string>;
 
 // @public
@@ -67,31 +47,6 @@ export function computeFingerprint(options: FingerprintOptions): Promise<Fingerp
 
 // @public
 export function computeFingerprintSync(options: FingerprintOptions): FingerprintResult;
-
-// Warning: (ae-forgotten-export) The symbol "configSchema" needs to be exported by the entry point index.d.ts
-//
-// @public
-export type Config = z.infer<typeof configSchema>;
-
-// @public
-export class ConfigNotFoundError extends Error {
-    constructor(message: string);
-}
-
-// @public
-export class ConfigValidationError extends Error {
-    constructor(message: string, issues: z.ZodIssue[]);
-    // (undocumented)
-    readonly issues: z.ZodIssue[];
-}
-
-// @public
-export function createAttestation(params: {
-    attestedBy?: string;
-    command: string;
-    fingerprint: string;
-    suite: string;
-}): Attestation;
 
 // @public
 export function createSeal(options: CreateSealOptions): Seal;
@@ -148,12 +103,6 @@ export class FilesystemKeyProvider implements KeyProvider {
 export interface FilesystemKeyProviderOptions {
     privateKeyPath?: string;
 }
-
-// @public
-export function findAttestation(attestations: AttestationsFile, suite: string): Attestation | undefined;
-
-// @public
-export function findConfigPath(startDir?: string): null | string;
 
 // @public
 export function findOperationalPath(startDir?: string): null | string;
@@ -343,12 +292,6 @@ export interface ListAccountsResult {
 export function listPackageFiles(packages: string[], ignore?: string[], baseDir?: string): Promise<string[]>;
 
 // @public
-export function loadConfig(configPath?: string): Promise<Config>;
-
-// @public
-export function loadConfigSync(configPath?: string): Config;
-
-// @public
 export function loadLocalConfig(configPath?: string): Promise<LocalConfig | null>;
 
 // @public
@@ -414,6 +357,12 @@ export interface MacOSKeychainKeyProviderOptions {
 
 // @public
 export function mergeConfigs(policy: PolicyConfig, operational: OperationalConfig): AttestItConfig;
+
+// @public
+export function migrateUnifiedConfig(raw: unknown): SplitConfigResult;
+
+// @public
+export function migrateUnifiedContent(content: string, format: 'json' | 'yaml'): SplitConfigResult;
 
 // @public
 export interface OnePasswordAccount {
@@ -521,82 +470,45 @@ export const operationalSchema: z.ZodObject<{
             type: string;
         } | undefined;
     }>>;
-    suites: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodEffects<z.ZodObject<{
+    suites: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodObject<{
         command: z.ZodOptional<z.ZodString>;
         depends_on: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         description: z.ZodOptional<z.ZodString>;
-        files: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
-        gate: z.ZodOptional<z.ZodString>;
-        ignore: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
+        gate: z.ZodString;
         interactive: z.ZodOptional<z.ZodBoolean>;
         invalidates: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
-        packages: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         timeout: z.ZodOptional<z.ZodString>;
     }, "strict", z.ZodTypeAny, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
-        timeout?: string | undefined;
-    }>, {
-        command?: string | undefined;
-        depends_on?: string[] | undefined;
-        description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
-        interactive?: boolean | undefined;
-        invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
-        timeout?: string | undefined;
-    }, {
-        command?: string | undefined;
-        depends_on?: string[] | undefined;
-        description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
-        interactive?: boolean | undefined;
-        invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>>, Record<string, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>, Record<string, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>>;
     version: z.ZodEffects<z.ZodUnion<[z.ZodLiteral<1>, z.ZodLiteral<string>]>, 1, 1 | string>;
@@ -619,12 +531,9 @@ export const operationalSchema: z.ZodObject<{
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>;
     version: 1;
@@ -647,12 +556,9 @@ export const operationalSchema: z.ZodObject<{
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
-        files?: string[] | undefined;
-        gate?: string | undefined;
-        ignore?: string[] | undefined;
+        gate: string;
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
-        packages?: string[] | undefined;
         timeout?: string | undefined;
     }>;
     version: 1 | string;
@@ -842,31 +748,10 @@ export type PrivateKeyRef = {
 };
 
 // @public
-export function readAndVerifyAttestations(options: ReadSignedAttestationsOptions): Promise<AttestationsFile>;
-
-// @public
-export function readAttestations(filePath: string): Promise<AttestationsFile | null>;
-
-// @public
-export function readAttestationsSync(filePath: string): AttestationsFile | null;
-
-// @public
 export function readSeals(dir: string, sealsPathOverride?: string): Promise<SealsFile>;
 
 // @public
 export function readSealsSync(dir: string, sealsPathOverride?: string): SealsFile;
-
-// @public
-export interface ReadSignedAttestationsOptions {
-    filePath: string;
-    publicKeyPath: string;
-}
-
-// @public
-export function removeAttestation(attestations: Attestation[], suite: string): Attestation[];
-
-// @public
-export function resolveConfigPaths(config: Config, repoRoot: string): Config;
 
 // @public
 export function saveLocalConfig(config: LocalConfig, configPath?: string): Promise<void>;
@@ -924,11 +809,6 @@ export function setPreference<K extends keyof UserPreferences>(key: K, value: Us
 export function sign(options: SignOptions): Promise<string>;
 
 // @public
-export class SignatureInvalidError extends Error {
-    constructor(filePath: string);
-}
-
-// @public
 export interface SignatureVerificationResult {
     error?: string;
     valid: boolean;
@@ -954,6 +834,12 @@ export class SplitConfigNotFoundError extends Error {
 }
 
 // @public
+export interface SplitConfigResult {
+    operational: OperationalConfig;
+    policy: PolicyConfig;
+}
+
+// @public
 export interface SuiteConfig {
     command?: string;
     depends_on?: string[];
@@ -962,17 +848,6 @@ export interface SuiteConfig {
     interactive?: boolean;
     invalidates?: string[];
     timeout?: string;
-}
-
-// @public
-export interface SuiteVerificationResult {
-    age?: number;
-    attestation?: Attestation;
-    changedFiles?: string[];
-    fingerprint: string;
-    message?: string;
-    status: VerificationStatus;
-    suite: string;
 }
 
 // @public
@@ -985,10 +860,18 @@ export interface TeamMember {
 }
 
 // @public
-export function toAttestItConfig(config: Config): AttestItConfig;
+export class UnifiedConfigError extends Error {
+    constructor(
+    unifiedPath: string);
+    readonly unifiedPath: string;
+}
 
 // @public
-export function upsertAttestation(attestations: Attestation[], newAttestation: Attestation): Attestation[];
+export class UnifiedMigrationError extends Error {
+    constructor(message: string, issues?: z.ZodIssue[]);
+    // (undocumented)
+    readonly issues: z.ZodIssue[];
+}
 
 // @public
 export interface UserPreferences {
@@ -1034,36 +917,16 @@ export interface VaultKeyProviderOptions {
 export type VerificationState = 'FINGERPRINT_MISMATCH' | 'INVALID_SIGNATURE' | 'MISSING' | 'STALE' | 'UNKNOWN_SIGNER' | 'VALID';
 
 // @public
-export type VerificationStatus = 'EXPIRED' | 'FINGERPRINT_CHANGED' | 'INVALIDATED_BY_PARENT' | 'NEEDS_ATTESTATION' | 'SIGNATURE_INVALID' | 'VALID';
-
-// @public
 export function verify(options: CryptoVerifyOptions): Promise<boolean>;
 
 // @public
 export function verifyAllSeals(config: AttestItConfig, seals: SealsFile, fingerprints: Record<string, string>): SealVerificationResult[];
 
 // @public
-export function verifyAttestations(options: VerifyOptions): Promise<VerifyResult>;
-
-// @public
 export function verifyEd25519(data: Buffer | string, signature: string, publicKeyBase64: string): boolean;
 
 // @public
 export function verifyGateSeal(config: AttestItConfig, gateId: string, seals: SealsFile, currentFingerprint: string): SealVerificationResult;
-
-// @public
-export interface VerifyOptions {
-    config: AttestItConfig;
-    repoRoot?: string;
-}
-
-// @public
-export interface VerifyResult {
-    errors: string[];
-    signatureValid: boolean;
-    success: boolean;
-    suites: SuiteVerificationResult[];
-}
 
 // @public
 export function verifySeal(seal: Seal, config: AttestItConfig): SignatureVerificationResult;
@@ -1079,28 +942,10 @@ export class VersionIncompatibleError extends Error {
 }
 
 // @public
-export function writeAttestations(filePath: string, attestations: Attestation[], signature: string): Promise<void>;
-
-// @public
-export function writeAttestationsSync(filePath: string, attestations: Attestation[], signature: string): void;
-
-// @public
 export function writeSeals(dir: string, sealsFile: SealsFile, sealsPathOverride?: string): Promise<void>;
 
 // @public
 export function writeSealsSync(dir: string, sealsFile: SealsFile, sealsPathOverride?: string): void;
-
-// @public
-export function writeSignedAttestations(options: WriteSignedAttestationsOptions): Promise<void>;
-
-// @public
-export interface WriteSignedAttestationsOptions {
-    attestations: Attestation[];
-    filePath: string;
-    keyProvider?: KeyProvider;
-    keyRef?: string;
-    privateKeyPath?: string;
-}
 
 // @public
 export interface YubiKeyInfo {

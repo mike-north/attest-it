@@ -264,6 +264,54 @@ suites:
         })
       })
 
+      // Regression (issue #68): validation previously contained a
+      // `if (gateName === undefined) continue` skip branch that let a suite with
+      // no gate (the retired `packages`-only shape) evade cross-config
+      // validation entirely. That branch is deleted — a gate-less suite must now
+      // be validated (and flagged) like any other. The operational schema no
+      // longer permits this shape, so we construct it directly to prove the
+      // validator itself no longer skips it.
+      it('should not skip a suite that has no gate reference (deleted skip branch)', () => {
+        const policy: PolicyConfig = {
+          version: 1,
+          settings: {
+            maxAgeDays: 30,
+            publicKeyPath: '.attest-it/pubkey.pem',
+            attestationsPath: '.attest-it/attestations.json',
+          },
+          gates: {
+            existing: {
+              name: 'Existing Gate',
+              description: 'This gate exists',
+              authorizedSigners: ['alice'],
+              fingerprint: { paths: ['src/**/*.ts'] },
+              maxAge: '7d',
+            },
+          },
+        }
+
+        // A gate-less suite is no longer representable through the schema, so we
+        // deliberately cast to reproduce the exact shape the old skip branch
+        // accepted (a suite whose `gate` is undefined).
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- constructing a schema-illegal shape on purpose to prove the validator no longer skips it
+        const operational = {
+          version: 1,
+          settings: {},
+          suites: {
+            legacy: {
+              command: 'npm test',
+            },
+          },
+        } as unknown as OperationalConfig
+
+        const errors = validateSuiteGateReferences(policy, operational)
+
+        // Under the old skip branch this returned []. It must now flag the suite.
+        expect(errors).toHaveLength(1)
+        expect(errors[0].type).toBe('UNKNOWN_GATE')
+        expect(errors[0].suite).toBe('legacy')
+      })
+
       it('should return error when gate references non-existent team member', () => {
         const policy: PolicyConfig = {
           version: 1,

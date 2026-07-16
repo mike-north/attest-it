@@ -1,23 +1,16 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { runPrune } from '../src/commands/prune.js'
-import type { Config, AttestationsFile, Attestation } from '@attest-it/core'
+import type { AttestItConfig, Seal, SealsFile } from '@attest-it/core'
+import { ExitCode } from '../src/utils/exit-codes.js'
 
-// Mock fs
-vi.mock('node:fs', () => ({
-  existsSync: vi.fn(),
-}))
-
-// Mock core functions
+// Mock core functions used by the prune command
 vi.mock('@attest-it/core', async () => {
   const actual = await vi.importActual<typeof import('@attest-it/core')>('@attest-it/core')
   return {
     ...actual,
-    loadConfig: vi.fn(),
     loadSplitConfig: vi.fn(),
-    readAttestations: vi.fn(),
-    writeSignedAttestations: vi.fn(),
-    computeFingerprint: vi.fn(),
-    getDefaultPrivateKeyPath: vi.fn(),
+    readSealsSync: vi.fn(),
+    writeSealsSync: vi.fn(),
   }
 })
 
@@ -27,7 +20,6 @@ vi.mock('../src/utils/output.js', () => ({
   verbose: vi.fn(),
   success: vi.fn(),
   error: vi.fn(),
-  warn: vi.fn(),
   info: vi.fn(),
 }))
 
@@ -38,369 +30,284 @@ const mockProcessExit = vi
   // eslint-disable-next-line @typescript-eslint/no-empty-function
   .mockImplementation(() => {})
 
-const { existsSync } = await import('node:fs')
-const {
-  loadConfig,
-  loadSplitConfig,
-  readAttestations,
-  writeSignedAttestations,
-  computeFingerprint,
-  getDefaultPrivateKeyPath,
-} = await import('@attest-it/core')
+const { loadSplitConfig, readSealsSync, writeSealsSync } = await import('@attest-it/core')
+const { success, error, info, log } = await import('../src/utils/output.js')
+
+const SEALS_PATH = '.attest-it/seals.json'
+const FIXED_TIMESTAMP = '2024-01-15T10:30:00.000Z'
+
+/** Build a mock AttestItConfig with one gate ("kept-gate") unless overridden. */
+function createMockConfig(overrides?: Partial<AttestItConfig>): AttestItConfig {
+  return {
+    version: 1,
+    settings: {
+      maxAgeDays: 30,
+      publicKeyPath: '.attest-it/pubkey.pem',
+      attestationsPath: '.attest-it/attestations.json',
+      sealsPath: SEALS_PATH,
+    },
+    gates: {
+      'kept-gate': {
+        name: 'Kept Gate',
+        description: 'A gate that still exists',
+        authorizedSigners: ['test-user'],
+        fingerprint: { paths: ['pkg1'] },
+        maxAge: '30d',
+      },
+    },
+    suites: {},
+    ...overrides,
+  }
+}
+
+/** Build a mock Seal for the given gate id. */
+function createMockSeal(gateId: string, overrides?: Partial<Seal>): Seal {
+  return {
+    gateId,
+    fingerprint: 'sha256:abc123',
+    timestamp: FIXED_TIMESTAMP,
+    sealedBy: 'test-user',
+    signature: 'mock-signature',
+    ...overrides,
+  }
+}
+
+/** Build a mock SealsFile from a map of gateId -> Seal. */
+function createMockSealsFile(seals: Record<string, Seal>): SealsFile {
+  return { version: 1, seals }
+}
 
 describe('runPrune', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    // resetAllMocks (not clearAllMocks) so that a mockImplementation/mockRejectedValue
+    // set by one test (e.g. simulating a write failure) can never leak into the next.
+    vi.resetAllMocks()
+    // resetAllMocks also wipes the process.exit no-op set at module scope, so
+    // it must be reapplied every time.
+    mockProcessExit.mockImplementation(() => {
+      // Intentionally empty - prevent the test process from actually exiting
+      // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- process.exit has a `never` return type that mockImplementation can't infer
+      return undefined as never
+    })
   })
 
   afterEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
   })
 
-  // Helper to create a mock config
-  function createMockConfig(overrides?: Partial<Config>): Config {
-    return {
-      version: 1,
-      settings: {
-        maxAgeDays: 30,
-        publicKeyPath: '.attest-it/pubkey.pem',
-        attestationsPath: '.attest-it/attestations.json',
-        sealsPath: '.attest-it/seals.json',
-        ...overrides?.settings,
-      },
-      gates: {
-        'test-gate': {
-          name: 'Test Gate',
-          description: 'Test gate',
-          authorizedSigners: ['test-user'],
-          fingerprint: {
-            paths: ['pkg1'],
-          },
-          maxAge: '30d',
-        },
-        ...overrides?.gates,
-      },
-      suites: {
-        'test-suite': {
-          gate: 'test-gate',
-        },
-        ...overrides?.suites,
-      },
-    }
-  }
-
-  // Helper to create a mock attestation
-  function createMockAttestation(overrides?: Partial<Attestation>): Attestation {
-    return {
-      suite: 'test-suite',
-      fingerprint: 'sha256:abc123',
-      attestedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days ago
-      attestedBy: 'test-user',
-      command: 'npm test',
-      exitCode: 0,
-      ...overrides,
-    }
-  }
-
-  // Helper to create a mock attestations file
-  function createMockAttestationsFile(attestations: Attestation[]): AttestationsFile {
-    return {
-      schemaVersion: '1',
-      attestations,
-      signature: 'mock-signature',
-    }
-  }
-
   describe('positive cases', () => {
-    it('should identify stale attestations correctly', async () => {
+    it('should remove a seal whose gate no longer exists in the policy', async () => {
       const config = createMockConfig()
-      const staleAttestation = createMockAttestation({
-        attestedAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(), // 40 days ago
+      const keptSeal = createMockSeal('kept-gate')
+      const orphanSeal = createMockSeal('removed-gate')
+      const sealsFile = createMockSealsFile({
+        'kept-gate': keptSeal,
+        'removed-gate': orphanSeal,
       })
-      const file = createMockAttestationsFile([staleAttestation])
 
       vi.mocked(loadSplitConfig).mockResolvedValue(config)
-      vi.mocked(readAttestations).mockResolvedValue(file)
-      vi.mocked(computeFingerprint).mockResolvedValue({
-        fingerprint: 'sha256:different', // Different fingerprint = changed
-        files: [],
-        fileCount: 10,
-      })
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readSealsSync).mockReturnValue(sealsFile)
 
-      await runPrune({ keepDays: '30', dryRun: false })
+      await runPrune({})
 
-      expect(writeSignedAttestations).toHaveBeenCalledWith({
-        filePath: '.attest-it/attestations.json',
-        attestations: [], // All attestations should be pruned
-        privateKeyPath: '/home/user/.attest-it/private.pem',
-      })
-      expect(mockProcessExit).toHaveBeenCalledWith(0)
+      expect(readSealsSync).toHaveBeenCalledWith(process.cwd(), SEALS_PATH)
+      expect(writeSealsSync).toHaveBeenCalledWith(
+        process.cwd(),
+        { version: 1, seals: { 'kept-gate': keptSeal } },
+        SEALS_PATH,
+      )
+      expect(success).toHaveBeenCalledWith('Pruned 1 orphaned seal(s)')
+      expect(log).toHaveBeenCalledWith('Remaining: 1 seal(s)')
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.SUCCESS)
     })
 
-    it('should keep recent attestations', async () => {
+    it('should retain a seal whose gate still exists', async () => {
       const config = createMockConfig()
-      const recentAttestation = createMockAttestation({
-        attestedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 days ago
-      })
-      const file = createMockAttestationsFile([recentAttestation])
+      const keptSeal = createMockSeal('kept-gate')
+      const sealsFile = createMockSealsFile({ 'kept-gate': keptSeal })
 
       vi.mocked(loadSplitConfig).mockResolvedValue(config)
-      vi.mocked(readAttestations).mockResolvedValue(file)
-      vi.mocked(computeFingerprint).mockResolvedValue({
-        fingerprint: 'sha256:abc123', // Same fingerprint = unchanged
-        files: [],
-        fileCount: 10,
-      })
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readSealsSync).mockReturnValue(sealsFile)
 
-      await runPrune({ keepDays: '30', dryRun: false })
+      await runPrune({})
 
-      expect(writeSignedAttestations).not.toHaveBeenCalled()
-      expect(mockProcessExit).toHaveBeenCalledWith(0)
+      expect(writeSealsSync).not.toHaveBeenCalled()
+      expect(success).toHaveBeenCalledWith('No orphaned seals found')
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.SUCCESS)
     })
 
-    it('should keep attestations with matching fingerprint regardless of age', async () => {
-      const config = createMockConfig()
-      const oldAttestation = createMockAttestation({
-        attestedAt: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000).toISOString(), // 100 days ago
+    it('should remove multiple orphaned seals and keep multiple valid ones', async () => {
+      const config = createMockConfig({
+        gates: {
+          'kept-gate-1': {
+            name: 'Kept 1',
+            description: 'd',
+            authorizedSigners: ['test-user'],
+            fingerprint: { paths: ['pkg1'] },
+            maxAge: '30d',
+          },
+          'kept-gate-2': {
+            name: 'Kept 2',
+            description: 'd',
+            authorizedSigners: ['test-user'],
+            fingerprint: { paths: ['pkg2'] },
+            maxAge: '30d',
+          },
+        },
       })
-      const file = createMockAttestationsFile([oldAttestation])
+      const kept1 = createMockSeal('kept-gate-1')
+      const kept2 = createMockSeal('kept-gate-2')
+      const orphan1 = createMockSeal('removed-gate-1')
+      const orphan2 = createMockSeal('removed-gate-2')
+      const sealsFile = createMockSealsFile({
+        'kept-gate-1': kept1,
+        'kept-gate-2': kept2,
+        'removed-gate-1': orphan1,
+        'removed-gate-2': orphan2,
+      })
 
       vi.mocked(loadSplitConfig).mockResolvedValue(config)
-      vi.mocked(readAttestations).mockResolvedValue(file)
-      vi.mocked(computeFingerprint).mockResolvedValue({
-        fingerprint: 'sha256:abc123', // Same fingerprint = unchanged
-        files: [],
-        fileCount: 10,
-      })
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readSealsSync).mockReturnValue(sealsFile)
 
-      await runPrune({ keepDays: '30', dryRun: false })
+      await runPrune({})
 
-      expect(writeSignedAttestations).not.toHaveBeenCalled()
-      expect(mockProcessExit).toHaveBeenCalledWith(0)
+      expect(writeSealsSync).toHaveBeenCalledWith(
+        process.cwd(),
+        { version: 1, seals: { 'kept-gate-1': kept1, 'kept-gate-2': kept2 } },
+        SEALS_PATH,
+      )
+      expect(success).toHaveBeenCalledWith('Pruned 2 orphaned seal(s)')
+      expect(log).toHaveBeenCalledWith('Remaining: 2 seal(s)')
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.SUCCESS)
     })
   })
 
   describe('negative cases', () => {
-    it('should handle --dry-run flag', async () => {
+    it('should not write when --dry-run is passed, even with orphaned seals', async () => {
       const config = createMockConfig()
-      const staleAttestation = createMockAttestation({
-        attestedAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
-      })
-      const file = createMockAttestationsFile([staleAttestation])
+      const orphanSeal = createMockSeal('removed-gate')
+      const sealsFile = createMockSealsFile({ 'removed-gate': orphanSeal })
 
       vi.mocked(loadSplitConfig).mockResolvedValue(config)
-      vi.mocked(readAttestations).mockResolvedValue(file)
-      vi.mocked(computeFingerprint).mockResolvedValue({
-        fingerprint: 'sha256:different',
-        files: [],
-        fileCount: 10,
-      })
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readSealsSync).mockReturnValue(sealsFile)
 
-      await runPrune({ keepDays: '30', dryRun: true })
+      await runPrune({ dryRun: true })
 
-      expect(writeSignedAttestations).not.toHaveBeenCalled()
-      expect(mockProcessExit).toHaveBeenCalledWith(0)
+      expect(writeSealsSync).not.toHaveBeenCalled()
+      expect(info).toHaveBeenCalledWith('Dry run - no changes made')
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.SUCCESS)
     })
 
-    it('should handle invalid --keep-days value', async () => {
-      await runPrune({ keepDays: 'invalid', dryRun: false })
-
-      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
-    })
-
-    it('should handle negative --keep-days value', async () => {
-      await runPrune({ keepDays: '-5', dryRun: false })
-
-      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
-    })
-
-    it('should handle zero --keep-days value', async () => {
-      await runPrune({ keepDays: '0', dryRun: false })
-
-      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
-    })
-
-    it('should handle missing private key', async () => {
-      const config = createMockConfig()
-      const staleAttestation = createMockAttestation({
-        attestedAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
-      })
-      const file = createMockAttestationsFile([staleAttestation])
+    it('should report every seal as orphaned when the config has no gates at all', async () => {
+      const config = createMockConfig({ gates: undefined })
+      const seal = createMockSeal('kept-gate')
+      const sealsFile = createMockSealsFile({ 'kept-gate': seal })
 
       vi.mocked(loadSplitConfig).mockResolvedValue(config)
-      vi.mocked(readAttestations).mockResolvedValue(file)
-      vi.mocked(computeFingerprint).mockResolvedValue({
-        fingerprint: 'sha256:different',
-        files: [],
-        fileCount: 10,
+      vi.mocked(readSealsSync).mockReturnValue(sealsFile)
+
+      await runPrune({})
+
+      expect(writeSealsSync).toHaveBeenCalledWith(
+        process.cwd(),
+        { version: 1, seals: {} },
+        SEALS_PATH,
+      )
+      expect(success).toHaveBeenCalledWith('Pruned 1 orphaned seal(s)')
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.SUCCESS)
+    })
+
+    it('should exit with CONFIG_ERROR when loading the split config fails', async () => {
+      vi.mocked(loadSplitConfig).mockRejectedValue(new Error('Config load failed'))
+
+      await runPrune({})
+
+      expect(readSealsSync).not.toHaveBeenCalled()
+      expect(error).toHaveBeenCalledWith('Config load failed')
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CONFIG_ERROR)
+    })
+
+    it('should exit with CONFIG_ERROR when reading the seals file throws', async () => {
+      const config = createMockConfig()
+      vi.mocked(loadSplitConfig).mockResolvedValue(config)
+      vi.mocked(readSealsSync).mockImplementation(() => {
+        throw new Error('Failed to read seals file: Invalid JSON')
       })
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(false)
 
-      await runPrune({ keepDays: '30', dryRun: false })
+      await runPrune({})
 
-      expect(writeSignedAttestations).not.toHaveBeenCalled()
-      expect(mockProcessExit).toHaveBeenCalledWith(5) // MISSING_KEY
+      expect(writeSealsSync).not.toHaveBeenCalled()
+      expect(error).toHaveBeenCalledWith('Failed to read seals file: Invalid JSON')
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CONFIG_ERROR)
+    })
+
+    it('should exit with CONFIG_ERROR when writing the seals file throws', async () => {
+      const config = createMockConfig()
+      const orphanSeal = createMockSeal('removed-gate')
+      const sealsFile = createMockSealsFile({ 'removed-gate': orphanSeal })
+
+      vi.mocked(loadSplitConfig).mockResolvedValue(config)
+      vi.mocked(readSealsSync).mockReturnValue(sealsFile)
+      vi.mocked(writeSealsSync).mockImplementation(() => {
+        throw new Error('Failed to write seals file: disk full')
+      })
+
+      await runPrune({})
+
+      expect(error).toHaveBeenCalledWith('Failed to write seals file: disk full')
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CONFIG_ERROR)
+    })
+
+    it('should exit with CONFIG_ERROR and a generic message for non-Error throwables', async () => {
+      vi.mocked(loadSplitConfig).mockRejectedValue('string error')
+
+      await runPrune({})
+
+      expect(error).toHaveBeenCalledWith('Unknown error occurred')
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CONFIG_ERROR)
     })
   })
 
   describe('edge cases', () => {
-    it('should handle empty attestations file', async () => {
+    it('should report "No seals to prune" for an empty seals file', async () => {
       const config = createMockConfig()
-      const file = createMockAttestationsFile([])
+      const sealsFile = createMockSealsFile({})
 
       vi.mocked(loadSplitConfig).mockResolvedValue(config)
-      vi.mocked(readAttestations).mockResolvedValue(file)
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readSealsSync).mockReturnValue(sealsFile)
 
-      await runPrune({ keepDays: '30', dryRun: false })
+      await runPrune({})
 
-      expect(writeSignedAttestations).not.toHaveBeenCalled()
-      expect(mockProcessExit).toHaveBeenCalledWith(0)
+      expect(writeSealsSync).not.toHaveBeenCalled()
+      expect(info).toHaveBeenCalledWith('No seals to prune')
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.SUCCESS)
     })
 
-    it('should handle missing attestations file', async () => {
-      const config = createMockConfig()
-
-      vi.mocked(loadSplitConfig).mockResolvedValue(config)
-      vi.mocked(readAttestations).mockResolvedValue(null)
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
-
-      await runPrune({ keepDays: '30', dryRun: false })
-
-      expect(writeSignedAttestations).not.toHaveBeenCalled()
-      expect(mockProcessExit).toHaveBeenCalledWith(0)
-    })
-
-    it('should report orphaned suites (suite removed from config)', async () => {
+    it('should read and write using a custom sealsPath from settings', async () => {
+      const customSealsPath = 'custom/location/seals.yaml'
       const config = createMockConfig({
-        suites: {
-          'different-suite': {
-            packages: ['pkg1'],
-          },
+        settings: {
+          maxAgeDays: 30,
+          publicKeyPath: '.attest-it/pubkey.pem',
+          attestationsPath: '.attest-it/attestations.json',
+          sealsPath: customSealsPath,
         },
       })
-      const orphanedAttestation = createMockAttestation({
-        suite: 'removed-suite',
-      })
-      const file = createMockAttestationsFile([orphanedAttestation])
+      const orphanSeal = createMockSeal('removed-gate')
+      const sealsFile = createMockSealsFile({ 'removed-gate': orphanSeal })
 
       vi.mocked(loadSplitConfig).mockResolvedValue(config)
-      vi.mocked(readAttestations).mockResolvedValue(file)
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
+      vi.mocked(readSealsSync).mockReturnValue(sealsFile)
 
-      await runPrune({ keepDays: '30', dryRun: false })
+      await runPrune({})
 
-      expect(writeSignedAttestations).toHaveBeenCalledWith({
-        filePath: '.attest-it/attestations.json',
-        attestations: [], // Orphaned attestation should be pruned
-        privateKeyPath: '/home/user/.attest-it/private.pem',
-      })
-      expect(mockProcessExit).toHaveBeenCalledWith(0)
-    })
-
-    it('should respect custom --keep-days option', async () => {
-      const config = createMockConfig()
-      const attestation = createMockAttestation({
-        attestedAt: new Date(Date.now() - 50 * 24 * 60 * 60 * 1000).toISOString(), // 50 days ago
-      })
-      const file = createMockAttestationsFile([attestation])
-
-      vi.mocked(loadSplitConfig).mockResolvedValue(config)
-      vi.mocked(readAttestations).mockResolvedValue(file)
-      vi.mocked(computeFingerprint).mockResolvedValue({
-        fingerprint: 'sha256:different',
-        files: [],
-        fileCount: 10,
-      })
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
-
-      // With keepDays=60, the 50-day-old attestation should NOT be pruned
-      await runPrune({ keepDays: '60', dryRun: false })
-
-      // Should keep the attestation because it's within 60 days
-      expect(writeSignedAttestations).not.toHaveBeenCalled()
-      expect(mockProcessExit).toHaveBeenCalledWith(0)
-    })
-
-    it('should re-sign attestation file after pruning', async () => {
-      const config = createMockConfig({
-        suites: {
-          'stale-suite': {
-            packages: ['pkg1'],
-          },
-          'valid-suite': {
-            packages: ['pkg2'],
-          },
-        },
-      })
-      const staleAttestation = createMockAttestation({
-        suite: 'stale-suite',
-        attestedAt: new Date(Date.now() - 40 * 24 * 60 * 60 * 1000).toISOString(),
-      })
-      const validAttestation = createMockAttestation({
-        suite: 'valid-suite',
-        attestedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-      })
-      const file = createMockAttestationsFile([staleAttestation, validAttestation])
-
-      vi.mocked(loadSplitConfig).mockResolvedValue(config)
-      vi.mocked(readAttestations).mockResolvedValue(file)
-      vi.mocked(computeFingerprint).mockImplementation((options) => {
-        // Return different fingerprints for different suites
-        if (options.packages[0] === 'pkg1') {
-          // For stale-suite, return different fingerprint
-          return Promise.resolve({
-            fingerprint: 'sha256:different',
-            files: [],
-            fileCount: 10,
-          })
-        }
-        if (options.packages[0] === 'pkg2') {
-          // For valid-suite, return matching fingerprint
-          return Promise.resolve({
-            fingerprint: validAttestation.fingerprint,
-            files: [],
-            fileCount: 10,
-          })
-        }
-        return Promise.resolve({
-          fingerprint: 'sha256:default',
-          files: [],
-          fileCount: 10,
-        })
-      })
-      vi.mocked(getDefaultPrivateKeyPath).mockReturnValue('/home/user/.attest-it/private.pem')
-      vi.mocked(existsSync).mockReturnValue(true)
-
-      await runPrune({ keepDays: '30', dryRun: false })
-
-      expect(writeSignedAttestations).toHaveBeenCalledWith({
-        filePath: '.attest-it/attestations.json',
-        attestations: [validAttestation],
-        privateKeyPath: '/home/user/.attest-it/private.pem',
-      })
-      expect(mockProcessExit).toHaveBeenCalledWith(0)
-    })
-
-    it('should handle errors gracefully', async () => {
-      vi.mocked(loadSplitConfig).mockRejectedValue(new Error('Config load failed'))
-
-      await runPrune({ keepDays: '30', dryRun: false })
-
-      expect(mockProcessExit).toHaveBeenCalledWith(3) // CONFIG_ERROR
+      expect(readSealsSync).toHaveBeenCalledWith(process.cwd(), customSealsPath)
+      expect(writeSealsSync).toHaveBeenCalledWith(
+        process.cwd(),
+        { version: 1, seals: {} },
+        customSealsPath,
+      )
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.SUCCESS)
     })
   })
 })

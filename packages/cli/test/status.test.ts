@@ -1,14 +1,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { runStatus } from '../src/commands/status.js'
-import type { SealVerificationResult, AttestItConfig, SealsFile, Config } from '@attest-it/core'
+import type { SealVerificationResult, AttestItConfig, SealsFile } from '@attest-it/core'
+
+// Fixed timestamp for deterministic seal fixtures.
+const FIXED_TIMESTAMP = '2024-01-15T10:30:00.000Z'
 
 // Mock the core functions
 vi.mock('@attest-it/core', async () => {
   const actual = await vi.importActual<typeof import('@attest-it/core')>('@attest-it/core')
   return {
     ...actual,
-    loadConfig: vi.fn(),
-    toAttestItConfig: vi.fn(),
     loadSplitConfig: vi.fn(),
     computeFingerprintSync: vi.fn(),
     readSealsSync: vi.fn(),
@@ -31,15 +32,8 @@ const mockProcessExit = vi
   .mockImplementation(() => {})
 
 // Import mocked functions
-const {
-  loadConfig,
-  toAttestItConfig,
-  loadSplitConfig,
-  computeFingerprintSync,
-  readSealsSync,
-  verifyAllSeals,
-  verifyGateSeal,
-} = await import('@attest-it/core')
+const { loadSplitConfig, computeFingerprintSync, readSealsSync, verifyAllSeals, verifyGateSeal } =
+  await import('@attest-it/core')
 
 describe('status command', () => {
   beforeEach(() => {
@@ -49,24 +43,6 @@ describe('status command', () => {
   afterEach(() => {
     vi.clearAllMocks()
   })
-
-  // Helper to create a mock Config (CLI layer)
-  function createMockConfig(): Config {
-    return {
-      version: 1,
-      settings: {
-        attestationsPath: '.attest-it/attestations.json',
-        maxAgeDays: 30,
-        publicKeyPath: '.attest-it/pubkey.pem',
-      },
-      suites: {
-        'test-suite': {
-          packages: ['src/**/*.ts'],
-          gate: 'test-gate',
-        },
-      },
-    }
-  }
 
   // Helper to create a mock AttestItConfig (core layer)
   function createMockAttestItConfig(): AttestItConfig {
@@ -105,7 +81,7 @@ describe('status command', () => {
         'test-gate': {
           gateId: 'test-gate',
           fingerprint: 'sha256:abc123def456',
-          timestamp: new Date().toISOString(),
+          timestamp: FIXED_TIMESTAMP,
           sealedBy: 'alice',
           signature: 'test-signature-base64',
         },
@@ -123,7 +99,7 @@ describe('status command', () => {
       seal: {
         gateId: 'test-gate',
         fingerprint: 'sha256:abc123def456',
-        timestamp: new Date().toISOString(),
+        timestamp: FIXED_TIMESTAMP,
         sealedBy: 'alice',
         signature: 'test-signature-base64',
       },

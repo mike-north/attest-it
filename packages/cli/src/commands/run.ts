@@ -4,18 +4,11 @@
 
 import { Command } from 'commander'
 import { spawn } from 'node:child_process'
-import * as os from 'node:os'
 import { parse as parseShellCommand } from 'shell-quote'
 import {
   loadSplitConfig,
   computeFingerprint,
   computeFingerprintSync,
-  readAttestations,
-  writeSignedAttestations,
-  upsertAttestation,
-  createAttestation,
-  getDefaultPrivateKeyPath,
-  FilesystemKeyProvider,
   KeyProviderRegistry,
   loadLocalConfigSync,
   getActiveIdentity,
@@ -24,7 +17,6 @@ import {
   readSealsSync,
   writeSealsSync,
   type AttestItConfig,
-  type KeyProvider,
   type Identity,
 } from '@attest-it/core'
 import { log, success, error, warn, verbose } from '../utils/output.js'
@@ -281,9 +273,7 @@ async function runDirectMode(options: RunOptions): Promise<void> {
 
   log('')
   success('Suite completed!')
-  log(
-    `\nTo commit: git add ${config.settings.attestationsPath} && git commit -m "Update attestations"`,
-  )
+  log(`\nTo commit: git add ${config.settings.sealsPath} && git commit -m "Update seals"`)
 }
 
 /**
@@ -339,9 +329,7 @@ async function runAllPending(options: RunOptions): Promise<void> {
 
   log('')
   success('All suites completed!')
-  log(
-    `\nTo commit: git add ${config.settings.attestationsPath} && git commit -m "Update attestations"`,
-  )
+  log(`\nTo commit: git add ${config.settings.sealsPath} && git commit -m "Update seals"`)
 }
 
 /**
@@ -399,89 +387,16 @@ async function runSingleSuite(
 
   success('Tests passed!')
 
-  // Skip attestation if --no-attest
+  // Skip sealing if --no-attest
   if (options.attest === false) {
-    log('Skipping attestation (--no-attest)')
+    log('Skipping seal creation (--no-attest)')
     return
   }
 
-  // Confirm attestation
-  const shouldAttest = await confirmAction({
-    message: 'Create attestation',
-    default: false,
-  })
-
-  if (!shouldAttest) {
-    warn('Attestation cancelled')
-    process.exit(ExitCode.CANCELLED)
-  }
-
-  // Create attestation
-  const attestation = createAttestation({
-    suite: suiteName,
-    fingerprint: fingerprintResult.fingerprint,
-    command,
-    attestedBy: os.userInfo().username,
-  })
-
-  // Load existing attestations
-  const attestationsPath = config.settings.attestationsPath
-  const existingFile = await readAttestations(attestationsPath)
-  const existingAttestations = existingFile?.attestations ?? []
-
-  // Upsert the new attestation
-  const newAttestations = upsertAttestation(existingAttestations, attestation)
-
-  // Set up key provider from config or use default
-  let keyProvider: KeyProvider
-  let keyRef: string
-
-  if (config.settings.keyProvider) {
-    keyProvider = KeyProviderRegistry.create({
-      type: config.settings.keyProvider.type,
-      options: config.settings.keyProvider.options ?? {},
-    })
-    if (config.settings.keyProvider.type === 'filesystem') {
-      keyRef = config.settings.keyProvider.options?.privateKeyPath ?? getDefaultPrivateKeyPath()
-    } else if (config.settings.keyProvider.type === '1password') {
-      keyRef = config.settings.keyProvider.options?.itemName ?? 'attest-it-private-key'
-    } else {
-      throw new Error(`Unsupported key provider type: ${config.settings.keyProvider.type}`)
-    }
-  } else {
-    // Default to filesystem provider with default path
-    keyProvider = new FilesystemKeyProvider()
-    keyRef = getDefaultPrivateKeyPath()
-  }
-
-  // Check if key exists
-  if (!(await keyProvider.keyExists(keyRef))) {
-    error(`Private key not found in ${keyProvider.displayName}`)
-    if (keyProvider.type === 'filesystem') {
-      error('Run "attest-it identity create" first to generate a keypair.')
-    } else {
-      error('Run "attest-it identity create" to generate and store a key.')
-    }
-    process.exit(ExitCode.MISSING_KEY)
-  }
-
-  // Write signed attestations
-  await writeSignedAttestations({
-    filePath: attestationsPath,
-    attestations: newAttestations,
-    keyProvider,
-    keyRef,
-  })
-
-  success(`Attestation created for ${suiteName}`)
-  log(`  Fingerprint: ${fingerprintResult.fingerprint}`)
-  log(`  Attested by: ${attestation.attestedBy}`)
-  log(`  Attested at: ${attestation.attestedAt}`)
-
-  // Check if this suite has a linked gate, and if so, prompt for seal
-  if (suiteConfig.gate) {
-    await promptForSeal(suiteName, suiteConfig.gate, config)
-  }
+  // A successful run authorizes creating a seal for the suite's gate. The seal
+  // is the single cryptographic record of the passing run (the legacy
+  // attestations file has been retired).
+  await promptForSeal(suiteName, suiteConfig.gate, config)
 }
 
 /**

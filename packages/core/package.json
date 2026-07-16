@@ -6,7 +6,6 @@
   "dependencies": {
     "@migrex/core": "0.2.0-alpha.1",
     "@migrex/zod": "1.0.0-alpha.1",
-    "canonicalize": "^2.0.0",
     "ms": "^2.1.3",
     "semver": "^7.6.0",
     "tinyglobby": "^0.2.0",

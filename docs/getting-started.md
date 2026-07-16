@@ -87,7 +87,9 @@ In your repository, run:
 npx attest-it init
 ```
 
-This creates `.attest-it/config.yaml` with your first gate.
+This creates a **split configuration**: `.attest-it/policy.yaml` (trust-critical: team and gates) and `.attest-it/config.yaml` (operational: suites), with your first gate.
+
+Already have an existing legacy unified `config.yaml` (one file holding `team`, `gates`, and `suites` together)? Run `npx attest-it init --migrate` instead to split it into the pair automatically.
 
 ### Example Configuration Session
 
@@ -100,7 +102,9 @@ Welcome to attest-it!
 ? Exclude patterns (comma-separated): **/*.test.ts
 ? Maximum seal age: 30d
 
-✓ Configuration created at .attest-it/config.yaml
+✓ Configuration created:
+  - .attest-it/policy.yaml (team, gates, security settings)
+  - .attest-it/config.yaml (suites, command settings)
 
 Next steps:
   1. Add yourself to the team: npx attest-it team join
@@ -110,6 +114,7 @@ Next steps:
 ### Understanding the Config
 
 ```yaml
+# .attest-it/policy.yaml
 version: 1
 
 settings:
@@ -132,6 +137,13 @@ gates:
       exclude:
         - '**/*.test.ts'
     maxAge: 30d
+```
+
+```yaml
+# .attest-it/config.yaml
+version: 1
+
+settings: {}
 
 suites:
   desktop-tests:
@@ -141,9 +153,9 @@ suites:
 
 Key concepts:
 
-- **Team**: People who can create seals, with their public keys
-- **Gates**: What code needs attestation and who can sign
-- **Suites**: Gates with associated test commands
+- **Team** (`policy.yaml`): People who can create seals, with their public keys
+- **Gates** (`policy.yaml`): What code needs attestation, who can sign, and the fingerprint config
+- **Suites** (`config.yaml`): Test commands that reference a gate — every suite must specify `gate`
 
 ## Step 3: Add Yourself to the Team
 
@@ -156,10 +168,10 @@ npx attest-it team join
 This will:
 
 1. Load your active identity
-2. Add your public key to `.attest-it/config.yaml` under the team section
+2. Add your public key to `.attest-it/policy.yaml` under the team section
 3. Prompt you to authorize yourself for gates
 
-You can also add yourself manually by editing `.attest-it/config.yaml`:
+You can also add yourself manually by editing `.attest-it/policy.yaml`:
 
 ```yaml
 team:
@@ -227,7 +239,7 @@ npx attest-it seal desktop-tests
 Add the seal file to version control:
 
 ```bash
-git add .attest-it/seals.json .attest-it/config.yaml
+git add .attest-it/seals.json .attest-it/policy.yaml .attest-it/config.yaml
 git commit -m "Add seal for desktop-tests"
 git push
 ```
@@ -236,7 +248,8 @@ The `.attest-it/` directory structure:
 
 ```
 .attest-it/
-├── config.yaml  # Configuration (commit)
+├── policy.yaml  # Trust-critical config: team, gates (commit; merge to default branch)
+├── config.yaml  # Operational config: suites (commit)
 └── seals.json   # Seals (commit after creating)
 ```
 
@@ -300,9 +313,10 @@ Overall: All gates valid
 
 ### Adding a New Gate
 
-1. Edit `.attest-it/config.yaml` to add the gate
-2. Run `npx attest-it seal <gate-name>` or `npx attest-it run --suite <suite-name>`
-3. Commit the updated seals
+1. Edit `.attest-it/policy.yaml` to add the gate
+2. Edit `.attest-it/config.yaml` to add a suite referencing the gate (optional, if you want a runnable command)
+3. Run `npx attest-it seal <gate-name>` or `npx attest-it run --suite <suite-name>`
+4. Commit the updated seals
 
 ### Updating Tests
 
@@ -324,9 +338,10 @@ When you modify code in a gate's fingerprint paths:
 
 1. Team member creates identity: `npx attest-it identity create`
 2. They export public key: `npx attest-it identity export`
-3. Add them to project config:
+3. Add them to `policy.yaml`:
 
 ```yaml
+# .attest-it/policy.yaml
 team:
   bob:
     name: Bob Jones
@@ -337,6 +352,7 @@ team:
 4. Add to gate's `authorizedSigners`:
 
 ```yaml
+# .attest-it/policy.yaml
 gates:
   desktop-tests:
     authorizedSigners: [alice, bob]
