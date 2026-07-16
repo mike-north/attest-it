@@ -86,25 +86,6 @@ export interface Ed25519KeyPair {
 }
 
 // @public
-export class FilesystemKeyProvider implements KeyProvider {
-    constructor(options?: FilesystemKeyProviderOptions);
-    // (undocumented)
-    readonly displayName = "Filesystem";
-    generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult>;
-    getConfig(): KeyProviderConfig;
-    getPrivateKey(keyRef: string): Promise<KeyRetrievalResult>;
-    isAvailable(): Promise<boolean>;
-    keyExists(keyRef: string): Promise<boolean>;
-    // (undocumented)
-    readonly type = "filesystem";
-}
-
-// @public
-export interface FilesystemKeyProviderOptions {
-    privateKeyPath?: string;
-}
-
-// @public
 export function findOperationalPath(startDir?: string): null | string;
 
 // @public
@@ -361,28 +342,6 @@ export interface MacOSKeychain {
 }
 
 // @public
-export class MacOSKeychainKeyProvider implements KeyProvider {
-    constructor(options: MacOSKeychainKeyProviderOptions);
-    // (undocumented)
-    readonly displayName = "macOS Keychain";
-    generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult>;
-    getConfig(): KeyProviderConfig;
-    getPrivateKey(keyRef: string): Promise<KeyRetrievalResult>;
-    static isAvailable(): boolean;
-    isAvailable(): Promise<boolean>;
-    keyExists(keyRef: string): Promise<boolean>;
-    static listKeychains(): Promise<MacOSKeychain[]>;
-    // (undocumented)
-    readonly type = "macos-keychain";
-}
-
-// @public
-export interface MacOSKeychainKeyProviderOptions {
-    itemName: string;
-    keychain?: string;
-}
-
-// @public
 export function mergeConfigs(policy: PolicyConfig, operational: OperationalConfig): AttestItConfig;
 
 // @public
@@ -398,30 +357,6 @@ export interface OnePasswordAccount {
     name?: string;
     url: string;
     user_uuid: string;
-}
-
-// @public
-export class OnePasswordKeyProvider implements KeyProvider {
-    constructor(options: OnePasswordKeyProviderOptions);
-    // (undocumented)
-    readonly displayName = "1Password";
-    generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult>;
-    getConfig(): KeyProviderConfig;
-    getPrivateKey(keyRef: string): Promise<KeyRetrievalResult>;
-    isAvailable(): Promise<boolean>;
-    static isInstalled(): Promise<boolean>;
-    keyExists(keyRef: string): Promise<boolean>;
-    static listAccounts(): Promise<ListAccountsResult>;
-    static listVaults(accountUuid?: string): Promise<OnePasswordVault[]>;
-    // (undocumented)
-    readonly type = "1password";
-}
-
-// @public
-export interface OnePasswordKeyProviderOptions {
-    accountUuid?: string;
-    itemName: string;
-    vault: string;
 }
 
 // @public
@@ -988,40 +923,6 @@ export interface YubiKeyInfo {
     firmware: string;
     serial: string;
     type: string;
-}
-
-// @public
-export class YubiKeyProvider implements KeyProvider {
-    constructor(options: YubiKeyProviderOptions);
-    // (undocumented)
-    readonly displayName = "YubiKey";
-    static encryptPrivateKey(options: {
-        encryptedKeyPath: string;
-        privateKey: string;
-        serial?: string;
-        slot?: 1 | 2;
-    }): Promise<{
-        encryptedKeyPath: string;
-        storageDescription: string;
-    }>;
-    generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult>;
-    getConfig(): KeyProviderConfig;
-    getPrivateKey(keyRef: string): Promise<KeyRetrievalResult>;
-    isAvailable(): Promise<boolean>;
-    static isChallengeResponseConfigured(slot?: 1 | 2, serial?: string): Promise<boolean>;
-    static isConnected(): Promise<boolean>;
-    static isInstalled(): Promise<boolean>;
-    keyExists(keyRef: string): Promise<boolean>;
-    static listDevices(): Promise<YubiKeyInfo[]>;
-    // (undocumented)
-    readonly type = "yubikey";
-}
-
-// @public
-export interface YubiKeyProviderOptions {
-    encryptedKeyPath: string;
-    serial?: string;
-    slot?: 1 | 2;
 }
 
 // (No @packageDocumentation comment for this package)

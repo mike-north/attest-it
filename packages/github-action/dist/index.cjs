@@ -43362,7 +43362,7 @@ function fromZod(version2, zodSchema, options) {
 // ../core/dist/index.js
 var fs2 = __toESM(require("fs/promises"), 1);
 var import_promises = require("fs/promises");
-var crypto3 = __toESM(require("crypto"), 1);
+var crypto22 = __toESM(require("crypto"), 1);
 
 // ../../node_modules/.pnpm/tinyglobby@0.2.15/node_modules/tinyglobby/dist/index.mjs
 init_cjs_shims();
@@ -46814,13 +46814,13 @@ function computeFinalFingerprint(fileHashes) {
   });
   const hashes = sorted.map((input) => input.hash);
   const concatenated = Buffer.concat(hashes);
-  const finalHash = crypto3.createHash("sha256").update(concatenated).digest();
+  const finalHash = crypto22.createHash("sha256").update(concatenated).digest();
   return `sha256:${finalHash.toString("hex")}`;
 }
 async function hashFileAsync(realPath, normalizedPath, stats) {
   if (stats.size > LARGE_FILE_THRESHOLD) {
-    return new Promise((resolve42, reject) => {
-      const hash2 = crypto3.createHash("sha256");
+    return new Promise((resolve32, reject) => {
+      const hash2 = crypto22.createHash("sha256");
       hash2.update(normalizedPath);
       hash2.update(":");
       const stream = fs.createReadStream(realPath);
@@ -46828,13 +46828,13 @@ async function hashFileAsync(realPath, normalizedPath, stats) {
         hash2.update(chunk);
       });
       stream.on("end", () => {
-        resolve42(hash2.digest());
+        resolve32(hash2.digest());
       });
       stream.on("error", reject);
     });
   }
   const content = await fs.promises.readFile(realPath);
-  const hash = crypto3.createHash("sha256");
+  const hash = crypto22.createHash("sha256");
   hash.update(normalizedPath);
   hash.update(":");
   hash.update(content);
@@ -46948,7 +46948,7 @@ function isBuffer(value) {
 }
 function generateKeyPair2() {
   try {
-    const keyPair = crypto3.generateKeyPairSync("ed25519", {
+    const keyPair = crypto22.generateKeyPairSync("ed25519", {
       publicKeyEncoding: {
         type: "spki",
         format: "pem"
@@ -46962,7 +46962,7 @@ function generateKeyPair2() {
     if (typeof publicKey !== "string" || typeof privateKey !== "string") {
       throw new Error("Expected keypair to have string keys");
     }
-    const publicKeyObj = crypto3.createPublicKey(publicKey);
+    const publicKeyObj = crypto22.createPublicKey(publicKey);
     const publicKeyExport = publicKeyObj.export({
       type: "spki",
       format: "der"
@@ -47011,12 +47011,12 @@ function verify3(data, signature, publicKeyBase64) {
       // BIT STRING, 33 bytes (32 key + 1 padding)
     ]);
     const spkiBuffer = Buffer.concat([spkiHeader, rawPublicKey]);
-    const publicKeyObj = crypto3.createPublicKey({
+    const publicKeyObj = crypto22.createPublicKey({
       key: spkiBuffer,
       format: "der",
       type: "spki"
     });
-    return crypto3.verify(null, dataBuffer, publicKeyObj, signatureBuffer);
+    return crypto22.verify(null, dataBuffer, publicKeyObj, signatureBuffer);
   } catch (err) {
     if (err instanceof Error && err.message.includes("verification failed")) {
       return false;
@@ -47026,17 +47026,6 @@ function verify3(data, signature, publicKeyBase64) {
     );
   }
 }
-var EncryptedKeyFileSchema = external_exports.object({
-  version: external_exports.literal(1),
-  iv: external_exports.string().min(1),
-  authTag: external_exports.string().min(1),
-  salt: external_exports.string().min(1),
-  challenge: external_exports.string().min(1),
-  ciphertext: external_exports.string().min(1),
-  slot: external_exports.union([external_exports.literal(1), external_exports.literal(2)]),
-  serial: external_exports.string().optional(),
-  aad: external_exports.string().optional()
-});
 var VaultKeyProvider = class {
   type;
   displayName;
@@ -47085,7 +47074,7 @@ var VaultKeyProvider = class {
         cleanup: async () => {
           try {
             const stat2 = await fs2.stat(tempKeyPath);
-            await fs2.writeFile(tempKeyPath, crypto3.randomBytes(stat2.size));
+            await fs2.writeFile(tempKeyPath, crypto22.randomBytes(stat2.size));
             await fs2.unlink(tempKeyPath);
             await fs2.rmdir(tempDir);
           } catch (cleanupError) {
@@ -47133,7 +47122,7 @@ var VaultKeyProvider = class {
     const keyPair = generateKeyPair2();
     await fs2.mkdir(path3.dirname(publicKeyPath), { recursive: true });
     await fs2.writeFile(publicKeyPath, keyPair.publicKey, "utf-8");
-    const secretId = `attest-it-${crypto3.randomUUID()}`;
+    const secretId = `attest-it-${crypto22.randomUUID()}`;
     await this.backend.store(secretId, keyPair.privateKey);
     return {
       privateKeyRef: secretId,

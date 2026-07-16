@@ -158,8 +158,8 @@ importers:
         specifier: 5.8.3
         version: 5.8.3
       vaultkeeper:
-        specifier: ^1.0.0
-        version: 1.0.1
+        specifier: ^0.7.0
+        version: 0.7.0(@1password/sdk@0.4.0)(@types/node@22.19.3)
       vitest:
         specifier: ^3.0.0
         version: 3.2.4(@types/node@22.19.3)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.2)
