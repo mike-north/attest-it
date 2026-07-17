@@ -7,6 +7,11 @@
  * availability checks (1Password/Keychain/YubiKey) are stubbed to simulate a
  * bare CI machine where only the filesystem backend is usable, which is the
  * primary non-interactive use case this issue targets.
+ *
+ * Private keys are stored through VaultKeeper (see `storePrivateKey`), so a
+ * file-backed key's v2 reference is `{ type: 'file', id }` where `id` is the
+ * VaultKeeper secret ID. To assert on the stored PEM we retrieve it back
+ * through the same provider the CLI's `run` command uses.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import * as fs from 'node:fs'
@@ -16,20 +21,34 @@ import { Readable } from 'node:stream'
 import {
   setAttestItHomeDir,
   loadLocalConfig,
-  OnePasswordKeyProvider,
-  MacOSKeychainKeyProvider,
-  YubiKeyProvider,
+  isOnePasswordInstalled,
+  isMacOSKeychainAvailable,
+  isYubiKeyInstalled,
   isEncryptedPrivateKeyPem,
   signEd25519,
+  KeyProviderRegistry,
   type PrivateKeyRef,
 } from '@attest-it/core'
 import { runCreate, slugify, deriveUniqueSlug } from '../src/commands/identity/create.js'
 import { ExitCode } from '../src/utils/exit-codes.js'
 
-/** Narrow a PrivateKeyRef to the 'file' variant, failing the test clearly if it isn't. */
+// Only the backend-availability probes are stubbed (to simulate a bare CI
+// machine); everything else -- config read/write, key generation, VaultKeeper
+// storage/retrieval -- runs for real against the temp home.
+vi.mock('@attest-it/core', async () => {
+  const actual = await vi.importActual<typeof import('@attest-it/core')>('@attest-it/core')
+  return {
+    ...actual,
+    isOnePasswordInstalled: vi.fn(),
+    isMacOSKeychainAvailable: vi.fn(),
+    isYubiKeyInstalled: vi.fn(),
+  }
+})
+
+/** Narrow a PrivateKeyRef to the v2 'file' variant, failing the test clearly if it isn't. */
 function expectFilePrivateKey(privateKey: PrivateKeyRef | undefined): {
   type: 'file'
-  path: string
+  id: string
 } {
   if (privateKey?.type !== 'file') {
     throw new Error(
@@ -37,6 +56,21 @@ function expectFilePrivateKey(privateKey: PrivateKeyRef | undefined): {
     )
   }
   return privateKey
+}
+
+/**
+ * Retrieve the PEM stored for a v2 file-backed key, using the same VaultKeeper
+ * filesystem provider `attest-it run` uses to load a key for signing.
+ */
+async function readStoredFilePem(privateKey: PrivateKeyRef | undefined): Promise<string> {
+  const ref = expectFilePrivateKey(privateKey)
+  const provider = KeyProviderRegistry.create({ type: 'filesystem', options: {} })
+  const result = await provider.getPrivateKey(ref.id)
+  try {
+    return await fs.promises.readFile(result.keyPath, 'utf8')
+  } finally {
+    await result.cleanup()
+  }
 }
 
 describe('slugify', () => {
@@ -102,9 +136,9 @@ describe('runCreate (non-interactive)', () => {
     setAttestItHomeDir(tempHome)
 
     // Simulate a bare CI machine: only the filesystem backend is usable.
-    vi.spyOn(OnePasswordKeyProvider, 'isInstalled').mockResolvedValue(false)
-    vi.spyOn(MacOSKeychainKeyProvider, 'isAvailable').mockReturnValue(false)
-    vi.spyOn(YubiKeyProvider, 'isInstalled').mockResolvedValue(false)
+    vi.mocked(isOnePasswordInstalled).mockResolvedValue(false)
+    vi.mocked(isMacOSKeychainAvailable).mockReturnValue(false)
+    vi.mocked(isYubiKeyInstalled).mockResolvedValue(false)
 
     // Non-interactive by default; individual tests override this.
     Object.defineProperty(process.stdin, 'isTTY', { value: undefined, configurable: true })
@@ -171,6 +205,7 @@ describe('runCreate (non-interactive)', () => {
 
       const config = await loadLocalConfig()
       expect(config).not.toBeNull()
+      expect(config?.version).toBe(2)
       expect(config?.activeIdentity).toBe('ci-bot')
       const identity = config?.identities['ci-bot']
       expect(identity).toMatchObject({
@@ -179,6 +214,8 @@ describe('runCreate (non-interactive)', () => {
         github: 'ci-bot-gh',
       })
       expect(identity?.privateKey.type).toBe('file')
+      // v2 file refs carry a VaultKeeper secret id, not an on-disk path.
+      expect(expectFilePrivateKey(identity?.privateKey).id).toBeTruthy()
       expect(mockProcessExit).not.toHaveBeenCalled()
     })
 
@@ -212,7 +249,7 @@ describe('runCreate (non-interactive)', () => {
   })
 
   describe('--passphrase-stdin', () => {
-    it('should encrypt the private key file using a passphrase piped via stdin', async () => {
+    it('should encrypt the private key using a passphrase piped via stdin', async () => {
       await withFakeStdin('super-secret-passphrase\n', () =>
         runCreate({
           name: 'CI Bot',
@@ -224,8 +261,7 @@ describe('runCreate (non-interactive)', () => {
 
       const config = await loadLocalConfig()
       const identity = config?.identities['ci-bot']
-      const filePath = expectFilePrivateKey(identity?.privateKey).path
-      const pem = fs.readFileSync(filePath, 'utf8')
+      const pem = await readStoredFilePem(identity?.privateKey)
 
       expect(isEncryptedPrivateKeyPem(pem)).toBe(true)
       // Round-trip: the encrypted key must actually be usable with the passphrase.
@@ -248,8 +284,7 @@ describe('runCreate (non-interactive)', () => {
 
       const config = await loadLocalConfig()
       const identity = config?.identities['ci-bot']
-      const filePath = expectFilePrivateKey(identity?.privateKey).path
-      const pem = fs.readFileSync(filePath, 'utf8')
+      const pem = await readStoredFilePem(identity?.privateKey)
 
       expect(isEncryptedPrivateKeyPem(pem)).toBe(false)
     })
