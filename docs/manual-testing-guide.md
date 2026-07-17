@@ -80,28 +80,29 @@ pnpm --filter @attest-it/cli test:manual:visual all
 
 **Requirements**: Terminal with color support.
 
-## Creating Attestations
+## Creating Attestations (Seals)
 
-After successfully running a manual test, create an attestation:
+After successfully running a manual test, create a seal:
 
 ```bash
-# Run the test through attest-it to create attestation
+# Run the test through attest-it to create a seal
 pnpm exec attest-it run --suite 1password-integration
 
 # Or seal a gate directly after running the test manually
 pnpm exec attest-it seal 1password-integration
 ```
 
-The attestation is a cryptographic signature proving you ran the test. It's stored in `.attest-it/attestations.json`.
+The seal is a cryptographic signature proving you ran the test. It's stored in `.attest-it/seals.json`
+(configurable via the policy's `settings.sealsPath`).
 
 ## When to Re-attest
 
-Attestations are invalidated when:
+Seals are invalidated when:
 
 1. **Code changes**: Files in the gate's fingerprint paths are modified
-2. **Age expires**: Attestations older than 90 days expire
+2. **Age expires**: Seals older than the gate's `maxAge` (90 days for this project's gates) expire
 
-The CI workflow will fail if attestations are missing or invalid.
+The CI workflow will fail if seals are missing or invalid.
 
 ## CI Verification
 
@@ -111,12 +112,12 @@ The workflow runs on every PR to main. It:
 
 1. Builds the project
 2. Runs the attest-it GitHub Action
-3. Verifies all manual test gates have valid attestations
-4. Fails the PR if any attestation is missing or invalid
+3. Verifies all manual test gates have valid seals
+4. Fails the PR if any seal is missing or invalid
 
 ### Example CI Failure Output
 
-When attestations are missing or invalid, you'll see:
+When seals are missing or invalid, you'll see something like:
 
 ```
 Error: Gate 'yubikey-integration' verification failed
@@ -124,29 +125,29 @@ Error: Gate 'yubikey-integration' verification failed
   Expected: abc123...
   Actual: def456...
 
-  Files changed since last attestation:
+  Files changed since last seal:
     - packages/core/src/key-provider/yubikey-provider.ts
 ```
 
 ## Troubleshooting
 
-### "Missing attestation" error
+### "MISSING" seal state
 
-Run the manual test and create an attestation:
-
-```bash
-pnpm exec attest-it run --suite <suite-name>
-```
-
-### "Stale attestation" error
-
-The code has changed since the last attestation. Re-run the test:
+Run the manual test and create a seal:
 
 ```bash
 pnpm exec attest-it run --suite <suite-name>
 ```
 
-### "Unknown signer" error
+### "FINGERPRINT_MISMATCH" / "STALE" seal state
+
+The code has changed since the last seal, or the seal has exceeded the gate's `maxAge`. Re-run the test:
+
+```bash
+pnpm exec attest-it run --suite <suite-name>
+```
+
+### "UNKNOWN_SIGNER" seal state
 
 Your identity's public key isn't in the policy. Add yourself to `.attest-it/policy.yaml`:
 
@@ -185,7 +186,7 @@ The test will prompt you to select which YubiKey to use.
 
 ## Adding New Manual Tests
 
-To add a new manual test that requires attestation:
+To add a new manual test that requires a seal:
 
 ### Checklist
 
@@ -193,7 +194,7 @@ To add a new manual test that requires attestation:
 - [ ] Add the npm script to `packages/cli/package.json`
 - [ ] Add a gate definition to `.attest-it/policy.yaml`
 - [ ] Add a suite configuration to `.attest-it/config.yaml`
-- [ ] Run the test and create an initial attestation
+- [ ] Run the test and create an initial seal
 - [ ] Update this guide with the new test information
 
 ### Step 1: Create the Test Script
@@ -243,20 +244,23 @@ In `.attest-it/policy.yaml`, add a gate definition:
 ```yaml
 gates:
   my-integration:
+    name: My Integration Tests
     description: Manual test for My Integration
-    fingerprintPaths:
-      - packages/core/src/my-integration-provider.ts
-      - packages/cli/test/manual/scripts/test-my-integration.ts
     authorizedSigners:
       - your-slug
-    requiresManualAttestation: true
+    fingerprint:
+      paths:
+        - packages/core/src/my-integration-provider.ts
+        - packages/cli/test/manual/scripts/test-my-integration.ts
+    maxAge: 90d
 ```
 
 **Key fields**:
 
-- `fingerprintPaths`: Files that, if modified, invalidate existing attestations
-- `authorizedSigners`: Team members allowed to create attestations for this gate
-- `requiresManualAttestation`: Indicates this gate cannot be automated
+- `fingerprint.paths`: Files that, if modified, invalidate existing seals
+- `authorizedSigners`: Team members allowed to create seals for this gate
+- `maxAge`: How long a seal remains valid before it's considered stale (manual tests
+  can't run in CI, so this is what forces periodic re-verification)
 
 ### Step 4: Add Suite to Config
 
@@ -265,30 +269,29 @@ In `.attest-it/config.yaml`, add a suite configuration:
 ```yaml
 suites:
   my-integration:
+    gate: my-integration
     description: Test My Integration provider
     command: pnpm --filter @attest-it/cli test:manual:my-integration
-    gates:
-      - my-integration
 ```
 
 **Key fields**:
 
 - `command`: The full command to run the test
-- `gates`: List of gates this suite satisfies (usually one gate per suite)
+- `gate`: The single gate this suite satisfies
 
-### Step 5: Create Initial Attestation
+### Step 5: Create Initial Seal
 
-Run the test and create an attestation:
+Run the test and create a seal:
 
 ```bash
 # Run the test
 pnpm --filter @attest-it/cli test:manual:my-integration
 
-# Create attestation
+# Create the seal
 pnpm exec attest-it seal my-integration
 ```
 
-Commit the attestation file (`.attest-it/attestations.json`) along with your changes.
+Commit the seals file (`.attest-it/seals.json`) along with your changes.
 
 ### Example: Full Flow
 
@@ -321,12 +324,14 @@ testAwsSecrets().catch(console.error)
 ```yaml
 gates:
   aws-secrets-integration:
+    name: AWS Secrets Manager Integration Tests
     description: Manual test for AWS Secrets Manager integration
-    fingerprintPaths:
-      - packages/core/src/key-provider/aws-secrets-provider.ts
-      - packages/cli/test/manual/scripts/test-aws-secrets.ts
     authorizedSigners: [your-slug]
-    requiresManualAttestation: true
+    fingerprint:
+      paths:
+        - packages/core/src/key-provider/aws-secrets-provider.ts
+        - packages/cli/test/manual/scripts/test-aws-secrets.ts
+    maxAge: 90d
 ```
 
 **4. Config suite**:
@@ -334,12 +339,12 @@ gates:
 ```yaml
 suites:
   aws-secrets-integration:
+    gate: aws-secrets-integration
     description: Test AWS Secrets Manager provider
     command: pnpm --filter @attest-it/cli test:manual:aws-secrets
-    gates: [aws-secrets-integration]
 ```
 
-**5. Create attestation**:
+**5. Create the seal**:
 
 ```bash
 pnpm exec attest-it run --suite aws-secrets-integration

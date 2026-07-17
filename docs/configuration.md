@@ -362,10 +362,12 @@ groups:
     - visual-tests
 ```
 
-Run a group:
+Groups are selectable in interactive mode (run `npx attest-it run` with no `--suite`/`--all`, then
+press `g1`, `g2`, etc. to select all suites in a group). There is no `--group` flag for direct,
+non-interactive runs; use `--filter <pattern>` to match suites by name instead:
 
 ```bash
-npx attest-it run --group fast
+npx attest-it run --filter 'unit-*'
 ```
 
 ---
