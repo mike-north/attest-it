@@ -51,7 +51,7 @@ async function getCompletions(env: tabtab.ParseEnvResult): Promise<void> {
     { name: '--version', description: 'Show version' },
     { name: '--verbose', description: 'Verbose output' },
     { name: '--quiet', description: 'Minimal output' },
-    { name: '--config', description: 'Path to config file' },
+    { name: '--config', description: 'Path to policy config file (overrides auto-detection)' },
   ]
 
   // Identity subcommands

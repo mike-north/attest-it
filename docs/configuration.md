@@ -479,12 +479,28 @@ When `attest-it verify` runs, each gate returns one of these states:
 
 ### Exit Codes
 
-| Code | Meaning                            |
-| ---- | ---------------------------------- |
-| 0    | All gates valid (STALE is warning) |
-| 1    | One or more gates invalid          |
-| 2    | No gates defined                   |
-| 3    | Configuration error                |
+`attest-it verify` and `attest-it status` share the same exit-code contract, defined in
+`packages/cli/src/utils/exit-codes.ts`:
+
+| Code | Constant     | Meaning                                                                                |
+| ---- | ------------ | -------------------------------------------------------------------------------------- |
+| 0    | SUCCESS      | All gates valid (STALE is a warning only)                                              |
+| 1    | FAILURE      | One or more gates invalid                                                              |
+| 2    | NO_WORK      | Configuration loaded successfully, but zero gates are defined — nothing to verify      |
+| 3    | CONFIG_ERROR | No discoverable configuration, an unreadable `--config` path, or invalid configuration |
+| 4    | CANCELLED    | User cancelled the operation                                                           |
+| 5    | MISSING_KEY  | Required private key file is missing                                                   |
+
+**Missing configuration is fail-closed, not fail-open.** If no `.attest-it/policy.yaml` (or
+`.yml`/`.json`) can be found — and no `--config <path>` override resolves either — both
+`verify` and `status` exit `CONFIG_ERROR`, never `SUCCESS`. This applies even when the
+directory has no `.attest-it/` at all: a CI job that forgot to check out its configuration
+fails loudly instead of reporting a false green. Run `attest-it init` to scaffold one.
+
+A configuration that loads successfully but defines zero gates is different from a missing
+configuration — the config is valid, there is simply nothing to check. That case exits
+`NO_WORK` (2) rather than `CONFIG_ERROR`, and rather than silently exiting `SUCCESS` (which
+would make "verified" indistinguishable from "verified nothing").
 
 ---
 
@@ -633,10 +649,17 @@ groups:
 ### Configuration Not Found
 
 ```
-Error: Configuration file not found
+✗ Policy file not found. Expected .attest-it/policy.yaml, .attest-it/policy.yml, or .attest-it/policy.json
+Run `attest-it init` to create a configuration.
 ```
 
+`verify` and `status` exit `CONFIG_ERROR` (3) in this case, not `SUCCESS` — a missing
+configuration must never be reported as a passing verification.
+
 **Solution:** Run `npx attest-it init` or create `.attest-it/policy.yaml` and `.attest-it/config.yaml` manually.
+
+If you passed `--config <path>` explicitly and that path doesn't exist or can't be read, the
+error names the path you gave instead of the auto-detected candidates.
 
 ### Version Incompatible Error
 

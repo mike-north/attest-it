@@ -5,6 +5,7 @@ import {
   readSealsSync,
   verifyAllSeals,
   verifyGateSeal,
+  SplitConfigNotFoundError,
   type VerificationState,
   type SealVerificationResult,
 } from '@attest-it/core'
@@ -24,8 +25,9 @@ export const verifyCommand = new Command('verify')
   .description('Verify all gate seals (for CI)')
   .argument('[gates...]', 'Verify specific gates only')
   .option('--json', 'Output JSON for machine parsing')
-  .action(async (gates: string[], options: VerifyOptions) => {
-    await runVerify(gates, options)
+  .action(async (gates: string[], options: VerifyOptions, command: Command) => {
+    const configPath = command.parent?.opts<{ config?: string }>().config
+    await runVerify(gates, options, configPath)
   })
 
 interface VerifyOptions {
@@ -38,20 +40,39 @@ interface VerifyOptions {
  * Verifies signature validity and checks seal status for all gates
  * or specific gates. Intended for CI/CD pipelines.
  *
+ * Exits {@link ExitCode.CONFIG_ERROR} — never {@link ExitCode.SUCCESS} — when no
+ * configuration can be found at all (no `.attest-it/policy.yaml` discoverable, or an
+ * explicit `--config` path that can't be read). A missing or unreadable config is an
+ * indeterminate state, so it must verify as not-approved rather than silently passing.
+ *
  * @param gates - Array of gate IDs to verify, or empty for all gates
  * @param options - Command options
  * @param options.json - Output JSON for machine parsing
+ * @param configPath - Explicit `--config` path (policy file override), if provided
  * @public
  */
-async function runVerify(gates: string[], options: VerifyOptions): Promise<void> {
+async function runVerify(
+  gates: string[],
+  options: VerifyOptions,
+  configPath?: string,
+): Promise<void> {
   try {
-    // Load split config (policy + operational, merged)
-    const config = await loadSplitConfig()
+    // Load split config (policy + operational, merged). An explicit --config path
+    // overrides policy auto-detection; otherwise policy/operational are auto-detected.
+    const config = await loadSplitConfig(
+      configPath ? { policySource: { type: 'filesystem', path: configPath } } : {},
+    )
 
-    // Check if gates are defined
+    // Config loaded successfully but defines zero gates: there is nothing to verify.
+    // This is distinct from a missing/unreadable config (CONFIG_ERROR) — the config
+    // is valid, so treat it as NO_WORK rather than an error or a silent success.
     if (!config.gates || Object.keys(config.gates).length === 0) {
-      error('No gates defined in configuration')
-      process.exit(ExitCode.CONFIG_ERROR)
+      if (options.json) {
+        outputJson([])
+      } else {
+        warn('No gates defined in configuration — nothing to verify')
+      }
+      process.exit(ExitCode.NO_WORK)
     }
 
     // Read seals
@@ -121,7 +142,12 @@ async function runVerify(gates: string[], options: VerifyOptions): Promise<void>
       process.exit(ExitCode.SUCCESS)
     }
   } catch (err) {
-    if (err instanceof Error) {
+    if (err instanceof SplitConfigNotFoundError) {
+      // No discoverable config (or an unreadable --config path): fail closed with
+      // a legible, actionable message rather than exiting 0 on an indeterminate state.
+      error(err.message)
+      log('Run `attest-it init` to create a configuration.')
+    } else if (err instanceof Error) {
       error(err.message)
     } else {
       error('Unknown error occurred')

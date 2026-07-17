@@ -540,6 +540,43 @@ describe('CLI Integration Tests', () => {
     })
   })
 
+  describe('NO_WORK: config present but zero gates configured', () => {
+    /**
+     * Regression test for #81: a valid configuration that defines zero gates is
+     * distinct from a missing/unreadable one. `runVerify`/`runStatus` exit
+     * NO_WORK (2) for it — never CONFIG_ERROR (a valid config isn't an error) and
+     * never a silent SUCCESS (which would make "verified" indistinguishable from
+     * "verified nothing"). See `verify.test.ts`/`status.test.ts` for the direct
+     * unit-level exercise of that branch.
+     *
+     * This scenario cannot be produced end-to-end through real config files: the
+     * operational schema requires at least one suite (`operational-graph.ts`), and
+     * every suite must reference an existing gate (cross-config validation), so a
+     * schema-valid config with suites always has at least one gate too. Emptying
+     * `suites` to force `gates: {}` instead hits that schema error first — which
+     * this test documents as the actual, correct behavior for that input.
+     */
+    it('an operational config with zero suites is rejected before the zero-gates check is reached', async () => {
+      const policyPath = path.join(tempDir, '.attest-it', 'policy.yaml')
+      const policyContent = await fs.promises.readFile(policyPath, 'utf8')
+      const policy = yaml.parse(policyContent) as Record<string, unknown>
+      policy.gates = {}
+      await fs.promises.writeFile(policyPath, yaml.stringify(policy), 'utf8')
+
+      const configPath = path.join(tempDir, '.attest-it', 'config.yaml')
+      const configContent = await fs.promises.readFile(configPath, 'utf8')
+      const config = yaml.parse(configContent) as Record<string, unknown>
+      config.suites = {}
+      await fs.promises.writeFile(configPath, yaml.stringify(config), 'utf8')
+
+      await runCommand('git add . && git commit -m "clear gates and suites"', tempDir)
+
+      const result = await runCli(['verify'], tempDir)
+      expect(result.exitCode).toBe(3) // CONFIG_ERROR: operational schema rejects zero suites
+      expect(result.stderr).toContain('At least one suite must be defined')
+    })
+  })
+
   describe('seal workflow', () => {
     it('full workflow: check status, manually seal, verify', async () => {
       // Initial status should show missing
@@ -616,6 +653,57 @@ describe('CLI Integration Tests', () => {
       } finally {
         await fs.promises.rm(emptyDir, { recursive: true, force: true })
       }
+    })
+
+    it('handles missing config file for verify (regression for #81: never exits 0)', async () => {
+      // Regression test for #81 ("verify exits 0 (fail-open) when no config is
+      // present"): a directory with no discoverable attest-it configuration at all
+      // must never let `verify` report success. Verified end-to-end against the
+      // built CLI binary, not a mocked config loader.
+      const emptyDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'attest-it-empty-'))
+
+      try {
+        const result = await runCli(['verify'], emptyDir)
+        expect(result.exitCode).toBe(3) // CONFIG_ERROR, never 0
+        expect(result.exitCode).not.toBe(0)
+        expect(result.stderr).toContain('Policy file not found')
+        expect(result.stdout).toContain('attest-it init')
+      } finally {
+        await fs.promises.rm(emptyDir, { recursive: true, force: true })
+      }
+    })
+
+    it('handles missing config file for status consistently with verify', async () => {
+      const emptyDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'attest-it-empty-'))
+
+      try {
+        const result = await runCli(['status'], emptyDir)
+        expect(result.exitCode).toBe(3) // CONFIG_ERROR, consistent with verify
+        expect(result.stderr).toContain('Policy file not found')
+        expect(result.stdout).toContain('attest-it init')
+      } finally {
+        await fs.promises.rm(emptyDir, { recursive: true, force: true })
+      }
+    })
+
+    it('names the path when --config points to a nonexistent file (verify)', async () => {
+      // Regression test for #81 acceptance criterion: `verify --config <missing>`
+      // must exit non-zero and name the unreadable path, never exit 0.
+      const missingPath = path.join(tempDir, 'does-not-exist.yaml')
+      const result = await runCli(['verify', '--config', missingPath], tempDir)
+
+      expect(result.exitCode).toBe(3) // CONFIG_ERROR, never 0
+      expect(result.exitCode).not.toBe(0)
+      expect(result.stderr).toContain(missingPath)
+    })
+
+    it('names the path when --config points to a nonexistent file (status)', async () => {
+      const missingPath = path.join(tempDir, 'does-not-exist.yaml')
+      const result = await runCli(['status', '--config', missingPath], tempDir)
+
+      expect(result.exitCode).toBe(3) // CONFIG_ERROR, never 0
+      expect(result.exitCode).not.toBe(0)
+      expect(result.stderr).toContain(missingPath)
     })
 
     it('handles invalid config file', async () => {
