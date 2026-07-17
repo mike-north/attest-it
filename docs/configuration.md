@@ -89,12 +89,18 @@ settings:
   sealsPath: .attest-it/seals.json
 ```
 
-| Field              | Type    | Required | Default                        | Description                      |
-| ------------------ | ------- | -------- | ------------------------------ | -------------------------------- |
-| `maxAgeDays`       | integer | No       | `30`                           | Default maximum seal age in days |
-| `publicKeyPath`    | string  | No       | `.attest-it/pubkey.pem`        | Path to public key file          |
-| `attestationsPath` | string  | No       | `.attest-it/attestations.json` | Path to attestations file        |
-| `sealsPath`        | string  | No       | `.attest-it/seals.json`        | Path to seals file               |
+| Field              | Type    | Required | Default                        | Description                                                                                                              |
+| ------------------ | ------- | -------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `maxAgeDays`       | integer | No       | `30`                           | Default maximum seal age in days                                                                                         |
+| `publicKeyPath`    | string  | No       | `.attest-it/pubkey.pem`        | Accepted but not currently read                                                                                          |
+| `attestationsPath` | string  | No       | `.attest-it/attestations.json` | Accepted but not currently read                                                                                          |
+| `sealsPath`        | string  | No       | `.attest-it/seals.json`        | Path to the seals file -- the only one of these four settings that actually governs where seals are read from/written to |
+
+Only `sealsPath` currently has an effect: every command that reads or writes
+seals (`seal`, `run`, `verify`, `status`, `prune`, `team remove`) resolves the
+seals file location from `settings.sealsPath`. `publicKeyPath` and
+`attestationsPath` are accepted by the schema (with defaults) but nothing in
+the codebase reads them back -- setting either has no observable effect.
 
 ### Operational Settings (`config.yaml`)
 

@@ -14,8 +14,9 @@ export const exportCommand = new Command('export')
 
 /**
  * Run the export command to output a YAML snippet for team config.
+ * @public
  */
-async function runExport(slug?: string): Promise<void> {
+export async function runExport(slug?: string): Promise<void> {
   try {
     const config = await loadLocalConfig()
 
@@ -38,7 +39,7 @@ async function runExport(slug?: string): Promise<void> {
     log('')
     log(theme.blue.bold()('Team Configuration YAML:'))
     log('')
-    log(theme.muted('# Add this to your team config file (.attest-it/team-config.yaml)'))
+    log(theme.muted('# Add this to .attest-it/policy.yaml under the "team:" key'))
     log('')
 
     // Build export object (only include fields that are present)
@@ -64,7 +65,7 @@ async function runExport(slug?: string): Promise<void> {
 
     log(yamlString)
     log('')
-    log(theme.muted('# The team owner can add this to the "members:" section'))
+    log(theme.muted('# The team owner can add this to the "team:" section of policy.yaml'))
     log('')
   } catch (err) {
     if (err instanceof Error) {
