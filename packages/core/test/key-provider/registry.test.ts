@@ -5,6 +5,9 @@
  * The registry now creates VaultKeyProvider instances backed by VaultKeeper
  * SecretBackend implementations. Tests mock the VaultKeeper BackendRegistry
  * to avoid requiring real backends.
+ *
+ * VaultKeyProvider.type is derived from the backend's own `type` (not a
+ * stable 'vaultkeeper' string) — see vault-key-provider.ts.
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
@@ -96,10 +99,11 @@ describe('KeyProviderRegistry', () => {
       const provider = KeyProviderRegistry.create(config)
 
       expect(provider).toBeInstanceOf(VaultKeyProvider)
-      // Per #63's design, VaultKeyProvider.type is the stable 'vaultkeeper'
-      // string regardless of backend; the backend identity lives in
-      // provider.getConfig().options.backendType instead.
-      expect(provider.type).toBe('vaultkeeper')
+      // #65 derives VaultKeyProvider.type from the underlying VaultKeeper
+      // backend's own `type` (see vault-key-provider.ts), rather than using
+      // a stable 'vaultkeeper' string — the filesystem provider registers
+      // the 'file' backend, so the derived type is 'file'.
+      expect(provider.type).toBe('file')
       expect(provider.displayName).toBe('Filesystem')
     })
 
@@ -112,9 +116,10 @@ describe('KeyProviderRegistry', () => {
       const provider = KeyProviderRegistry.create(config)
 
       expect(provider).toBeInstanceOf(VaultKeyProvider)
-      // Per #63's design, VaultKeyProvider.type is the stable 'vaultkeeper'
-      // string regardless of backend.
-      expect(provider.type).toBe('vaultkeeper')
+      // #65 derives VaultKeyProvider.type from the underlying VaultKeeper
+      // backend's own `type` — the 1password provider registers the
+      // '1password' backend, so the derived type is '1password'.
+      expect(provider.type).toBe('1password')
       expect(provider.displayName).toBe('1Password')
     })
 
@@ -127,9 +132,10 @@ describe('KeyProviderRegistry', () => {
       const provider = KeyProviderRegistry.create(config)
 
       expect(provider).toBeInstanceOf(VaultKeyProvider)
-      // Per #63's design, VaultKeyProvider.type is the stable 'vaultkeeper'
-      // string regardless of backend.
-      expect(provider.type).toBe('vaultkeeper')
+      // #65 derives VaultKeyProvider.type from the underlying VaultKeeper
+      // backend's own `type` — the macos-keychain provider registers the
+      // 'keychain' backend, so the derived type is 'keychain'.
+      expect(provider.type).toBe('keychain')
       expect(provider.displayName).toBe('macOS Keychain')
     })
 
@@ -142,9 +148,10 @@ describe('KeyProviderRegistry', () => {
       const provider = KeyProviderRegistry.create(config)
 
       expect(provider).toBeInstanceOf(VaultKeyProvider)
-      // Per #63's design, VaultKeyProvider.type is the stable 'vaultkeeper'
-      // string regardless of backend.
-      expect(provider.type).toBe('vaultkeeper')
+      // #65 derives VaultKeyProvider.type from the underlying VaultKeeper
+      // backend's own `type` — the yubikey provider registers the
+      // 'yubikey' backend, so the derived type is 'yubikey'.
+      expect(provider.type).toBe('yubikey')
       expect(provider.displayName).toBe('YubiKey')
     })
 
