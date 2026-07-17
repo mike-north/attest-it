@@ -253,10 +253,32 @@ describe('documented getting-started flow end-to-end (issue #84)', () => {
       }
       expect(teamMember.publicKey).toBe(publicKey)
 
+      // AC (issue #93): `run` refuses on an uncommitted working tree, and the
+      // old getting-started.md order (commit *after* running) failed on a
+      // literal first read because the Step 2b/3 config edits were still
+      // uncommitted here. Assert the failure mode directly, before fixing
+      // it, so a regression that silently drops the clean-tree gate -- or
+      // reintroduces the bad doc order -- is caught by this test either way.
+      const dirtyRunResult = await runCliNonInteractive(
+        ['run', '--suite', 'smoke', '--yes'],
+        projectDir,
+        env,
+      )
+      expect(dirtyRunResult.exitCode).not.toBe(0)
+      expect(dirtyRunResult.stderr).toContain(
+        'Working tree has uncommitted changes. Please commit or stash before attesting.',
+      )
+
+      // Step 3b: commit your configuration (docs/getting-started.md "Step 3b")
+      // -- must happen before Step 4 for `run` to succeed, per the assertion
+      // above. This is the fix for issue #93: the docs previously placed the
+      // config commit after "Run Tests and Create Seal" with no earlier
+      // commit step, which is the exact sequence that just failed.
       await runGit(['add', '.'], projectDir)
       await runGit(['commit', '-m', 'configure gate, suite, and team'], projectDir)
 
-      // Step 4: run --suite ... --yes (docs/getting-started.md "Step 4")
+      // Step 4: run --suite ... --yes (docs/getting-started.md "Step 4"),
+      // now succeeding because Step 3b left a clean working tree.
       const runResult = await runCliNonInteractive(
         ['run', '--suite', 'smoke', '--yes'],
         projectDir,

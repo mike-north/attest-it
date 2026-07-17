@@ -250,9 +250,31 @@ npx attest-it team add --slug bob --name "Bob Jones" \
   --public-key "MCowBQYDK2VwAyEA..." --gates desktop-tests < /dev/null
 ```
 
+## Step 3b: Commit Your Configuration
+
+Before running tests, commit everything you've changed so far -- the `package.json` update
+from `init`, and the `.attest-it/policy.yaml` / `.attest-it/config.yaml` edits from Steps 2b
+and 3:
+
+```bash
+git add package.json .attest-it/
+git commit -m "Configure attest-it: gate, suite, and team"
+```
+
+**This step must come before Step 4.** `attest-it run` refuses to seal against a dirty
+working tree -- including newly-created, not-yet-committed files -- so if you run it with
+the config edits above still uncommitted, it fails with:
+
+```
+✗ Working tree has uncommitted changes. Please commit or stash before attesting.
+```
+
+See [Working Tree Has Uncommitted Changes](configuration.md#working-tree-has-uncommitted-changes)
+for why this precondition exists.
+
 ## Step 4: Run Tests and Create Seal
 
-Run your test suite and create a seal:
+With a clean working tree (Step 3b), run your test suite and create a seal:
 
 ```bash
 npx attest-it run --suite desktop-tests
@@ -311,10 +333,11 @@ npx attest-it seal desktop-tests
 
 ## Step 5: Commit the Seal
 
-Add the seal file to version control:
+`policy.yaml` and `config.yaml` are already committed (Step 3b), so the only new file `run`
+produced is the seal itself. Add it to version control:
 
 ```bash
-git add .attest-it/seals.json .attest-it/policy.yaml .attest-it/config.yaml
+git add .attest-it/seals.json
 git commit -m "Add seal for desktop-tests"
 git push
 ```
@@ -383,6 +406,14 @@ Age: 2 days
 
 Overall: All gates valid
 ```
+
+**`status` is informational and exits `0` when it successfully reports gate results** --
+even when a gate is `MISSING`, `FINGERPRINT_MISMATCH`, or otherwise invalid, it reports what
+it finds rather than enforcing it. Don't wire `status` into CI expecting it to fail the build
+on a bad gate; use `attest-it verify` for that (see [Step 6](#step-6-set-up-ci-verification)).
+`status` still fails closed on the configuration itself, though: it exits `CONFIG_ERROR` on a
+missing/unreadable config and `NO_WORK` when the config defines zero gates -- see
+[Exit Codes](configuration.md#exit-codes).
 
 ## Common Workflows
 

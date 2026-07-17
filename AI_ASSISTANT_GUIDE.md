@@ -21,6 +21,7 @@ This document is designed for AI assistants (including those using RAG systems) 
 Your Ed25519 keypair and identity information:
 
 ```yaml
+version: 2
 activeIdentity: work
 identities:
   work:
@@ -29,9 +30,12 @@ identities:
     publicKey: MCowBQYDK2VwAyEA...
     privateKey:
       type: keychain # or 'file' or '1password'
-      service: attest-it
-      account: alice
+      id: attest-it-work-1a2b3c4d-5678-90ab-cdef-1234567890ab
 ```
+
+`id` is an opaque VaultKeeper secret ID that `identity create` generates -- never a raw file
+path, vault name, or keychain service string (see [Configuration Reference: Local Identity
+Configuration](docs/configuration.md#local-identity-configuration) for the full schema).
 
 ### 2. Project Configuration (split across two files)
 
@@ -197,7 +201,10 @@ User can rotate keys to a new provider: `npx attest-it identity create` (create 
 ## Exit Codes
 
 These are the actual constants exported from `packages/cli/src/utils/exit-codes.ts` — the
-only authoritative source. `verify` and `status` share this contract.
+only authoritative source. `verify` and `status` both use these constants, but **not for the
+same thing**: `verify` uses them to report gate validity; `status` uses only `SUCCESS`,
+`NO_WORK`, and `CONFIG_ERROR` (never `FAILURE`, `CANCELLED`, or `MISSING_KEY`), because
+`status` is informational and does not enforce gate results.
 
 | Code | Constant     | Meaning                                                                                |
 | ---- | ------------ | -------------------------------------------------------------------------------------- |
@@ -208,11 +215,20 @@ only authoritative source. `verify` and `status` share this contract.
 | 4    | CANCELLED    | User cancelled the operation                                                           |
 | 5    | MISSING_KEY  | Required private key file is missing                                                   |
 
+**`attest-it status` always exits `SUCCESS` (0) on gate results, even `MISSING`,
+`FINGERPRINT_MISMATCH`, `INVALID_SIGNATURE`, `UNKNOWN_SIGNER`, or `STALE` — it displays
+these states rather than enforcing them.** `attest-it verify` is the command that exits
+`FAILURE` (1) when a gate is invalid. **Never suggest `status`'s exit code as a CI gate or
+as proof that gates are valid** — if a user asks how to fail a build on a bad gate, or an
+automated workflow needs to check gate validity, point them at `verify`, not `status`.
+
 **Missing configuration fails closed.** `attest-it verify` and `attest-it status` exit
 `CONFIG_ERROR`, never `SUCCESS`, when no `.attest-it/policy.yaml` is discoverable (or an
 explicit `--config` path can't be read) — including in a directory with no `.attest-it/` at
 all. Do not tell a user that a bare `SUCCESS` from a directory lacking `.attest-it/` means
 "nothing to worry about" — treat it as a real failure and point them at `attest-it init`.
+This `CONFIG_ERROR` fail-closed behavior is the only thing `status`'s exit code shares with
+`verify`'s enforcement semantics — it does not extend to gate validity.
 
 ## What AI Assistants Should NOT Do
 
@@ -223,6 +239,8 @@ all. Do not tell a user that a bare `SUCCESS` from a directory lacking `.attest-
 - Bypass signature verification
 - Edit identity configuration files directly
 - Suggest workarounds that bypass security
+- Use `attest-it status`'s exit code to gate CI or as proof a gate is valid -- it always
+  exits `0` on gate results; use `attest-it verify` for enforcement
 
 **DO:**
 
