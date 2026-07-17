@@ -93,21 +93,24 @@ export function createTestProject(options: CreateTestProjectOptions = {}): TestP
   writeFileSync(join(baseDir, '.attest-it', 'policy.yaml'), stringifyYaml(policy), 'utf8')
   writeFileSync(join(baseDir, '.attest-it', 'config.yaml'), stringifyYaml(operational), 'utf8')
 
-  // Local identity config lives under the attest-it home.
+  // Local identity config lives under the attest-it home. Both identities use
+  // the v2 `filesystem` (legacy) key ref: the private key is a real PEM on disk
+  // read directly by the legacy filesystem provider, no VaultKeeper import
+  // required. This mirrors how a migrated v1 identity is served.
   setAttestItHomeDir(homeDir)
   const localConfig: LocalConfig = {
-    version: 1,
+    version: 2,
     activeIdentity: 'alice',
     identities: {
       alice: {
         name: 'Alice Developer',
         publicKey: alice.publicKey,
-        privateKey: { type: 'file', path: aliceKeyPath },
+        privateKey: { type: 'filesystem', path: aliceKeyPath },
       },
       mallory: {
         name: 'Mallory',
         publicKey: mallory.publicKey,
-        privateKey: { type: 'file', path: malloryKeyPath },
+        privateKey: { type: 'filesystem', path: malloryKeyPath },
       },
     },
   }

@@ -184,33 +184,21 @@ export function keyProviderForIdentity(
 
   switch (privateKey.type) {
     case 'file':
-      return KeyProviderRegistry.create({
-        type: 'filesystem',
-        options: { privateKeyPath: privateKey.path },
-      })
+      // VaultKeeper file backend — id is the VaultKeeper secret ID.
+      return KeyProviderRegistry.create({ type: 'filesystem', options: {} })
     case 'keychain':
-      return KeyProviderRegistry.create({
-        type: 'macos-keychain',
-        options: { itemName: privateKey.service },
-      })
+      // VaultKeeper keychain backend — id is the VaultKeeper secret ID.
+      return KeyProviderRegistry.create({ type: 'macos-keychain', options: {} })
     case '1password':
-      return KeyProviderRegistry.create({
-        type: '1password',
-        options: {
-          accountUuid: privateKey.account,
-          vault: privateKey.vault,
-          itemName: privateKey.item,
-        },
-      })
+      // VaultKeeper 1Password backend — id is the VaultKeeper secret ID.
+      return KeyProviderRegistry.create({ type: '1password', options: {} })
     case 'yubikey':
-      return KeyProviderRegistry.create({
-        type: 'yubikey',
-        options: {
-          encryptedKeyPath: privateKey.encryptedKeyPath,
-          slot: privateKey.slot,
-          serial: privateKey.serial,
-        },
-      })
+      // VaultKeeper YubiKey backend — id is the VaultKeeper secret ID.
+      return KeyProviderRegistry.create({ type: 'yubikey', options: {} })
+    case 'filesystem':
+      // Legacy filesystem provider — for v1 identities not yet imported into
+      // VaultKeeper. The key ref is a raw PEM path on disk.
+      return KeyProviderRegistry.create({ type: 'filesystem-legacy', options: {} })
     default: {
       const _exhaustive: never = privateKey
       throw new Error(`Unsupported private key type: ${String(_exhaustive)}`)
@@ -220,6 +208,10 @@ export function keyProviderForIdentity(
 
 /**
  * Get the provider key-reference string for an {@link Identity}.
+ *
+ * For v2 VaultKeeper-backed types the ref is the secret ID; for the legacy
+ * `filesystem` type it is the file path.
+ *
  * @internal
  */
 export function keyRefForIdentity(identity: Identity): string {
@@ -227,13 +219,15 @@ export function keyRefForIdentity(identity: Identity): string {
 
   switch (privateKey.type) {
     case 'file':
-      return privateKey.path
+      return privateKey.id
     case 'keychain':
-      return privateKey.service
+      return privateKey.id
     case '1password':
-      return privateKey.item
+      return privateKey.id
     case 'yubikey':
-      return privateKey.encryptedKeyPath
+      return privateKey.id
+    case 'filesystem':
+      return privateKey.path
     default: {
       const _exhaustive: never = privateKey
       throw new Error(`Unsupported private key type: ${String(_exhaustive)}`)
