@@ -344,7 +344,7 @@ export function loadSplitConfigSync(options?: LoadSplitConfigOptions): AttestItC
 export interface LocalConfig {
     activeIdentity: string;
     identities: Record<string, Identity>;
-    version: 1;
+    version: 2;
 }
 
 // @public
@@ -753,25 +753,25 @@ export class PolicyValidationError extends Error {
 }
 
 // @public
+export type PrivateKeyBackendType = '1password' | 'file' | 'keychain' | 'yubikey';
+
+// @public
 export type PrivateKeyRef = {
-    account: string;
-    keychain?: string;
-    service: string;
+    id: string;
+    type: '1password';
+    vault?: string;
+} | {
+    id: string;
+    type: 'file';
+} | {
+    id: string;
     type: 'keychain';
 } | {
-    account?: string;
-    field?: string;
-    item: string;
-    type: '1password';
-    vault: string;
-} | {
-    encryptedKeyPath: string;
-    serial?: string;
-    slot?: 1 | 2;
+    id: string;
     type: 'yubikey';
 } | {
     path: string;
-    type: 'file';
+    type: 'filesystem';
 };
 
 // @public
@@ -864,6 +864,15 @@ export class SplitConfigNotFoundError extends Error {
 export interface SplitConfigResult {
     operational: OperationalConfig;
     policy: PolicyConfig;
+}
+
+// @public
+export function storePrivateKey(backendType: PrivateKeyBackendType, privateKeyPem: string, identityName: string): Promise<StorePrivateKeyResult>;
+
+// @public
+export interface StorePrivateKeyResult {
+    secretId: string;
+    storageDescription: string;
 }
 
 // @public

@@ -132,7 +132,7 @@ describe('team join command', () => {
           'test-user': {
             name: 'Test User',
             publicKey: PUBLIC_KEY,
-            privateKey: { type: 'file', path: '/test/path' },
+            privateKey: { type: 'file', id: 'attest-it-test-key' },
           },
         },
       })
@@ -140,7 +140,7 @@ describe('team join command', () => {
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'Test User',
         publicKey: PUBLIC_KEY,
-        privateKey: { type: 'file', path: '/test/path' },
+        privateKey: { type: 'file', id: 'attest-it-test-key' },
       })
 
       // Mock the policy with an existing team member using the same public key
@@ -175,7 +175,7 @@ describe('team join command', () => {
           'test-user': {
             name: 'Test User',
             publicKey: PUBLIC_KEY,
-            privateKey: { type: 'file', path: '/test/path' },
+            privateKey: { type: 'file', id: 'attest-it-test-key' },
           },
         },
       })
@@ -183,7 +183,7 @@ describe('team join command', () => {
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'Test User',
         publicKey: PUBLIC_KEY,
-        privateKey: { type: 'file', path: '/test/path' },
+        privateKey: { type: 'file', id: 'attest-it-test-key' },
       })
 
       vi.mocked(core.findPolicyPath).mockReturnValue(null)
@@ -213,7 +213,7 @@ describe('team join command', () => {
           'new-user': {
             name: 'New User',
             publicKey: PUBLIC_KEY,
-            privateKey: { type: 'file', path: '/test/path' },
+            privateKey: { type: 'file', id: 'attest-it-test-key' },
           },
         },
       })
@@ -221,7 +221,7 @@ describe('team join command', () => {
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
         publicKey: PUBLIC_KEY,
-        privateKey: { type: 'file', path: '/test/path' },
+        privateKey: { type: 'file', id: 'attest-it-test-key' },
       })
 
       mockPolicy({
@@ -252,7 +252,7 @@ describe('team join command', () => {
           'new-user': {
             name: 'New User',
             publicKey: PUBLIC_KEY,
-            privateKey: { type: 'file', path: '/test/path' },
+            privateKey: { type: 'file', id: 'attest-it-test-key' },
           },
         },
       })
@@ -260,7 +260,7 @@ describe('team join command', () => {
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
         publicKey: PUBLIC_KEY,
-        privateKey: { type: 'file', path: '/test/path' },
+        privateKey: { type: 'file', id: 'attest-it-test-key' },
       })
 
       mockPolicy({
@@ -300,7 +300,7 @@ describe('team join command', () => {
             email: 'new.user@example.com',
             github: 'newuser',
             publicKey: PUBLIC_KEY,
-            privateKey: { type: 'file', path: '/test/path' },
+            privateKey: { type: 'file', id: 'attest-it-test-key' },
           },
         },
       })
@@ -310,7 +310,7 @@ describe('team join command', () => {
         email: 'new.user@example.com',
         github: 'newuser',
         publicKey: PUBLIC_KEY,
-        privateKey: { type: 'file', path: '/test/path' },
+        privateKey: { type: 'file', id: 'attest-it-test-key' },
       })
 
       mockPolicy({
@@ -346,7 +346,7 @@ describe('team join command', () => {
           'new-user': {
             name: 'New User',
             publicKey: PUBLIC_KEY,
-            privateKey: { type: 'file', path: '/test/path' },
+            privateKey: { type: 'file', id: 'attest-it-test-key' },
           },
         },
       })
@@ -354,7 +354,7 @@ describe('team join command', () => {
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
         publicKey: PUBLIC_KEY,
-        privateKey: { type: 'file', path: '/test/path' },
+        privateKey: { type: 'file', id: 'attest-it-test-key' },
       })
 
       mockPolicy({
@@ -391,7 +391,7 @@ describe('team join command', () => {
           'new-user': {
             name: 'New User',
             publicKey: PUBLIC_KEY,
-            privateKey: { type: 'file', path: '/test/path' },
+            privateKey: { type: 'file', id: 'attest-it-test-key' },
           },
         },
       })
@@ -399,7 +399,7 @@ describe('team join command', () => {
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
         publicKey: PUBLIC_KEY,
-        privateKey: { type: 'file', path: '/test/path' },
+        privateKey: { type: 'file', id: 'attest-it-test-key' },
       })
 
       mockPolicy({
@@ -431,7 +431,7 @@ describe('team join command', () => {
           'taken-slug': {
             name: 'New User',
             publicKey: PUBLIC_KEY,
-            privateKey: { type: 'file', path: '/test/path' },
+            privateKey: { type: 'file', id: 'attest-it-test-key' },
           },
         },
       })
@@ -439,7 +439,7 @@ describe('team join command', () => {
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
         publicKey: PUBLIC_KEY,
-        privateKey: { type: 'file', path: '/test/path' },
+        privateKey: { type: 'file', id: 'attest-it-test-key' },
       })
 
       mockPolicy({
@@ -481,7 +481,7 @@ describe('team join command', () => {
           'taken-slug': {
             name: 'New User',
             publicKey: PUBLIC_KEY,
-            privateKey: { type: 'file', path: '/test/path' },
+            privateKey: { type: 'file', id: 'attest-it-test-key' },
           },
         },
       })
@@ -489,7 +489,7 @@ describe('team join command', () => {
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
         publicKey: PUBLIC_KEY,
-        privateKey: { type: 'file', path: '/test/path' },
+        privateKey: { type: 'file', id: 'attest-it-test-key' },
       })
 
       mockPolicy({
@@ -541,7 +541,7 @@ describe('team join command', () => {
           'my-identity': {
             name: 'My User',
             publicKey: PUBLIC_KEY,
-            privateKey: { type: 'file', path: '/test/path' },
+            privateKey: { type: 'file', id: 'attest-it-test-key' },
           },
         },
       })
@@ -549,7 +549,7 @@ describe('team join command', () => {
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'My User',
         publicKey: PUBLIC_KEY,
-        privateKey: { type: 'file', path: '/test/path' },
+        privateKey: { type: 'file', id: 'attest-it-test-key' },
       })
 
       mockPolicy({
@@ -580,7 +580,7 @@ describe('team join command', () => {
           'new-user': {
             name: 'New User',
             publicKey: PUBLIC_KEY,
-            privateKey: { type: 'file', path: '/test/path' },
+            privateKey: { type: 'file', id: 'attest-it-test-key' },
           },
         },
       })
@@ -588,7 +588,7 @@ describe('team join command', () => {
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
         publicKey: PUBLIC_KEY,
-        privateKey: { type: 'file', path: '/test/path' },
+        privateKey: { type: 'file', id: 'attest-it-test-key' },
       })
 
       mockPolicy({
@@ -614,7 +614,7 @@ describe('team join command', () => {
           'new-user': {
             name: 'New User',
             publicKey: PUBLIC_KEY,
-            privateKey: { type: 'file', path: '/test/path' },
+            privateKey: { type: 'file', id: 'attest-it-test-key' },
           },
         },
       })
@@ -622,7 +622,7 @@ describe('team join command', () => {
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
         publicKey: PUBLIC_KEY,
-        privateKey: { type: 'file', path: '/test/path' },
+        privateKey: { type: 'file', id: 'attest-it-test-key' },
       })
 
       mockPolicy({
@@ -649,7 +649,7 @@ describe('team join command', () => {
           'new-user': {
             name: 'New User',
             publicKey: PUBLIC_KEY,
-            privateKey: { type: 'file', path: '/test/path' },
+            privateKey: { type: 'file', id: 'attest-it-test-key' },
           },
         },
       })
@@ -657,7 +657,7 @@ describe('team join command', () => {
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
         publicKey: PUBLIC_KEY,
-        privateKey: { type: 'file', path: '/test/path' },
+        privateKey: { type: 'file', id: 'attest-it-test-key' },
       })
 
       mockPolicy({
@@ -698,7 +698,7 @@ describe('team join command', () => {
           'new-user': {
             name: 'New User',
             publicKey: PUBLIC_KEY,
-            privateKey: { type: 'file', path: '/test/path' },
+            privateKey: { type: 'file', id: 'attest-it-test-key' },
           },
         },
       })
@@ -706,7 +706,7 @@ describe('team join command', () => {
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
         publicKey: PUBLIC_KEY,
-        privateKey: { type: 'file', path: '/test/path' },
+        privateKey: { type: 'file', id: 'attest-it-test-key' },
       })
 
       mockPolicy({
@@ -746,7 +746,7 @@ describe('team join command', () => {
           'new-user': {
             name: 'New User',
             publicKey: PUBLIC_KEY,
-            privateKey: { type: 'file', path: '/test/path' },
+            privateKey: { type: 'file', id: 'attest-it-test-key' },
           },
         },
       })
@@ -754,7 +754,7 @@ describe('team join command', () => {
       vi.mocked(core.getActiveIdentity).mockReturnValue({
         name: 'New User',
         publicKey: PUBLIC_KEY,
-        privateKey: { type: 'file', path: '/test/path' },
+        privateKey: { type: 'file', id: 'attest-it-test-key' },
       })
 
       mockPolicy({

@@ -62,24 +62,27 @@ async function runShow(slug?: string): Promise<void> {
     log('  Private Key Storage:')
     switch (identity.privateKey.type) {
       case 'file':
-        log(`    Type: File`)
-        log(`    Path: ${identity.privateKey.path}`)
+        log(`    Type: VaultKeeper File`)
+        log(`    ID: ${identity.privateKey.id}`)
         break
       case 'keychain':
-        log(`    Type: macOS Keychain`)
-        log(`    Service: ${identity.privateKey.service}`)
-        log(`    Account: ${identity.privateKey.account}`)
+        log(`    Type: macOS Keychain (via VaultKeeper)`)
+        log(`    ID: ${identity.privateKey.id}`)
         break
       case '1password':
-        log(`    Type: 1Password`)
-        if (identity.privateKey.account) {
-          log(`    Account: ${identity.privateKey.account}`)
+        log(`    Type: 1Password (via VaultKeeper)`)
+        log(`    ID: ${identity.privateKey.id}`)
+        if (identity.privateKey.vault) {
+          log(`    Vault: ${identity.privateKey.vault}`)
         }
-        log(`    Vault: ${identity.privateKey.vault}`)
-        log(`    Item: ${identity.privateKey.item}`)
-        if (identity.privateKey.field) {
-          log(`    Field: ${identity.privateKey.field}`)
-        }
+        break
+      case 'yubikey':
+        log(`    Type: YubiKey (via VaultKeeper)`)
+        log(`    ID: ${identity.privateKey.id}`)
+        break
+      case 'filesystem':
+        log(`    Type: File (legacy — not managed by VaultKeeper)`)
+        log(`    Path: ${identity.privateKey.path}`)
         break
     }
     log('')

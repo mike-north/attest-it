@@ -12,27 +12,17 @@ export function formatKeyLocation(privateKey: PrivateKeyRef): string {
 
   switch (privateKey.type) {
     case 'file':
-      return `${theme.blue.bold()('File')}: ${theme.muted(privateKey.path)}`
-    case 'keychain': {
-      let keychainName = 'default'
-      if (privateKey.keychain) {
-        const filename = privateKey.keychain.split('/').pop() ?? privateKey.keychain
-        keychainName = filename.replace(/\.keychain(-db)?$/, '')
-      }
-      return `${theme.blue.bold()('macOS Keychain')}: ${theme.muted(`${keychainName}/${privateKey.service}`)}`
-    }
+      return `${theme.blue.bold()('VaultKeeper File')}: ${theme.muted(privateKey.id)}`
+    case 'keychain':
+      return `${theme.blue.bold()('macOS Keychain via VaultKeeper')}: ${theme.muted(privateKey.id)}`
     case '1password': {
-      const parts = [privateKey.vault, privateKey.item]
-      if (privateKey.account) {
-        parts.unshift(privateKey.account)
-      }
-      return `${theme.blue.bold()('1Password')}: ${theme.muted(parts.join('/'))}`
+      const location = privateKey.vault ? `${privateKey.vault}/${privateKey.id}` : privateKey.id
+      return `${theme.blue.bold()('1Password via VaultKeeper')}: ${theme.muted(location)}`
     }
-    case 'yubikey': {
-      const slotInfo = privateKey.slot ? ` (slot ${String(privateKey.slot)})` : ''
-      const serialInfo = privateKey.serial ? ` [${privateKey.serial}]` : ''
-      return `${theme.blue.bold()('YubiKey')}${serialInfo}${slotInfo}: ${theme.muted(privateKey.encryptedKeyPath)}`
-    }
+    case 'yubikey':
+      return `${theme.blue.bold()('YubiKey via VaultKeeper')}: ${theme.muted(privateKey.id)}`
+    case 'filesystem':
+      return `${theme.blue.bold()('File (legacy)')}: ${theme.muted(privateKey.path)}`
     default:
       return 'Unknown storage'
   }

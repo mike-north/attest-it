@@ -14,8 +14,8 @@ import {
   isYubiKeyConnected,
   listYubiKeyDevices,
   isYubiKeyChallengeResponseConfigured,
-  YubiKeyProvider,
   savePublicKey,
+  storePrivateKey,
 } from '@attest-it/core'
 import type { Identity, LocalConfig, PrivateKeyRef } from '@attest-it/core'
 import { log, success, error, info, verbose, getTheme } from '../../utils/output.js'
@@ -23,7 +23,6 @@ import { ExitCode } from '../../utils/exit-codes.js'
 import { validateSlug, validateEmail } from './validation.js'
 import { offerCompletionInstall } from '../../utils/completion-offer.js'
 import { join } from 'node:path'
-import { writeFile, mkdir } from 'node:fs/promises'
 
 export const createCommand = new Command('create')
   .description('Create a new identity with Ed25519 keypair')
@@ -432,126 +431,38 @@ async function runCreate(): Promise<void> {
 
     switch (storageConfig.type) {
       case 'file': {
-        // Notify user about file creation
         log('')
-        info('Creating private key file on disk...')
-
-        // Save to filesystem (respects --home-dir override)
-        const keysDir = join(getIdentityConfigDir(), 'keys')
-        await mkdir(keysDir, { recursive: true })
-        await writeFile(storageConfig.keyPath, keyPair.privateKey, { mode: 0o600 })
-
-        privateKeyRef = { type: 'file', path: storageConfig.keyPath }
-        keyStorageDescription = storageConfig.keyPath
+        info('Storing private key via VaultKeeper (file backend)...')
+        const result = await storePrivateKey('file', keyPair.privateKey, name)
+        privateKeyRef = { type: 'file', id: result.secretId }
+        keyStorageDescription = result.storageDescription
         break
       }
       case 'keychain': {
-        // Store the private key in keychain using security command
-        // Keys are stored as base64-encoded PEM strings
-        const { execFile } = await import('node:child_process')
-        const { promisify } = await import('node:util')
-        const execFileAsync = promisify(execFile)
-
-        // Encode the private key as base64 for storage
-        const encodedKey = Buffer.from(keyPair.privateKey).toString('base64')
-
-        try {
-          const addArgs = [
-            'add-generic-password',
-            '-a',
-            'attest-it',
-            '-s',
-            storageConfig.keychainItemName,
-            '-w',
-            encodedKey,
-            '-U',
-            storageConfig.selectedKeychain.path,
-          ]
-          await execFileAsync('security', addArgs)
-        } catch (err) {
-          throw new Error(
-            `Failed to store key in macOS Keychain: ${err instanceof Error ? err.message : String(err)}`,
-          )
-        }
-
-        // In the keychain, -s is the service name (item) and -a is the account ("attest-it")
-        privateKeyRef = {
-          type: 'keychain',
-          service: storageConfig.keychainItemName,
-          account: 'attest-it',
-          keychain: storageConfig.selectedKeychain.path,
-        }
-        keyStorageDescription = `macOS Keychain: ${storageConfig.selectedKeychain.name}/${storageConfig.keychainItemName}`
+        log('')
+        info('Storing private key via VaultKeeper (macOS Keychain backend)...')
+        const result = await storePrivateKey('keychain', keyPair.privateKey, name)
+        privateKeyRef = { type: 'keychain', id: result.secretId }
+        keyStorageDescription = result.storageDescription
         break
       }
       case '1password': {
-        // Write the private key to a temp file, then upload to 1Password
-        const { tmpdir } = await import('node:os')
-        const tempDir = join(tmpdir(), `attest-it-${String(Date.now())}`)
-        await mkdir(tempDir, { recursive: true })
-        const tempPrivatePath = join(tempDir, 'private.pem')
-
-        try {
-          // Write private key to temp file for upload
-          await writeFile(tempPrivatePath, keyPair.privateKey, { mode: 0o600 })
-
-          // Upload to 1Password using op document create
-          const { execFile } = await import('node:child_process')
-          const { promisify } = await import('node:util')
-          const execFileAsync = promisify(execFile)
-
-          const opArgs = [
-            'document',
-            'create',
-            tempPrivatePath,
-            '--title',
-            storageConfig.item,
-            '--vault',
-            storageConfig.selectedVault,
-            '--account',
-            storageConfig.selectedAccountUuid,
-          ]
-
-          await execFileAsync('op', opArgs)
-        } finally {
-          // Clean up temp files
-          const { rm } = await import('node:fs/promises')
-          await rm(tempDir, { recursive: true, force: true }).catch((err: unknown) => {
-            // Log cleanup errors as warnings but don't fail the operation
-            const errorMsg = err instanceof Error ? err.message : String(err)
-            console.warn(`Warning: Failed to clean up temp directory ${tempDir}: ${errorMsg}`)
-          })
-        }
-
+        log('')
+        info('Storing private key via VaultKeeper (1Password backend)...')
+        const result = await storePrivateKey('1password', keyPair.privateKey, name)
         privateKeyRef = {
           type: '1password',
+          id: result.secretId,
           vault: storageConfig.selectedVault,
-          item: storageConfig.item,
-          account: storageConfig.selectedAccountUuid,
         }
-
-        keyStorageDescription = `1Password (${storageConfig.accountDisplayName}/${storageConfig.selectedVault}/${storageConfig.item})`
+        keyStorageDescription = `VaultKeeper 1Password (${storageConfig.accountDisplayName}/${storageConfig.selectedVault}): ${result.secretId}`
         break
       }
       case 'yubikey': {
-        // Create keys directory if needed
-        const keysDir = join(getIdentityConfigDir(), 'keys')
-        await mkdir(keysDir, { recursive: true })
-
-        // Encrypt the private key with YubiKey challenge-response
-        const result = await YubiKeyProvider.encryptPrivateKey({
-          privateKey: keyPair.privateKey,
-          encryptedKeyPath: storageConfig.encryptedKeyPath,
-          slot: storageConfig.slot,
-          serial: storageConfig.selectedSerial,
-        })
-
-        privateKeyRef = {
-          type: 'yubikey',
-          encryptedKeyPath: result.encryptedKeyPath,
-          slot: storageConfig.slot,
-          serial: storageConfig.selectedSerial,
-        }
+        log('')
+        info('Storing private key via VaultKeeper (YubiKey backend)...')
+        const result = await storePrivateKey('yubikey', keyPair.privateKey, name)
+        privateKeyRef = { type: 'yubikey', id: result.secretId }
         keyStorageDescription = result.storageDescription
         break
       }
@@ -580,7 +491,7 @@ async function runCreate(): Promise<void> {
     } else {
       // Create new config with this identity as active
       newConfig = {
-        version: 1,
+        version: 2,
         activeIdentity: slug,
         identities: {
           [slug]: identity,

@@ -60,3 +60,7 @@ export {
 // Registry
 export { KeyProviderRegistry } from './registry.js'
 export type { KeyProviderFactory } from './registry.js'
+
+// High-level storage helpers
+export { storePrivateKey } from './store.js'
+export type { StorePrivateKeyResult, PrivateKeyBackendType } from './store.js'

@@ -1,5 +1,5 @@
 /**
- * Tests for identity configuration loading and validation.
+ * Tests for identity configuration loading, validation, and v1→v2 migration.
  */
 
 import * as fs from 'node:fs'
@@ -48,13 +48,14 @@ describe('identity/config', () => {
     })
   })
 
-  describe('loadLocalConfig', () => {
+  describe('loadLocalConfig (v2 format)', () => {
     describe('positive tests', () => {
-      it('should load a valid config with file-based private key', async () => {
+      it('should load a valid v2 config with file-based private key', async () => {
         const configPath = path.join(FIXTURES_DIR, 'valid-file.yaml')
         const config = await loadLocalConfig(configPath)
 
         expect(config).not.toBeNull()
+        expect(config?.version).toBe(2)
         expect(config?.activeIdentity).toBe('default')
         expect(config?.identities.default).toBeDefined()
 
@@ -65,39 +66,38 @@ describe('identity/config', () => {
         expect(identity?.publicKey).toBe('AbCdEfGhIjKlMnOpQrStUvWxYz1234567890=')
         expect(identity?.privateKey.type).toBe('file')
         if (identity?.privateKey.type === 'file') {
-          expect(identity.privateKey.path).toBe('/home/user/.ssh/attest-it.key')
+          expect(identity.privateKey.id).toBe('attest-it-550e8400-e29b-41d4-a716-446655440000')
         }
       })
 
-      it('should load a valid config with keychain-based private key', async () => {
+      it('should load a valid v2 config with keychain-based private key', async () => {
         const configPath = path.join(FIXTURES_DIR, 'valid-keychain.yaml')
         const config = await loadLocalConfig(configPath)
 
         expect(config).not.toBeNull()
+        expect(config?.version).toBe(2)
         expect(config?.activeIdentity).toBe('work')
 
         const identity = config?.identities.work
         expect(identity?.privateKey.type).toBe('keychain')
         if (identity?.privateKey.type === 'keychain') {
-          expect(identity.privateKey.service).toBe('attest-it')
-          expect(identity.privateKey.account).toBe('work-key')
+          expect(identity.privateKey.id).toBe('attest-it-work-keychain-key')
         }
       })
 
-      it('should load a valid config with 1Password-based private key', async () => {
+      it('should load a valid v2 config with 1Password-based private key', async () => {
         const configPath = path.join(FIXTURES_DIR, 'valid-1password.yaml')
         const config = await loadLocalConfig(configPath)
 
         expect(config).not.toBeNull()
+        expect(config?.version).toBe(2)
         expect(config?.activeIdentity).toBe('personal')
 
         const identity = config?.identities.personal
         expect(identity?.privateKey.type).toBe('1password')
         if (identity?.privateKey.type === '1password') {
-          expect(identity.privateKey.account).toBe('user@example.com')
+          expect(identity.privateKey.id).toBe('attest-it-personal-key')
           expect(identity.privateKey.vault).toBe('Development')
-          expect(identity.privateKey.item).toBe('attest-it-key')
-          expect(identity.privateKey.field).toBe('private_key')
         }
       })
 
@@ -112,11 +112,12 @@ describe('identity/config', () => {
         expect(config?.identities.personal).toBeDefined()
       })
 
-      it('should load a minimal config without optional fields', async () => {
+      it('should load a minimal v2 config without optional fields', async () => {
         const configPath = path.join(FIXTURES_DIR, 'minimal.yaml')
         const config = await loadLocalConfig(configPath)
 
         expect(config).not.toBeNull()
+        expect(config?.version).toBe(2)
         expect(config?.activeIdentity).toBe('minimal')
 
         const identity = config?.identities.minimal
@@ -151,18 +152,6 @@ describe('identity/config', () => {
         await expect(loadLocalConfig(configPath)).rejects.toThrow('Public key cannot be empty')
       })
 
-      it('should throw LocalConfigValidationError for extra properties', async () => {
-        const configPath = path.join(FIXTURES_DIR, 'invalid-extra-property.yaml')
-
-        await expect(loadLocalConfig(configPath)).rejects.toThrow(LocalConfigValidationError)
-      })
-
-      it('should throw LocalConfigValidationError for invalid private key type', async () => {
-        const configPath = path.join(FIXTURES_DIR, 'invalid-privatekey-type.yaml')
-
-        await expect(loadLocalConfig(configPath)).rejects.toThrow(LocalConfigValidationError)
-      })
-
       it('should throw LocalConfigValidationError for invalid YAML syntax', async () => {
         const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-identity-'))
         const configPath = path.join(tempDir, 'config.yaml')
@@ -171,7 +160,7 @@ describe('identity/config', () => {
           fs.writeFileSync(
             configPath,
             `
-version: 1
+version: 2
 activeIdentity: default
 identities:
   default:
@@ -193,7 +182,7 @@ identities:
           fs.writeFileSync(
             configPath,
             `
-version: 1
+version: 2
 activeIdentity: default
 identities:
   default:
@@ -218,7 +207,7 @@ identities:
           fs.writeFileSync(
             configPath,
             `
-version: 1
+version: 2
 activeIdentity: ""
 identities:
   default:
@@ -226,7 +215,7 @@ identities:
     publicKey: dGVzdA==
     privateKey:
       type: file
-      path: /path
+      id: attest-it-test-key
 `,
           )
 
@@ -239,7 +228,7 @@ identities:
         }
       })
 
-      it('should handle file private key with empty path', async () => {
+      it('should handle file private key with empty id', async () => {
         const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-identity-'))
         const configPath = path.join(tempDir, 'config.yaml')
 
@@ -247,7 +236,7 @@ identities:
           fs.writeFileSync(
             configPath,
             `
-version: 1
+version: 2
 activeIdentity: default
 identities:
   default:
@@ -255,18 +244,18 @@ identities:
     publicKey: dGVzdA==
     privateKey:
       type: file
-      path: ""
+      id: ""
 `,
           )
 
           await expect(loadLocalConfig(configPath)).rejects.toThrow(LocalConfigValidationError)
-          await expect(loadLocalConfig(configPath)).rejects.toThrow('File path cannot be empty')
+          await expect(loadLocalConfig(configPath)).rejects.toThrow('Secret ID cannot be empty')
         } finally {
           fs.rmSync(tempDir, { recursive: true, force: true })
         }
       })
 
-      it('should handle keychain private key with empty service', async () => {
+      it('should handle 1Password without optional vault field', async () => {
         const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-identity-'))
         const configPath = path.join(tempDir, 'config.yaml')
 
@@ -274,35 +263,7 @@ identities:
           fs.writeFileSync(
             configPath,
             `
-version: 1
-activeIdentity: default
-identities:
-  default:
-    name: default
-    publicKey: dGVzdA==
-    privateKey:
-      type: keychain
-      service: ""
-      account: test
-`,
-          )
-
-          await expect(loadLocalConfig(configPath)).rejects.toThrow(LocalConfigValidationError)
-          await expect(loadLocalConfig(configPath)).rejects.toThrow('Service name cannot be empty')
-        } finally {
-          fs.rmSync(tempDir, { recursive: true, force: true })
-        }
-      })
-
-      it('should handle 1Password private key with empty vault', async () => {
-        const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-identity-'))
-        const configPath = path.join(tempDir, 'config.yaml')
-
-        try {
-          fs.writeFileSync(
-            configPath,
-            `
-version: 1
+version: 2
 activeIdentity: default
 identities:
   default:
@@ -310,36 +271,7 @@ identities:
     publicKey: dGVzdA==
     privateKey:
       type: 1password
-      vault: ""
-      item: test
-`,
-          )
-
-          await expect(loadLocalConfig(configPath)).rejects.toThrow(LocalConfigValidationError)
-          await expect(loadLocalConfig(configPath)).rejects.toThrow('Vault name cannot be empty')
-        } finally {
-          fs.rmSync(tempDir, { recursive: true, force: true })
-        }
-      })
-
-      it('should handle 1Password without optional account field', async () => {
-        const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-identity-'))
-        const configPath = path.join(tempDir, 'config.yaml')
-
-        try {
-          fs.writeFileSync(
-            configPath,
-            `
-version: 1
-activeIdentity: default
-identities:
-  default:
-    name: default
-    publicKey: dGVzdA==
-    privateKey:
-      type: 1password
-      vault: Development
-      item: my-key
+      id: attest-it-my-key
 `,
           )
 
@@ -349,8 +281,8 @@ identities:
           const identity = config?.identities.default
           expect(identity?.privateKey.type).toBe('1password')
           if (identity?.privateKey.type === '1password') {
-            expect(identity.privateKey.account).toBeUndefined()
-            expect(identity.privateKey.field).toBeUndefined()
+            expect(identity.privateKey.id).toBe('attest-it-my-key')
+            expect(identity.privateKey.vault).toBeUndefined()
           }
         } finally {
           fs.rmSync(tempDir, { recursive: true, force: true })
@@ -359,13 +291,149 @@ identities:
     })
   })
 
+  describe('v1→v2 migration', () => {
+    it('should automatically migrate a v1 file-based config to v2', async () => {
+      const configPath = path.join(FIXTURES_DIR, 'v1-file.yaml')
+      const config = await loadLocalConfig(configPath)
+
+      expect(config).not.toBeNull()
+      // After migration, version is 2
+      expect(config?.version).toBe(2)
+      expect(config?.activeIdentity).toBe('default')
+
+      // v1 `type: file` with `path:` becomes `type: filesystem` with `path:` (legacy fallback)
+      const identity = config?.identities.default
+      expect(identity?.privateKey.type).toBe('filesystem')
+      if (identity?.privateKey.type === 'filesystem') {
+        expect(identity.privateKey.path).toBe('/home/user/.ssh/attest-it.key')
+      }
+    })
+
+    it('should automatically migrate a v1 keychain config to v2', async () => {
+      const configPath = path.join(FIXTURES_DIR, 'v1-keychain.yaml')
+      const config = await loadLocalConfig(configPath)
+
+      expect(config).not.toBeNull()
+      expect(config?.version).toBe(2)
+
+      // v1 `type: keychain` becomes `type: filesystem` with a pseudo-URI path
+      const identity = config?.identities.work
+      expect(identity?.privateKey.type).toBe('filesystem')
+      if (identity?.privateKey.type === 'filesystem') {
+        expect(identity.privateKey.path).toBe('keychain://attest-it/work-key')
+      }
+    })
+
+    it('should automatically migrate a v1 1Password config to v2', async () => {
+      const configPath = path.join(FIXTURES_DIR, 'v1-1password.yaml')
+      const config = await loadLocalConfig(configPath)
+
+      expect(config).not.toBeNull()
+      expect(config?.version).toBe(2)
+
+      // v1 `type: 1password` becomes `type: filesystem` with a pseudo-URI path
+      const identity = config?.identities.personal
+      expect(identity?.privateKey.type).toBe('filesystem')
+      if (identity?.privateKey.type === 'filesystem') {
+        expect(identity.privateKey.path).toBe('1password://Development/attest-it-key')
+      }
+    })
+
+    it('should automatically migrate a v1 yubikey config to v2', async () => {
+      const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-migration-'))
+      const configPath = path.join(tempDir, 'config.yaml')
+
+      try {
+        fs.writeFileSync(
+          configPath,
+          `
+version: 1
+activeIdentity: default
+identities:
+  default:
+    name: default
+    publicKey: dGVzdA==
+    privateKey:
+      type: yubikey
+      encryptedKeyPath: /path/to/encrypted.key
+      slot: 2
+`,
+        )
+
+        const config = await loadLocalConfig(configPath)
+
+        expect(config?.version).toBe(2)
+        const identity = config?.identities.default
+        // v1 yubikey becomes `type: filesystem` using encryptedKeyPath
+        expect(identity?.privateKey.type).toBe('filesystem')
+        if (identity?.privateKey.type === 'filesystem') {
+          expect(identity.privateKey.path).toBe('/path/to/encrypted.key')
+        }
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true })
+      }
+    })
+
+    it('should migrate a versionless (legacy) file to v2', async () => {
+      const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-migration-'))
+      const configPath = path.join(tempDir, 'config.yaml')
+
+      try {
+        fs.writeFileSync(
+          configPath,
+          `
+activeIdentity: legacy
+identities:
+  legacy:
+    name: legacy
+    publicKey: bGVnYWN5
+    privateKey:
+      type: file
+      path: /legacy/path/key
+`,
+        )
+
+        const config = await loadLocalConfig(configPath)
+
+        expect(config?.version).toBe(2)
+        const identity = config?.identities.legacy
+        expect(identity?.privateKey.type).toBe('filesystem')
+        if (identity?.privateKey.type === 'filesystem') {
+          expect(identity.privateKey.path).toBe('/legacy/path/key')
+        }
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true })
+      }
+    })
+
+    it('should preserve email and github through migration', async () => {
+      const configPath = path.join(FIXTURES_DIR, 'v1-1password.yaml')
+      const config = await loadLocalConfig(configPath)
+
+      const identity = config?.identities.personal
+      expect(identity?.email).toBe('personal@example.com')
+      expect(identity?.github).toBe('mygithub')
+    })
+
+    it('should sync-load and migrate a v1 config correctly', () => {
+      const configPath = path.join(FIXTURES_DIR, 'v1-file.yaml')
+      const config = loadLocalConfigSync(configPath)
+
+      expect(config).not.toBeNull()
+      expect(config?.version).toBe(2)
+      const identity = config?.identities.default
+      expect(identity?.privateKey.type).toBe('filesystem')
+    })
+  })
+
   describe('loadLocalConfigSync', () => {
     describe('positive tests', () => {
-      it('should load a valid config synchronously', () => {
+      it('should load a valid v2 config synchronously', () => {
         const configPath = path.join(FIXTURES_DIR, 'valid-file.yaml')
         const config = loadLocalConfigSync(configPath)
 
         expect(config).not.toBeNull()
+        expect(config?.version).toBe(2)
         expect(config?.activeIdentity).toBe('default')
         expect(config?.identities.default).toBeDefined()
       })
@@ -399,10 +467,11 @@ identities:
     })
 
     describe('positive tests', () => {
-      it('should save config with async version', async () => {
+      it('should save a v2 config with async version', async () => {
         const configPath = path.join(tempDir, 'config.yaml')
 
         const config: LocalConfig = {
+          version: 2,
           activeIdentity: 'test',
           identities: {
             test: {
@@ -411,7 +480,7 @@ identities:
               publicKey: 'dGVzdCBwdWJsaWMga2V5',
               privateKey: {
                 type: 'file',
-                path: '/test/path',
+                id: 'attest-it-test-id',
               },
             },
           },
@@ -422,12 +491,14 @@ identities:
         const content = fs.readFileSync(configPath, 'utf8')
         expect(content).toContain('activeIdentity: test')
         expect(content).toContain('test@example.com')
+        expect(content).toContain('version: 2')
       })
 
-      it('should save config with sync version', () => {
+      it('should save a v2 config with sync version', () => {
         const configPath = path.join(tempDir, 'config.yaml')
 
         const config: LocalConfig = {
+          version: 2,
           activeIdentity: 'test',
           identities: {
             test: {
@@ -435,8 +506,7 @@ identities:
               publicKey: 'dGVzdCBwdWJsaWMga2V5',
               privateKey: {
                 type: 'keychain',
-                service: 'attest-it',
-                account: 'test-key',
+                id: 'attest-it-keychain-key',
               },
             },
           },
@@ -447,12 +517,39 @@ identities:
         const content = fs.readFileSync(configPath, 'utf8')
         expect(content).toContain('activeIdentity: test')
         expect(content).toContain('type: keychain')
+        expect(content).toContain('version: 2')
+      })
+
+      it('should save a config with the legacy filesystem type', async () => {
+        const configPath = path.join(tempDir, 'config.yaml')
+
+        const config: LocalConfig = {
+          version: 2,
+          activeIdentity: 'legacy',
+          identities: {
+            legacy: {
+              name: 'legacy',
+              publicKey: 'bGVnYWN5',
+              privateKey: {
+                type: 'filesystem',
+                path: '/old/path/to/key',
+              },
+            },
+          },
+        }
+
+        await saveLocalConfig(config, configPath)
+
+        const content = fs.readFileSync(configPath, 'utf8')
+        expect(content).toContain('type: filesystem')
+        expect(content).toContain('/old/path/to/key')
       })
 
       it('should create parent directories if they do not exist', async () => {
         const nestedPath = path.join(tempDir, 'nested', 'dir', 'config.yaml')
 
         const config: LocalConfig = {
+          version: 2,
           activeIdentity: 'test',
           identities: {
             test: {
@@ -460,7 +557,7 @@ identities:
               publicKey: 'dGVzdCBwdWJsaWMga2V5',
               privateKey: {
                 type: 'file',
-                path: '/test/path',
+                id: 'attest-it-test-id',
               },
             },
           },
@@ -475,6 +572,7 @@ identities:
         const configPath = path.join(tempDir, 'config.yaml')
 
         const config1: LocalConfig = {
+          version: 2,
           activeIdentity: 'first',
           identities: {
             first: {
@@ -482,7 +580,7 @@ identities:
               publicKey: 'Zmlyc3Q=',
               privateKey: {
                 type: 'file',
-                path: '/first',
+                id: 'first-id',
               },
             },
           },
@@ -491,6 +589,7 @@ identities:
         await saveLocalConfig(config1, configPath)
 
         const config2: LocalConfig = {
+          version: 2,
           activeIdentity: 'second',
           identities: {
             second: {
@@ -498,7 +597,7 @@ identities:
               publicKey: 'c2Vjb25k',
               privateKey: {
                 type: 'file',
-                path: '/second',
+                id: 'second-id',
               },
             },
           },
@@ -517,6 +616,7 @@ identities:
     describe('positive tests', () => {
       it('should return the active identity', () => {
         const config: LocalConfig = {
+          version: 2,
           activeIdentity: 'work',
           identities: {
             work: {
@@ -524,8 +624,8 @@ identities:
               email: 'work@company.com',
               publicKey: 'd29yaw==',
               privateKey: {
-                type: 'file',
-                path: '/work/key',
+                type: 'keychain',
+                id: 'work-keychain-id',
               },
             },
             personal: {
@@ -533,7 +633,7 @@ identities:
               publicKey: 'cGVyc29uYWw=',
               privateKey: {
                 type: 'file',
-                path: '/personal/key',
+                id: 'personal-file-id',
               },
             },
           },
@@ -548,6 +648,7 @@ identities:
 
       it('should preserve all identity properties', () => {
         const config: LocalConfig = {
+          version: 2,
           activeIdentity: 'full',
           identities: {
             full: {
@@ -557,10 +658,8 @@ identities:
               publicKey: 'ZnVsbA==',
               privateKey: {
                 type: '1password',
-                account: 'user@example.com',
+                id: 'my-1password-key',
                 vault: 'Development',
-                item: 'key',
-                field: 'private_key',
               },
             },
           },
@@ -579,6 +678,7 @@ identities:
     describe('negative tests', () => {
       it('should return undefined when active identity does not exist', () => {
         const config: LocalConfig = {
+          version: 2,
           activeIdentity: 'nonexistent',
           identities: {
             existing: {
@@ -586,7 +686,7 @@ identities:
               publicKey: 'ZXhpc3Rpbmc=',
               privateKey: {
                 type: 'file',
-                path: '/existing',
+                id: 'existing-id',
               },
             },
           },
@@ -601,6 +701,7 @@ identities:
     describe('edge cases', () => {
       it('should handle single identity config', () => {
         const config: LocalConfig = {
+          version: 2,
           activeIdentity: 'only',
           identities: {
             only: {
@@ -608,7 +709,7 @@ identities:
               publicKey: 'b25seQ==',
               privateKey: {
                 type: 'file',
-                path: '/only',
+                id: 'only-id',
               },
             },
           },
@@ -629,12 +730,13 @@ identities:
             publicKey: `aWRlbnRpdHk${iStr}`,
             privateKey: {
               type: 'file',
-              path: `/identity${iStr}`,
+              id: `identity-${iStr}-id`,
             },
           }
         }
 
         const config: LocalConfig = {
+          version: 2,
           activeIdentity: 'identity25',
           identities,
         }
