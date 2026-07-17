@@ -3,12 +3,12 @@
  *
  * Drives the real, built CLI as subprocesses with stdin fully closed
  * (mirroring `< /dev/null`), through the exact sequence
- * `docs/getting-started.md` documents: `init` (on a package.json shaped
- * exactly like `npm install`'s output), `identity create`, `team join`,
- * hand-defining a gate/suite (the documented manual-edit step -- see
- * "Step 2b: Define Your First Gate and Suite" in the doc), `run --suite`
- * (seal), `status`, and `verify`. Every step must exit 0 with zero
- * undocumented prompts.
+ * `docs/getting-started.md` documents: `identity create` (Step 1), `init`
+ * (Step 2, on a package.json shaped exactly like `npm install`'s output),
+ * hand-defining a gate/suite (Step 2b, the documented manual-edit step --
+ * see "Step 2b: Define Your First Gate and Suite" in the doc), `team join`
+ * (Step 3), `run --suite` (Step 4, seal), `status`, and `verify`. Every
+ * step must exit 0 with zero undocumented prompts.
  *
  * @see docs/getting-started.md
  */
@@ -228,10 +228,13 @@ describe('documented getting-started flow end-to-end (issue #84)', () => {
         'utf8',
       )
 
-      // Step 3: team join (docs/getting-started.md "Step 3"). Must succeed
-      // even though it runs right after a scaffold whose suites were, until
-      // just now, empty -- the documented order (init -> team join -> define
-      // gates/suites) must not be circular (AC #3).
+      // Step 3: team join (docs/getting-started.md "Step 3"). Succeeds
+      // because the fixed documented order defines the gate/suite (Step 2b,
+      // above) *before* team join runs, so the suite/gate validation that
+      // team join depends on already passes. This is the fix for issue
+      // #84 AC #3: the old docs had this backwards (init -> team join ->
+      // define gates/suites), which was circular -- team join required a
+      // suite that didn't exist yet.
       const joinResult = await runCliNonInteractive(
         ['team', 'join', '--gates', 'smoke'],
         projectDir,
