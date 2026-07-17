@@ -111,7 +111,7 @@ In your repository, run:
 npx attest-it init
 ```
 
-This creates a **split configuration**: `.attest-it/policy.yaml` (trust-critical: team and gates) and `.attest-it/config.yaml` (operational: suites), with your first gate.
+This creates a **split configuration**: `.attest-it/policy.yaml` (trust-critical: team and gates) and `.attest-it/config.yaml` (operational: suites). Both start out empty (`team: {}`, `gates: {}`, `suites: {}`) -- see [What `init` Actually Does](#what-init-actually-does) below for defining your first gate and suite.
 
 Already have an existing legacy unified `config.yaml` (one file holding `team`, `gates`, and `suites` together)? Run `npx attest-it init --migrate` instead to split it into the pair automatically.
 
@@ -123,27 +123,43 @@ non-interactively (or run it in a fresh directory, which never prompts):
 npx attest-it init --force < /dev/null
 ```
 
-### Example Configuration Session
+### What `init` Actually Does
+
+`init` does not prompt you for gate or suite details -- it scaffolds both files
+with `team: {}`, `gates: {}`, and `suites: {}` (each with commented examples)
+and leaves defining your first gate and suite to you. Example output:
 
 ```
-Welcome to attest-it!
-
-? Gate name: desktop-tests
-? Description: Tests requiring VS Code desktop app
-? Fingerprint paths (comma-separated): packages/vscode-extension/**/*.ts
-? Exclude patterns (comma-separated): **/*.test.ts
-? Maximum seal age: 30d
-
+✓ Updated package.json with attest-it devDependency
 ✓ Configuration created:
   - .attest-it/policy.yaml (team, gates, security settings)
   - .attest-it/config.yaml (suites, command settings)
 
 Next steps:
-  1. Add yourself to the team: npx attest-it team join
-  2. Run tests and seal: npx attest-it run --suite desktop-tests
+  1. Run: npm install
+  2. Run: attest-it identity create  (if you haven't already)
+  3. Run: attest-it team join
+  4. Edit .attest-it/policy.yaml to define your gates, and .attest-it/config.yaml to define suites
+
+Would you like to enable shell completions for zsh? (Y/n)
 ```
 
-### Understanding the Config
+That last prompt is a one-time, optional offer to install shell completions
+for your detected shell (`bash`, `zsh`, or `fish`) -- unrelated to
+configuration, and safe to decline (or run `attest-it completion install`
+later). It's skipped entirely in non-interactive contexts (no TTY on stdin).
+
+So after `init`, define your first gate and suite by hand -- see
+[Step 2b: Define Your First Gate and Suite](#step-2b-define-your-first-gate-and-suite)
+below for the shape, or copy the commented example already in each scaffolded file.
+
+### Step 2b: Define Your First Gate and Suite
+
+Edit `.attest-it/policy.yaml` to add a gate, and `.attest-it/config.yaml` to
+add a matching suite. Every gate requires at least one entry in
+`authorizedSigners` -- list your own identity slug (the one from `identity
+create`) here; `team join` (next step) adds that slug to the team so it
+resolves. For example:
 
 ```yaml
 # .attest-it/policy.yaml
@@ -152,11 +168,7 @@ version: 1
 settings:
   sealsPath: .attest-it/seals.json
 
-team:
-  alice:
-    name: Alice Smith
-    email: alice@example.com
-    publicKey: MCowBQYDK2VwAyEAabc123...
+team: {}
 
 gates:
   desktop-tests:

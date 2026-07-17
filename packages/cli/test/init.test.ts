@@ -332,6 +332,79 @@ describe('init command', () => {
     })
   })
 
+  describe('package.json missing name/version (issue #84)', () => {
+    // `npm install <pkg>` in a directory with no prior package.json (the
+    // README's own Quick Start step 1) leaves behind exactly this shape --
+    // no "name", no "version". `init` used to throw "Invalid package.json:
+    // missing required name or version field" on this file, failing every
+    // fresh-project onboarding at the very first command.
+    const BARE_PACKAGE_JSON = JSON.stringify({ dependencies: { 'is-odd': '^3.0.1' } })
+
+    beforeEach(() => {
+      vi.mocked(fs.existsSync).mockImplementation((filePath) => filePath === 'package.json')
+    })
+
+    it('should auto-populate name and version instead of throwing, and succeed', async () => {
+      vi.mocked(fs.promises.readFile).mockResolvedValue(BARE_PACKAGE_JSON)
+
+      await runInit({ dir: DEFAULT_DIR })
+
+      expect(mockProcessExit).not.toHaveBeenCalled()
+      const writeCalls = vi.mocked(fs.promises.writeFile).mock.calls
+      const packageJsonWrite = writeCalls.find((c) => c[0].toString() === 'package.json')
+      expect(packageJsonWrite).toBeDefined()
+      if (!packageJsonWrite) throw new Error('expected package.json write')
+      const content: unknown = packageJsonWrite[1]
+      if (typeof content !== 'string') throw new Error('expected string content')
+      const packageJson: unknown = JSON.parse(content)
+      expect(packageJson).toMatchObject({
+        name: expect.any(String),
+        version: expect.any(String),
+        devDependencies: { 'attest-it': expect.stringMatching(/^\^0\.\d+\.\d+$/) },
+      })
+    })
+
+    it('should report which fields were auto-populated', async () => {
+      vi.mocked(fs.promises.readFile).mockResolvedValue(BARE_PACKAGE_JSON)
+
+      await runInit({ dir: DEFAULT_DIR })
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringMatching(/auto-populated missing name and version/),
+      )
+    })
+
+    it('should preserve an existing name/version and only auto-populate the missing one', async () => {
+      vi.mocked(fs.promises.readFile).mockResolvedValue(
+        JSON.stringify({ name: 'existing-name', dependencies: {} }),
+      )
+
+      await runInit({ dir: DEFAULT_DIR })
+
+      const writeCalls = vi.mocked(fs.promises.writeFile).mock.calls
+      const packageJsonWrite = writeCalls.find((c) => c[0].toString() === 'package.json')
+      if (!packageJsonWrite) throw new Error('expected package.json write')
+      const content: unknown = packageJsonWrite[1]
+      if (typeof content !== 'string') throw new Error('expected string content')
+      const packageJson: unknown = JSON.parse(content)
+      expect(packageJson).toMatchObject({ name: 'existing-name', version: expect.any(String) })
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringMatching(/auto-populated missing version/),
+      )
+    })
+
+    it('should still reject a package.json whose top level is not a JSON object', async () => {
+      vi.mocked(fs.promises.readFile).mockResolvedValue(JSON.stringify(['not', 'an', 'object']))
+
+      await expect(runInit({ dir: DEFAULT_DIR })).rejects.toThrow('process.exit called')
+
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CONFIG_ERROR)
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid package.json: expected a JSON object'),
+      )
+    })
+  })
+
   describe('negative cases (default split scaffold)', () => {
     it('should exit with CANCELLED when the user declines to overwrite policy.yaml', async () => {
       vi.mocked(fs.existsSync).mockImplementation((filePath) =>

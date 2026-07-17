@@ -69,19 +69,31 @@ interface PackageJson {
 }
 
 /**
- * Type guard for package.json structure.
+ * Reject anything that isn't a plain JSON object (arrays, `null`, primitives).
+ * `name`/`version` are validated and auto-populated separately -- see
+ * {@link ensureDevDependency} -- rather than required here, since a bare
+ * `package.json` with neither field is exactly what a fresh `npm install
+ * <pkg>` produces in a directory with no prior package.json (issue #84).
  */
-function isPackageJson(data: unknown): data is PackageJson {
+function isPlainRecord(data: unknown): data is Record<string, unknown> {
   return (
     typeof data === 'object' &&
     data !== null &&
-    'name' in data &&
-    'version' in data &&
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    typeof (data as { name: unknown }).name === 'string' &&
-    // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-    typeof (data as { version: unknown }).version === 'string'
+    !Array.isArray(data) &&
+    Object.getPrototypeOf(data) === Object.prototype
   )
+}
+
+/**
+ * Resolve a `package.json` field that must be a non-empty string, falling
+ * back to a default (and flagging that a fallback was used) when the field
+ * is missing, empty, or the wrong type.
+ */
+function resolveStringField(value: unknown, fallback: string): { value: string; patched: boolean } {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return { value, patched: false }
+  }
+  return { value: fallback, patched: true }
 }
 
 /**
@@ -98,23 +110,44 @@ function detectPackageManager(): 'pnpm' | 'yarn' | 'bun' | 'npm' {
  * Ensure attest-it is added as a devDependency.
  * Creates or updates package.json in the current directory.
  *
- * @returns Information about the package manager and whether package.json was created
+ * @remarks
+ * A `package.json` that exists but is missing `name` and/or `version` is not
+ * treated as an error -- it's auto-populated instead. This is the exact shape
+ * `npm install <pkg>` leaves behind when run in a directory with no prior
+ * `package.json` (the README's own Quick Start step 1), so rejecting it would
+ * fail every fresh-project onboarding (issue #84).
+ *
+ * @returns Information about the package manager, whether package.json was
+ * created from scratch, and which fields (if any) were auto-populated on an
+ * existing file.
  */
-async function ensureDevDependency(): Promise<{ packageManager: string; created: boolean }> {
+async function ensureDevDependency(): Promise<{
+  packageManager: string
+  created: boolean
+  patchedFields: string[]
+}> {
   const packageJsonPath = 'package.json'
   const packageManager = detectPackageManager()
   let created = false
+  const patchedFields: string[] = []
 
   let packageJson: PackageJson
   if (fs.existsSync(packageJsonPath)) {
     const content = await fs.promises.readFile(packageJsonPath, 'utf8')
     const parsed: unknown = JSON.parse(content)
 
-    if (!isPackageJson(parsed)) {
-      throw new Error('Invalid package.json: missing required name or version field')
+    if (!isPlainRecord(parsed)) {
+      throw new Error(
+        'Invalid package.json: expected a JSON object at the top level. Fix the file and re-run "attest-it init".',
+      )
     }
 
-    packageJson = parsed
+    const name = resolveStringField(parsed.name, path.basename(process.cwd()))
+    const version = resolveStringField(parsed.version, '0.0.0')
+    if (name.patched) patchedFields.push('name')
+    if (version.patched) patchedFields.push('version')
+
+    packageJson = { ...parsed, name: name.value, version: version.value }
   } else {
     packageJson = { name: path.basename(process.cwd()), version: '1.0.0' }
     created = true
@@ -127,7 +160,7 @@ async function ensureDevDependency(): Promise<{ packageManager: string; created:
 
   await fs.promises.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n')
 
-  return { packageManager, created }
+  return { packageManager, created, patchedFields }
 }
 
 /**
@@ -237,9 +270,13 @@ async function runInit(options: InitOptions): Promise<void> {
     }
 
     // Ensure attest-it is in devDependencies
-    const { packageManager, created } = await ensureDevDependency()
+    const { packageManager, created, patchedFields } = await ensureDevDependency()
     if (created) {
       success('Created package.json')
+    } else if (patchedFields.length > 0) {
+      success(
+        `Updated package.json with attest-it devDependency (auto-populated missing ${patchedFields.join(' and ')})`,
+      )
     } else {
       success('Updated package.json with attest-it devDependency')
     }
