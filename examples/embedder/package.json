@@ -1,0 +1,16 @@
+{
+  "name": "@attest-it/example-embedder",
+  "version": "0.0.0",
+  "description": "Runnable sample embedder demonstrating the @attest-it/core embeddable API",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx embedder.ts"
+  },
+  "dependencies": {
+    "@attest-it/core": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0"
+  }
+}

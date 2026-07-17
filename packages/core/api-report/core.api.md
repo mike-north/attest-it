@@ -8,6 +8,35 @@ import { SecretBackend } from 'vaultkeeper';
 import { z } from 'zod';
 
 // @public
+export const API_SCHEMA_VERSION = 1;
+
+// @public
+export interface ApiFailure extends ApiResultBase {
+    failureClass: FailureClass;
+    gateId?: string;
+    message: string;
+    ok: false;
+    path?: string;
+    underlyingState?: VerificationState;
+}
+
+// @public
+export interface ApiOptions {
+    baseDir?: string;
+}
+
+// @public
+export interface ApiResultBase {
+    schemaVersion: ApiSchemaVersion;
+}
+
+// @public
+export type ApiSchemaVersion = typeof API_SCHEMA_VERSION;
+
+// @public
+export type ArtifactVerification = ApiFailure | VerificationSuccess;
+
+// @public
 export const ATTEST_IT_HOME_ENV = "ATTEST_IT_HOME";
 
 // @public
@@ -86,6 +115,9 @@ export interface Ed25519KeyPair {
 }
 
 // @public
+export type FailureClass = 'expired' | 'fingerprint-mismatch' | 'malformed' | 'unauthorized-signer' | 'unsealed' | 'untrusted-config';
+
+// @public
 export function findOperationalPath(startDir?: string): null | string;
 
 // @public
@@ -93,6 +125,9 @@ export function findPolicyPath(startDir?: string): null | string;
 
 // @public
 export function findTeamMemberByPublicKey(config: AttestItConfig, publicKey: string): TeamMember | undefined;
+
+// @public
+export function fingerprint(artifactPath: string, options?: ApiOptions): Promise<ApiFailure | FingerprintResultOk>;
 
 // @public
 export interface FingerprintConfig {
@@ -115,12 +150,32 @@ export interface FingerprintResult {
 }
 
 // @public
+export interface FingerprintResultOk extends ApiResultBase {
+    fileCount: number;
+    fingerprint: string;
+    gateId: string;
+    ok: true;
+    path: string;
+}
+
+// @public
 export interface GateConfig {
     authorizedSigners: string[];
     description: string;
     fingerprint: FingerprintConfig;
     maxAge: string;
     name: string;
+}
+
+// @public
+export interface GateDescriptor {
+    authorizedSigners: string[];
+    description: string;
+    exclude: string[];
+    gateId: string;
+    maxAge: string;
+    name: string;
+    paths: string[];
 }
 
 // @public
@@ -282,6 +337,15 @@ export interface KeyRetrievalResult {
 export interface ListAccountsResult {
     accounts: ({ name: string } & OnePasswordAccount)[];
     inaccessible: InaccessibleAccount[];
+}
+
+// @public
+export function listGates(options?: ApiOptions): Promise<ApiFailure | ListGatesResult>;
+
+// @public
+export interface ListGatesResult extends ApiResultBase {
+    gates: GateDescriptor[];
+    ok: true;
 }
 
 // @public
@@ -745,6 +809,24 @@ export interface Seal {
 }
 
 // @public
+export function seal(artifactPath: string, params: SealParams, options?: ApiOptions): Promise<ApiFailure | SealResult>;
+
+// @public
+export interface SealParams {
+    identity: string;
+}
+
+// @public
+export interface SealResult extends ApiResultBase {
+    fingerprint: string;
+    gateId: string;
+    ok: true;
+    path: string;
+    sealedAt: string;
+    sealedBy: string;
+}
+
+// @public
 export interface SealsFile {
     seals: Record<string, Seal>;
     version: 1;
@@ -799,6 +881,15 @@ export class SplitConfigNotFoundError extends Error {
 export interface SplitConfigResult {
     operational: OperationalConfig;
     policy: PolicyConfig;
+}
+
+// @public
+export function status(paths?: string[], options?: ApiOptions): Promise<ApiFailure | StatusResult>;
+
+// @public
+export interface StatusResult extends ApiResultBase {
+    ok: true;
+    results: ArtifactVerification[];
 }
 
 // @public
@@ -888,7 +979,31 @@ export interface VaultKeyProviderOptions {
 export type VerificationState = 'FINGERPRINT_MISMATCH' | 'INVALID_SIGNATURE' | 'MISSING' | 'STALE' | 'UNKNOWN_SIGNER' | 'VALID';
 
 // @public
+export interface VerificationSuccess extends ApiResultBase {
+    fingerprint: string;
+    gateId: string;
+    ok: true;
+    path?: string;
+    sealedAt: string;
+    sealedBy: string;
+}
+
+// @public
 export function verify(options: CryptoVerifyOptions): Promise<boolean>;
+
+// @public
+export function verifyAll(params?: VerifyAllParams, options?: ApiOptions): Promise<ApiFailure | VerifyAllResult>;
+
+// @public
+export interface VerifyAllParams {
+    changedSince?: string;
+}
+
+// @public
+export interface VerifyAllResult extends ApiResultBase {
+    ok: true;
+    results: ArtifactVerification[];
+}
 
 // @public
 export function verifyAllSeals(config: AttestItConfig, seals: SealsFile, fingerprints: Record<string, string>): SealVerificationResult[];
@@ -898,6 +1013,9 @@ export function verifyEd25519(data: Buffer | string, signature: string, publicKe
 
 // @public
 export function verifyGateSeal(config: AttestItConfig, gateId: string, seals: SealsFile, currentFingerprint: string): SealVerificationResult;
+
+// @public
+export function verifyOne(artifactPath: string, options?: ApiOptions): Promise<ArtifactVerification>;
 
 // @public
 export function verifySeal(seal: Seal, config: AttestItConfig): SignatureVerificationResult;

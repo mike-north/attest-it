@@ -110,11 +110,11 @@ var require_command = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.issue = exports2.issueCommand = void 0;
-    var os3 = __importStar(require("os"));
+    var os2 = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueCommand(command, properties, message) {
       const cmd = new Command(command, properties, message);
-      process.stdout.write(cmd.toString() + os3.EOL);
+      process.stdout.write(cmd.toString() + os2.EOL);
     }
     exports2.issueCommand = issueCommand;
     function issue(name, message = "") {
@@ -198,18 +198,18 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs4 = __importStar(require("fs"));
-    var os3 = __importStar(require("os"));
+    var fs3 = __importStar(require("fs"));
+    var os2 = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
       const filePath = process.env[`GITHUB_${command}`];
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs4.existsSync(filePath)) {
+      if (!fs3.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs4.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os3.EOL}`, {
+      fs3.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os2.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -223,7 +223,7 @@ var require_file_command = __commonJS({
       if (convertedValue.includes(delimiter)) {
         throw new Error(`Unexpected input: value should not contain the delimiter "${delimiter}"`);
       }
-      return `${key}<<${delimiter}${os3.EOL}${convertedValue}${os3.EOL}${delimiter}`;
+      return `${key}<<${delimiter}${os2.EOL}${convertedValue}${os2.EOL}${delimiter}`;
     }
     exports2.prepareKeyValueMessage = prepareKeyValueMessage;
   }
@@ -353,44 +353,44 @@ var require_tunnel = __commonJS({
       return agent;
     }
     function TunnelingAgent(options) {
-      var self2 = this;
-      self2.options = options || {};
-      self2.proxyOptions = self2.options.proxy || {};
-      self2.maxSockets = self2.options.maxSockets || http.Agent.defaultMaxSockets;
-      self2.requests = [];
-      self2.sockets = [];
-      self2.on("free", function onFree(socket, host, port, localAddress) {
+      var self = this;
+      self.options = options || {};
+      self.proxyOptions = self.options.proxy || {};
+      self.maxSockets = self.options.maxSockets || http.Agent.defaultMaxSockets;
+      self.requests = [];
+      self.sockets = [];
+      self.on("free", function onFree(socket, host, port, localAddress) {
         var options2 = toOptions(host, port, localAddress);
-        for (var i = 0, len = self2.requests.length; i < len; ++i) {
-          var pending = self2.requests[i];
+        for (var i = 0, len = self.requests.length; i < len; ++i) {
+          var pending = self.requests[i];
           if (pending.host === options2.host && pending.port === options2.port) {
-            self2.requests.splice(i, 1);
+            self.requests.splice(i, 1);
             pending.request.onSocket(socket);
             return;
           }
         }
         socket.destroy();
-        self2.removeSocket(socket);
+        self.removeSocket(socket);
       });
     }
     util2.inherits(TunnelingAgent, events.EventEmitter);
     TunnelingAgent.prototype.addRequest = function addRequest(req, host, port, localAddress) {
-      var self2 = this;
-      var options = mergeOptions({ request: req }, self2.options, toOptions(host, port, localAddress));
-      if (self2.sockets.length >= this.maxSockets) {
-        self2.requests.push(options);
+      var self = this;
+      var options = mergeOptions({ request: req }, self.options, toOptions(host, port, localAddress));
+      if (self.sockets.length >= this.maxSockets) {
+        self.requests.push(options);
         return;
       }
-      self2.createSocket(options, function(socket) {
+      self.createSocket(options, function(socket) {
         socket.on("free", onFree);
         socket.on("close", onCloseOrRemove);
         socket.on("agentRemove", onCloseOrRemove);
         req.onSocket(socket);
         function onFree() {
-          self2.emit("free", socket, options);
+          self.emit("free", socket, options);
         }
         function onCloseOrRemove(err) {
-          self2.removeSocket(socket);
+          self.removeSocket(socket);
           socket.removeListener("free", onFree);
           socket.removeListener("close", onCloseOrRemove);
           socket.removeListener("agentRemove", onCloseOrRemove);
@@ -398,10 +398,10 @@ var require_tunnel = __commonJS({
       });
     };
     TunnelingAgent.prototype.createSocket = function createSocket(options, cb) {
-      var self2 = this;
+      var self = this;
       var placeholder = {};
-      self2.sockets.push(placeholder);
-      var connectOptions = mergeOptions({}, self2.proxyOptions, {
+      self.sockets.push(placeholder);
+      var connectOptions = mergeOptions({}, self.proxyOptions, {
         method: "CONNECT",
         path: options.host + ":" + options.port,
         agent: false,
@@ -417,7 +417,7 @@ var require_tunnel = __commonJS({
         connectOptions.headers["Proxy-Authorization"] = "Basic " + new Buffer(connectOptions.proxyAuth).toString("base64");
       }
       debug("making CONNECT request");
-      var connectReq = self2.request(connectOptions);
+      var connectReq = self.request(connectOptions);
       connectReq.useChunkedEncodingByDefault = false;
       connectReq.once("response", onResponse);
       connectReq.once("upgrade", onUpgrade);
@@ -444,7 +444,7 @@ var require_tunnel = __commonJS({
           var error2 = new Error("tunneling socket could not be established, statusCode=" + res.statusCode);
           error2.code = "ECONNRESET";
           options.request.emit("error", error2);
-          self2.removeSocket(placeholder);
+          self.removeSocket(placeholder);
           return;
         }
         if (head.length > 0) {
@@ -453,11 +453,11 @@ var require_tunnel = __commonJS({
           var error2 = new Error("got illegal response body from proxy");
           error2.code = "ECONNRESET";
           options.request.emit("error", error2);
-          self2.removeSocket(placeholder);
+          self.removeSocket(placeholder);
           return;
         }
         debug("tunneling connection has established");
-        self2.sockets[self2.sockets.indexOf(placeholder)] = socket;
+        self.sockets[self.sockets.indexOf(placeholder)] = socket;
         return cb(socket);
       }
       function onError(cause) {
@@ -470,7 +470,7 @@ var require_tunnel = __commonJS({
         var error2 = new Error("tunneling socket could not be established, cause=" + cause.message);
         error2.code = "ECONNRESET";
         options.request.emit("error", error2);
-        self2.removeSocket(placeholder);
+        self.removeSocket(placeholder);
       }
     };
     TunnelingAgent.prototype.removeSocket = function removeSocket(socket) {
@@ -487,15 +487,15 @@ var require_tunnel = __commonJS({
       }
     };
     function createSecureSocket(options, cb) {
-      var self2 = this;
-      TunnelingAgent.prototype.createSocket.call(self2, options, function(socket) {
+      var self = this;
+      TunnelingAgent.prototype.createSocket.call(self, options, function(socket) {
         var hostHeader = options.request.getHeader("host");
-        var tlsOptions = mergeOptions({}, self2.options, {
+        var tlsOptions = mergeOptions({}, self.options, {
           socket,
           servername: hostHeader ? hostHeader.replace(/:.*$/, "") : options.host
         });
         var secureSocket = tls.connect(0, tlsOptions);
-        self2.sockets[self2.sockets.indexOf(socket)] = secureSocket;
+        self.sockets[self.sockets.indexOf(socket)] = secureSocket;
         cb(secureSocket);
       });
     }
@@ -1021,14 +1021,14 @@ var require_util = __commonJS({
         }
         const port = url.port != null ? url.port : url.protocol === "https:" ? 443 : 80;
         let origin = url.origin != null ? url.origin : `${url.protocol}//${url.hostname}:${port}`;
-        let path4 = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
+        let path2 = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
         if (origin.endsWith("/")) {
           origin = origin.substring(0, origin.length - 1);
         }
-        if (path4 && !path4.startsWith("/")) {
-          path4 = `/${path4}`;
+        if (path2 && !path2.startsWith("/")) {
+          path2 = `/${path2}`;
         }
-        url = new URL(origin + path4);
+        url = new URL(origin + path2);
       }
       return url;
     }
@@ -1610,7 +1610,7 @@ var require_HeaderParser = __commonJS({
     function HeaderParser(cfg) {
       EventEmitter.call(this);
       cfg = cfg || {};
-      const self2 = this;
+      const self = this;
       this.nread = 0;
       this.maxed = false;
       this.npairs = 0;
@@ -1621,18 +1621,18 @@ var require_HeaderParser = __commonJS({
       this.finished = false;
       this.ss = new StreamSearch(B_DCRLF);
       this.ss.on("info", function(isMatch, data, start, end) {
-        if (data && !self2.maxed) {
-          if (self2.nread + end - start >= self2.maxHeaderSize) {
-            end = self2.maxHeaderSize - self2.nread + start;
-            self2.nread = self2.maxHeaderSize;
-            self2.maxed = true;
+        if (data && !self.maxed) {
+          if (self.nread + end - start >= self.maxHeaderSize) {
+            end = self.maxHeaderSize - self.nread + start;
+            self.nread = self.maxHeaderSize;
+            self.maxed = true;
           } else {
-            self2.nread += end - start;
+            self.nread += end - start;
           }
-          self2.buffer += data.toString("binary", start, end);
+          self.buffer += data.toString("binary", start, end);
         }
         if (isMatch) {
-          self2._finish();
+          self._finish();
         }
       });
     }
@@ -1738,34 +1738,34 @@ var require_Dicer = __commonJS({
       this._ignoreData = false;
       this._partOpts = { highWaterMark: cfg.partHwm };
       this._pause = false;
-      const self2 = this;
+      const self = this;
       this._hparser = new HeaderParser(cfg);
       this._hparser.on("header", function(header) {
-        self2._inHeader = false;
-        self2._part.emit("header", header);
+        self._inHeader = false;
+        self._part.emit("header", header);
       });
     }
     inherits(Dicer, WritableStream);
     Dicer.prototype.emit = function(ev) {
       if (ev === "finish" && !this._realFinish) {
         if (!this._finished) {
-          const self2 = this;
+          const self = this;
           process.nextTick(function() {
-            self2.emit("error", new Error("Unexpected end of multipart data"));
-            if (self2._part && !self2._ignoreData) {
-              const type = self2._isPreamble ? "Preamble" : "Part";
-              self2._part.emit("error", new Error(type + " terminated early due to unexpected end of multipart data"));
-              self2._part.push(null);
+            self.emit("error", new Error("Unexpected end of multipart data"));
+            if (self._part && !self._ignoreData) {
+              const type = self._isPreamble ? "Preamble" : "Part";
+              self._part.emit("error", new Error(type + " terminated early due to unexpected end of multipart data"));
+              self._part.push(null);
               process.nextTick(function() {
-                self2._realFinish = true;
-                self2.emit("finish");
-                self2._realFinish = false;
+                self._realFinish = true;
+                self.emit("finish");
+                self._realFinish = false;
               });
               return;
             }
-            self2._realFinish = true;
-            self2.emit("finish");
-            self2._realFinish = false;
+            self._realFinish = true;
+            self.emit("finish");
+            self._realFinish = false;
           });
         }
       } else {
@@ -1809,10 +1809,10 @@ var require_Dicer = __commonJS({
       this._hparser = void 0;
     };
     Dicer.prototype.setBoundary = function(boundary) {
-      const self2 = this;
+      const self = this;
       this._bparser = new StreamSearch("\r\n--" + boundary);
       this._bparser.on("info", function(isMatch, data, start, end) {
-        self2._oninfo(isMatch, data, start, end);
+        self._oninfo(isMatch, data, start, end);
       });
     };
     Dicer.prototype._ignore = function() {
@@ -1824,7 +1824,7 @@ var require_Dicer = __commonJS({
     };
     Dicer.prototype._oninfo = function(isMatch, data, start, end) {
       let buf;
-      const self2 = this;
+      const self = this;
       let i = 0;
       let r;
       let shouldWriteMore = true;
@@ -1847,10 +1847,10 @@ var require_Dicer = __commonJS({
           }
           this.reset();
           this._finished = true;
-          if (self2._parts === 0) {
-            self2._realFinish = true;
-            self2.emit("finish");
-            self2._realFinish = false;
+          if (self._parts === 0) {
+            self._realFinish = true;
+            self.emit("finish");
+            self._realFinish = false;
           }
         }
         if (this._dashes) {
@@ -1863,7 +1863,7 @@ var require_Dicer = __commonJS({
       if (!this._part) {
         this._part = new PartStream(this._partOpts);
         this._part._read = function(n) {
-          self2._unpause();
+          self._unpause();
         };
         if (this._isPreamble && this.listenerCount("preamble") !== 0) {
           this.emit("preamble", this._part);
@@ -1903,13 +1903,13 @@ var require_Dicer = __commonJS({
           if (start !== end) {
             ++this._parts;
             this._part.on("end", function() {
-              if (--self2._parts === 0) {
-                if (self2._finished) {
-                  self2._realFinish = true;
-                  self2.emit("finish");
-                  self2._realFinish = false;
+              if (--self._parts === 0) {
+                if (self._finished) {
+                  self._realFinish = true;
+                  self.emit("finish");
+                  self._realFinish = false;
                 } else {
-                  self2._unpause();
+                  self._unpause();
                 }
               }
             });
@@ -2651,20 +2651,20 @@ var require_basename = __commonJS({
   "../../node_modules/.pnpm/@fastify+busboy@2.1.1/node_modules/@fastify/busboy/lib/utils/basename.js"(exports2, module2) {
     "use strict";
     init_cjs_shims();
-    module2.exports = function basename2(path4) {
-      if (typeof path4 !== "string") {
+    module2.exports = function basename2(path2) {
+      if (typeof path2 !== "string") {
         return "";
       }
-      for (var i = path4.length - 1; i >= 0; --i) {
-        switch (path4.charCodeAt(i)) {
+      for (var i = path2.length - 1; i >= 0; --i) {
+        switch (path2.charCodeAt(i)) {
           case 47:
           // '/'
           case 92:
-            path4 = path4.slice(i + 1);
-            return path4 === ".." || path4 === "." ? "" : path4;
+            path2 = path2.slice(i + 1);
+            return path2 === ".." || path2 === "." ? "" : path2;
         }
       }
-      return path4 === ".." || path4 === "." ? "" : path4;
+      return path2 === ".." || path2 === "." ? "" : path2;
     };
   }
 });
@@ -2690,7 +2690,7 @@ var require_multipart = __commonJS({
     function Multipart(boy, cfg) {
       let i;
       let len;
-      const self2 = this;
+      const self = this;
       let boundary;
       const limits = cfg.limits;
       const isPartAFile = cfg.isPartAFile || ((fieldName, contentType, fileName) => contentType === "application/octet-stream" || fileName !== void 0);
@@ -2707,7 +2707,7 @@ var require_multipart = __commonJS({
       function checkFinished() {
         if (nends === 0 && finished && !boy._done) {
           finished = false;
-          self2.end();
+          self.end();
         }
       }
       if (typeof boundary !== "string") {
@@ -2740,16 +2740,16 @@ var require_multipart = __commonJS({
       };
       this.parser = new Dicer(parserCfg);
       this.parser.on("drain", function() {
-        self2._needDrain = false;
-        if (self2._cb && !self2._pause) {
-          const cb = self2._cb;
-          self2._cb = void 0;
+        self._needDrain = false;
+        if (self._cb && !self._pause) {
+          const cb = self._cb;
+          self._cb = void 0;
           cb();
         }
       }).on("part", function onPart(part) {
-        if (++self2._nparts > partsLimit) {
-          self2.parser.removeListener("part", onPart);
-          self2.parser.on("part", skipPart);
+        if (++self._nparts > partsLimit) {
+          self.parser.removeListener("part", onPart);
+          self.parser.on("part", skipPart);
           boy.hitPartsLimit = true;
           boy.emit("partsLimit");
           return skipPart(part);
@@ -2819,7 +2819,7 @@ var require_multipart = __commonJS({
             }
             ++nfiles;
             if (boy.listenerCount("file") === 0) {
-              self2.parser._ignore();
+              self.parser._ignore();
               return;
             }
             ++nends;
@@ -2827,22 +2827,22 @@ var require_multipart = __commonJS({
             curFile = file;
             file.on("end", function() {
               --nends;
-              self2._pause = false;
+              self._pause = false;
               checkFinished();
-              if (self2._cb && !self2._needDrain) {
-                const cb = self2._cb;
-                self2._cb = void 0;
+              if (self._cb && !self._needDrain) {
+                const cb = self._cb;
+                self._cb = void 0;
                 cb();
               }
             });
             file._read = function(n) {
-              if (!self2._pause) {
+              if (!self._pause) {
                 return;
               }
-              self2._pause = false;
-              if (self2._cb && !self2._needDrain) {
-                const cb = self2._cb;
-                self2._cb = void 0;
+              self._pause = false;
+              if (self._cb && !self._needDrain) {
+                const cb = self._cb;
+                self._cb = void 0;
                 cb();
               }
             };
@@ -2859,7 +2859,7 @@ var require_multipart = __commonJS({
                 file.emit("limit");
                 return;
               } else if (!file.push(data)) {
-                self2._pause = true;
+                self._pause = true;
               }
               file.bytesRead = nsize;
             };
@@ -2925,13 +2925,13 @@ var require_multipart = __commonJS({
       }
     };
     Multipart.prototype.end = function() {
-      const self2 = this;
-      if (self2.parser.writable) {
-        self2.parser.end();
-      } else if (!self2._boy._done) {
+      const self = this;
+      if (self.parser.writable) {
+        self.parser.end();
+      } else if (!self._boy._done) {
         process.nextTick(function() {
-          self2._boy._done = true;
-          self2._boy.emit("finish");
+          self._boy._done = true;
+          self._boy.emit("finish");
         });
       }
     };
@@ -4064,8 +4064,8 @@ var require_util2 = __commonJS({
     function createDeferredPromise() {
       let res;
       let rej;
-      const promise2 = new Promise((resolve6, reject) => {
-        res = resolve6;
+      const promise2 = new Promise((resolve4, reject) => {
+        res = resolve4;
         rej = reject;
       });
       return { promise: promise2, resolve: res, reject: rej };
@@ -5576,8 +5576,8 @@ Content-Type: ${value.type || "application/octet-stream"}\r
                 });
               }
             });
-            const busboyResolve = new Promise((resolve6, reject) => {
-              busboy.on("finish", resolve6);
+            const busboyResolve = new Promise((resolve4, reject) => {
+              busboy.on("finish", resolve4);
               busboy.on("error", (err) => reject(new TypeError(err)));
             });
             if (this.body !== null) for await (const chunk of consumeBody(this[kState].body)) busboy.write(chunk);
@@ -5707,9 +5707,9 @@ var require_request = __commonJS({
       channels.trailers = { hasSubscribers: false };
       channels.error = { hasSubscribers: false };
     }
-    var Request2 = class _Request {
+    var Request = class _Request {
       constructor(origin, {
-        path: path4,
+        path: path2,
         method,
         body,
         headers,
@@ -5723,11 +5723,11 @@ var require_request = __commonJS({
         throwOnError,
         expectContinue
       }, handler2) {
-        if (typeof path4 !== "string") {
+        if (typeof path2 !== "string") {
           throw new InvalidArgumentError("path must be a string");
-        } else if (path4[0] !== "/" && !(path4.startsWith("http://") || path4.startsWith("https://")) && method !== "CONNECT") {
+        } else if (path2[0] !== "/" && !(path2.startsWith("http://") || path2.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError("path must be an absolute URL or start with a slash");
-        } else if (invalidPathRegex.exec(path4) !== null) {
+        } else if (invalidPathRegex.exec(path2) !== null) {
           throw new InvalidArgumentError("invalid request path");
         }
         if (typeof method !== "string") {
@@ -5790,7 +5790,7 @@ var require_request = __commonJS({
         this.completed = false;
         this.aborted = false;
         this.upgrade = upgrade || null;
-        this.path = query ? util2.buildURL(path4, query) : path4;
+        this.path = query ? util2.buildURL(path2, query) : path2;
         this.origin = origin;
         this.idempotent = idempotent == null ? method === "HEAD" || method === "GET" : idempotent;
         this.blocking = blocking == null ? false : blocking;
@@ -6042,7 +6042,7 @@ var require_request = __commonJS({
         }
       }
     }
-    module2.exports = Request2;
+    module2.exports = Request;
   }
 });
 
@@ -6114,9 +6114,9 @@ var require_dispatcher_base = __commonJS({
       }
       close(callback2) {
         if (callback2 === void 0) {
-          return new Promise((resolve6, reject) => {
+          return new Promise((resolve4, reject) => {
             this.close((err, data) => {
-              return err ? reject(err) : resolve6(data);
+              return err ? reject(err) : resolve4(data);
             });
           });
         }
@@ -6154,12 +6154,12 @@ var require_dispatcher_base = __commonJS({
           err = null;
         }
         if (callback2 === void 0) {
-          return new Promise((resolve6, reject) => {
+          return new Promise((resolve4, reject) => {
             this.destroy(err, (err2, data) => {
               return err2 ? (
                 /* istanbul ignore next: should never error */
                 reject(err2)
-              ) : resolve6(data);
+              ) : resolve4(data);
             });
           });
         }
@@ -6804,9 +6804,9 @@ var require_RedirectHandler = __commonJS({
           return this.handler.onHeaders(statusCode, headers, resume, statusText);
         }
         const { origin, pathname, search } = util2.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)));
-        const path4 = search ? `${pathname}${search}` : pathname;
+        const path2 = search ? `${pathname}${search}` : pathname;
         this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin);
-        this.opts.path = path4;
+        this.opts.path = path2;
         this.opts.origin = origin;
         this.opts.maxRedirections = 0;
         this.opts.query = null;
@@ -6934,7 +6934,7 @@ var require_client = __commonJS({
     var { pipeline } = require("stream");
     var util2 = require_util();
     var timers = require_timers();
-    var Request2 = require_request();
+    var Request = require_request();
     var DispatcherBase = require_dispatcher_base();
     var {
       RequestContentLengthMismatchError,
@@ -7214,7 +7214,7 @@ var require_client = __commonJS({
       }
       [kDispatch](opts, handler2) {
         const origin = opts.origin || this[kUrl].origin;
-        const request2 = this[kHTTPConnVersion] === "h2" ? Request2[kHTTP2BuildRequest](origin, opts, handler2) : Request2[kHTTP1BuildRequest](origin, opts, handler2);
+        const request2 = this[kHTTPConnVersion] === "h2" ? Request[kHTTP2BuildRequest](origin, opts, handler2) : Request[kHTTP1BuildRequest](origin, opts, handler2);
         this[kQueue].push(request2);
         if (this[kResuming]) {
         } else if (util2.bodyLength(request2.body) == null && util2.isIterable(request2.body)) {
@@ -7229,16 +7229,16 @@ var require_client = __commonJS({
         return this[kNeedDrain] < 2;
       }
       async [kClose]() {
-        return new Promise((resolve6) => {
+        return new Promise((resolve4) => {
           if (!this[kSize]) {
-            resolve6(null);
+            resolve4(null);
           } else {
-            this[kClosedResolve] = resolve6;
+            this[kClosedResolve] = resolve4;
           }
         });
       }
       async [kDestroy](err) {
-        return new Promise((resolve6) => {
+        return new Promise((resolve4) => {
           const requests = this[kQueue].splice(this[kPendingIdx]);
           for (let i = 0; i < requests.length; i++) {
             const request2 = requests[i];
@@ -7249,7 +7249,7 @@ var require_client = __commonJS({
               this[kClosedResolve]();
               this[kClosedResolve] = null;
             }
-            resolve6();
+            resolve4();
           };
           if (this[kHTTP2Session] != null) {
             util2.destroy(this[kHTTP2Session], err);
@@ -7829,7 +7829,7 @@ var require_client = __commonJS({
         });
       }
       try {
-        const socket = await new Promise((resolve6, reject) => {
+        const socket = await new Promise((resolve4, reject) => {
           client[kConnector]({
             host,
             hostname,
@@ -7841,7 +7841,7 @@ var require_client = __commonJS({
             if (err) {
               reject(err);
             } else {
-              resolve6(socket2);
+              resolve4(socket2);
             }
           });
         });
@@ -8052,7 +8052,7 @@ var require_client = __commonJS({
         writeH2(client, client[kHTTP2Session], request2);
         return;
       }
-      const { body, method, path: path4, host, upgrade, headers, blocking, reset } = request2;
+      const { body, method, path: path2, host, upgrade, headers, blocking, reset } = request2;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
         body.read(0);
@@ -8102,7 +8102,7 @@ var require_client = __commonJS({
       if (blocking) {
         socket[kBlocking] = true;
       }
-      let header = `${method} ${path4} HTTP/1.1\r
+      let header = `${method} ${path2} HTTP/1.1\r
 `;
       if (typeof host === "string") {
         header += `host: ${host}\r
@@ -8165,9 +8165,9 @@ upgrade: ${upgrade}\r
       return true;
     }
     function writeH2(client, session, request2) {
-      const { body, method, path: path4, host, upgrade, expectContinue, signal, headers: reqHeaders } = request2;
+      const { body, method, path: path2, host, upgrade, expectContinue, signal, headers: reqHeaders } = request2;
       let headers;
-      if (typeof reqHeaders === "string") headers = Request2[kHTTP2CopyHeaders](reqHeaders.trim());
+      if (typeof reqHeaders === "string") headers = Request[kHTTP2CopyHeaders](reqHeaders.trim());
       else headers = reqHeaders;
       if (upgrade) {
         errorRequest(client, request2, new Error("Upgrade not supported for H2"));
@@ -8208,7 +8208,7 @@ upgrade: ${upgrade}\r
         });
         return true;
       }
-      headers[HTTP2_HEADER_PATH] = path4;
+      headers[HTTP2_HEADER_PATH] = path2;
       headers[HTTP2_HEADER_SCHEME] = "https";
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
@@ -8465,12 +8465,12 @@ upgrade: ${upgrade}\r
           cb();
         }
       }
-      const waitForDrain = () => new Promise((resolve6, reject) => {
+      const waitForDrain = () => new Promise((resolve4, reject) => {
         assert(callback2 === null);
         if (socket[kError]) {
           reject(socket[kError]);
         } else {
-          callback2 = resolve6;
+          callback2 = resolve4;
         }
       });
       if (client[kHTTPConnVersion] === "h2") {
@@ -8819,8 +8819,8 @@ var require_pool_base = __commonJS({
         if (this[kQueue].isEmpty()) {
           return Promise.all(this[kClients].map((c) => c.close()));
         } else {
-          return new Promise((resolve6) => {
-            this[kClosedResolve] = resolve6;
+          return new Promise((resolve4) => {
+            this[kClosedResolve] = resolve4;
           });
         }
       }
@@ -9161,7 +9161,7 @@ var require_agent = __commonJS({
     var Client = require_client();
     var util2 = require_util();
     var createRedirectInterceptor = require_redirectInterceptor();
-    var { WeakRef: WeakRef2, FinalizationRegistry: FinalizationRegistry2 } = require_dispatcher_weakref()();
+    var { WeakRef: WeakRef2, FinalizationRegistry } = require_dispatcher_weakref()();
     var kOnConnect = /* @__PURE__ */ Symbol("onConnect");
     var kOnDisconnect = /* @__PURE__ */ Symbol("onDisconnect");
     var kOnConnectionError = /* @__PURE__ */ Symbol("onConnectionError");
@@ -9194,7 +9194,7 @@ var require_agent = __commonJS({
         this[kMaxRedirections] = maxRedirections;
         this[kFactory] = factory;
         this[kClients] = /* @__PURE__ */ new Map();
-        this[kFinalizer] = new FinalizationRegistry2(
+        this[kFinalizer] = new FinalizationRegistry(
           /* istanbul ignore next: gc is undeterministic */
           (key) => {
             const ref = this[kClients].get(key);
@@ -9403,7 +9403,7 @@ var require_readable = __commonJS({
         if (this.closed) {
           return Promise.resolve(null);
         }
-        return new Promise((resolve6, reject) => {
+        return new Promise((resolve4, reject) => {
           const signalListenerCleanup = signal ? util2.addAbortListener(signal, () => {
             this.destroy();
           }) : noop2;
@@ -9412,7 +9412,7 @@ var require_readable = __commonJS({
             if (signal && signal.aborted) {
               reject(signal.reason || Object.assign(new Error("The operation was aborted"), { name: "AbortError" }));
             } else {
-              resolve6(null);
+              resolve4(null);
             }
           }).on("error", noop2).on("data", function(chunk) {
             limit -= chunk.length;
@@ -9423,22 +9423,22 @@ var require_readable = __commonJS({
         });
       }
     };
-    function isLocked(self2) {
-      return self2[kBody] && self2[kBody].locked === true || self2[kConsume];
+    function isLocked(self) {
+      return self[kBody] && self[kBody].locked === true || self[kConsume];
     }
-    function isUnusable(self2) {
-      return util2.isDisturbed(self2) || isLocked(self2);
+    function isUnusable(self) {
+      return util2.isDisturbed(self) || isLocked(self);
     }
     async function consume(stream, type) {
       if (isUnusable(stream)) {
         throw new TypeError("unusable");
       }
       assert(!stream[kConsume]);
-      return new Promise((resolve6, reject) => {
+      return new Promise((resolve4, reject) => {
         stream[kConsume] = {
           type,
           stream,
-          resolve: resolve6,
+          resolve: resolve4,
           reject,
           length: 0,
           body: []
@@ -9473,12 +9473,12 @@ var require_readable = __commonJS({
       }
     }
     function consumeEnd(consume2) {
-      const { type, body, resolve: resolve6, stream, length } = consume2;
+      const { type, body, resolve: resolve4, stream, length } = consume2;
       try {
         if (type === "text") {
-          resolve6(toUSVString(Buffer.concat(body)));
+          resolve4(toUSVString(Buffer.concat(body)));
         } else if (type === "json") {
-          resolve6(JSON.parse(Buffer.concat(body)));
+          resolve4(JSON.parse(Buffer.concat(body)));
         } else if (type === "arrayBuffer") {
           const dst = new Uint8Array(length);
           let pos = 0;
@@ -9486,12 +9486,12 @@ var require_readable = __commonJS({
             dst.set(buf, pos);
             pos += buf.byteLength;
           }
-          resolve6(dst.buffer);
+          resolve4(dst.buffer);
         } else if (type === "blob") {
           if (!Blob2) {
             Blob2 = require("buffer").Blob;
           }
-          resolve6(new Blob2(body, { type: stream[kContentType] }));
+          resolve4(new Blob2(body, { type: stream[kContentType] }));
         }
         consumeFinish(consume2);
       } catch (err) {
@@ -9575,40 +9575,40 @@ var require_abort_signal = __commonJS({
     var { RequestAbortedError } = require_errors();
     var kListener = /* @__PURE__ */ Symbol("kListener");
     var kSignal = /* @__PURE__ */ Symbol("kSignal");
-    function abort(self2) {
-      if (self2.abort) {
-        self2.abort();
+    function abort(self) {
+      if (self.abort) {
+        self.abort();
       } else {
-        self2.onError(new RequestAbortedError());
+        self.onError(new RequestAbortedError());
       }
     }
-    function addSignal(self2, signal) {
-      self2[kSignal] = null;
-      self2[kListener] = null;
+    function addSignal(self, signal) {
+      self[kSignal] = null;
+      self[kListener] = null;
       if (!signal) {
         return;
       }
       if (signal.aborted) {
-        abort(self2);
+        abort(self);
         return;
       }
-      self2[kSignal] = signal;
-      self2[kListener] = () => {
-        abort(self2);
+      self[kSignal] = signal;
+      self[kListener] = () => {
+        abort(self);
       };
-      addAbortListener(self2[kSignal], self2[kListener]);
+      addAbortListener(self[kSignal], self[kListener]);
     }
-    function removeSignal(self2) {
-      if (!self2[kSignal]) {
+    function removeSignal(self) {
+      if (!self[kSignal]) {
         return;
       }
-      if ("removeEventListener" in self2[kSignal]) {
-        self2[kSignal].removeEventListener("abort", self2[kListener]);
+      if ("removeEventListener" in self[kSignal]) {
+        self[kSignal].removeEventListener("abort", self[kListener]);
       } else {
-        self2[kSignal].removeListener("abort", self2[kListener]);
+        self[kSignal].removeListener("abort", self[kListener]);
       }
-      self2[kSignal] = null;
-      self2[kListener] = null;
+      self[kSignal] = null;
+      self[kListener] = null;
     }
     module2.exports = {
       addSignal,
@@ -9751,9 +9751,9 @@ var require_api_request = __commonJS({
     };
     function request2(opts, callback2) {
       if (callback2 === void 0) {
-        return new Promise((resolve6, reject) => {
+        return new Promise((resolve4, reject) => {
           request2.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve6(data);
+            return err ? reject(err) : resolve4(data);
           });
         });
       }
@@ -9927,9 +9927,9 @@ var require_api_stream = __commonJS({
     };
     function stream(opts, factory, callback2) {
       if (callback2 === void 0) {
-        return new Promise((resolve6, reject) => {
+        return new Promise((resolve4, reject) => {
           stream.call(this, opts, factory, (err, data) => {
-            return err ? reject(err) : resolve6(data);
+            return err ? reject(err) : resolve4(data);
           });
         });
       }
@@ -10212,9 +10212,9 @@ var require_api_upgrade = __commonJS({
     };
     function upgrade(opts, callback2) {
       if (callback2 === void 0) {
-        return new Promise((resolve6, reject) => {
+        return new Promise((resolve4, reject) => {
           upgrade.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve6(data);
+            return err ? reject(err) : resolve4(data);
           });
         });
       }
@@ -10304,9 +10304,9 @@ var require_api_connect = __commonJS({
     };
     function connect(opts, callback2) {
       if (callback2 === void 0) {
-        return new Promise((resolve6, reject) => {
+        return new Promise((resolve4, reject) => {
           connect.call(this, opts, (err, data) => {
-            return err ? reject(err) : resolve6(data);
+            return err ? reject(err) : resolve4(data);
           });
         });
       }
@@ -10470,20 +10470,20 @@ var require_mock_utils = __commonJS({
       }
       return true;
     }
-    function safeUrl(path4) {
-      if (typeof path4 !== "string") {
-        return path4;
+    function safeUrl(path2) {
+      if (typeof path2 !== "string") {
+        return path2;
       }
-      const pathSegments = path4.split("?");
+      const pathSegments = path2.split("?");
       if (pathSegments.length !== 2) {
-        return path4;
+        return path2;
       }
       const qp = new URLSearchParams(pathSegments.pop());
       qp.sort();
       return [...pathSegments, qp.toString()].join("?");
     }
-    function matchKey(mockDispatch2, { path: path4, method, body, headers }) {
-      const pathMatch = matchValue(mockDispatch2.path, path4);
+    function matchKey(mockDispatch2, { path: path2, method, body, headers }) {
+      const pathMatch = matchValue(mockDispatch2.path, path2);
       const methodMatch = matchValue(mockDispatch2.method, method);
       const bodyMatch = typeof mockDispatch2.body !== "undefined" ? matchValue(mockDispatch2.body, body) : true;
       const headersMatch = matchHeaders(mockDispatch2, headers);
@@ -10501,7 +10501,7 @@ var require_mock_utils = __commonJS({
     function getMockDispatch(mockDispatches, key) {
       const basePath = key.query ? buildURL(key.path, key.query) : key.path;
       const resolvedPath = typeof basePath === "string" ? safeUrl(basePath) : basePath;
-      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path4 }) => matchValue(safeUrl(path4), resolvedPath));
+      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path2 }) => matchValue(safeUrl(path2), resolvedPath));
       if (matchedMockDispatches.length === 0) {
         throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`);
       }
@@ -10538,9 +10538,9 @@ var require_mock_utils = __commonJS({
       }
     }
     function buildKey(opts) {
-      const { path: path4, method, body, headers, query } = opts;
+      const { path: path2, method, body, headers, query } = opts;
       return {
-        path: path4,
+        path: path2,
         method,
         body,
         headers,
@@ -10994,10 +10994,10 @@ var require_pending_interceptors_formatter = __commonJS({
       }
       format(pendingInterceptors) {
         const withPrettyHeaders = pendingInterceptors.map(
-          ({ method, path: path4, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
+          ({ method, path: path2, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
             Method: method,
             Origin: origin,
-            Path: path4,
+            Path: path2,
             "Status code": statusCode,
             Persistent: persist ? "\u2705" : "\u274C",
             Invocations: timesInvoked,
@@ -11793,7 +11793,7 @@ var require_headers = __commonJS({
         return headers;
       }
     };
-    var Headers2 = class _Headers {
+    var Headers = class _Headers {
       constructor(init = void 0) {
         if (init === kConstruct) {
           return;
@@ -11988,8 +11988,8 @@ var require_headers = __commonJS({
         return this[kHeadersList];
       }
     };
-    Headers2.prototype[Symbol.iterator] = Headers2.prototype.entries;
-    Object.defineProperties(Headers2.prototype, {
+    Headers.prototype[Symbol.iterator] = Headers.prototype.entries;
+    Object.defineProperties(Headers.prototype, {
       append: kEnumerableProperty,
       delete: kEnumerableProperty,
       get: kEnumerableProperty,
@@ -12024,7 +12024,7 @@ var require_headers = __commonJS({
     };
     module2.exports = {
       fill,
-      Headers: Headers2,
+      Headers,
       HeadersList
     };
   }
@@ -12035,7 +12035,7 @@ var require_response = __commonJS({
   "../../node_modules/.pnpm/undici@5.29.0/node_modules/undici/lib/fetch/response.js"(exports2, module2) {
     "use strict";
     init_cjs_shims();
-    var { Headers: Headers2, HeadersList, fill } = require_headers();
+    var { Headers, HeadersList, fill } = require_headers();
     var { extractBody, cloneBody, mixinBody } = require_body();
     var util2 = require_util();
     var { kEnumerableProperty } = util2;
@@ -12063,7 +12063,7 @@ var require_response = __commonJS({
     var { types } = require("util");
     var ReadableStream = globalThis.ReadableStream || require("stream/web").ReadableStream;
     var textEncoder = new TextEncoder("utf-8");
-    var Response2 = class _Response {
+    var Response = class _Response {
       // Creates network error Response.
       static error() {
         const relevantRealm = { settingsObject: {} };
@@ -12127,7 +12127,7 @@ var require_response = __commonJS({
         init = webidl.converters.ResponseInit(init);
         this[kRealm] = { settingsObject: {} };
         this[kState] = makeResponse({});
-        this[kHeaders] = new Headers2(kConstruct);
+        this[kHeaders] = new Headers(kConstruct);
         this[kHeaders][kGuard] = "response";
         this[kHeaders][kHeadersList] = this[kState].headersList;
         this[kHeaders][kRealm] = this[kRealm];
@@ -12205,8 +12205,8 @@ var require_response = __commonJS({
         return clonedResponseObject;
       }
     };
-    mixinBody(Response2);
-    Object.defineProperties(Response2.prototype, {
+    mixinBody(Response);
+    Object.defineProperties(Response.prototype, {
       type: kEnumerableProperty,
       url: kEnumerableProperty,
       status: kEnumerableProperty,
@@ -12222,7 +12222,7 @@ var require_response = __commonJS({
         configurable: true
       }
     });
-    Object.defineProperties(Response2, {
+    Object.defineProperties(Response, {
       json: kEnumerableProperty,
       redirect: kEnumerableProperty,
       error: kEnumerableProperty
@@ -12404,7 +12404,7 @@ var require_response = __commonJS({
       makeResponse,
       makeAppropriateNetworkError,
       filterResponse,
-      Response: Response2,
+      Response,
       cloneResponse
     };
   }
@@ -12416,8 +12416,8 @@ var require_request2 = __commonJS({
     "use strict";
     init_cjs_shims();
     var { extractBody, mixinBody, cloneBody } = require_body();
-    var { Headers: Headers2, fill: fillHeaders, HeadersList } = require_headers();
-    var { FinalizationRegistry: FinalizationRegistry2 } = require_dispatcher_weakref()();
+    var { Headers, fill: fillHeaders, HeadersList } = require_headers();
+    var { FinalizationRegistry } = require_dispatcher_weakref()();
     var util2 = require_util();
     var {
       isValidHTTPToken,
@@ -12446,10 +12446,10 @@ var require_request2 = __commonJS({
     var { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = require("events");
     var TransformStream = globalThis.TransformStream;
     var kAbortController = /* @__PURE__ */ Symbol("abortController");
-    var requestFinalizer = new FinalizationRegistry2(({ signal, abort }) => {
+    var requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
       signal.removeEventListener("abort", abort);
     });
-    var Request2 = class _Request {
+    var Request = class _Request {
       // https://fetch.spec.whatwg.org/#dom-request
       constructor(input, init = {}) {
         if (input === kConstruct) {
@@ -12491,15 +12491,15 @@ var require_request2 = __commonJS({
           signal = input[kSignal];
         }
         const origin = this[kRealm].settingsObject.origin;
-        let window2 = "client";
+        let window = "client";
         if (request2.window?.constructor?.name === "EnvironmentSettingsObject" && sameOrigin(request2.window, origin)) {
-          window2 = request2.window;
+          window = request2.window;
         }
         if (init.window != null) {
-          throw new TypeError(`'window' option '${window2}' must be null`);
+          throw new TypeError(`'window' option '${window}' must be null`);
         }
         if ("window" in init) {
-          window2 = "no-window";
+          window = "no-window";
         }
         request2 = makeRequest({
           // URL request’s URL.
@@ -12514,7 +12514,7 @@ var require_request2 = __commonJS({
           // client This’s relevant settings object.
           client: this[kRealm].settingsObject,
           // window window.
-          window: window2,
+          window,
           // priority request’s priority.
           priority: request2.priority,
           // origin request’s origin. The propagation of the origin is only significant for navigation requests
@@ -12660,7 +12660,7 @@ var require_request2 = __commonJS({
             requestFinalizer.register(ac, { signal, abort });
           }
         }
-        this[kHeaders] = new Headers2(kConstruct);
+        this[kHeaders] = new Headers(kConstruct);
         this[kHeaders][kHeadersList] = request2.headersList;
         this[kHeaders][kGuard] = "request";
         this[kHeaders][kRealm] = this[kRealm];
@@ -12859,7 +12859,7 @@ var require_request2 = __commonJS({
         const clonedRequestObject = new _Request(kConstruct);
         clonedRequestObject[kState] = clonedRequest;
         clonedRequestObject[kRealm] = this[kRealm];
-        clonedRequestObject[kHeaders] = new Headers2(kConstruct);
+        clonedRequestObject[kHeaders] = new Headers(kConstruct);
         clonedRequestObject[kHeaders][kHeadersList] = clonedRequest.headersList;
         clonedRequestObject[kHeaders][kGuard] = this[kHeaders][kGuard];
         clonedRequestObject[kHeaders][kRealm] = this[kHeaders][kRealm];
@@ -12878,7 +12878,7 @@ var require_request2 = __commonJS({
         return clonedRequestObject;
       }
     };
-    mixinBody(Request2);
+    mixinBody(Request);
     function makeRequest(init) {
       const request2 = {
         method: "GET",
@@ -12929,7 +12929,7 @@ var require_request2 = __commonJS({
       }
       return newRequest;
     }
-    Object.defineProperties(Request2.prototype, {
+    Object.defineProperties(Request.prototype, {
       method: kEnumerableProperty,
       url: kEnumerableProperty,
       headers: kEnumerableProperty,
@@ -12956,13 +12956,13 @@ var require_request2 = __commonJS({
       }
     });
     webidl.converters.Request = webidl.interfaceConverter(
-      Request2
+      Request
     );
     webidl.converters.RequestInfo = function(V) {
       if (typeof V === "string") {
         return webidl.converters.USVString(V);
       }
-      if (V instanceof Request2) {
+      if (V instanceof Request) {
         return webidl.converters.Request(V);
       }
       return webidl.converters.USVString(V);
@@ -13046,7 +13046,7 @@ var require_request2 = __commonJS({
         allowedValues: requestDuplex
       }
     ]);
-    module2.exports = { Request: Request2, makeRequest };
+    module2.exports = { Request, makeRequest };
   }
 });
 
@@ -13056,14 +13056,14 @@ var require_fetch = __commonJS({
     "use strict";
     init_cjs_shims();
     var {
-      Response: Response2,
+      Response,
       makeNetworkError,
       makeAppropriateNetworkError,
       filterResponse,
       makeResponse
     } = require_response();
-    var { Headers: Headers2 } = require_headers();
-    var { Request: Request2, makeRequest } = require_request2();
+    var { Headers } = require_headers();
+    var { Request, makeRequest } = require_request2();
     var zlib = require("zlib");
     var {
       bytesMatch,
@@ -13149,12 +13149,12 @@ var require_fetch = __commonJS({
         this.emit("terminated", error2);
       }
     };
-    function fetch2(input, init = {}) {
+    function fetch(input, init = {}) {
       webidl.argumentLengthCheck(arguments, 1, { header: "globalThis.fetch" });
       const p = createDeferredPromise();
       let requestObject;
       try {
-        requestObject = new Request2(input, init);
+        requestObject = new Request(input, init);
       } catch (e) {
         p.reject(e);
         return p.promise;
@@ -13196,7 +13196,7 @@ var require_fetch = __commonJS({
           );
           return Promise.resolve();
         }
-        responseObject = new Response2();
+        responseObject = new Response();
         responseObject[kState] = response;
         responseObject[kRealm] = relevantRealm;
         responseObject[kHeaders][kHeadersList] = response.headersList;
@@ -13947,7 +13947,7 @@ var require_fetch = __commonJS({
       async function dispatch({ body }) {
         const url = requestCurrentURL(request2);
         const agent = fetchParams.controller.dispatcher;
-        return new Promise((resolve6, reject) => agent.dispatch(
+        return new Promise((resolve4, reject) => agent.dispatch(
           {
             path: url.pathname + url.search,
             origin: url.origin,
@@ -13975,7 +13975,7 @@ var require_fetch = __commonJS({
               }
               let codings = [];
               let location = "";
-              const headers = new Headers2();
+              const headers = new Headers();
               if (Array.isArray(headersList)) {
                 for (let n = 0; n < headersList.length; n += 2) {
                   const key = headersList[n + 0].toString("latin1");
@@ -14023,7 +14023,7 @@ var require_fetch = __commonJS({
                   }
                 }
               }
-              resolve6({
+              resolve4({
                 status,
                 statusText,
                 headersList: headers[kHeadersList],
@@ -14060,13 +14060,13 @@ var require_fetch = __commonJS({
               if (status !== 101) {
                 return;
               }
-              const headers = new Headers2();
+              const headers = new Headers();
               for (let n = 0; n < headersList.length; n += 2) {
                 const key = headersList[n + 0].toString("latin1");
                 const val = headersList[n + 1].toString("latin1");
                 headers[kHeadersList].append(key, val);
               }
-              resolve6({
+              resolve4({
                 status,
                 statusText: STATUS_CODES[status],
                 headersList: headers[kHeadersList],
@@ -14079,7 +14079,7 @@ var require_fetch = __commonJS({
       }
     }
     module2.exports = {
-      fetch: fetch2,
+      fetch,
       Fetch,
       fetching,
       finalizeAndReportTiming
@@ -14961,8 +14961,8 @@ var require_cache = __commonJS({
     var { kEnumerableProperty, isDisturbed } = require_util();
     var { kHeadersList } = require_symbols();
     var { webidl } = require_webidl();
-    var { Response: Response2, cloneResponse } = require_response();
-    var { Request: Request2 } = require_request2();
+    var { Response, cloneResponse } = require_response();
+    var { Request } = require_request2();
     var { kState, kHeaders, kGuard, kRealm } = require_symbols2();
     var { fetching } = require_fetch();
     var { urlIsHttpHttpsScheme, createDeferredPromise, readAllBytes } = require_util2();
@@ -14997,13 +14997,13 @@ var require_cache = __commonJS({
         options = webidl.converters.CacheQueryOptions(options);
         let r = null;
         if (request2 !== void 0) {
-          if (request2 instanceof Request2) {
+          if (request2 instanceof Request) {
             r = request2[kState];
             if (r.method !== "GET" && !options.ignoreMethod) {
               return [];
             }
           } else if (typeof request2 === "string") {
-            r = new Request2(request2)[kState];
+            r = new Request(request2)[kState];
           }
         }
         const responses = [];
@@ -15019,7 +15019,7 @@ var require_cache = __commonJS({
         }
         const responseList = [];
         for (const response of responses) {
-          const responseObject = new Response2(response.body?.source ?? null);
+          const responseObject = new Response(response.body?.source ?? null);
           const body = responseObject[kState].body;
           responseObject[kState] = response;
           responseObject[kState].body = body;
@@ -15057,7 +15057,7 @@ var require_cache = __commonJS({
         }
         const fetchControllers = [];
         for (const request2 of requests) {
-          const r = new Request2(request2)[kState];
+          const r = new Request(request2)[kState];
           if (!urlIsHttpHttpsScheme(r.url)) {
             throw webidl.errors.exception({
               header: "Cache.addAll",
@@ -15141,10 +15141,10 @@ var require_cache = __commonJS({
         request2 = webidl.converters.RequestInfo(request2);
         response = webidl.converters.Response(response);
         let innerRequest = null;
-        if (request2 instanceof Request2) {
+        if (request2 instanceof Request) {
           innerRequest = request2[kState];
         } else {
-          innerRequest = new Request2(request2)[kState];
+          innerRequest = new Request(request2)[kState];
         }
         if (!urlIsHttpHttpsScheme(innerRequest.url) || innerRequest.method !== "GET") {
           throw webidl.errors.exception({
@@ -15221,14 +15221,14 @@ var require_cache = __commonJS({
         request2 = webidl.converters.RequestInfo(request2);
         options = webidl.converters.CacheQueryOptions(options);
         let r = null;
-        if (request2 instanceof Request2) {
+        if (request2 instanceof Request) {
           r = request2[kState];
           if (r.method !== "GET" && !options.ignoreMethod) {
             return false;
           }
         } else {
           assert(typeof request2 === "string");
-          r = new Request2(request2)[kState];
+          r = new Request(request2)[kState];
         }
         const operations = [];
         const operation = {
@@ -15266,13 +15266,13 @@ var require_cache = __commonJS({
         options = webidl.converters.CacheQueryOptions(options);
         let r = null;
         if (request2 !== void 0) {
-          if (request2 instanceof Request2) {
+          if (request2 instanceof Request) {
             r = request2[kState];
             if (r.method !== "GET" && !options.ignoreMethod) {
               return [];
             }
           } else if (typeof request2 === "string") {
-            r = new Request2(request2)[kState];
+            r = new Request(request2)[kState];
           }
         }
         const promise2 = createDeferredPromise();
@@ -15290,7 +15290,7 @@ var require_cache = __commonJS({
         queueMicrotask(() => {
           const requestList = [];
           for (const request3 of requests) {
-            const requestObject = new Request2("https://a");
+            const requestObject = new Request("https://a");
             requestObject[kState] = request3;
             requestObject[kHeaders][kHeadersList] = request3.headersList;
             requestObject[kHeaders][kGuard] = "immutable";
@@ -15474,7 +15474,7 @@ var require_cache = __commonJS({
         converter: webidl.converters.DOMString
       }
     ]);
-    webidl.converters.Response = webidl.interfaceConverter(Response2);
+    webidl.converters.Response = webidl.interfaceConverter(Response);
     webidl.converters["sequence<RequestInfo>"] = webidl.sequenceConverter(
       webidl.converters.RequestInfo
     );
@@ -15638,8 +15638,8 @@ var require_util6 = __commonJS({
         }
       }
     }
-    function validateCookiePath(path4) {
-      for (const char of path4) {
+    function validateCookiePath(path2) {
+      for (const char of path2) {
         const code = char.charCodeAt(0);
         if (code < 33 || char === ";") {
           throw new Error("Invalid cookie path");
@@ -15900,10 +15900,10 @@ var require_cookies = __commonJS({
     var { parseSetCookie } = require_parse();
     var { stringify: stringify2 } = require_util6();
     var { webidl } = require_webidl();
-    var { Headers: Headers2 } = require_headers();
+    var { Headers } = require_headers();
     function getCookies(headers) {
       webidl.argumentLengthCheck(arguments, 1, { header: "getCookies" });
-      webidl.brandCheck(headers, Headers2, { strict: false });
+      webidl.brandCheck(headers, Headers, { strict: false });
       const cookie = headers.get("cookie");
       const out = {};
       if (!cookie) {
@@ -15917,7 +15917,7 @@ var require_cookies = __commonJS({
     }
     function deleteCookie(headers, name, attributes) {
       webidl.argumentLengthCheck(arguments, 2, { header: "deleteCookie" });
-      webidl.brandCheck(headers, Headers2, { strict: false });
+      webidl.brandCheck(headers, Headers, { strict: false });
       name = webidl.converters.DOMString(name);
       attributes = webidl.converters.DeleteCookieAttributes(attributes);
       setCookie(headers, {
@@ -15929,7 +15929,7 @@ var require_cookies = __commonJS({
     }
     function getSetCookies(headers) {
       webidl.argumentLengthCheck(arguments, 1, { header: "getSetCookies" });
-      webidl.brandCheck(headers, Headers2, { strict: false });
+      webidl.brandCheck(headers, Headers, { strict: false });
       const cookies = headers.getSetCookie();
       if (!cookies) {
         return [];
@@ -15938,7 +15938,7 @@ var require_cookies = __commonJS({
     }
     function setCookie(headers, cookie) {
       webidl.argumentLengthCheck(arguments, 2, { header: "setCookie" });
-      webidl.brandCheck(headers, Headers2, { strict: false });
+      webidl.brandCheck(headers, Headers, { strict: false });
       cookie = webidl.converters.Cookie(cookie);
       const str = stringify2(cookie);
       if (str) {
@@ -16436,7 +16436,7 @@ var require_connection = __commonJS({
     var { CloseEvent } = require_events();
     var { makeRequest } = require_request2();
     var { fetching } = require_fetch();
-    var { Headers: Headers2 } = require_headers();
+    var { Headers } = require_headers();
     var { getGlobalDispatcher } = require_global2();
     var { kHeadersList } = require_symbols();
     var channels = {};
@@ -16461,7 +16461,7 @@ var require_connection = __commonJS({
         redirect: "error"
       });
       if (options.headers) {
-        const headersList = new Headers2(options.headers)[kHeadersList];
+        const headersList = new Headers(options.headers)[kHeadersList];
         request2.headersList = headersList;
       }
       const keyValue = crypto.randomBytes(16).toString("base64");
@@ -16631,7 +16631,7 @@ var require_receiver = __commonJS({
   "../../node_modules/.pnpm/undici@5.29.0/node_modules/undici/lib/websocket/receiver.js"(exports2, module2) {
     "use strict";
     init_cjs_shims();
-    var { Writable } = require("stream");
+    var { Writable: Writable2 } = require("stream");
     var diagnosticsChannel = require("diagnostics_channel");
     var { parserStates, opcodes, states, emptyBuffer } = require_constants5();
     var { kReadyState, kSentClose, kResponse, kReceivedClose } = require_symbols5();
@@ -16640,7 +16640,7 @@ var require_receiver = __commonJS({
     var channels = {};
     channels.ping = diagnosticsChannel.channel("undici:websocket:ping");
     channels.pong = diagnosticsChannel.channel("undici:websocket:pong");
-    var ByteParser = class extends Writable {
+    var ByteParser = class extends Writable2 {
       #buffers = [];
       #byteOffset = 0;
       #state = parserStates.INFO;
@@ -17330,11 +17330,11 @@ var require_undici = __commonJS({
           if (typeof opts.path !== "string") {
             throw new InvalidArgumentError("invalid opts.path");
           }
-          let path4 = opts.path;
+          let path2 = opts.path;
           if (!opts.path.startsWith("/")) {
-            path4 = `/${path4}`;
+            path2 = `/${path2}`;
           }
-          url = new URL(util2.parseOrigin(url).origin + path4);
+          url = new URL(util2.parseOrigin(url).origin + path2);
         } else {
           if (!opts) {
             opts = typeof url === "object" ? url : {};
@@ -17357,7 +17357,7 @@ var require_undici = __commonJS({
     module2.exports.getGlobalDispatcher = getGlobalDispatcher;
     if (util2.nodeMajor > 16 || util2.nodeMajor === 16 && util2.nodeMinor >= 8) {
       let fetchImpl = null;
-      module2.exports.fetch = async function fetch2(resource) {
+      module2.exports.fetch = async function fetch(resource) {
         if (!fetchImpl) {
           fetchImpl = require_fetch().fetch;
         }
@@ -17443,11 +17443,11 @@ var require_lib = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve6, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -17463,7 +17463,7 @@ var require_lib = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -17505,11 +17505,11 @@ var require_lib = __commonJS({
       HttpCodes2[HttpCodes2["ServiceUnavailable"] = 503] = "ServiceUnavailable";
       HttpCodes2[HttpCodes2["GatewayTimeout"] = 504] = "GatewayTimeout";
     })(HttpCodes || (exports2.HttpCodes = HttpCodes = {}));
-    var Headers2;
-    (function(Headers3) {
-      Headers3["Accept"] = "accept";
-      Headers3["ContentType"] = "content-type";
-    })(Headers2 || (exports2.Headers = Headers2 = {}));
+    var Headers;
+    (function(Headers2) {
+      Headers2["Accept"] = "accept";
+      Headers2["ContentType"] = "content-type";
+    })(Headers || (exports2.Headers = Headers = {}));
     var MediaTypes;
     (function(MediaTypes2) {
       MediaTypes2["ApplicationJson"] = "application/json";
@@ -17549,26 +17549,26 @@ var require_lib = __commonJS({
       }
       readBody() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve6) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve4) => __awaiter(this, void 0, void 0, function* () {
             let output = Buffer.alloc(0);
             this.message.on("data", (chunk) => {
               output = Buffer.concat([output, chunk]);
             });
             this.message.on("end", () => {
-              resolve6(output.toString());
+              resolve4(output.toString());
             });
           }));
         });
       }
       readBodyBuffer() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve6) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve4) => __awaiter(this, void 0, void 0, function* () {
             const chunks = [];
             this.message.on("data", (chunk) => {
               chunks.push(chunk);
             });
             this.message.on("end", () => {
-              resolve6(Buffer.concat(chunks));
+              resolve4(Buffer.concat(chunks));
             });
           }));
         });
@@ -17664,7 +17664,7 @@ var require_lib = __commonJS({
        */
       getJson(requestUrl, additionalHeaders = {}) {
         return __awaiter(this, void 0, void 0, function* () {
-          additionalHeaders[Headers2.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.Accept, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
           const res = yield this.get(requestUrl, additionalHeaders);
           return this._processResponse(res, this.requestOptions);
         });
@@ -17672,8 +17672,8 @@ var require_lib = __commonJS({
       postJson(requestUrl, obj, additionalHeaders = {}) {
         return __awaiter(this, void 0, void 0, function* () {
           const data = JSON.stringify(obj, null, 2);
-          additionalHeaders[Headers2.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.Accept, MediaTypes.ApplicationJson);
-          additionalHeaders[Headers2.ContentType] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.ContentType, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers.ContentType] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.ContentType, MediaTypes.ApplicationJson);
           const res = yield this.post(requestUrl, data, additionalHeaders);
           return this._processResponse(res, this.requestOptions);
         });
@@ -17681,8 +17681,8 @@ var require_lib = __commonJS({
       putJson(requestUrl, obj, additionalHeaders = {}) {
         return __awaiter(this, void 0, void 0, function* () {
           const data = JSON.stringify(obj, null, 2);
-          additionalHeaders[Headers2.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.Accept, MediaTypes.ApplicationJson);
-          additionalHeaders[Headers2.ContentType] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.ContentType, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers.ContentType] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.ContentType, MediaTypes.ApplicationJson);
           const res = yield this.put(requestUrl, data, additionalHeaders);
           return this._processResponse(res, this.requestOptions);
         });
@@ -17690,8 +17690,8 @@ var require_lib = __commonJS({
       patchJson(requestUrl, obj, additionalHeaders = {}) {
         return __awaiter(this, void 0, void 0, function* () {
           const data = JSON.stringify(obj, null, 2);
-          additionalHeaders[Headers2.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.Accept, MediaTypes.ApplicationJson);
-          additionalHeaders[Headers2.ContentType] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.ContentType, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers.ContentType] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.ContentType, MediaTypes.ApplicationJson);
           const res = yield this.patch(requestUrl, data, additionalHeaders);
           return this._processResponse(res, this.requestOptions);
         });
@@ -17777,14 +17777,14 @@ var require_lib = __commonJS({
        */
       requestRaw(info2, data) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve6, reject) => {
+          return new Promise((resolve4, reject) => {
             function callbackForResult(err, res) {
               if (err) {
                 reject(err);
               } else if (!res) {
                 reject(new Error("Unknown error"));
               } else {
-                resolve6(res);
+                resolve4(res);
               }
             }
             this.requestRawWithCallback(info2, data, callbackForResult);
@@ -17966,12 +17966,12 @@ var require_lib = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           retryNumber = Math.min(ExponentialBackoffCeiling, retryNumber);
           const ms2 = ExponentialBackoffTimeSlice * Math.pow(2, retryNumber);
-          return new Promise((resolve6) => setTimeout(() => resolve6(), ms2));
+          return new Promise((resolve4) => setTimeout(() => resolve4(), ms2));
         });
       }
       _processResponse(res, options) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve6, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve4, reject) => __awaiter(this, void 0, void 0, function* () {
             const statusCode = res.message.statusCode || 0;
             const response = {
               statusCode,
@@ -17979,7 +17979,7 @@ var require_lib = __commonJS({
               headers: {}
             };
             if (statusCode === HttpCodes.NotFound) {
-              resolve6(response);
+              resolve4(response);
             }
             function dateTimeDeserializer(key, value) {
               if (typeof value === "string") {
@@ -18018,7 +18018,7 @@ var require_lib = __commonJS({
               err.result = response.result;
               reject(err);
             } else {
-              resolve6(response);
+              resolve4(response);
             }
           }));
         });
@@ -18036,11 +18036,11 @@ var require_auth = __commonJS({
     init_cjs_shims();
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve6, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18056,7 +18056,7 @@ var require_auth = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18141,11 +18141,11 @@ var require_oidc_utils = __commonJS({
     init_cjs_shims();
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve6, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18161,7 +18161,7 @@ var require_oidc_utils = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18240,11 +18240,11 @@ var require_summary = __commonJS({
     init_cjs_shims();
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve6, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18260,7 +18260,7 @@ var require_summary = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18269,7 +18269,7 @@ var require_summary = __commonJS({
     exports2.summary = exports2.markdownSummary = exports2.SUMMARY_DOCS_URL = exports2.SUMMARY_ENV_VAR = void 0;
     var os_1 = require("os");
     var fs_1 = require("fs");
-    var { access: access3, appendFile, writeFile: writeFile4 } = fs_1.promises;
+    var { access: access2, appendFile, writeFile: writeFile3 } = fs_1.promises;
     exports2.SUMMARY_ENV_VAR = "GITHUB_STEP_SUMMARY";
     exports2.SUMMARY_DOCS_URL = "https://docs.github.com/actions/using-workflows/workflow-commands-for-github-actions#adding-a-job-summary";
     var Summary = class {
@@ -18292,7 +18292,7 @@ var require_summary = __commonJS({
             throw new Error(`Unable to find environment variable for $${exports2.SUMMARY_ENV_VAR}. Check if your runtime environment supports job summaries.`);
           }
           try {
-            yield access3(pathFromEnv, fs_1.constants.R_OK | fs_1.constants.W_OK);
+            yield access2(pathFromEnv, fs_1.constants.R_OK | fs_1.constants.W_OK);
           } catch (_a) {
             throw new Error(`Unable to access summary file: '${pathFromEnv}'. Check if the file has correct read/write permissions.`);
           }
@@ -18327,7 +18327,7 @@ var require_summary = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           const overwrite = !!(options === null || options === void 0 ? void 0 : options.overwrite);
           const filePath = yield this.filePath();
-          const writeFunc = overwrite ? writeFile4 : appendFile;
+          const writeFunc = overwrite ? writeFile3 : appendFile;
           yield writeFunc(filePath, this._buffer, { encoding: "utf8" });
           return this.emptyBuffer();
         });
@@ -18562,7 +18562,7 @@ var require_path_utils = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.toPlatformPath = exports2.toWin32Path = exports2.toPosixPath = void 0;
-    var path4 = __importStar(require("path"));
+    var path2 = __importStar(require("path"));
     function toPosixPath(pth) {
       return pth.replace(/[\\]/g, "/");
     }
@@ -18572,7 +18572,7 @@ var require_path_utils = __commonJS({
     }
     exports2.toWin32Path = toWin32Path;
     function toPlatformPath(pth) {
-      return pth.replace(/[/\\]/g, path4.sep);
+      return pth.replace(/[/\\]/g, path2.sep);
     }
     exports2.toPlatformPath = toPlatformPath;
   }
@@ -18608,11 +18608,11 @@ var require_io_util = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve6, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18628,7 +18628,7 @@ var require_io_util = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18636,12 +18636,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs4 = __importStar(require("fs"));
-    var path4 = __importStar(require("path"));
-    _a = fs4.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    var fs3 = __importStar(require("fs"));
+    var path2 = __importStar(require("path"));
+    _a = fs3.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs4.constants.O_RDONLY;
+    exports2.READONLY = fs3.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -18686,7 +18686,7 @@ var require_io_util = __commonJS({
         }
         if (stats && stats.isFile()) {
           if (exports2.IS_WINDOWS) {
-            const upperExt = path4.extname(filePath).toUpperCase();
+            const upperExt = path2.extname(filePath).toUpperCase();
             if (extensions.some((validExt) => validExt.toUpperCase() === upperExt)) {
               return filePath;
             }
@@ -18710,11 +18710,11 @@ var require_io_util = __commonJS({
           if (stats && stats.isFile()) {
             if (exports2.IS_WINDOWS) {
               try {
-                const directory = path4.dirname(filePath);
-                const upperName = path4.basename(filePath).toUpperCase();
+                const directory = path2.dirname(filePath);
+                const upperName = path2.basename(filePath).toUpperCase();
                 for (const actualName of yield exports2.readdir(directory)) {
                   if (upperName === actualName.toUpperCase()) {
-                    filePath = path4.join(directory, actualName);
+                    filePath = path2.join(directory, actualName);
                     break;
                   }
                 }
@@ -18782,11 +18782,11 @@ var require_io = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve6, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -18802,7 +18802,7 @@ var require_io = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -18810,7 +18810,7 @@ var require_io = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.findInPath = exports2.which = exports2.mkdirP = exports2.rmRF = exports2.mv = exports2.cp = void 0;
     var assert_1 = require("assert");
-    var path4 = __importStar(require("path"));
+    var path2 = __importStar(require("path"));
     var ioUtil = __importStar(require_io_util());
     function cp(source, dest, options = {}) {
       return __awaiter(this, void 0, void 0, function* () {
@@ -18819,7 +18819,7 @@ var require_io = __commonJS({
         if (destStat && destStat.isFile() && !force) {
           return;
         }
-        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path4.join(dest, path4.basename(source)) : dest;
+        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path2.join(dest, path2.basename(source)) : dest;
         if (!(yield ioUtil.exists(source))) {
           throw new Error(`no such file or directory: ${source}`);
         }
@@ -18831,7 +18831,7 @@ var require_io = __commonJS({
             yield cpDirRecursive(source, newDest, 0, force);
           }
         } else {
-          if (path4.relative(source, newDest) === "") {
+          if (path2.relative(source, newDest) === "") {
             throw new Error(`'${newDest}' and '${source}' are the same file`);
           }
           yield copyFile(source, newDest, force);
@@ -18844,7 +18844,7 @@ var require_io = __commonJS({
         if (yield ioUtil.exists(dest)) {
           let destExists = true;
           if (yield ioUtil.isDirectory(dest)) {
-            dest = path4.join(dest, path4.basename(source));
+            dest = path2.join(dest, path2.basename(source));
             destExists = yield ioUtil.exists(dest);
           }
           if (destExists) {
@@ -18855,7 +18855,7 @@ var require_io = __commonJS({
             }
           }
         }
-        yield mkdirP(path4.dirname(dest));
+        yield mkdirP(path2.dirname(dest));
         yield ioUtil.rename(source, dest);
       });
     }
@@ -18918,7 +18918,7 @@ var require_io = __commonJS({
         }
         const extensions = [];
         if (ioUtil.IS_WINDOWS && process.env["PATHEXT"]) {
-          for (const extension of process.env["PATHEXT"].split(path4.delimiter)) {
+          for (const extension of process.env["PATHEXT"].split(path2.delimiter)) {
             if (extension) {
               extensions.push(extension);
             }
@@ -18931,12 +18931,12 @@ var require_io = __commonJS({
           }
           return [];
         }
-        if (tool.includes(path4.sep)) {
+        if (tool.includes(path2.sep)) {
           return [];
         }
         const directories = [];
         if (process.env.PATH) {
-          for (const p of process.env.PATH.split(path4.delimiter)) {
+          for (const p of process.env.PATH.split(path2.delimiter)) {
             if (p) {
               directories.push(p);
             }
@@ -18944,7 +18944,7 @@ var require_io = __commonJS({
         }
         const matches = [];
         for (const directory of directories) {
-          const filePath = yield ioUtil.tryGetExecutablePath(path4.join(directory, tool), extensions);
+          const filePath = yield ioUtil.tryGetExecutablePath(path2.join(directory, tool), extensions);
           if (filePath) {
             matches.push(filePath);
           }
@@ -19031,11 +19031,11 @@ var require_toolrunner = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve6, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19051,17 +19051,17 @@ var require_toolrunner = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.argStringToArray = exports2.ToolRunner = void 0;
-    var os3 = __importStar(require("os"));
+    var os2 = __importStar(require("os"));
     var events = __importStar(require("events"));
     var child = __importStar(require("child_process"));
-    var path4 = __importStar(require("path"));
+    var path2 = __importStar(require("path"));
     var io = __importStar(require_io());
     var ioUtil = __importStar(require_io_util());
     var timers_1 = require("timers");
@@ -19113,12 +19113,12 @@ var require_toolrunner = __commonJS({
       _processLineBuffer(data, strBuffer, onLine) {
         try {
           let s = strBuffer + data.toString();
-          let n = s.indexOf(os3.EOL);
+          let n = s.indexOf(os2.EOL);
           while (n > -1) {
             const line = s.substring(0, n);
             onLine(line);
-            s = s.substring(n + os3.EOL.length);
-            n = s.indexOf(os3.EOL);
+            s = s.substring(n + os2.EOL.length);
+            n = s.indexOf(os2.EOL);
           }
           return s;
         } catch (err) {
@@ -19276,10 +19276,10 @@ var require_toolrunner = __commonJS({
       exec() {
         return __awaiter(this, void 0, void 0, function* () {
           if (!ioUtil.isRooted(this.toolPath) && (this.toolPath.includes("/") || IS_WINDOWS && this.toolPath.includes("\\"))) {
-            this.toolPath = path4.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
+            this.toolPath = path2.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
           }
           this.toolPath = yield io.which(this.toolPath, true);
-          return new Promise((resolve6, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve4, reject) => __awaiter(this, void 0, void 0, function* () {
             this._debug(`exec tool: ${this.toolPath}`);
             this._debug("arguments:");
             for (const arg of this.args) {
@@ -19287,7 +19287,7 @@ var require_toolrunner = __commonJS({
             }
             const optionsNonNull = this._cloneExecOptions(this.options);
             if (!optionsNonNull.silent && optionsNonNull.outStream) {
-              optionsNonNull.outStream.write(this._getCommandString(optionsNonNull) + os3.EOL);
+              optionsNonNull.outStream.write(this._getCommandString(optionsNonNull) + os2.EOL);
             }
             const state = new ExecState(optionsNonNull, this.toolPath);
             state.on("debug", (message) => {
@@ -19362,7 +19362,7 @@ var require_toolrunner = __commonJS({
               if (error2) {
                 reject(error2);
               } else {
-                resolve6(exitCode);
+                resolve4(exitCode);
               }
             });
             if (this.options.input) {
@@ -19516,11 +19516,11 @@ var require_exec = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve6, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19536,7 +19536,7 @@ var require_exec = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19628,11 +19628,11 @@ var require_platform = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve6, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19648,7 +19648,7 @@ var require_platform = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19748,11 +19748,11 @@ var require_core = __commonJS({
     };
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve6, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -19768,7 +19768,7 @@ var require_core = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -19778,8 +19778,8 @@ var require_core = __commonJS({
     var command_1 = require_command();
     var file_command_1 = require_file_command();
     var utils_1 = require_utils();
-    var os3 = __importStar(require("os"));
-    var path4 = __importStar(require("path"));
+    var os2 = __importStar(require("os"));
+    var path2 = __importStar(require("path"));
     var oidc_utils_1 = require_oidc_utils();
     var ExitCode;
     (function(ExitCode2) {
@@ -19807,7 +19807,7 @@ var require_core = __commonJS({
       } else {
         (0, command_1.issueCommand)("add-path", {}, inputPath);
       }
-      process.env["PATH"] = `${inputPath}${path4.delimiter}${process.env["PATH"]}`;
+      process.env["PATH"] = `${inputPath}${path2.delimiter}${process.env["PATH"]}`;
     }
     exports2.addPath = addPath;
     function getInput2(name, options) {
@@ -19846,7 +19846,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       if (filePath) {
         return (0, file_command_1.issueFileCommand)("OUTPUT", (0, file_command_1.prepareKeyValueMessage)(name, value));
       }
-      process.stdout.write(os3.EOL);
+      process.stdout.write(os2.EOL);
       (0, command_1.issueCommand)("set-output", { name }, (0, utils_1.toCommandValue)(value));
     }
     exports2.setOutput = setOutput2;
@@ -19880,7 +19880,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     }
     exports2.notice = notice;
     function info2(message) {
-      process.stdout.write(message + os3.EOL);
+      process.stdout.write(message + os2.EOL);
     }
     exports2.info = info2;
     function startGroup2(name) {
@@ -21998,17 +21998,17 @@ var require_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP;
     visit.REMOVE = REMOVE;
-    function visit_(key, node, visitor, path4) {
-      const ctrl = callVisitor(key, node, visitor, path4);
+    function visit_(key, node, visitor, path2) {
+      const ctrl = callVisitor(key, node, visitor, path2);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key, path4, ctrl);
-        return visit_(key, ctrl, visitor, path4);
+        replaceNode(key, path2, ctrl);
+        return visit_(key, ctrl, visitor, path2);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path4 = Object.freeze(path4.concat(node));
+          path2 = Object.freeze(path2.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
-            const ci = visit_(i, node.items[i], visitor, path4);
+            const ci = visit_(i, node.items[i], visitor, path2);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -22019,13 +22019,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path4 = Object.freeze(path4.concat(node));
-          const ck = visit_("key", node.key, visitor, path4);
+          path2 = Object.freeze(path2.concat(node));
+          const ck = visit_("key", node.key, visitor, path2);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = visit_("value", node.value, visitor, path4);
+          const cv = visit_("value", node.value, visitor, path2);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -22046,17 +22046,17 @@ var require_visit = __commonJS({
     visitAsync.BREAK = BREAK;
     visitAsync.SKIP = SKIP;
     visitAsync.REMOVE = REMOVE;
-    async function visitAsync_(key, node, visitor, path4) {
-      const ctrl = await callVisitor(key, node, visitor, path4);
+    async function visitAsync_(key, node, visitor, path2) {
+      const ctrl = await callVisitor(key, node, visitor, path2);
       if (identity.isNode(ctrl) || identity.isPair(ctrl)) {
-        replaceNode(key, path4, ctrl);
-        return visitAsync_(key, ctrl, visitor, path4);
+        replaceNode(key, path2, ctrl);
+        return visitAsync_(key, ctrl, visitor, path2);
       }
       if (typeof ctrl !== "symbol") {
         if (identity.isCollection(node)) {
-          path4 = Object.freeze(path4.concat(node));
+          path2 = Object.freeze(path2.concat(node));
           for (let i = 0; i < node.items.length; ++i) {
-            const ci = await visitAsync_(i, node.items[i], visitor, path4);
+            const ci = await visitAsync_(i, node.items[i], visitor, path2);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -22067,13 +22067,13 @@ var require_visit = __commonJS({
             }
           }
         } else if (identity.isPair(node)) {
-          path4 = Object.freeze(path4.concat(node));
-          const ck = await visitAsync_("key", node.key, visitor, path4);
+          path2 = Object.freeze(path2.concat(node));
+          const ck = await visitAsync_("key", node.key, visitor, path2);
           if (ck === BREAK)
             return BREAK;
           else if (ck === REMOVE)
             node.key = null;
-          const cv = await visitAsync_("value", node.value, visitor, path4);
+          const cv = await visitAsync_("value", node.value, visitor, path2);
           if (cv === BREAK)
             return BREAK;
           else if (cv === REMOVE)
@@ -22100,23 +22100,23 @@ var require_visit = __commonJS({
       }
       return visitor;
     }
-    function callVisitor(key, node, visitor, path4) {
+    function callVisitor(key, node, visitor, path2) {
       if (typeof visitor === "function")
-        return visitor(key, node, path4);
+        return visitor(key, node, path2);
       if (identity.isMap(node))
-        return visitor.Map?.(key, node, path4);
+        return visitor.Map?.(key, node, path2);
       if (identity.isSeq(node))
-        return visitor.Seq?.(key, node, path4);
+        return visitor.Seq?.(key, node, path2);
       if (identity.isPair(node))
-        return visitor.Pair?.(key, node, path4);
+        return visitor.Pair?.(key, node, path2);
       if (identity.isScalar(node))
-        return visitor.Scalar?.(key, node, path4);
+        return visitor.Scalar?.(key, node, path2);
       if (identity.isAlias(node))
-        return visitor.Alias?.(key, node, path4);
+        return visitor.Alias?.(key, node, path2);
       return void 0;
     }
-    function replaceNode(key, path4, node) {
-      const parent = path4[path4.length - 1];
+    function replaceNode(key, path2, node) {
+      const parent = path2[path2.length - 1];
       if (identity.isCollection(parent)) {
         parent.items[key] = node;
       } else if (identity.isPair(parent)) {
@@ -22733,10 +22733,10 @@ var require_Collection = __commonJS({
     var createNode = require_createNode();
     var identity = require_identity();
     var Node = require_Node();
-    function collectionFromPath(schema, path4, value) {
+    function collectionFromPath(schema, path2, value) {
       let v = value;
-      for (let i = path4.length - 1; i >= 0; --i) {
-        const k = path4[i];
+      for (let i = path2.length - 1; i >= 0; --i) {
+        const k = path2[i];
         if (typeof k === "number" && Number.isInteger(k) && k >= 0) {
           const a = [];
           a[k] = v;
@@ -22755,7 +22755,7 @@ var require_Collection = __commonJS({
         sourceObjects: /* @__PURE__ */ new Map()
       });
     }
-    var isEmptyPath = (path4) => path4 == null || typeof path4 === "object" && !!path4[Symbol.iterator]().next().done;
+    var isEmptyPath = (path2) => path2 == null || typeof path2 === "object" && !!path2[Symbol.iterator]().next().done;
     var Collection2 = class extends Node.NodeBase {
       constructor(type, schema) {
         super(type);
@@ -22785,11 +22785,11 @@ var require_Collection = __commonJS({
        * be a Pair instance or a `{ key, value }` object, which may not have a key
        * that already exists in the map.
        */
-      addIn(path4, value) {
-        if (isEmptyPath(path4))
+      addIn(path2, value) {
+        if (isEmptyPath(path2))
           this.add(value);
         else {
-          const [key, ...rest] = path4;
+          const [key, ...rest] = path2;
           const node = this.get(key, true);
           if (identity.isCollection(node))
             node.addIn(rest, value);
@@ -22803,8 +22803,8 @@ var require_Collection = __commonJS({
        * Removes a value from the collection.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path4) {
-        const [key, ...rest] = path4;
+      deleteIn(path2) {
+        const [key, ...rest] = path2;
         if (rest.length === 0)
           return this.delete(key);
         const node = this.get(key, true);
@@ -22818,8 +22818,8 @@ var require_Collection = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path4, keepScalar) {
-        const [key, ...rest] = path4;
+      getIn(path2, keepScalar) {
+        const [key, ...rest] = path2;
         const node = this.get(key, true);
         if (rest.length === 0)
           return !keepScalar && identity.isScalar(node) ? node.value : node;
@@ -22837,8 +22837,8 @@ var require_Collection = __commonJS({
       /**
        * Checks if the collection includes a value with the key `key`.
        */
-      hasIn(path4) {
-        const [key, ...rest] = path4;
+      hasIn(path2) {
+        const [key, ...rest] = path2;
         if (rest.length === 0)
           return this.has(key);
         const node = this.get(key, true);
@@ -22848,8 +22848,8 @@ var require_Collection = __commonJS({
        * Sets a value in this collection. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path4, value) {
-        const [key, ...rest] = path4;
+      setIn(path2, value) {
+        const [key, ...rest] = path2;
         if (rest.length === 0) {
           this.set(key, value);
         } else {
@@ -24804,8 +24804,8 @@ var require_int2 = __commonJS({
     var stringifyNumber = require_stringifyNumber();
     var intIdentify = (value) => typeof value === "bigint" || Number.isInteger(value);
     function intResolve(str, offset, radix, { intAsBigInt }) {
-      const sign3 = str[0];
-      if (sign3 === "-" || sign3 === "+")
+      const sign2 = str[0];
+      if (sign2 === "-" || sign2 === "+")
         offset += 1;
       str = str.substring(offset).replace(/_/g, "");
       if (intAsBigInt) {
@@ -24821,10 +24821,10 @@ var require_int2 = __commonJS({
             break;
         }
         const n2 = BigInt(str);
-        return sign3 === "-" ? BigInt(-1) * n2 : n2;
+        return sign2 === "-" ? BigInt(-1) * n2 : n2;
       }
       const n = parseInt(str, radix);
-      return sign3 === "-" ? -1 * n : n;
+      return sign2 === "-" ? -1 * n : n;
     }
     function intStringify(node, radix, prefix) {
       const { value } = node;
@@ -24973,11 +24973,11 @@ var require_timestamp = __commonJS({
     init_cjs_shims();
     var stringifyNumber = require_stringifyNumber();
     function parseSexagesimal(str, asBigInt) {
-      const sign3 = str[0];
-      const parts = sign3 === "-" || sign3 === "+" ? str.substring(1) : str;
+      const sign2 = str[0];
+      const parts = sign2 === "-" || sign2 === "+" ? str.substring(1) : str;
       const num = (n) => asBigInt ? BigInt(n) : Number(n);
       const res = parts.replace(/_/g, "").split(":").reduce((res2, p) => res2 * num(60) + num(p), num(0));
-      return sign3 === "-" ? num(-1) * res : res;
+      return sign2 === "-" ? num(-1) * res : res;
     }
     function stringifySexagesimal(node) {
       let { value } = node;
@@ -24986,9 +24986,9 @@ var require_timestamp = __commonJS({
         num = (n) => BigInt(n);
       else if (isNaN(value) || !isFinite(value))
         return stringifyNumber.stringifyNumber(node);
-      let sign3 = "";
+      let sign2 = "";
       if (value < 0) {
-        sign3 = "-";
+        sign2 = "-";
         value *= num(-1);
       }
       const _60 = num(60);
@@ -25003,7 +25003,7 @@ var require_timestamp = __commonJS({
           parts.unshift(value);
         }
       }
-      return sign3 + parts.map((n) => String(n).padStart(2, "0")).join(":").replace(/000000\d*$/, "");
+      return sign2 + parts.map((n) => String(n).padStart(2, "0")).join(":").replace(/000000\d*$/, "");
     }
     var intTime = {
       identify: (value) => typeof value === "bigint" || Number.isInteger(value),
@@ -25388,9 +25388,9 @@ var require_Document = __commonJS({
           this.contents.add(value);
       }
       /** Adds a value to the document. */
-      addIn(path4, value) {
+      addIn(path2, value) {
         if (assertCollection(this.contents))
-          this.contents.addIn(path4, value);
+          this.contents.addIn(path2, value);
       }
       /**
        * Create a new `Alias` node, ensuring that the target `node` has the required anchor.
@@ -25465,14 +25465,14 @@ var require_Document = __commonJS({
        * Removes a value from the document.
        * @returns `true` if the item was found and removed.
        */
-      deleteIn(path4) {
-        if (Collection2.isEmptyPath(path4)) {
+      deleteIn(path2) {
+        if (Collection2.isEmptyPath(path2)) {
           if (this.contents == null)
             return false;
           this.contents = null;
           return true;
         }
-        return assertCollection(this.contents) ? this.contents.deleteIn(path4) : false;
+        return assertCollection(this.contents) ? this.contents.deleteIn(path2) : false;
       }
       /**
        * Returns item at `key`, or `undefined` if not found. By default unwraps
@@ -25487,10 +25487,10 @@ var require_Document = __commonJS({
        * scalar values from their surrounding node; to disable set `keepScalar` to
        * `true` (collections are always returned intact).
        */
-      getIn(path4, keepScalar) {
-        if (Collection2.isEmptyPath(path4))
+      getIn(path2, keepScalar) {
+        if (Collection2.isEmptyPath(path2))
           return !keepScalar && identity.isScalar(this.contents) ? this.contents.value : this.contents;
-        return identity.isCollection(this.contents) ? this.contents.getIn(path4, keepScalar) : void 0;
+        return identity.isCollection(this.contents) ? this.contents.getIn(path2, keepScalar) : void 0;
       }
       /**
        * Checks if the document includes a value with the key `key`.
@@ -25501,10 +25501,10 @@ var require_Document = __commonJS({
       /**
        * Checks if the document includes a value at `path`.
        */
-      hasIn(path4) {
-        if (Collection2.isEmptyPath(path4))
+      hasIn(path2) {
+        if (Collection2.isEmptyPath(path2))
           return this.contents !== void 0;
-        return identity.isCollection(this.contents) ? this.contents.hasIn(path4) : false;
+        return identity.isCollection(this.contents) ? this.contents.hasIn(path2) : false;
       }
       /**
        * Sets a value in this document. For `!!set`, `value` needs to be a
@@ -25521,13 +25521,13 @@ var require_Document = __commonJS({
        * Sets a value in this document. For `!!set`, `value` needs to be a
        * boolean to add/remove the item from the set.
        */
-      setIn(path4, value) {
-        if (Collection2.isEmptyPath(path4)) {
+      setIn(path2, value) {
+        if (Collection2.isEmptyPath(path2)) {
           this.contents = value;
         } else if (this.contents == null) {
-          this.contents = Collection2.collectionFromPath(this.schema, Array.from(path4), value);
+          this.contents = Collection2.collectionFromPath(this.schema, Array.from(path2), value);
         } else if (assertCollection(this.contents)) {
-          this.contents.setIn(path4, value);
+          this.contents.setIn(path2, value);
         }
       }
       /**
@@ -27499,9 +27499,9 @@ var require_cst_visit = __commonJS({
     visit.BREAK = BREAK;
     visit.SKIP = SKIP;
     visit.REMOVE = REMOVE;
-    visit.itemAtPath = (cst, path4) => {
+    visit.itemAtPath = (cst, path2) => {
       let item = cst;
-      for (const [field, index] of path4) {
+      for (const [field, index] of path2) {
         const tok = item?.[field];
         if (tok && "items" in tok) {
           item = tok.items[index];
@@ -27510,23 +27510,23 @@ var require_cst_visit = __commonJS({
       }
       return item;
     };
-    visit.parentCollection = (cst, path4) => {
-      const parent = visit.itemAtPath(cst, path4.slice(0, -1));
-      const field = path4[path4.length - 1][0];
+    visit.parentCollection = (cst, path2) => {
+      const parent = visit.itemAtPath(cst, path2.slice(0, -1));
+      const field = path2[path2.length - 1][0];
       const coll = parent?.[field];
       if (coll && "items" in coll)
         return coll;
       throw new Error("Parent collection not found");
     };
-    function _visit(path4, item, visitor) {
-      let ctrl = visitor(item, path4);
+    function _visit(path2, item, visitor) {
+      let ctrl = visitor(item, path2);
       if (typeof ctrl === "symbol")
         return ctrl;
       for (const field of ["key", "value"]) {
         const token = item[field];
         if (token && "items" in token) {
           for (let i = 0; i < token.items.length; ++i) {
-            const ci = _visit(Object.freeze(path4.concat([[field, i]])), token.items[i], visitor);
+            const ci = _visit(Object.freeze(path2.concat([[field, i]])), token.items[i], visitor);
             if (typeof ci === "number")
               i = ci - 1;
             else if (ci === BREAK)
@@ -27537,10 +27537,10 @@ var require_cst_visit = __commonJS({
             }
           }
           if (typeof ctrl === "function" && field === "key")
-            ctrl = ctrl(item, path4);
+            ctrl = ctrl(item, path2);
         }
       }
-      return typeof ctrl === "function" ? ctrl(item, path4) : ctrl;
+      return typeof ctrl === "function" ? ctrl(item, path2) : ctrl;
     }
     exports2.visit = visit;
   }
@@ -28829,14 +28829,14 @@ var require_parser = __commonJS({
             case "scalar":
             case "single-quoted-scalar":
             case "double-quoted-scalar": {
-              const fs4 = this.flowScalar(this.type);
+              const fs3 = this.flowScalar(this.type);
               if (atNextItem || it.value) {
-                map.items.push({ start, key: fs4, sep: [] });
+                map.items.push({ start, key: fs3, sep: [] });
                 this.onKeyLine = true;
               } else if (it.sep) {
-                this.stack.push(fs4);
+                this.stack.push(fs3);
               } else {
-                Object.assign(it, { key: fs4, sep: [] });
+                Object.assign(it, { key: fs3, sep: [] });
                 this.onKeyLine = true;
               }
               return;
@@ -28964,13 +28964,13 @@ var require_parser = __commonJS({
             case "scalar":
             case "single-quoted-scalar":
             case "double-quoted-scalar": {
-              const fs4 = this.flowScalar(this.type);
+              const fs3 = this.flowScalar(this.type);
               if (!it || it.value)
-                fc.items.push({ start: [], key: fs4, sep: [] });
+                fc.items.push({ start: [], key: fs3, sep: [] });
               else if (it.sep)
-                this.stack.push(fs4);
+                this.stack.push(fs3);
               else
-                Object.assign(it, { key: fs4, sep: [] });
+                Object.assign(it, { key: fs3, sep: [] });
               return;
             }
             case "flow-map-end":
@@ -29688,8 +29688,8 @@ var require_utils3 = __commonJS({
       }
       return output;
     };
-    exports2.basename = (path4, { windows } = {}) => {
-      const segs = path4.split(windows ? /[\\/]/ : "/");
+    exports2.basename = (path2, { windows } = {}) => {
+      const segs = path2.split(windows ? /[\\/]/ : "/");
       const last = segs[segs.length - 1];
       if (last === "") {
         return segs[segs.length - 2];
@@ -30958,2357 +30958,6 @@ var require_picomatch2 = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/@1password+sdk-core@0.4.0/node_modules/@1password/sdk-core/nodejs/core.js
-var require_core2 = __commonJS({
-  "../../node_modules/.pnpm/@1password+sdk-core@0.4.0/node_modules/@1password/sdk-core/nodejs/core.js"(exports2, module2) {
-    "use strict";
-    init_cjs_shims();
-    var imports = {};
-    imports["__wbindgen_placeholder__"] = module2.exports;
-    var wasm;
-    var { TextDecoder: TextDecoder2, TextEncoder: TextEncoder2 } = require("util");
-    var cachedTextDecoder = new TextDecoder2("utf-8", { ignoreBOM: true, fatal: true });
-    cachedTextDecoder.decode();
-    var cachedUint8ArrayMemory0 = null;
-    function getUint8ArrayMemory0() {
-      if (cachedUint8ArrayMemory0 === null || cachedUint8ArrayMemory0.byteLength === 0) {
-        cachedUint8ArrayMemory0 = new Uint8Array(wasm.memory.buffer);
-      }
-      return cachedUint8ArrayMemory0;
-    }
-    function getStringFromWasm0(ptr, len) {
-      ptr = ptr >>> 0;
-      return cachedTextDecoder.decode(getUint8ArrayMemory0().subarray(ptr, ptr + len));
-    }
-    function addToExternrefTable0(obj) {
-      const idx = wasm.__externref_table_alloc();
-      wasm.__wbindgen_export_2.set(idx, obj);
-      return idx;
-    }
-    function handleError(f, args) {
-      try {
-        return f.apply(this, args);
-      } catch (e) {
-        const idx = addToExternrefTable0(e);
-        wasm.__wbindgen_exn_store(idx);
-      }
-    }
-    function isLikeNone(x) {
-      return x === void 0 || x === null;
-    }
-    var WASM_VECTOR_LEN = 0;
-    var cachedTextEncoder = new TextEncoder2("utf-8");
-    var encodeString = typeof cachedTextEncoder.encodeInto === "function" ? function(arg, view) {
-      return cachedTextEncoder.encodeInto(arg, view);
-    } : function(arg, view) {
-      const buf = cachedTextEncoder.encode(arg);
-      view.set(buf);
-      return {
-        read: arg.length,
-        written: buf.length
-      };
-    };
-    function passStringToWasm0(arg, malloc, realloc) {
-      if (realloc === void 0) {
-        const buf = cachedTextEncoder.encode(arg);
-        const ptr2 = malloc(buf.length, 1) >>> 0;
-        getUint8ArrayMemory0().subarray(ptr2, ptr2 + buf.length).set(buf);
-        WASM_VECTOR_LEN = buf.length;
-        return ptr2;
-      }
-      let len = arg.length;
-      let ptr = malloc(len, 1) >>> 0;
-      const mem = getUint8ArrayMemory0();
-      let offset = 0;
-      for (; offset < len; offset++) {
-        const code = arg.charCodeAt(offset);
-        if (code > 127) break;
-        mem[ptr + offset] = code;
-      }
-      if (offset !== len) {
-        if (offset !== 0) {
-          arg = arg.slice(offset);
-        }
-        ptr = realloc(ptr, len, len = offset + arg.length * 3, 1) >>> 0;
-        const view = getUint8ArrayMemory0().subarray(ptr + offset, ptr + len);
-        const ret = encodeString(arg, view);
-        offset += ret.written;
-        ptr = realloc(ptr, len, offset, 1) >>> 0;
-      }
-      WASM_VECTOR_LEN = offset;
-      return ptr;
-    }
-    var cachedDataViewMemory0 = null;
-    function getDataViewMemory0() {
-      if (cachedDataViewMemory0 === null || cachedDataViewMemory0.buffer.detached === true || cachedDataViewMemory0.buffer.detached === void 0 && cachedDataViewMemory0.buffer !== wasm.memory.buffer) {
-        cachedDataViewMemory0 = new DataView(wasm.memory.buffer);
-      }
-      return cachedDataViewMemory0;
-    }
-    var CLOSURE_DTORS = typeof FinalizationRegistry === "undefined" ? { register: () => {
-    }, unregister: () => {
-    } } : new FinalizationRegistry((state) => {
-      wasm.__wbindgen_export_5.get(state.dtor)(state.a, state.b);
-    });
-    function makeMutClosure(arg0, arg1, dtor, f) {
-      const state = { a: arg0, b: arg1, cnt: 1, dtor };
-      const real = (...args) => {
-        state.cnt++;
-        const a = state.a;
-        state.a = 0;
-        try {
-          return f(a, state.b, ...args);
-        } finally {
-          if (--state.cnt === 0) {
-            wasm.__wbindgen_export_5.get(state.dtor)(a, state.b);
-            CLOSURE_DTORS.unregister(state);
-          } else {
-            state.a = a;
-          }
-        }
-      };
-      real.original = state;
-      CLOSURE_DTORS.register(real, state, state);
-      return real;
-    }
-    function debugString(val) {
-      const type = typeof val;
-      if (type == "number" || type == "boolean" || val == null) {
-        return `${val}`;
-      }
-      if (type == "string") {
-        return `"${val}"`;
-      }
-      if (type == "symbol") {
-        const description = val.description;
-        if (description == null) {
-          return "Symbol";
-        } else {
-          return `Symbol(${description})`;
-        }
-      }
-      if (type == "function") {
-        const name = val.name;
-        if (typeof name == "string" && name.length > 0) {
-          return `Function(${name})`;
-        } else {
-          return "Function";
-        }
-      }
-      if (Array.isArray(val)) {
-        const length = val.length;
-        let debug = "[";
-        if (length > 0) {
-          debug += debugString(val[0]);
-        }
-        for (let i = 1; i < length; i++) {
-          debug += ", " + debugString(val[i]);
-        }
-        debug += "]";
-        return debug;
-      }
-      const builtInMatches = /\[object ([^\]]+)\]/.exec(toString.call(val));
-      let className;
-      if (builtInMatches && builtInMatches.length > 1) {
-        className = builtInMatches[1];
-      } else {
-        return toString.call(val);
-      }
-      if (className == "Object") {
-        try {
-          return "Object(" + JSON.stringify(val) + ")";
-        } catch (_) {
-          return "Object";
-        }
-      }
-      if (val instanceof Error) {
-        return `${val.name}: ${val.message}
-${val.stack}`;
-      }
-      return className;
-    }
-    module2.exports.init_client = function(config) {
-      const ptr0 = passStringToWasm0(config, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-      const len0 = WASM_VECTOR_LEN;
-      const ret = wasm.init_client(ptr0, len0);
-      return ret;
-    };
-    module2.exports.invoke = function(parameters) {
-      const ptr0 = passStringToWasm0(parameters, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-      const len0 = WASM_VECTOR_LEN;
-      const ret = wasm.invoke(ptr0, len0);
-      return ret;
-    };
-    function takeFromExternrefTable0(idx) {
-      const value = wasm.__wbindgen_export_2.get(idx);
-      wasm.__externref_table_dealloc(idx);
-      return value;
-    }
-    module2.exports.invoke_sync = function(parameters) {
-      let deferred3_0;
-      let deferred3_1;
-      try {
-        const ptr0 = passStringToWasm0(parameters, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-        const len0 = WASM_VECTOR_LEN;
-        const ret = wasm.invoke_sync(ptr0, len0);
-        var ptr2 = ret[0];
-        var len2 = ret[1];
-        if (ret[3]) {
-          ptr2 = 0;
-          len2 = 0;
-          throw takeFromExternrefTable0(ret[2]);
-        }
-        deferred3_0 = ptr2;
-        deferred3_1 = len2;
-        return getStringFromWasm0(ptr2, len2);
-      } finally {
-        wasm.__wbindgen_free(deferred3_0, deferred3_1, 1);
-      }
-    };
-    module2.exports.release_client = function(client_id) {
-      const ptr0 = passStringToWasm0(client_id, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-      const len0 = WASM_VECTOR_LEN;
-      const ret = wasm.release_client(ptr0, len0);
-      if (ret[1]) {
-        throw takeFromExternrefTable0(ret[0]);
-      }
-    };
-    function __wbg_adapter_30(arg0, arg1) {
-      wasm._dyn_core__ops__function__FnMut_____Output___R_as_wasm_bindgen__closure__WasmClosure___describe__invoke__h4fa304e9a7297dba(arg0, arg1);
-    }
-    function __wbg_adapter_33(arg0, arg1, arg2) {
-      wasm.closure2484_externref_shim(arg0, arg1, arg2);
-    }
-    function __wbg_adapter_156(arg0, arg1, arg2, arg3) {
-      wasm.closure2632_externref_shim(arg0, arg1, arg2, arg3);
-    }
-    var __wbindgen_enum_RequestCache = ["default", "no-store", "reload", "no-cache", "force-cache", "only-if-cached"];
-    var __wbindgen_enum_RequestCredentials = ["omit", "same-origin", "include"];
-    var __wbindgen_enum_RequestMode = ["same-origin", "no-cors", "cors", "navigate"];
-    module2.exports.__wbg_abort_410ec47a64ac6117 = function(arg0, arg1) {
-      arg0.abort(arg1);
-    };
-    module2.exports.__wbg_abort_775ef1d17fc65868 = function(arg0) {
-      arg0.abort();
-    };
-    module2.exports.__wbg_append_8c7dd8d641a5f01b = function() {
-      return handleError(function(arg0, arg1, arg2, arg3, arg4) {
-        arg0.append(getStringFromWasm0(arg1, arg2), getStringFromWasm0(arg3, arg4));
-      }, arguments);
-    };
-    module2.exports.__wbg_arrayBuffer_d1b44c4390db422f = function() {
-      return handleError(function(arg0) {
-        const ret = arg0.arrayBuffer();
-        return ret;
-      }, arguments);
-    };
-    module2.exports.__wbg_buffer_609cc3eee51ed158 = function(arg0) {
-      const ret = arg0.buffer;
-      return ret;
-    };
-    module2.exports.__wbg_call_672a4d21634d4a24 = function() {
-      return handleError(function(arg0, arg1) {
-        const ret = arg0.call(arg1);
-        return ret;
-      }, arguments);
-    };
-    module2.exports.__wbg_call_7cccdd69e0791ae2 = function() {
-      return handleError(function(arg0, arg1, arg2) {
-        const ret = arg0.call(arg1, arg2);
-        return ret;
-      }, arguments);
-    };
-    module2.exports.__wbg_clearTimeout_42d9ccd50822fd3a = function(arg0) {
-      const ret = clearTimeout(arg0);
-      return ret;
-    };
-    module2.exports.__wbg_crypto_86f2631e91b51511 = function(arg0) {
-      const ret = arg0.crypto;
-      return ret;
-    };
-    module2.exports.__wbg_done_769e5ede4b31c67b = function(arg0) {
-      const ret = arg0.done;
-      return ret;
-    };
-    module2.exports.__wbg_fetch_509096533071c657 = function(arg0, arg1) {
-      const ret = arg0.fetch(arg1);
-      return ret;
-    };
-    module2.exports.__wbg_fetch_6bbc32f991730587 = function(arg0) {
-      const ret = fetch(arg0);
-      return ret;
-    };
-    module2.exports.__wbg_getFullYear_17d3c9e4db748eb7 = function(arg0) {
-      const ret = arg0.getFullYear();
-      return ret;
-    };
-    module2.exports.__wbg_getRandomValues_b3f15fcbfabb0f8b = function() {
-      return handleError(function(arg0, arg1) {
-        arg0.getRandomValues(arg1);
-      }, arguments);
-    };
-    module2.exports.__wbg_getTimezoneOffset_6b5752021c499c47 = function(arg0) {
-      const ret = arg0.getTimezoneOffset();
-      return ret;
-    };
-    module2.exports.__wbg_get_67b2ba62fc30de12 = function() {
-      return handleError(function(arg0, arg1) {
-        const ret = Reflect.get(arg0, arg1);
-        return ret;
-      }, arguments);
-    };
-    module2.exports.__wbg_has_a5ea9117f258a0ec = function() {
-      return handleError(function(arg0, arg1) {
-        const ret = Reflect.has(arg0, arg1);
-        return ret;
-      }, arguments);
-    };
-    module2.exports.__wbg_headers_9cb51cfd2ac780a4 = function(arg0) {
-      const ret = arg0.headers;
-      return ret;
-    };
-    module2.exports.__wbg_instanceof_Response_f2cc20d9f7dfd644 = function(arg0) {
-      let result;
-      try {
-        result = arg0 instanceof Response;
-      } catch (_) {
-        result = false;
-      }
-      const ret = result;
-      return ret;
-    };
-    module2.exports.__wbg_instanceof_Window_def73ea0955fc569 = function(arg0) {
-      let result;
-      try {
-        result = arg0 instanceof Window;
-      } catch (_) {
-        result = false;
-      }
-      const ret = result;
-      return ret;
-    };
-    module2.exports.__wbg_instanceof_WorkerGlobalScope_dbdbdea7e3b56493 = function(arg0) {
-      let result;
-      try {
-        result = arg0 instanceof WorkerGlobalScope;
-      } catch (_) {
-        result = false;
-      }
-      const ret = result;
-      return ret;
-    };
-    module2.exports.__wbg_iterator_9a24c88df860dc65 = function() {
-      const ret = Symbol.iterator;
-      return ret;
-    };
-    module2.exports.__wbg_languages_2420955220685766 = function(arg0) {
-      const ret = arg0.languages;
-      return ret;
-    };
-    module2.exports.__wbg_languages_d8dad509faf757df = function(arg0) {
-      const ret = arg0.languages;
-      return ret;
-    };
-    module2.exports.__wbg_length_a446193dc22c12f8 = function(arg0) {
-      const ret = arg0.length;
-      return ret;
-    };
-    module2.exports.__wbg_msCrypto_d562bbe83e0d4b91 = function(arg0) {
-      const ret = arg0.msCrypto;
-      return ret;
-    };
-    module2.exports.__wbg_navigator_0a9bf1120e24fec2 = function(arg0) {
-      const ret = arg0.navigator;
-      return ret;
-    };
-    module2.exports.__wbg_navigator_1577371c070c8947 = function(arg0) {
-      const ret = arg0.navigator;
-      return ret;
-    };
-    module2.exports.__wbg_new0_f788a2397c7ca929 = function() {
-      const ret = /* @__PURE__ */ new Date();
-      return ret;
-    };
-    module2.exports.__wbg_new_018dcc2d6c8c2f6a = function() {
-      return handleError(function() {
-        const ret = new Headers();
-        return ret;
-      }, arguments);
-    };
-    module2.exports.__wbg_new_23a2665fac83c611 = function(arg0, arg1) {
-      try {
-        var state0 = { a: arg0, b: arg1 };
-        var cb0 = (arg02, arg12) => {
-          const a = state0.a;
-          state0.a = 0;
-          try {
-            return __wbg_adapter_156(a, state0.b, arg02, arg12);
-          } finally {
-            state0.a = a;
-          }
-        };
-        const ret = new Promise(cb0);
-        return ret;
-      } finally {
-        state0.a = state0.b = 0;
-      }
-    };
-    module2.exports.__wbg_new_31a97dac4f10fab7 = function(arg0) {
-      const ret = new Date(arg0);
-      return ret;
-    };
-    module2.exports.__wbg_new_405e22f390576ce2 = function() {
-      const ret = new Object();
-      return ret;
-    };
-    module2.exports.__wbg_new_a12002a7f91c75be = function(arg0) {
-      const ret = new Uint8Array(arg0);
-      return ret;
-    };
-    module2.exports.__wbg_new_e25e5aab09ff45db = function() {
-      return handleError(function() {
-        const ret = new AbortController();
-        return ret;
-      }, arguments);
-    };
-    module2.exports.__wbg_newnoargs_105ed471475aaf50 = function(arg0, arg1) {
-      const ret = new Function(getStringFromWasm0(arg0, arg1));
-      return ret;
-    };
-    module2.exports.__wbg_newwithbyteoffsetandlength_d97e637ebe145a9a = function(arg0, arg1, arg2) {
-      const ret = new Uint8Array(arg0, arg1 >>> 0, arg2 >>> 0);
-      return ret;
-    };
-    module2.exports.__wbg_newwithlength_a381634e90c276d4 = function(arg0) {
-      const ret = new Uint8Array(arg0 >>> 0);
-      return ret;
-    };
-    module2.exports.__wbg_newwithstrandinit_06c535e0a867c635 = function() {
-      return handleError(function(arg0, arg1, arg2) {
-        const ret = new Request(getStringFromWasm0(arg0, arg1), arg2);
-        return ret;
-      }, arguments);
-    };
-    module2.exports.__wbg_next_25feadfc0913fea9 = function(arg0) {
-      const ret = arg0.next;
-      return ret;
-    };
-    module2.exports.__wbg_next_6574e1a8a62d1055 = function() {
-      return handleError(function(arg0) {
-        const ret = arg0.next();
-        return ret;
-      }, arguments);
-    };
-    module2.exports.__wbg_node_e1f24f89a7336c2e = function(arg0) {
-      const ret = arg0.node;
-      return ret;
-    };
-    module2.exports.__wbg_now_807e54c39636c349 = function() {
-      const ret = Date.now();
-      return ret;
-    };
-    module2.exports.__wbg_now_d18023d54d4e5500 = function(arg0) {
-      const ret = arg0.now();
-      return ret;
-    };
-    module2.exports.__wbg_parse_def2e24ef1252aff = function() {
-      return handleError(function(arg0, arg1) {
-        const ret = JSON.parse(getStringFromWasm0(arg0, arg1));
-        return ret;
-      }, arguments);
-    };
-    module2.exports.__wbg_process_3975fd6c72f520aa = function(arg0) {
-      const ret = arg0.process;
-      return ret;
-    };
-    module2.exports.__wbg_queueMicrotask_97d92b4fcc8a61c5 = function(arg0) {
-      queueMicrotask(arg0);
-    };
-    module2.exports.__wbg_queueMicrotask_d3219def82552485 = function(arg0) {
-      const ret = arg0.queueMicrotask;
-      return ret;
-    };
-    module2.exports.__wbg_randomFillSync_f8c153b79f285817 = function() {
-      return handleError(function(arg0, arg1) {
-        arg0.randomFillSync(arg1);
-      }, arguments);
-    };
-    module2.exports.__wbg_require_b74f47fc2d022fd6 = function() {
-      return handleError(function() {
-        const ret = module2.require;
-        return ret;
-      }, arguments);
-    };
-    module2.exports.__wbg_resolve_4851785c9c5f573d = function(arg0) {
-      const ret = Promise.resolve(arg0);
-      return ret;
-    };
-    module2.exports.__wbg_self_b29ea9f89ecb0567 = function() {
-      return handleError(function() {
-        const ret = self.self;
-        return ret;
-      }, arguments);
-    };
-    module2.exports.__wbg_setTimeout_4ec014681668a581 = function(arg0, arg1) {
-      const ret = setTimeout(arg0, arg1);
-      return ret;
-    };
-    module2.exports.__wbg_set_65595bdd868b3009 = function(arg0, arg1, arg2) {
-      arg0.set(arg1, arg2 >>> 0);
-    };
-    module2.exports.__wbg_setbody_5923b78a95eedf29 = function(arg0, arg1) {
-      arg0.body = arg1;
-    };
-    module2.exports.__wbg_setcache_12f17c3a980650e4 = function(arg0, arg1) {
-      arg0.cache = __wbindgen_enum_RequestCache[arg1];
-    };
-    module2.exports.__wbg_setcredentials_c3a22f1cd105a2c6 = function(arg0, arg1) {
-      arg0.credentials = __wbindgen_enum_RequestCredentials[arg1];
-    };
-    module2.exports.__wbg_setheaders_834c0bdb6a8949ad = function(arg0, arg1) {
-      arg0.headers = arg1;
-    };
-    module2.exports.__wbg_setmethod_3c5280fe5d890842 = function(arg0, arg1, arg2) {
-      arg0.method = getStringFromWasm0(arg1, arg2);
-    };
-    module2.exports.__wbg_setmode_5dc300b865044b65 = function(arg0, arg1) {
-      arg0.mode = __wbindgen_enum_RequestMode[arg1];
-    };
-    module2.exports.__wbg_setsignal_75b21ef3a81de905 = function(arg0, arg1) {
-      arg0.signal = arg1;
-    };
-    module2.exports.__wbg_signal_aaf9ad74119f20a4 = function(arg0) {
-      const ret = arg0.signal;
-      return ret;
-    };
-    module2.exports.__wbg_static_accessor_GLOBAL_88a902d13a557d07 = function() {
-      const ret = typeof global === "undefined" ? null : global;
-      return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
-    };
-    module2.exports.__wbg_static_accessor_GLOBAL_THIS_56578be7e9f832b0 = function() {
-      const ret = typeof globalThis === "undefined" ? null : globalThis;
-      return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
-    };
-    module2.exports.__wbg_static_accessor_SELF_37c5d418e4bf5819 = function() {
-      const ret = typeof self === "undefined" ? null : self;
-      return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
-    };
-    module2.exports.__wbg_static_accessor_WINDOW_5de37043a91a9c40 = function() {
-      const ret = typeof window === "undefined" ? null : window;
-      return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
-    };
-    module2.exports.__wbg_static_accessor_performance_da77b3a901a72934 = function() {
-      const ret = performance;
-      return ret;
-    };
-    module2.exports.__wbg_status_f6360336ca686bf0 = function(arg0) {
-      const ret = arg0.status;
-      return ret;
-    };
-    module2.exports.__wbg_stringify_f7ed6987935b4a24 = function() {
-      return handleError(function(arg0) {
-        const ret = JSON.stringify(arg0);
-        return ret;
-      }, arguments);
-    };
-    module2.exports.__wbg_subarray_aa9065fa9dc5df96 = function(arg0, arg1, arg2) {
-      const ret = arg0.subarray(arg1 >>> 0, arg2 >>> 0);
-      return ret;
-    };
-    module2.exports.__wbg_then_44b73946d2fb3e7d = function(arg0, arg1) {
-      const ret = arg0.then(arg1);
-      return ret;
-    };
-    module2.exports.__wbg_then_48b406749878a531 = function(arg0, arg1, arg2) {
-      const ret = arg0.then(arg1, arg2);
-      return ret;
-    };
-    module2.exports.__wbg_toLocaleDateString_e5424994746e8415 = function(arg0, arg1, arg2, arg3) {
-      const ret = arg0.toLocaleDateString(getStringFromWasm0(arg1, arg2), arg3);
-      return ret;
-    };
-    module2.exports.__wbg_url_ae10c34ca209681d = function(arg0, arg1) {
-      const ret = arg1.url;
-      const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-      const len1 = WASM_VECTOR_LEN;
-      getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
-      getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
-    };
-    module2.exports.__wbg_value_cd1ffa7b1ab794f1 = function(arg0) {
-      const ret = arg0.value;
-      return ret;
-    };
-    module2.exports.__wbg_values_99f7a68c7f313d66 = function(arg0) {
-      const ret = arg0.values();
-      return ret;
-    };
-    module2.exports.__wbg_versions_4e31226f5e8dc909 = function(arg0) {
-      const ret = arg0.versions;
-      return ret;
-    };
-    module2.exports.__wbg_window_aa5515e600e96252 = function() {
-      return handleError(function() {
-        const ret = window.window;
-        return ret;
-      }, arguments);
-    };
-    module2.exports.__wbindgen_cb_drop = function(arg0) {
-      const obj = arg0.original;
-      if (obj.cnt-- == 1) {
-        obj.a = 0;
-        return true;
-      }
-      const ret = false;
-      return ret;
-    };
-    module2.exports.__wbindgen_closure_wrapper9169 = function(arg0, arg1, arg2) {
-      const ret = makeMutClosure(arg0, arg1, 2463, __wbg_adapter_30);
-      return ret;
-    };
-    module2.exports.__wbindgen_closure_wrapper9209 = function(arg0, arg1, arg2) {
-      const ret = makeMutClosure(arg0, arg1, 2485, __wbg_adapter_33);
-      return ret;
-    };
-    module2.exports.__wbindgen_debug_string = function(arg0, arg1) {
-      const ret = debugString(arg1);
-      const ptr1 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-      const len1 = WASM_VECTOR_LEN;
-      getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
-      getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
-    };
-    module2.exports.__wbindgen_init_externref_table = function() {
-      const table = wasm.__wbindgen_export_2;
-      const offset = table.grow(4);
-      table.set(0, void 0);
-      table.set(offset + 0, void 0);
-      table.set(offset + 1, null);
-      table.set(offset + 2, true);
-      table.set(offset + 3, false);
-      ;
-    };
-    module2.exports.__wbindgen_is_function = function(arg0) {
-      const ret = typeof arg0 === "function";
-      return ret;
-    };
-    module2.exports.__wbindgen_is_object = function(arg0) {
-      const val = arg0;
-      const ret = typeof val === "object" && val !== null;
-      return ret;
-    };
-    module2.exports.__wbindgen_is_string = function(arg0) {
-      const ret = typeof arg0 === "string";
-      return ret;
-    };
-    module2.exports.__wbindgen_is_undefined = function(arg0) {
-      const ret = arg0 === void 0;
-      return ret;
-    };
-    module2.exports.__wbindgen_memory = function() {
-      const ret = wasm.memory;
-      return ret;
-    };
-    module2.exports.__wbindgen_number_new = function(arg0) {
-      const ret = arg0;
-      return ret;
-    };
-    module2.exports.__wbindgen_string_get = function(arg0, arg1) {
-      const obj = arg1;
-      const ret = typeof obj === "string" ? obj : void 0;
-      var ptr1 = isLikeNone(ret) ? 0 : passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
-      var len1 = WASM_VECTOR_LEN;
-      getDataViewMemory0().setInt32(arg0 + 4 * 1, len1, true);
-      getDataViewMemory0().setInt32(arg0 + 4 * 0, ptr1, true);
-    };
-    module2.exports.__wbindgen_string_new = function(arg0, arg1) {
-      const ret = getStringFromWasm0(arg0, arg1);
-      return ret;
-    };
-    module2.exports.__wbindgen_throw = function(arg0, arg1) {
-      throw new Error(getStringFromWasm0(arg0, arg1));
-    };
-    var path4 = require("path").join(__dirname, "core_bg.wasm");
-    var bytes = require("fs").readFileSync(path4);
-    var wasmModule = new WebAssembly.Module(bytes);
-    var wasmInstance = new WebAssembly.Instance(wasmModule, imports);
-    wasm = wasmInstance.exports;
-    module2.exports.__wasm = wasm;
-    wasm.__wbindgen_start();
-  }
-});
-
-// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/types.js
-var require_types = __commonJS({
-  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/types.js"(exports2) {
-    "use strict";
-    init_cjs_shims();
-    Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.ReplacerFunc = exports2.ReviverFunc = exports2.UPDATE_ITEM_HISTORY = exports2.UPDATE_ITEMS = exports2.SEND_ITEMS = exports2.REVEAL_ITEM_PASSWORD = exports2.RECOVER_VAULT = exports2.READ_ITEMS = exports2.PRINT_ITEMS = exports2.NO_ACCESS = exports2.MANAGE_VAULT = exports2.IMPORT_ITEMS = exports2.EXPORT_ITEMS = exports2.DELETE_ITEMS = exports2.CREATE_ITEMS = exports2.ARCHIVE_ITEMS = exports2.WordListType = exports2.SeparatorType = exports2.VaultType = exports2.AllowedRecipientType = exports2.AllowedType = exports2.ItemShareDuration = exports2.ItemState = exports2.AutofillBehavior = exports2.ItemFieldType = exports2.ItemCategory = exports2.VaultAccessorType = exports2.GroupState = exports2.GroupType = void 0;
-    var GroupType;
-    (function(GroupType2) {
-      GroupType2["Owners"] = "owners";
-      GroupType2["Administrators"] = "administrators";
-      GroupType2["Recovery"] = "recovery";
-      GroupType2["ExternalAccountManagers"] = "externalAccountManagers";
-      GroupType2["TeamMembers"] = "teamMembers";
-      GroupType2["UserDefined"] = "userDefined";
-      GroupType2["Unsupported"] = "unsupported";
-    })(GroupType || (exports2.GroupType = GroupType = {}));
-    var GroupState;
-    (function(GroupState2) {
-      GroupState2["Active"] = "active";
-      GroupState2["Deleted"] = "deleted";
-      GroupState2["Unsupported"] = "unsupported";
-    })(GroupState || (exports2.GroupState = GroupState = {}));
-    var VaultAccessorType;
-    (function(VaultAccessorType2) {
-      VaultAccessorType2["User"] = "user";
-      VaultAccessorType2["Group"] = "group";
-    })(VaultAccessorType || (exports2.VaultAccessorType = VaultAccessorType = {}));
-    var ItemCategory;
-    (function(ItemCategory2) {
-      ItemCategory2["Login"] = "Login";
-      ItemCategory2["SecureNote"] = "SecureNote";
-      ItemCategory2["CreditCard"] = "CreditCard";
-      ItemCategory2["CryptoWallet"] = "CryptoWallet";
-      ItemCategory2["Identity"] = "Identity";
-      ItemCategory2["Password"] = "Password";
-      ItemCategory2["Document"] = "Document";
-      ItemCategory2["ApiCredentials"] = "ApiCredentials";
-      ItemCategory2["BankAccount"] = "BankAccount";
-      ItemCategory2["Database"] = "Database";
-      ItemCategory2["DriverLicense"] = "DriverLicense";
-      ItemCategory2["Email"] = "Email";
-      ItemCategory2["MedicalRecord"] = "MedicalRecord";
-      ItemCategory2["Membership"] = "Membership";
-      ItemCategory2["OutdoorLicense"] = "OutdoorLicense";
-      ItemCategory2["Passport"] = "Passport";
-      ItemCategory2["Rewards"] = "Rewards";
-      ItemCategory2["Router"] = "Router";
-      ItemCategory2["Server"] = "Server";
-      ItemCategory2["SshKey"] = "SshKey";
-      ItemCategory2["SocialSecurityNumber"] = "SocialSecurityNumber";
-      ItemCategory2["SoftwareLicense"] = "SoftwareLicense";
-      ItemCategory2["Person"] = "Person";
-      ItemCategory2["Unsupported"] = "Unsupported";
-    })(ItemCategory || (exports2.ItemCategory = ItemCategory = {}));
-    var ItemFieldType;
-    (function(ItemFieldType2) {
-      ItemFieldType2["Text"] = "Text";
-      ItemFieldType2["Concealed"] = "Concealed";
-      ItemFieldType2["CreditCardType"] = "CreditCardType";
-      ItemFieldType2["CreditCardNumber"] = "CreditCardNumber";
-      ItemFieldType2["Phone"] = "Phone";
-      ItemFieldType2["Url"] = "Url";
-      ItemFieldType2["Totp"] = "Totp";
-      ItemFieldType2["Email"] = "Email";
-      ItemFieldType2["Reference"] = "Reference";
-      ItemFieldType2["SshKey"] = "SshKey";
-      ItemFieldType2["Menu"] = "Menu";
-      ItemFieldType2["MonthYear"] = "MonthYear";
-      ItemFieldType2["Address"] = "Address";
-      ItemFieldType2["Date"] = "Date";
-      ItemFieldType2["Unsupported"] = "Unsupported";
-    })(ItemFieldType || (exports2.ItemFieldType = ItemFieldType = {}));
-    var AutofillBehavior;
-    (function(AutofillBehavior2) {
-      AutofillBehavior2["AnywhereOnWebsite"] = "AnywhereOnWebsite";
-      AutofillBehavior2["ExactDomain"] = "ExactDomain";
-      AutofillBehavior2["Never"] = "Never";
-    })(AutofillBehavior || (exports2.AutofillBehavior = AutofillBehavior = {}));
-    var ItemState;
-    (function(ItemState2) {
-      ItemState2["Active"] = "active";
-      ItemState2["Archived"] = "archived";
-    })(ItemState || (exports2.ItemState = ItemState = {}));
-    var ItemShareDuration;
-    (function(ItemShareDuration2) {
-      ItemShareDuration2["OneHour"] = "OneHour";
-      ItemShareDuration2["OneDay"] = "OneDay";
-      ItemShareDuration2["SevenDays"] = "SevenDays";
-      ItemShareDuration2["FourteenDays"] = "FourteenDays";
-      ItemShareDuration2["ThirtyDays"] = "ThirtyDays";
-    })(ItemShareDuration || (exports2.ItemShareDuration = ItemShareDuration = {}));
-    var AllowedType;
-    (function(AllowedType2) {
-      AllowedType2["Authenticated"] = "Authenticated";
-      AllowedType2["Public"] = "Public";
-    })(AllowedType || (exports2.AllowedType = AllowedType = {}));
-    var AllowedRecipientType;
-    (function(AllowedRecipientType2) {
-      AllowedRecipientType2["Email"] = "Email";
-      AllowedRecipientType2["Domain"] = "Domain";
-    })(AllowedRecipientType || (exports2.AllowedRecipientType = AllowedRecipientType = {}));
-    var VaultType;
-    (function(VaultType2) {
-      VaultType2["Personal"] = "personal";
-      VaultType2["Everyone"] = "everyone";
-      VaultType2["Transfer"] = "transfer";
-      VaultType2["UserCreated"] = "userCreated";
-      VaultType2["Unsupported"] = "unsupported";
-    })(VaultType || (exports2.VaultType = VaultType = {}));
-    var SeparatorType;
-    (function(SeparatorType2) {
-      SeparatorType2["Digits"] = "digits";
-      SeparatorType2["DigitsAndSymbols"] = "digitsAndSymbols";
-      SeparatorType2["Spaces"] = "spaces";
-      SeparatorType2["Hyphens"] = "hyphens";
-      SeparatorType2["Underscores"] = "underscores";
-      SeparatorType2["Periods"] = "periods";
-      SeparatorType2["Commas"] = "commas";
-    })(SeparatorType || (exports2.SeparatorType = SeparatorType = {}));
-    var WordListType;
-    (function(WordListType2) {
-      WordListType2["FullWords"] = "fullWords";
-      WordListType2["Syllables"] = "syllables";
-      WordListType2["ThreeLetters"] = "threeLetters";
-    })(WordListType || (exports2.WordListType = WordListType = {}));
-    exports2.ARCHIVE_ITEMS = 256;
-    exports2.CREATE_ITEMS = 128;
-    exports2.DELETE_ITEMS = 512;
-    exports2.EXPORT_ITEMS = 4194304;
-    exports2.IMPORT_ITEMS = 2097152;
-    exports2.MANAGE_VAULT = 2;
-    exports2.NO_ACCESS = 0;
-    exports2.PRINT_ITEMS = 8388608;
-    exports2.READ_ITEMS = 32;
-    exports2.RECOVER_VAULT = 1;
-    exports2.REVEAL_ITEM_PASSWORD = 16;
-    exports2.SEND_ITEMS = 1048576;
-    exports2.UPDATE_ITEMS = 64;
-    exports2.UPDATE_ITEM_HISTORY = 1024;
-    var ReviverFunc = (key, value) => {
-      if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/.test(value) && (key === "createdAt" || key === "updatedAt")) {
-        return new Date(value);
-      }
-      if (Array.isArray(value) && value.every((v) => Number.isInteger(v) && v >= 0 && v <= 255) && value.length > 0) {
-        return new Uint8Array(value);
-      }
-      return value;
-    };
-    exports2.ReviverFunc = ReviverFunc;
-    var ReplacerFunc = (key, value) => {
-      if (value instanceof Date) {
-        return value.toISOString();
-      }
-      if (value instanceof Uint8Array) {
-        return Array.from(value);
-      }
-      return value;
-    };
-    exports2.ReplacerFunc = ReplacerFunc;
-  }
-});
-
-// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/errors.js
-var require_errors3 = __commonJS({
-  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/errors.js"(exports2) {
-    "use strict";
-    init_cjs_shims();
-    Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.throwError = exports2.RateLimitExceededError = exports2.DesktopSessionExpiredError = void 0;
-    var DesktopSessionExpiredError = class extends Error {
-      constructor(message) {
-        super();
-        this.message = message;
-      }
-    };
-    exports2.DesktopSessionExpiredError = DesktopSessionExpiredError;
-    var RateLimitExceededError = class extends Error {
-      constructor(message) {
-        super();
-        this.message = message;
-      }
-    };
-    exports2.RateLimitExceededError = RateLimitExceededError;
-    var throwError = (errString) => {
-      let err;
-      try {
-        err = JSON.parse(errString);
-      } catch (e) {
-        throw new Error(errString);
-      }
-      switch (err.name) {
-        case "DesktopSessionExpired":
-          throw new DesktopSessionExpiredError(err.message);
-        case "RateLimitExceeded":
-          throw new RateLimitExceededError(err.message);
-        default:
-          throw new Error(err.message);
-      }
-    };
-    exports2.throwError = throwError;
-  }
-});
-
-// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/core.js
-var require_core3 = __commonJS({
-  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/core.js"(exports2) {
-    "use strict";
-    init_cjs_shims();
-    var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
-      function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
-        });
-      }
-      return new (P || (P = Promise))(function(resolve6, reject) {
-        function fulfilled(value) {
-          try {
-            step(generator.next(value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function rejected(value) {
-          try {
-            step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
-        }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-      });
-    };
-    Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.InnerClient = exports2.SharedCore = exports2.WasmCore = void 0;
-    var sdk_core_1 = require_core2();
-    var types_1 = require_types();
-    var errors_1 = require_errors3();
-    var messageLimit = 50 * 1024 * 1024;
-    var WasmCore = class {
-      initClient(config) {
-        return __awaiter(this, void 0, void 0, function* () {
-          try {
-            return yield (0, sdk_core_1.init_client)(config);
-          } catch (e) {
-            (0, errors_1.throwError)(e);
-          }
-        });
-      }
-      invoke(config) {
-        return __awaiter(this, void 0, void 0, function* () {
-          try {
-            return yield (0, sdk_core_1.invoke)(config);
-          } catch (e) {
-            (0, errors_1.throwError)(e);
-          }
-        });
-      }
-      releaseClient(clientId) {
-        try {
-          (0, sdk_core_1.release_client)(clientId);
-        } catch (e) {
-          console.warn("failed to release client:", e);
-        }
-      }
-    };
-    exports2.WasmCore = WasmCore;
-    var SharedCore = class {
-      constructor() {
-        this.inner = new WasmCore();
-      }
-      setInner(core2) {
-        this.inner = core2;
-      }
-      initClient(config) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const serializedConfig = JSON.stringify(config);
-          return this.inner.initClient(serializedConfig);
-        });
-      }
-      invoke(config) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const serializedConfig = JSON.stringify(config, types_1.ReplacerFunc);
-          if (new TextEncoder().encode(serializedConfig).length > messageLimit) {
-            (0, errors_1.throwError)(`message size exceeds the limit of ${messageLimit} bytes, please contact 1Password at support@1password.com or https://developer.1password.com/joinslack if you need help."`);
-          }
-          return this.inner.invoke(serializedConfig);
-        });
-      }
-      invoke_sync(config) {
-        const serializedConfig = JSON.stringify(config, types_1.ReplacerFunc);
-        if (new TextEncoder().encode(serializedConfig).length > messageLimit) {
-          (0, errors_1.throwError)(`message size exceeds the limit of ${messageLimit} bytes, please contact 1Password at support@1password.com or https://developer.1password.com/joinslack if you need help.`);
-        }
-        return (0, sdk_core_1.invoke_sync)(serializedConfig);
-      }
-      releaseClient(clientId) {
-        const serializedId = JSON.stringify(clientId);
-        this.inner.releaseClient(serializedId);
-      }
-    };
-    exports2.SharedCore = SharedCore;
-    var InnerClient = class {
-      constructor(id, core2, config) {
-        this.id = id;
-        this.core = core2;
-        this.config = config;
-      }
-      invoke(config) {
-        return __awaiter(this, void 0, void 0, function* () {
-          try {
-            return yield this.core.invoke(config);
-          } catch (err) {
-            if (err instanceof errors_1.DesktopSessionExpiredError) {
-              const newId = yield this.core.initClient(this.config);
-              this.id = parseInt(newId, 10);
-              config.invocation.clientId = this.id;
-              return yield this.core.invoke(config);
-            }
-            throw err;
-          }
-        });
-      }
-    };
-    exports2.InnerClient = InnerClient;
-  }
-});
-
-// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/version.js
-var require_version = __commonJS({
-  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/version.js"(exports2) {
-    "use strict";
-    init_cjs_shims();
-    Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.SDK_BUILD_NUMBER = exports2.SDK_VERSION = void 0;
-    exports2.SDK_VERSION = "0.4.0";
-    exports2.SDK_BUILD_NUMBER = "0040003";
-  }
-});
-
-// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/configuration.js
-var require_configuration = __commonJS({
-  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/configuration.js"(exports2) {
-    "use strict";
-    init_cjs_shims();
-    var __importDefault = exports2 && exports2.__importDefault || function(mod) {
-      return mod && mod.__esModule ? mod : { "default": mod };
-    };
-    Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.getOsName = exports2.clientAuthConfig = exports2.DesktopAuth = exports2.VERSION = exports2.LANGUAGE = void 0;
-    var os_1 = __importDefault(require("os"));
-    var version_js_1 = require_version();
-    exports2.LANGUAGE = "JS";
-    exports2.VERSION = version_js_1.SDK_BUILD_NUMBER;
-    var DesktopAuth = class {
-      constructor(accountName) {
-        this.accountName = accountName;
-      }
-    };
-    exports2.DesktopAuth = DesktopAuth;
-    var clientAuthConfig = (userConfig) => {
-      const defaultOsVersion = "0.0.0";
-      let serviceAccountToken;
-      let accountName;
-      if (typeof userConfig.auth === "string") {
-        serviceAccountToken = userConfig.auth;
-      } else if (userConfig.auth instanceof DesktopAuth) {
-        accountName = userConfig.auth.accountName;
-      }
-      return {
-        serviceAccountToken: serviceAccountToken !== null && serviceAccountToken !== void 0 ? serviceAccountToken : "",
-        accountName,
-        programmingLanguage: exports2.LANGUAGE,
-        sdkVersion: exports2.VERSION,
-        integrationName: userConfig.integrationName,
-        integrationVersion: userConfig.integrationVersion,
-        requestLibraryName: "Fetch API",
-        requestLibraryVersion: "Fetch API",
-        os: (0, exports2.getOsName)(),
-        osVersion: defaultOsVersion,
-        architecture: os_1.default.arch()
-      };
-    };
-    exports2.clientAuthConfig = clientAuthConfig;
-    var getOsName = () => {
-      const os_name = os_1.default.type().toLowerCase();
-      if (os_name === "windows_nt") {
-        return "windows";
-      }
-      return os_name;
-    };
-    exports2.getOsName = getOsName;
-  }
-});
-
-// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/secrets.js
-var require_secrets = __commonJS({
-  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/secrets.js"(exports2) {
-    "use strict";
-    init_cjs_shims();
-    var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
-      function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
-        });
-      }
-      return new (P || (P = Promise))(function(resolve6, reject) {
-        function fulfilled(value) {
-          try {
-            step(generator.next(value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function rejected(value) {
-          try {
-            step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
-        }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-      });
-    };
-    var __classPrivateFieldSet = exports2 && exports2.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
-      if (kind === "m") throw new TypeError("Private method is not writable");
-      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
-      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
-      return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
-    };
-    var __classPrivateFieldGet = exports2 && exports2.__classPrivateFieldGet || function(receiver, state, kind, f) {
-      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-      return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
-    };
-    var _Secrets_inner;
-    Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.Secrets = void 0;
-    var core_js_1 = require_core3();
-    var types_js_1 = require_types();
-    var Secrets = class {
-      constructor(inner) {
-        _Secrets_inner.set(this, void 0);
-        __classPrivateFieldSet(this, _Secrets_inner, inner, "f");
-      }
-      /**
-       * Resolve returns the secret the provided secret reference points to.
-       */
-      resolve(secretReference) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Secrets_inner, "f").id,
-              parameters: {
-                name: "SecretsResolve",
-                parameters: {
-                  secret_reference: secretReference
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _Secrets_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * Resolve takes in a list of secret references and returns the secrets they point to or errors if any.
-       */
-      resolveAll(secretReferences) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Secrets_inner, "f").id,
-              parameters: {
-                name: "SecretsResolveAll",
-                parameters: {
-                  secret_references: secretReferences
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _Secrets_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * Validate the secret reference to ensure there are no syntax errors.
-       */
-      static validateSecretReference(secretReference) {
-        const sharedCore = new core_js_1.SharedCore();
-        const invocationConfig = {
-          invocation: {
-            parameters: {
-              name: "ValidateSecretReference",
-              parameters: {
-                secret_reference: secretReference
-              }
-            }
-          }
-        };
-        sharedCore.invoke_sync(invocationConfig);
-      }
-      /**
-       * Generate a password using the provided recipe.
-       */
-      static generatePassword(recipe) {
-        const sharedCore = new core_js_1.SharedCore();
-        const invocationConfig = {
-          invocation: {
-            parameters: {
-              name: "GeneratePassword",
-              parameters: {
-                recipe
-              }
-            }
-          }
-        };
-        return JSON.parse(sharedCore.invoke_sync(invocationConfig), types_js_1.ReviverFunc);
-      }
-    };
-    exports2.Secrets = Secrets;
-    _Secrets_inner = /* @__PURE__ */ new WeakMap();
-  }
-});
-
-// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/items_shares.js
-var require_items_shares = __commonJS({
-  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/items_shares.js"(exports2) {
-    "use strict";
-    init_cjs_shims();
-    var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
-      function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
-        });
-      }
-      return new (P || (P = Promise))(function(resolve6, reject) {
-        function fulfilled(value) {
-          try {
-            step(generator.next(value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function rejected(value) {
-          try {
-            step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
-        }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-      });
-    };
-    var __classPrivateFieldSet = exports2 && exports2.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
-      if (kind === "m") throw new TypeError("Private method is not writable");
-      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
-      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
-      return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
-    };
-    var __classPrivateFieldGet = exports2 && exports2.__classPrivateFieldGet || function(receiver, state, kind, f) {
-      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-      return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
-    };
-    var _ItemsShares_inner;
-    Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.ItemsShares = void 0;
-    var types_js_1 = require_types();
-    var ItemsShares = class {
-      constructor(inner) {
-        _ItemsShares_inner.set(this, void 0);
-        __classPrivateFieldSet(this, _ItemsShares_inner, inner, "f");
-      }
-      /**
-       * Get the item sharing policy of your account.
-       */
-      getAccountPolicy(vaultId, itemId) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _ItemsShares_inner, "f").id,
-              parameters: {
-                name: "ItemsSharesGetAccountPolicy",
-                parameters: {
-                  vault_id: vaultId,
-                  item_id: itemId
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _ItemsShares_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * Validate the recipients of an item sharing link.
-       */
-      validateRecipients(policy, recipients) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _ItemsShares_inner, "f").id,
-              parameters: {
-                name: "ItemsSharesValidateRecipients",
-                parameters: {
-                  policy,
-                  recipients
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _ItemsShares_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * Create a new item sharing link.
-       */
-      create(item, policy, params) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _ItemsShares_inner, "f").id,
-              parameters: {
-                name: "ItemsSharesCreate",
-                parameters: {
-                  item,
-                  policy,
-                  params
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _ItemsShares_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-    };
-    exports2.ItemsShares = ItemsShares;
-    _ItemsShares_inner = /* @__PURE__ */ new WeakMap();
-  }
-});
-
-// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/items_files.js
-var require_items_files = __commonJS({
-  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/items_files.js"(exports2) {
-    "use strict";
-    init_cjs_shims();
-    var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
-      function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
-        });
-      }
-      return new (P || (P = Promise))(function(resolve6, reject) {
-        function fulfilled(value) {
-          try {
-            step(generator.next(value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function rejected(value) {
-          try {
-            step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
-        }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-      });
-    };
-    var __classPrivateFieldSet = exports2 && exports2.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
-      if (kind === "m") throw new TypeError("Private method is not writable");
-      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
-      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
-      return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
-    };
-    var __classPrivateFieldGet = exports2 && exports2.__classPrivateFieldGet || function(receiver, state, kind, f) {
-      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-      return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
-    };
-    var _ItemsFiles_inner;
-    Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.ItemsFiles = void 0;
-    var types_js_1 = require_types();
-    var ItemsFiles = class {
-      constructor(inner) {
-        _ItemsFiles_inner.set(this, void 0);
-        __classPrivateFieldSet(this, _ItemsFiles_inner, inner, "f");
-      }
-      /**
-       * Attach files to Items.
-       */
-      attach(item, fileParams) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _ItemsFiles_inner, "f").id,
-              parameters: {
-                name: "ItemsFilesAttach",
-                parameters: {
-                  item,
-                  file_params: fileParams
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _ItemsFiles_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * Read file content from the Item.
-       */
-      read(vaultId, itemId, attr) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _ItemsFiles_inner, "f").id,
-              parameters: {
-                name: "ItemsFilesRead",
-                parameters: {
-                  vault_id: vaultId,
-                  item_id: itemId,
-                  attr
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _ItemsFiles_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * Delete a field file from Item using the section and field IDs.
-       */
-      delete(item, sectionId, fieldId) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _ItemsFiles_inner, "f").id,
-              parameters: {
-                name: "ItemsFilesDelete",
-                parameters: {
-                  item,
-                  section_id: sectionId,
-                  field_id: fieldId
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _ItemsFiles_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * Replace the document file within a document item.
-       */
-      replaceDocument(item, docParams) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _ItemsFiles_inner, "f").id,
-              parameters: {
-                name: "ItemsFilesReplaceDocument",
-                parameters: {
-                  item,
-                  doc_params: docParams
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _ItemsFiles_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-    };
-    exports2.ItemsFiles = ItemsFiles;
-    _ItemsFiles_inner = /* @__PURE__ */ new WeakMap();
-  }
-});
-
-// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/items.js
-var require_items = __commonJS({
-  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/items.js"(exports2) {
-    "use strict";
-    init_cjs_shims();
-    var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
-      function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
-        });
-      }
-      return new (P || (P = Promise))(function(resolve6, reject) {
-        function fulfilled(value) {
-          try {
-            step(generator.next(value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function rejected(value) {
-          try {
-            step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
-        }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-      });
-    };
-    var __classPrivateFieldSet = exports2 && exports2.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
-      if (kind === "m") throw new TypeError("Private method is not writable");
-      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
-      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
-      return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
-    };
-    var __classPrivateFieldGet = exports2 && exports2.__classPrivateFieldGet || function(receiver, state, kind, f) {
-      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-      return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
-    };
-    var _Items_inner;
-    Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.Items = void 0;
-    var types_js_1 = require_types();
-    var items_shares_js_1 = require_items_shares();
-    var items_files_js_1 = require_items_files();
-    var Items = class {
-      constructor(inner) {
-        _Items_inner.set(this, void 0);
-        __classPrivateFieldSet(this, _Items_inner, inner, "f");
-        this.shares = new items_shares_js_1.ItemsShares(inner);
-        this.files = new items_files_js_1.ItemsFiles(inner);
-      }
-      /**
-       * Create a new item.
-       */
-      create(params) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
-              parameters: {
-                name: "ItemsCreate",
-                parameters: {
-                  params
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * Create items in batch, within a single vault.
-       */
-      createAll(vaultId, params) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
-              parameters: {
-                name: "ItemsCreateAll",
-                parameters: {
-                  vault_id: vaultId,
-                  params
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * Get an item by vault and item ID.
-       */
-      get(vaultId, itemId) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
-              parameters: {
-                name: "ItemsGet",
-                parameters: {
-                  vault_id: vaultId,
-                  item_id: itemId
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * Get items by vault and their item IDs.
-       */
-      getAll(vaultId, itemIds) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
-              parameters: {
-                name: "ItemsGetAll",
-                parameters: {
-                  vault_id: vaultId,
-                  item_ids: itemIds
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * Update an existing item.
-       */
-      put(item) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
-              parameters: {
-                name: "ItemsPut",
-                parameters: {
-                  item
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * Delete an item.
-       */
-      delete(vaultId, itemId) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
-              parameters: {
-                name: "ItemsDelete",
-                parameters: {
-                  vault_id: vaultId,
-                  item_id: itemId
-                }
-              }
-            }
-          };
-          yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig);
-        });
-      }
-      /**
-       * Delete items in batch, within a single vault.
-       */
-      deleteAll(vaultId, itemIds) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
-              parameters: {
-                name: "ItemsDeleteAll",
-                parameters: {
-                  vault_id: vaultId,
-                  item_ids: itemIds
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * Archive an item.
-       */
-      archive(vaultId, itemId) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
-              parameters: {
-                name: "ItemsArchive",
-                parameters: {
-                  vault_id: vaultId,
-                  item_id: itemId
-                }
-              }
-            }
-          };
-          yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig);
-        });
-      }
-      /**
-       * List items based on filters.
-       */
-      list(vaultId, ...filters) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Items_inner, "f").id,
-              parameters: {
-                name: "ItemsList",
-                parameters: {
-                  vault_id: vaultId,
-                  filters
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _Items_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-    };
-    exports2.Items = Items;
-    _Items_inner = /* @__PURE__ */ new WeakMap();
-  }
-});
-
-// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/vaults.js
-var require_vaults = __commonJS({
-  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/vaults.js"(exports2) {
-    "use strict";
-    init_cjs_shims();
-    var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
-      function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
-        });
-      }
-      return new (P || (P = Promise))(function(resolve6, reject) {
-        function fulfilled(value) {
-          try {
-            step(generator.next(value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function rejected(value) {
-          try {
-            step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
-        }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-      });
-    };
-    var __classPrivateFieldSet = exports2 && exports2.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
-      if (kind === "m") throw new TypeError("Private method is not writable");
-      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
-      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
-      return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
-    };
-    var __classPrivateFieldGet = exports2 && exports2.__classPrivateFieldGet || function(receiver, state, kind, f) {
-      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-      return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
-    };
-    var _Vaults_inner;
-    Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.Vaults = void 0;
-    var types_js_1 = require_types();
-    var Vaults = class {
-      constructor(inner) {
-        _Vaults_inner.set(this, void 0);
-        __classPrivateFieldSet(this, _Vaults_inner, inner, "f");
-      }
-      /**
-       * Create a new user vault.
-       */
-      create(params) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
-              parameters: {
-                name: "VaultsCreate",
-                parameters: {
-                  params
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * List information about vaults that's configurable based on some input parameters.
-       */
-      list(params) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
-              parameters: {
-                name: "VaultsList",
-                parameters: {
-                  params
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * Get an overview of a vault by its ID.
-       */
-      getOverview(vaultId) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
-              parameters: {
-                name: "VaultsGetOverview",
-                parameters: {
-                  vault_id: vaultId
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * Get detailed vault information by vault ID and parameters.
-       */
-      get(vaultId, vaultParams) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
-              parameters: {
-                name: "VaultsGet",
-                parameters: {
-                  vault_id: vaultId,
-                  vault_params: vaultParams
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * Update a vault
-       */
-      update(vaultId, params) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
-              parameters: {
-                name: "VaultsUpdate",
-                parameters: {
-                  vault_id: vaultId,
-                  params
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-      /**
-       * Delete a vault by its ID.
-       */
-      delete(vaultId) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
-              parameters: {
-                name: "VaultsDelete",
-                parameters: {
-                  vault_id: vaultId
-                }
-              }
-            }
-          };
-          yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig);
-        });
-      }
-      /**
-       * Grant group permissions to a vault.
-       */
-      grantGroupPermissions(vaultId, groupPermissionsList) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
-              parameters: {
-                name: "VaultsGrantGroupPermissions",
-                parameters: {
-                  vault_id: vaultId,
-                  group_permissions_list: groupPermissionsList
-                }
-              }
-            }
-          };
-          yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig);
-        });
-      }
-      /**
-       * Update group permissions for vaults.
-       */
-      updateGroupPermissions(groupPermissionsList) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
-              parameters: {
-                name: "VaultsUpdateGroupPermissions",
-                parameters: {
-                  group_permissions_list: groupPermissionsList
-                }
-              }
-            }
-          };
-          yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig);
-        });
-      }
-      /**
-       * Revoke group permissions from a vault.
-       */
-      revokeGroupPermissions(vaultId, groupId) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Vaults_inner, "f").id,
-              parameters: {
-                name: "VaultsRevokeGroupPermissions",
-                parameters: {
-                  vault_id: vaultId,
-                  group_id: groupId
-                }
-              }
-            }
-          };
-          yield __classPrivateFieldGet(this, _Vaults_inner, "f").invoke(invocationConfig);
-        });
-      }
-    };
-    exports2.Vaults = Vaults;
-    _Vaults_inner = /* @__PURE__ */ new WeakMap();
-  }
-});
-
-// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/groups.js
-var require_groups = __commonJS({
-  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/groups.js"(exports2) {
-    "use strict";
-    init_cjs_shims();
-    var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
-      function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
-        });
-      }
-      return new (P || (P = Promise))(function(resolve6, reject) {
-        function fulfilled(value) {
-          try {
-            step(generator.next(value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function rejected(value) {
-          try {
-            step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
-        }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-      });
-    };
-    var __classPrivateFieldSet = exports2 && exports2.__classPrivateFieldSet || function(receiver, state, value, kind, f) {
-      if (kind === "m") throw new TypeError("Private method is not writable");
-      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a setter");
-      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot write private member to an object whose class did not declare it");
-      return kind === "a" ? f.call(receiver, value) : f ? f.value = value : state.set(receiver, value), value;
-    };
-    var __classPrivateFieldGet = exports2 && exports2.__classPrivateFieldGet || function(receiver, state, kind, f) {
-      if (kind === "a" && !f) throw new TypeError("Private accessor was defined without a getter");
-      if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
-      return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
-    };
-    var _Groups_inner;
-    Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.Groups = void 0;
-    var types_js_1 = require_types();
-    var Groups = class {
-      constructor(inner) {
-        _Groups_inner.set(this, void 0);
-        __classPrivateFieldSet(this, _Groups_inner, inner, "f");
-      }
-      /**
-       * Get a group by its ID and parameters.
-       */
-      get(groupId, groupParams) {
-        return __awaiter(this, void 0, void 0, function* () {
-          const invocationConfig = {
-            invocation: {
-              clientId: __classPrivateFieldGet(this, _Groups_inner, "f").id,
-              parameters: {
-                name: "GroupsGet",
-                parameters: {
-                  group_id: groupId,
-                  group_params: groupParams
-                }
-              }
-            }
-          };
-          return JSON.parse(yield __classPrivateFieldGet(this, _Groups_inner, "f").invoke(invocationConfig), types_js_1.ReviverFunc);
-        });
-      }
-    };
-    exports2.Groups = Groups;
-    _Groups_inner = /* @__PURE__ */ new WeakMap();
-  }
-});
-
-// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/client.js
-var require_client2 = __commonJS({
-  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/client.js"(exports2) {
-    "use strict";
-    init_cjs_shims();
-    Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.Client = void 0;
-    var secrets_js_1 = require_secrets();
-    var items_js_1 = require_items();
-    var vaults_js_1 = require_vaults();
-    var groups_js_1 = require_groups();
-    var Client = class {
-      constructor(innerClient) {
-        this.secrets = new secrets_js_1.Secrets(innerClient);
-        this.items = new items_js_1.Items(innerClient);
-        this.vaults = new vaults_js_1.Vaults(innerClient);
-        this.groups = new groups_js_1.Groups(innerClient);
-      }
-    };
-    exports2.Client = Client;
-  }
-});
-
-// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/shared_lib_core.js
-var require_shared_lib_core = __commonJS({
-  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/shared_lib_core.js"(exports2) {
-    "use strict";
-    init_cjs_shims();
-    var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
-      if (k2 === void 0) k2 = k;
-      var desc = Object.getOwnPropertyDescriptor(m, k);
-      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-        desc = { enumerable: true, get: function() {
-          return m[k];
-        } };
-      }
-      Object.defineProperty(o, k2, desc);
-    }) : (function(o, m, k, k2) {
-      if (k2 === void 0) k2 = k;
-      o[k2] = m[k];
-    }));
-    var __setModuleDefault = exports2 && exports2.__setModuleDefault || (Object.create ? (function(o, v) {
-      Object.defineProperty(o, "default", { enumerable: true, value: v });
-    }) : function(o, v) {
-      o["default"] = v;
-    });
-    var __importStar = exports2 && exports2.__importStar || /* @__PURE__ */ (function() {
-      var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function(o2) {
-          var ar = [];
-          for (var k in o2) if (Object.prototype.hasOwnProperty.call(o2, k)) ar[ar.length] = k;
-          return ar;
-        };
-        return ownKeys(o);
-      };
-      return function(mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) {
-          for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        }
-        __setModuleDefault(result, mod);
-        return result;
-      };
-    })();
-    var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
-      function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
-        });
-      }
-      return new (P || (P = Promise))(function(resolve6, reject) {
-        function fulfilled(value) {
-          try {
-            step(generator.next(value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function rejected(value) {
-          try {
-            step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
-        }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-      });
-    };
-    Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.SharedLibCore = void 0;
-    var fs4 = __importStar(require("fs"));
-    var os3 = __importStar(require("os"));
-    var path4 = __importStar(require("path"));
-    var errors_1 = require_errors3();
-    var find1PasswordLibPath = () => {
-      const platform = os3.platform();
-      const appRoot = path4.dirname(process.execPath);
-      let searchPaths = [];
-      switch (platform) {
-        case "darwin":
-          searchPaths = [
-            "/Applications/1Password.app/Contents/Frameworks/libop_sdk_ipc_client.dylib",
-            path4.join(os3.homedir(), "/Applications/1Password.app/Contents/Frameworks/libop_sdk_ipc_client.dylib")
-          ];
-          break;
-        case "linux":
-          searchPaths = [
-            "/usr/bin/1password/libop_sdk_ipc_client.so",
-            "/opt/1Password/libop_sdk_ipc_client.so",
-            "/snap/bin/1password/libop_sdk_ipc_client.so"
-          ];
-          break;
-        case "win32":
-          searchPaths = [
-            path4.join(os3.homedir(), "/AppData/Local/1Password/op_sdk_ipc_client.dll"),
-            "C:/Program Files/1Password/app/8/op_sdk_ipc_client.dll",
-            "C:/Program Files (x86)/1Password/app/8/op_sdk_ipc_client.dll",
-            path4.join(os3.homedir(), "/AppData/Local/1Password/app/8/op_sdk_ipc_client.dll")
-          ];
-          break;
-        default:
-          throw new Error(`Unsupported platform: ${platform}`);
-      }
-      for (const addonPath of searchPaths) {
-        if (fs4.existsSync(addonPath)) {
-          return addonPath;
-        }
-      }
-      throw new Error("1Password desktop application not found");
-    };
-    var SharedLibCore = class {
-      constructor(accountName) {
-        this.lib = null;
-        try {
-          const libPath = find1PasswordLibPath();
-          const moduleStub = { exports: {} };
-          process.dlopen(moduleStub, libPath);
-          if (typeof moduleStub === "object" && moduleStub !== null && typeof moduleStub.exports === "object" && moduleStub.exports !== null && "sendMessage" in moduleStub.exports && typeof moduleStub.exports.sendMessage === "function") {
-            this.lib = moduleStub.exports;
-          } else {
-            throw new Error("Failed to initialize native library: sendMessage function not found on module.");
-          }
-        } catch (e) {
-          console.error("A critical error occurred while loading the native addon:", e);
-          this.lib = null;
-        }
-        this.acccountName = accountName;
-      }
-      /**
-       * callSharedLibrary - send string to native function, receive string back.
-       */
-      callSharedLibrary(input, operation_type) {
-        return __awaiter(this, void 0, void 0, function* () {
-          if (!this.lib) {
-            throw new Error("Native library is not available.");
-          }
-          if (!input || input.length === 0) {
-            throw new Error("internal: empty input");
-          }
-          const inputEncoded = Buffer.from(input, "utf8").toString("base64");
-          const req = {
-            account_name: this.acccountName,
-            kind: operation_type,
-            payload: inputEncoded
-          };
-          const inputBuf = Buffer.from(JSON.stringify(req), "utf8");
-          const nativeResponse = yield this.lib.sendMessage(inputBuf);
-          if (!(nativeResponse instanceof Uint8Array)) {
-            throw new Error(`Native function returned an unexpected type. Expected Uint8Array, got ${typeof nativeResponse}`);
-          }
-          const respString = new TextDecoder().decode(nativeResponse);
-          const response = JSON.parse(respString);
-          if (response.success) {
-            const decodedPayload = Buffer.from(response.payload).toString("utf8");
-            return decodedPayload;
-          } else {
-            const errorMessage = Array.isArray(response.payload) ? String.fromCharCode(...response.payload) : JSON.stringify(response.payload);
-            (0, errors_1.throwError)(errorMessage);
-          }
-        });
-      }
-      // Core interface implementation
-      initClient(config) {
-        return __awaiter(this, void 0, void 0, function* () {
-          return this.callSharedLibrary(config, "init_client");
-        });
-      }
-      invoke(invokeConfigBytes) {
-        return __awaiter(this, void 0, void 0, function* () {
-          return this.callSharedLibrary(invokeConfigBytes, "invoke");
-        });
-      }
-      releaseClient(clientId) {
-        this.callSharedLibrary(clientId, "release_client").catch((err) => {
-          console.warn("failed to release client:", err);
-        });
-      }
-    };
-    exports2.SharedLibCore = SharedLibCore;
-  }
-});
-
-// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/client_builder.js
-var require_client_builder = __commonJS({
-  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/client_builder.js"(exports2) {
-    "use strict";
-    init_cjs_shims();
-    var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
-      function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
-        });
-      }
-      return new (P || (P = Promise))(function(resolve6, reject) {
-        function fulfilled(value) {
-          try {
-            step(generator.next(value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function rejected(value) {
-          try {
-            step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
-        }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-      });
-    };
-    Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.createClientWithCore = void 0;
-    var core_js_1 = require_core3();
-    var configuration_js_1 = require_configuration();
-    var client_js_1 = require_client2();
-    var shared_lib_core_js_1 = require_shared_lib_core();
-    var finalizationRegistry = new FinalizationRegistry((heldClient) => {
-      heldClient.core.releaseClient(heldClient.id);
-    });
-    var createClientWithCore = (config, core2) => __awaiter(void 0, void 0, void 0, function* () {
-      const authConfig = (0, configuration_js_1.clientAuthConfig)(config);
-      if (authConfig.accountName) {
-        core2.setInner(new shared_lib_core_js_1.SharedLibCore(authConfig.accountName));
-      }
-      const clientId = yield core2.initClient(authConfig);
-      const inner = new core_js_1.InnerClient(parseInt(clientId, 10), core2, authConfig);
-      const client = new client_js_1.Client(inner);
-      finalizationRegistry.register(client, inner);
-      return client;
-    });
-    exports2.createClientWithCore = createClientWithCore;
-  }
-});
-
-// ../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/sdk.js
-var require_sdk = __commonJS({
-  "../../node_modules/.pnpm/@1password+sdk@0.4.0/node_modules/@1password/sdk/dist/sdk.js"(exports2) {
-    "use strict";
-    init_cjs_shims();
-    var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
-      if (k2 === void 0) k2 = k;
-      var desc = Object.getOwnPropertyDescriptor(m, k);
-      if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-        desc = { enumerable: true, get: function() {
-          return m[k];
-        } };
-      }
-      Object.defineProperty(o, k2, desc);
-    }) : (function(o, m, k, k2) {
-      if (k2 === void 0) k2 = k;
-      o[k2] = m[k];
-    }));
-    var __exportStar = exports2 && exports2.__exportStar || function(m, exports3) {
-      for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports3, p)) __createBinding(exports3, m, p);
-    };
-    var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
-      function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
-        });
-      }
-      return new (P || (P = Promise))(function(resolve6, reject) {
-        function fulfilled(value) {
-          try {
-            step(generator.next(value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function rejected(value) {
-          try {
-            step(generator["throw"](value));
-          } catch (e) {
-            reject(e);
-          }
-        }
-        function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
-        }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-      });
-    };
-    Object.defineProperty(exports2, "__esModule", { value: true });
-    exports2.createClient = exports2.DesktopAuth = exports2.Secrets = exports2.DEFAULT_INTEGRATION_VERSION = exports2.DEFAULT_INTEGRATION_NAME = void 0;
-    var core_js_1 = require_core3();
-    var client_builder_js_1 = require_client_builder();
-    exports2.DEFAULT_INTEGRATION_NAME = "Unknown";
-    exports2.DEFAULT_INTEGRATION_VERSION = "Unknown";
-    var secrets_js_1 = require_secrets();
-    Object.defineProperty(exports2, "Secrets", { enumerable: true, get: function() {
-      return secrets_js_1.Secrets;
-    } });
-    var configuration_js_1 = require_configuration();
-    Object.defineProperty(exports2, "DesktopAuth", { enumerable: true, get: function() {
-      return configuration_js_1.DesktopAuth;
-    } });
-    __exportStar(require_client2(), exports2);
-    __exportStar(require_errors3(), exports2);
-    __exportStar(require_types(), exports2);
-    var createClient = (config) => __awaiter(void 0, void 0, void 0, function* () {
-      return (0, client_builder_js_1.createClientWithCore)(config, new core_js_1.SharedCore());
-    });
-    exports2.createClient = createClient;
-  }
-});
-
 // ../../node_modules/.pnpm/@actions+github@7.0.0/node_modules/@actions/github/lib/context.js
 var require_context = __commonJS({
   "../../node_modules/.pnpm/@actions+github@7.0.0/node_modules/@actions/github/lib/context.js"(exports2) {
@@ -33329,8 +30978,8 @@ var require_context = __commonJS({
           if ((0, fs_1.existsSync)(process.env.GITHUB_EVENT_PATH)) {
             this.payload = JSON.parse((0, fs_1.readFileSync)(process.env.GITHUB_EVENT_PATH, { encoding: "utf8" }));
           } else {
-            const path4 = process.env.GITHUB_EVENT_PATH;
-            process.stdout.write(`GITHUB_EVENT_PATH ${path4} does not exist${os_1.EOL}`);
+            const path2 = process.env.GITHUB_EVENT_PATH;
+            process.stdout.write(`GITHUB_EVENT_PATH ${path2} does not exist${os_1.EOL}`);
           }
         }
         this.eventName = process.env.GITHUB_EVENT_NAME;
@@ -33495,11 +31144,11 @@ var require_lib2 = __commonJS({
     })();
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve6, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -33515,7 +31164,7 @@ var require_lib2 = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -33559,11 +31208,11 @@ var require_lib2 = __commonJS({
       HttpCodes2[HttpCodes2["ServiceUnavailable"] = 503] = "ServiceUnavailable";
       HttpCodes2[HttpCodes2["GatewayTimeout"] = 504] = "GatewayTimeout";
     })(HttpCodes || (exports2.HttpCodes = HttpCodes = {}));
-    var Headers2;
-    (function(Headers3) {
-      Headers3["Accept"] = "accept";
-      Headers3["ContentType"] = "content-type";
-    })(Headers2 || (exports2.Headers = Headers2 = {}));
+    var Headers;
+    (function(Headers2) {
+      Headers2["Accept"] = "accept";
+      Headers2["ContentType"] = "content-type";
+    })(Headers || (exports2.Headers = Headers = {}));
     var MediaTypes;
     (function(MediaTypes2) {
       MediaTypes2["ApplicationJson"] = "application/json";
@@ -33602,26 +31251,26 @@ var require_lib2 = __commonJS({
       }
       readBody() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve6) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve4) => __awaiter(this, void 0, void 0, function* () {
             let output = Buffer.alloc(0);
             this.message.on("data", (chunk) => {
               output = Buffer.concat([output, chunk]);
             });
             this.message.on("end", () => {
-              resolve6(output.toString());
+              resolve4(output.toString());
             });
           }));
         });
       }
       readBodyBuffer() {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve6) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve4) => __awaiter(this, void 0, void 0, function* () {
             const chunks = [];
             this.message.on("data", (chunk) => {
               chunks.push(chunk);
             });
             this.message.on("end", () => {
-              resolve6(Buffer.concat(chunks));
+              resolve4(Buffer.concat(chunks));
             });
           }));
         });
@@ -33716,7 +31365,7 @@ var require_lib2 = __commonJS({
        */
       getJson(requestUrl_1) {
         return __awaiter(this, arguments, void 0, function* (requestUrl, additionalHeaders = {}) {
-          additionalHeaders[Headers2.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.Accept, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
           const res = yield this.get(requestUrl, additionalHeaders);
           return this._processResponse(res, this.requestOptions);
         });
@@ -33724,8 +31373,8 @@ var require_lib2 = __commonJS({
       postJson(requestUrl_1, obj_1) {
         return __awaiter(this, arguments, void 0, function* (requestUrl, obj, additionalHeaders = {}) {
           const data = JSON.stringify(obj, null, 2);
-          additionalHeaders[Headers2.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.Accept, MediaTypes.ApplicationJson);
-          additionalHeaders[Headers2.ContentType] = this._getExistingOrDefaultContentTypeHeader(additionalHeaders, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers.ContentType] = this._getExistingOrDefaultContentTypeHeader(additionalHeaders, MediaTypes.ApplicationJson);
           const res = yield this.post(requestUrl, data, additionalHeaders);
           return this._processResponse(res, this.requestOptions);
         });
@@ -33733,8 +31382,8 @@ var require_lib2 = __commonJS({
       putJson(requestUrl_1, obj_1) {
         return __awaiter(this, arguments, void 0, function* (requestUrl, obj, additionalHeaders = {}) {
           const data = JSON.stringify(obj, null, 2);
-          additionalHeaders[Headers2.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.Accept, MediaTypes.ApplicationJson);
-          additionalHeaders[Headers2.ContentType] = this._getExistingOrDefaultContentTypeHeader(additionalHeaders, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers.ContentType] = this._getExistingOrDefaultContentTypeHeader(additionalHeaders, MediaTypes.ApplicationJson);
           const res = yield this.put(requestUrl, data, additionalHeaders);
           return this._processResponse(res, this.requestOptions);
         });
@@ -33742,8 +31391,8 @@ var require_lib2 = __commonJS({
       patchJson(requestUrl_1, obj_1) {
         return __awaiter(this, arguments, void 0, function* (requestUrl, obj, additionalHeaders = {}) {
           const data = JSON.stringify(obj, null, 2);
-          additionalHeaders[Headers2.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers2.Accept, MediaTypes.ApplicationJson);
-          additionalHeaders[Headers2.ContentType] = this._getExistingOrDefaultContentTypeHeader(additionalHeaders, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers.Accept] = this._getExistingOrDefaultHeader(additionalHeaders, Headers.Accept, MediaTypes.ApplicationJson);
+          additionalHeaders[Headers.ContentType] = this._getExistingOrDefaultContentTypeHeader(additionalHeaders, MediaTypes.ApplicationJson);
           const res = yield this.patch(requestUrl, data, additionalHeaders);
           return this._processResponse(res, this.requestOptions);
         });
@@ -33829,14 +31478,14 @@ var require_lib2 = __commonJS({
        */
       requestRaw(info2, data) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve6, reject) => {
+          return new Promise((resolve4, reject) => {
             function callbackForResult(err, res) {
               if (err) {
                 reject(err);
               } else if (!res) {
                 reject(new Error("Unknown error"));
               } else {
-                resolve6(res);
+                resolve4(res);
               }
             }
             this.requestRawWithCallback(info2, data, callbackForResult);
@@ -33973,7 +31622,7 @@ var require_lib2 = __commonJS({
       _getExistingOrDefaultContentTypeHeader(additionalHeaders, _default) {
         let clientHeader;
         if (this.requestOptions && this.requestOptions.headers) {
-          const headerValue = lowercaseKeys2(this.requestOptions.headers)[Headers2.ContentType];
+          const headerValue = lowercaseKeys2(this.requestOptions.headers)[Headers.ContentType];
           if (headerValue) {
             if (typeof headerValue === "number") {
               clientHeader = String(headerValue);
@@ -33984,7 +31633,7 @@ var require_lib2 = __commonJS({
             }
           }
         }
-        const additionalValue = additionalHeaders[Headers2.ContentType];
+        const additionalValue = additionalHeaders[Headers.ContentType];
         if (additionalValue !== void 0) {
           if (typeof additionalValue === "number") {
             return String(additionalValue);
@@ -34080,12 +31729,12 @@ var require_lib2 = __commonJS({
         return __awaiter(this, void 0, void 0, function* () {
           retryNumber = Math.min(ExponentialBackoffCeiling, retryNumber);
           const ms2 = ExponentialBackoffTimeSlice * Math.pow(2, retryNumber);
-          return new Promise((resolve6) => setTimeout(() => resolve6(), ms2));
+          return new Promise((resolve4) => setTimeout(() => resolve4(), ms2));
         });
       }
       _processResponse(res, options) {
         return __awaiter(this, void 0, void 0, function* () {
-          return new Promise((resolve6, reject) => __awaiter(this, void 0, void 0, function* () {
+          return new Promise((resolve4, reject) => __awaiter(this, void 0, void 0, function* () {
             const statusCode = res.message.statusCode || 0;
             const response = {
               statusCode,
@@ -34093,7 +31742,7 @@ var require_lib2 = __commonJS({
               headers: {}
             };
             if (statusCode === HttpCodes.NotFound) {
-              resolve6(response);
+              resolve4(response);
             }
             function dateTimeDeserializer(key, value) {
               if (typeof value === "string") {
@@ -34132,7 +31781,7 @@ var require_lib2 = __commonJS({
               err.result = response.result;
               reject(err);
             } else {
-              resolve6(response);
+              resolve4(response);
             }
           }));
         });
@@ -34187,11 +31836,11 @@ var require_utils4 = __commonJS({
     })();
     var __awaiter = exports2 && exports2.__awaiter || function(thisArg, _arguments, P, generator) {
       function adopt(value) {
-        return value instanceof P ? value : new P(function(resolve6) {
-          resolve6(value);
+        return value instanceof P ? value : new P(function(resolve4) {
+          resolve4(value);
         });
       }
-      return new (P || (P = Promise))(function(resolve6, reject) {
+      return new (P || (P = Promise))(function(resolve4, reject) {
         function fulfilled(value) {
           try {
             step(generator.next(value));
@@ -34207,7 +31856,7 @@ var require_utils4 = __commonJS({
           }
         }
         function step(result) {
-          result.done ? resolve6(result.value) : adopt(result.value).then(fulfilled, rejected);
+          result.done ? resolve4(result.value) : adopt(result.value).then(fulfilled, rejected);
         }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
       });
@@ -35082,16 +32731,16 @@ function fetchWrapper(requestOptions) {
   let headers = {};
   let status;
   let url;
-  let { fetch: fetch2 } = globalThis;
+  let { fetch } = globalThis;
   if (requestOptions.request?.fetch) {
-    fetch2 = requestOptions.request.fetch;
+    fetch = requestOptions.request.fetch;
   }
-  if (!fetch2) {
+  if (!fetch) {
     throw new Error(
       "fetch is not set. Please pass a fetch implementation as new Octokit({ request: { fetch }}). Learn more at https://github.com/octokit/octokit.js/#fetch-missing"
     );
   }
-  return fetch2(requestOptions.url, {
+  return fetch(requestOptions.url, {
     method: requestOptions.method,
     body: requestOptions.body,
     redirect: requestOptions.request?.redirect,
@@ -38280,9 +35929,9 @@ var import_node_path = require("path");
 // ../core/dist/index.js
 init_cjs_shims();
 var fs = __toESM(require("fs"), 1);
-var import_fs3 = require("fs");
+var import_fs2 = require("fs");
 var path3 = __toESM(require("path"), 1);
-var import_path4 = require("path");
+var import_path3 = require("path");
 var import_semver = __toESM(require_semver2(), 1);
 var import_yaml = __toESM(require_dist(), 1);
 
@@ -38779,8 +36428,8 @@ function getErrorMap() {
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/helpers/parseUtil.js
 init_cjs_shims();
 var makeIssue = (params) => {
-  const { data, path: path4, errorMaps, issueData } = params;
-  const fullPath = [...path4, ...issueData.path || []];
+  const { data, path: path2, errorMaps, issueData } = params;
+  const fullPath = [...path2, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -38900,11 +36549,11 @@ var errorUtil;
 
 // ../../node_modules/.pnpm/zod@3.25.76/node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path4, key) {
+  constructor(parent, value, path2, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path4;
+    this._path = path2;
     this._key = key;
   }
   get path() {
@@ -42845,7 +40494,7 @@ var MigrationGraphImpl = class {
         hasIrreversibleStep: false
       };
     }
-    const path4 = findPath(
+    const path2 = findPath(
       normalizedFrom,
       normalizedTo,
       this.adjacencyList,
@@ -42853,10 +40502,10 @@ var MigrationGraphImpl = class {
       this.versionStrategy,
       (from, to) => this.getMigrationKey(from, to)
     );
-    if (!path4) {
+    if (!path2) {
       throw new NoPathError(fromVersion, toVersion);
     }
-    return path4;
+    return path2;
   }
   migrate(data, fromVersion, toVersion, options = {}) {
     const startTime = performance.now();
@@ -42885,12 +40534,12 @@ var MigrationGraphImpl = class {
       }
       data = validation2.data;
     }
-    let path4;
+    let path2;
     try {
       const pathStartTime = performance.now();
-      path4 = this.getPath(normalizedFrom, normalizedTo);
+      path2 = this.getPath(normalizedFrom, normalizedTo);
       const pathDuration = performance.now() - pathStartTime;
-      this.telemetry?.onPathComputed?.(path4, pathDuration);
+      this.telemetry?.onPathComputed?.(path2, pathDuration);
     } catch (err) {
       return {
         success: false,
@@ -42900,27 +40549,27 @@ var MigrationGraphImpl = class {
         error: err
       };
     }
-    if (path4.steps.length === 0) {
+    if (path2.steps.length === 0) {
       return {
         success: true,
         data,
-        path: path4,
+        path: path2,
         stash: { consumed: [], unconsumed: [], lossless: true },
         preservedFields: options.initialStash ?? []
       };
     }
-    const context = createMigrationContext(path4.steps.length, options.initialStash);
+    const context = createMigrationContext(path2.steps.length, options.initialStash);
     let currentData = data;
-    for (let i = 0; i < path4.steps.length; i++) {
-      const step = path4.steps[i];
+    for (let i = 0; i < path2.steps.length; i++) {
+      const step = path2.steps[i];
       context.setCurrentStep({
         from: step.fromVersion,
         to: step.toVersion,
         direction: step.direction,
         index: i,
-        totalSteps: path4.steps.length
+        totalSteps: path2.steps.length
       });
-      this.telemetry?.onStepStart?.(step, i, path4.steps.length);
+      this.telemetry?.onStepStart?.(step, i, path2.steps.length);
       const stepStartTime = performance.now();
       try {
         if (step.direction === "up") {
@@ -42945,20 +40594,20 @@ var MigrationGraphImpl = class {
         this.telemetry?.onError?.(error2, step, context);
         return {
           success: false,
-          path: path4,
+          path: path2,
           stash: context.getSummary(),
           preservedFields: context.getPreservedFields(),
           error: error2
         };
       }
-      if (options.validateIntermediate && i < path4.steps.length - 1) {
+      if (options.validateIntermediate && i < path2.steps.length - 1) {
         const intermediateSchema = this.schemas.get(step.toVersion);
         if (intermediateSchema) {
           const validation2 = intermediateSchema.schema(currentData);
           if (!validation2.success) {
             return {
               success: false,
-              path: path4,
+              path: path2,
               stash: context.getSummary(),
               preservedFields: context.getPreservedFields(),
               error: new SchemaValidationError(
@@ -42982,7 +40631,7 @@ var MigrationGraphImpl = class {
         this.telemetry?.onError?.(error2, null, context);
         const result2 = {
           success: false,
-          path: path4,
+          path: path2,
           stash: context.getSummary(),
           preservedFields: context.getPreservedFields(),
           validation,
@@ -43002,7 +40651,7 @@ var MigrationGraphImpl = class {
           this.telemetry?.onError?.(error2, null, context);
           const result2 = {
             success: false,
-            path: path4,
+            path: path2,
             stash: context.getSummary(),
             preservedFields: context.getPreservedFields(),
             validation,
@@ -43018,7 +40667,7 @@ var MigrationGraphImpl = class {
     const result = {
       success: true,
       data: currentData,
-      path: path4,
+      path: path2,
       stash: context.getSummary(),
       preservedFields: context.getPreservedFields(),
       ...validation !== void 0 && { validation }
@@ -43050,11 +40699,11 @@ var MigrationGraphImpl = class {
       }
       data = validation2.data;
     }
-    let path4;
+    let path2;
     try {
       const pathStartTime = performance.now();
-      path4 = this.getPath(normalizedFrom, normalizedTo);
-      this.telemetry?.onPathComputed?.(path4, performance.now() - pathStartTime);
+      path2 = this.getPath(normalizedFrom, normalizedTo);
+      this.telemetry?.onPathComputed?.(path2, performance.now() - pathStartTime);
     } catch (err) {
       const result2 = {
         success: false,
@@ -43066,30 +40715,30 @@ var MigrationGraphImpl = class {
       this.telemetry?.onMigrationComplete?.(result2, performance.now() - startTime);
       return result2;
     }
-    if (path4.steps.length === 0) {
+    if (path2.steps.length === 0) {
       const result2 = {
         success: true,
         data,
-        path: path4,
+        path: path2,
         stash: { consumed: [], unconsumed: [], lossless: true },
         preservedFields: options.initialStash ?? []
       };
       this.telemetry?.onMigrationComplete?.(result2, performance.now() - startTime);
       return result2;
     }
-    const context = createMigrationContext(path4.steps.length, options.initialStash);
+    const context = createMigrationContext(path2.steps.length, options.initialStash);
     let currentData = data;
-    for (let i = 0; i < path4.steps.length; i++) {
-      const step = path4.steps[i];
+    for (let i = 0; i < path2.steps.length; i++) {
+      const step = path2.steps[i];
       context.setCurrentStep({
         from: step.fromVersion,
         to: step.toVersion,
         direction: step.direction,
         index: i,
-        totalSteps: path4.steps.length
+        totalSteps: path2.steps.length
       });
       const stepStartTime = performance.now();
-      this.telemetry?.onStepStart?.(step, i, path4.steps.length);
+      this.telemetry?.onStepStart?.(step, i, path2.steps.length);
       try {
         if (step.direction === "up") {
           const result2 = step.migration.up(currentData, context);
@@ -43104,7 +40753,7 @@ var MigrationGraphImpl = class {
         this.telemetry?.onError?.(err, step, context);
         const result2 = {
           success: false,
-          path: path4,
+          path: path2,
           stash: context.getSummary(),
           preservedFields: context.getPreservedFields(),
           error: new MigrationError(
@@ -43120,14 +40769,14 @@ var MigrationGraphImpl = class {
         this.telemetry?.onMigrationComplete?.(result2, performance.now() - startTime);
         return result2;
       }
-      if (options.validateIntermediate && i < path4.steps.length - 1) {
+      if (options.validateIntermediate && i < path2.steps.length - 1) {
         const intermediateSchema = this.schemas.get(step.toVersion);
         if (intermediateSchema) {
           const validation2 = intermediateSchema.schema(currentData);
           if (!validation2.success) {
             const result2 = {
               success: false,
-              path: path4,
+              path: path2,
               stash: context.getSummary(),
               preservedFields: context.getPreservedFields(),
               error: new SchemaValidationError(
@@ -43148,7 +40797,7 @@ var MigrationGraphImpl = class {
       if (!validation.success) {
         const result2 = {
           success: false,
-          path: path4,
+          path: path2,
           stash: context.getSummary(),
           preservedFields: context.getPreservedFields(),
           validation,
@@ -43165,7 +40814,7 @@ var MigrationGraphImpl = class {
         if (!validation.success) {
           const result2 = {
             success: false,
-            path: path4,
+            path: path2,
             stash: context.getSummary(),
             preservedFields: context.getPreservedFields(),
             validation,
@@ -43183,7 +40832,7 @@ var MigrationGraphImpl = class {
     const result = {
       success: true,
       data: currentData,
-      path: path4,
+      path: path2,
       stash: context.getSummary(),
       preservedFields: context.getPreservedFields(),
       ...validation !== void 0 && { validation }
@@ -43195,12 +40844,12 @@ var MigrationGraphImpl = class {
   migrateMany(data, fromVersion, toVersion, options = {}) {
     const normalizedFrom = this.normalizeVersion(fromVersion);
     const normalizedTo = this.normalizeVersion(toVersion);
-    let path4;
+    let path2;
     try {
       const pathStartTime = performance.now();
-      path4 = this.getPath(normalizedFrom, normalizedTo);
+      path2 = this.getPath(normalizedFrom, normalizedTo);
       const pathDuration = performance.now() - pathStartTime;
-      this.telemetry?.onPathComputed?.(path4, pathDuration);
+      this.telemetry?.onPathComputed?.(path2, pathDuration);
     } catch {
       return {
         total: 0,
@@ -43226,7 +40875,7 @@ var MigrationGraphImpl = class {
           for (let j = i + 1; j < items.length; j++) {
             results.push({
               success: false,
-              path: path4,
+              path: path2,
               stash: { consumed: [], unconsumed: [], lossless: true },
               preservedFields: [],
               error: new MigrationError(
@@ -43247,7 +40896,7 @@ var MigrationGraphImpl = class {
       succeeded,
       failed,
       results,
-      path: path4
+      path: path2
     };
   }
   getVersions() {
@@ -43327,8 +40976,8 @@ function createMigrationGraph(options) {
 
 // ../../node_modules/.pnpm/@migrex+zod@1.0.0-alpha.1_@migrex+core@0.2.0-alpha.1_zod@3.25.76/node_modules/@migrex/zod/dist/index.js
 init_cjs_shims();
-function pathToStringArray(path4) {
-  return path4.map((p) => String(p));
+function pathToStringArray(path2) {
+  return path2.map((p) => String(p));
 }
 function zodErrorToValidationErrors(error2) {
   return error2.issues.map((issue) => ({
@@ -43362,7 +41011,7 @@ function fromZod(version2, zodSchema, options) {
 // ../core/dist/index.js
 var fs2 = __toESM(require("fs/promises"), 1);
 var import_promises = require("fs/promises");
-var crypto22 = __toESM(require("crypto"), 1);
+var crypto3 = __toESM(require("crypto"), 1);
 
 // ../../node_modules/.pnpm/tinyglobby@0.2.15/node_modules/tinyglobby/dist/index.mjs
 init_cjs_shims();
@@ -43376,27 +41025,27 @@ var import_module = require("module");
 var import_path = require("path");
 var nativeFs = __toESM(require("fs"), 1);
 var __require = /* @__PURE__ */ (0, import_module.createRequire)(importMetaUrl);
-function cleanPath(path4) {
-  let normalized = (0, import_path.normalize)(path4);
+function cleanPath(path2) {
+  let normalized = (0, import_path.normalize)(path2);
   if (normalized.length > 1 && normalized[normalized.length - 1] === import_path.sep) normalized = normalized.substring(0, normalized.length - 1);
   return normalized;
 }
 var SLASHES_REGEX = /[\\/]/g;
-function convertSlashes(path4, separator) {
-  return path4.replace(SLASHES_REGEX, separator);
+function convertSlashes(path2, separator) {
+  return path2.replace(SLASHES_REGEX, separator);
 }
 var WINDOWS_ROOT_DIR_REGEX = /^[a-z]:[\\/]$/i;
-function isRootDirectory(path4) {
-  return path4 === "/" || WINDOWS_ROOT_DIR_REGEX.test(path4);
+function isRootDirectory(path2) {
+  return path2 === "/" || WINDOWS_ROOT_DIR_REGEX.test(path2);
 }
-function normalizePath(path4, options) {
+function normalizePath(path2, options) {
   const { resolvePaths, normalizePath: normalizePath$1, pathSeparator } = options;
-  const pathNeedsCleaning = process.platform === "win32" && path4.includes("/") || path4.startsWith(".");
-  if (resolvePaths) path4 = (0, import_path.resolve)(path4);
-  if (normalizePath$1 || pathNeedsCleaning) path4 = cleanPath(path4);
-  if (path4 === ".") return "";
-  const needsSeperator = path4[path4.length - 1] !== pathSeparator;
-  return convertSlashes(needsSeperator ? path4 + pathSeparator : path4, pathSeparator);
+  const pathNeedsCleaning = process.platform === "win32" && path2.includes("/") || path2.startsWith(".");
+  if (resolvePaths) path2 = (0, import_path.resolve)(path2);
+  if (normalizePath$1 || pathNeedsCleaning) path2 = cleanPath(path2);
+  if (path2 === ".") return "";
+  const needsSeperator = path2[path2.length - 1] !== pathSeparator;
+  return convertSlashes(needsSeperator ? path2 + pathSeparator : path2, pathSeparator);
 }
 function joinPathWithBasePath(filename, directoryPath) {
   return directoryPath + filename;
@@ -43433,8 +41082,8 @@ var pushDirectory = (directoryPath, paths) => {
   paths.push(directoryPath || ".");
 };
 var pushDirectoryFilter = (directoryPath, paths, filters) => {
-  const path4 = directoryPath || ".";
-  if (filters.every((filter) => filter(path4, true))) paths.push(path4);
+  const path2 = directoryPath || ".";
+  if (filters.every((filter) => filter(path2, true))) paths.push(path2);
 };
 var empty$2 = () => {
 };
@@ -43486,27 +41135,27 @@ var empty = () => {
 function build$3(options) {
   return options.group ? groupFiles : empty;
 }
-var resolveSymlinksAsync = function(path4, state, callback$1) {
-  const { queue, fs: fs4, options: { suppressErrors } } = state;
+var resolveSymlinksAsync = function(path2, state, callback$1) {
+  const { queue, fs: fs3, options: { suppressErrors } } = state;
   queue.enqueue();
-  fs4.realpath(path4, (error2, resolvedPath) => {
+  fs3.realpath(path2, (error2, resolvedPath) => {
     if (error2) return queue.dequeue(suppressErrors ? null : error2, state);
-    fs4.stat(resolvedPath, (error$1, stat2) => {
+    fs3.stat(resolvedPath, (error$1, stat3) => {
       if (error$1) return queue.dequeue(suppressErrors ? null : error$1, state);
-      if (stat2.isDirectory() && isRecursive(path4, resolvedPath, state)) return queue.dequeue(null, state);
-      callback$1(stat2, resolvedPath);
+      if (stat3.isDirectory() && isRecursive(path2, resolvedPath, state)) return queue.dequeue(null, state);
+      callback$1(stat3, resolvedPath);
       queue.dequeue(null, state);
     });
   });
 };
-var resolveSymlinks = function(path4, state, callback$1) {
-  const { queue, fs: fs4, options: { suppressErrors } } = state;
+var resolveSymlinks = function(path2, state, callback$1) {
+  const { queue, fs: fs3, options: { suppressErrors } } = state;
   queue.enqueue();
   try {
-    const resolvedPath = fs4.realpathSync(path4);
-    const stat2 = fs4.statSync(resolvedPath);
-    if (stat2.isDirectory() && isRecursive(path4, resolvedPath, state)) return;
-    callback$1(stat2, resolvedPath);
+    const resolvedPath = fs3.realpathSync(path2);
+    const stat3 = fs3.statSync(resolvedPath);
+    if (stat3.isDirectory() && isRecursive(path2, resolvedPath, state)) return;
+    callback$1(stat3, resolvedPath);
   } catch (e) {
     if (!suppressErrors) throw e;
   }
@@ -43515,9 +41164,9 @@ function build$2(options, isSynchronous) {
   if (!options.resolveSymlinks || options.excludeSymlinks) return null;
   return isSynchronous ? resolveSymlinks : resolveSymlinksAsync;
 }
-function isRecursive(path4, resolved, state) {
+function isRecursive(path2, resolved, state) {
   if (state.options.useRealPaths) return isRecursiveUsingRealPaths(resolved, state);
-  let parent = (0, import_path.dirname)(path4);
+  let parent = (0, import_path.dirname)(path2);
   let depth = 1;
   while (parent !== state.root && depth < 2) {
     const resolvedPath = state.symlinks.get(parent);
@@ -43525,7 +41174,7 @@ function isRecursive(path4, resolved, state) {
     if (isSameRoot) depth++;
     else parent = (0, import_path.dirname)(parent);
   }
-  state.symlinks.set(path4, resolved);
+  state.symlinks.set(path2, resolved);
   return depth > 1;
 }
 function isRecursiveUsingRealPaths(resolved, state) {
@@ -43574,22 +41223,22 @@ var readdirOpts = { withFileTypes: true };
 var walkAsync = (state, crawlPath, directoryPath, currentDepth, callback$1) => {
   state.queue.enqueue();
   if (currentDepth < 0) return state.queue.dequeue(null, state);
-  const { fs: fs4 } = state;
+  const { fs: fs3 } = state;
   state.visited.push(crawlPath);
   state.counts.directories++;
-  fs4.readdir(crawlPath || ".", readdirOpts, (error2, entries = []) => {
+  fs3.readdir(crawlPath || ".", readdirOpts, (error2, entries = []) => {
     callback$1(entries, directoryPath, currentDepth);
     state.queue.dequeue(state.options.suppressErrors ? null : error2, state);
   });
 };
 var walkSync = (state, crawlPath, directoryPath, currentDepth, callback$1) => {
-  const { fs: fs4 } = state;
+  const { fs: fs3 } = state;
   if (currentDepth < 0) return;
   state.visited.push(crawlPath);
   state.counts.directories++;
   let entries = [];
   try {
-    entries = fs4.readdirSync(crawlPath || ".", readdirOpts);
+    entries = fs3.readdirSync(crawlPath || ".", readdirOpts);
   } catch (e) {
     if (!state.options.suppressErrors) throw e;
   }
@@ -43697,19 +41346,19 @@ var Walker = class {
         const filename = this.joinPath(entry.name, directoryPath);
         this.pushFile(filename, files, this.state.counts, filters);
       } else if (entry.isDirectory()) {
-        let path4 = joinDirectoryPath(entry.name, directoryPath, this.state.options.pathSeparator);
-        if (exclude && exclude(entry.name, path4)) continue;
-        this.pushDirectory(path4, paths, filters);
-        this.walkDirectory(this.state, path4, path4, depth - 1, this.walk);
+        let path2 = joinDirectoryPath(entry.name, directoryPath, this.state.options.pathSeparator);
+        if (exclude && exclude(entry.name, path2)) continue;
+        this.pushDirectory(path2, paths, filters);
+        this.walkDirectory(this.state, path2, path2, depth - 1, this.walk);
       } else if (this.resolveSymlink && entry.isSymbolicLink()) {
-        let path4 = joinPathWithBasePath(entry.name, directoryPath);
-        this.resolveSymlink(path4, this.state, (stat2, resolvedPath) => {
-          if (stat2.isDirectory()) {
+        let path2 = joinPathWithBasePath(entry.name, directoryPath);
+        this.resolveSymlink(path2, this.state, (stat3, resolvedPath) => {
+          if (stat3.isDirectory()) {
             resolvedPath = normalizePath(resolvedPath, this.state.options);
-            if (exclude && exclude(entry.name, useRealPaths ? resolvedPath : path4 + pathSeparator)) return;
-            this.walkDirectory(this.state, resolvedPath, useRealPaths ? resolvedPath : path4 + pathSeparator, depth - 1, this.walk);
+            if (exclude && exclude(entry.name, useRealPaths ? resolvedPath : path2 + pathSeparator)) return;
+            this.walkDirectory(this.state, resolvedPath, useRealPaths ? resolvedPath : path2 + pathSeparator, depth - 1, this.walk);
           } else {
-            resolvedPath = useRealPaths ? resolvedPath : path4;
+            resolvedPath = useRealPaths ? resolvedPath : path2;
             const filename = (0, import_path.basename)(resolvedPath);
             const directoryPath$1 = normalizePath((0, import_path.dirname)(resolvedPath), this.state.options);
             resolvedPath = this.joinPath(filename, directoryPath$1);
@@ -43875,7 +41524,7 @@ var Builder = class {
       isMatch = globFn(patterns, ...options);
       this.globCache[patterns.join("\0")] = isMatch;
     }
-    this.options.filters.push((path4) => isMatch(path4));
+    this.options.filters.push((path2) => isMatch(path2));
     return this;
   }
 };
@@ -44034,10 +41683,10 @@ function processPatterns({ patterns = ["**/*"], ignore = [], expandDirectories =
     ignore: ignorePatterns
   };
 }
-function formatPaths(paths, relative2) {
+function formatPaths(paths, relative3) {
   for (let i = paths.length - 1; i >= 0; i--) {
     const path$1 = paths[i];
-    paths[i] = relative2(path$1);
+    paths[i] = relative3(path$1);
   }
   return paths;
 }
@@ -44134,1981 +41783,32 @@ function getCrawler(patterns, inputOptions = {}) {
   props.root = props.root.replace(BACKSLASHES, "");
   const root = props.root;
   if (options.debug) log("internal properties:", props);
-  const relative2 = cwd !== root && !options.absolute && buildRelative(cwd, props.root);
-  return [new Builder(fdirOptions).crawl(root), relative2];
+  const relative3 = cwd !== root && !options.absolute && buildRelative(cwd, props.root);
+  return [new Builder(fdirOptions).crawl(root), relative3];
 }
 async function glob(patternsOrOptions, options) {
   if (patternsOrOptions && (options === null || options === void 0 ? void 0 : options.patterns)) throw new Error("Cannot pass patterns as both an argument and an option");
   const isModern = isReadonlyArray(patternsOrOptions) || typeof patternsOrOptions === "string";
   const opts = isModern ? options : patternsOrOptions;
   const patterns = isModern ? patternsOrOptions : patternsOrOptions.patterns;
-  const [crawler, relative2] = getCrawler(patterns, opts);
-  if (!relative2) return crawler.withPromise();
-  return formatPaths(await crawler.withPromise(), relative2);
+  const [crawler, relative3] = getCrawler(patterns, opts);
+  if (!relative3) return crawler.withPromise();
+  return formatPaths(await crawler.withPromise(), relative3);
 }
 
 // ../core/dist/index.js
-var os2 = __toESM(require("os"), 1);
-
-// ../../node_modules/.pnpm/vaultkeeper@0.7.0_@1password+sdk@0.4.0_@types+node@22.19.3/node_modules/vaultkeeper/dist/index.js
-init_cjs_shims();
-var fs3 = __toESM(require("fs/promises"), 1);
-var path2 = __toESM(require("path"), 1);
-var import_path3 = require("path");
-var os = __toESM(require("os"), 1);
-var crypto2 = __toESM(require("crypto"), 1);
 var import_child_process = require("child_process");
-var import_url2 = require("url");
-var import_fs2 = require("fs");
-var VaultError = class extends Error {
-  constructor(message) {
-    super(message);
-    this.name = "VaultError";
-  }
-};
-var BackendLockedError = class extends VaultError {
-  /**
-   * Whether the lock can be resolved through an interactive user prompt.
-   * When `true`, callers may retry after prompting the user.
-   */
-  interactive;
-  constructor(message, interactive) {
-    super(message);
-    this.name = "BackendLockedError";
-    this.interactive = interactive;
-  }
-};
-var DeviceNotPresentError = class extends VaultError {
-  /**
-   * How long (in milliseconds) the operation waited for the device before
-   * giving up.
-   */
-  timeoutMs;
-  constructor(message, timeoutMs) {
-    super(message);
-    this.name = "DeviceNotPresentError";
-    this.timeoutMs = timeoutMs;
-  }
-};
-var AuthorizationDeniedError = class extends VaultError {
-  constructor(message) {
-    super(message);
-    this.name = "AuthorizationDeniedError";
-  }
-};
-var PresenceDeclinedError = class extends VaultError {
-  /** The `type` identifier of the backend that requested the presence action. */
-  backendType;
-  constructor(message, backendType) {
-    super(message);
-    this.name = "PresenceDeclinedError";
-    this.backendType = backendType;
-  }
-};
-var PresenceTimeoutError = class extends VaultError {
-  /** The `type` identifier of the backend that requested the presence action. */
-  backendType;
-  /** How long (in milliseconds) the operation waited for the presence action. */
-  timeoutMs;
-  constructor(message, backendType, timeoutMs) {
-    super(message);
-    this.name = "PresenceTimeoutError";
-    this.backendType = backendType;
-    this.timeoutMs = timeoutMs;
-  }
-};
-var BackendUnavailableError = class extends VaultError {
-  /**
-   * Machine-readable reason code describing why the backend is unavailable
-   * (e.g. `'none-enabled'`, `'all-failed'`).
-   */
-  reason;
-  /**
-   * The backend type identifiers that were attempted before this error was
-   * thrown.
-   */
-  attempted;
-  constructor(message, reason, attempted) {
-    super(message);
-    this.name = "BackendUnavailableError";
-    this.reason = reason;
-    this.attempted = attempted;
-  }
-};
-var PluginNotFoundError = class extends VaultError {
-  /**
-   * The plugin package or binary name that was not found.
-   */
-  plugin;
-  /**
-   * A URL pointing to installation instructions for the missing plugin.
-   */
-  installUrl;
-  constructor(message, plugin, installUrl) {
-    super(message);
-    this.name = "PluginNotFoundError";
-    this.plugin = plugin;
-    this.installUrl = installUrl;
-  }
-};
-var SecretNotFoundError = class extends VaultError {
-  constructor(message) {
-    super(message);
-    this.name = "SecretNotFoundError";
-  }
-};
-var ExecError = class extends VaultError {
-  /**
-   * The command that failed to execute.
-   */
-  command;
-  constructor(message, command) {
-    super(message);
-    this.name = "ExecError";
-    this.command = command;
-  }
-};
-var InvalidAlgorithmError = class extends VaultError {
-  /**
-   * The algorithm that was requested.
-   */
-  algorithm;
-  /**
-   * The set of algorithms that are allowed.
-   */
-  allowed;
-  constructor(message, algorithm, allowed) {
-    super(message);
-    this.name = "InvalidAlgorithmError";
-    this.algorithm = algorithm;
-    this.allowed = allowed;
-  }
-};
-var InvalidKeyMaterialError = class extends VaultError {
-  constructor(message) {
-    super(message);
-    this.name = "InvalidKeyMaterialError";
-  }
-};
-var SigningKeyNotFoundError = class extends VaultError {
-  /**
-   * The signing-key name that was requested (the caller-facing `--name`, not
-   * the internal namespaced identifier).
-   */
-  keyName;
-  constructor(message, keyName) {
-    super(message);
-    this.name = "SigningKeyNotFoundError";
-    this.keyName = keyName;
-  }
-};
-var SigningKeyAlreadyExistsError = class extends VaultError {
-  /**
-   * The signing-key name that already exists (the caller-facing `--name`, not
-   * the internal namespaced identifier).
-   */
-  keyName;
-  constructor(message, keyName) {
-    super(message);
-    this.name = "SigningKeyAlreadyExistsError";
-    this.keyName = keyName;
-  }
-};
-var DecryptionError = class extends VaultError {
-  /**
-   * The path of the encrypted entry that failed to decrypt.
-   */
-  path;
-  constructor(message, path9) {
-    super(message);
-    this.name = "DecryptionError";
-    this.path = path9;
-  }
-};
-var ConfigValidationError = class extends VaultError {
-  /**
-   * The dotted/bracketed path to the offending config field (e.g.
-   * `'backends[0].path'`).
-   */
-  field;
-  /**
-   * The path of the config file that failed validation, when the error
-   * originated from loading a file on disk (via `loadConfig`) rather than
-   * from validating an in-memory value directly. This is `configDir` joined
-   * with `config.json` exactly as provided to `loadConfig` — it is not
-   * guaranteed to be absolute (`loadConfig` does not resolve a relative
-   * `configDir`).
-   */
-  configFilePath;
-  constructor(message, field, configFilePath) {
-    super(message);
-    this.name = "ConfigValidationError";
-    this.field = field;
-    this.configFilePath = configFilePath;
-  }
-};
-var SetupError = class extends VaultError {
-  /**
-   * The name of the dependency that caused the setup failure.
-   */
-  dependency;
-  constructor(message, dependency) {
-    super(message);
-    this.name = "SetupError";
-    this.dependency = dependency;
-  }
-};
-var FilesystemError = class extends VaultError {
-  /**
-   * The path of the file or directory that caused the error, as provided by
-   * the caller. Not guaranteed to be absolute — e.g. `loadConfig` throws this
-   * with `configDir` joined with `config.json` exactly as given, without
-   * resolving a relative `configDir`.
-   */
-  path;
-  /**
-   * The file operation or access mode that was being attempted when the
-   * failure occurred, for example 'read', 'write', 'delete', or 'rwx' for a
-   * directory create/access check. Despite the field name, this does not
-   * imply the failure was itself a permission problem — it names the
-   * attempted operation regardless of the underlying errno, which may be a
-   * non-permission code such as ENOSPC or EISDIR.
-   */
-  permission;
-  /**
-   * The Node.js errno code from the underlying filesystem failure, for
-   * example EACCES, EPERM, ENOSPC, or EISDIR. Undefined when the error was
-   * constructed without an underlying cause, or when that cause did not
-   * expose a string errno code. Prefer this over parsing the message text,
-   * which is not a contractual format.
-   */
-  code;
-  /**
-   * @param message - Human-readable description of the failure.
-   * @param filePath - The path of the file or directory that caused the error.
-   * @param permission - The file operation or access mode being attempted,
-   * for example 'read', 'write', 'delete', or 'rwx'. See the `permission`
-   * property for why this need not indicate an actual permission problem.
-   * @param cause - The underlying error that was caught, if any. Recorded as
-   * the standard `Error.cause` and used to populate `code` when it exposes a
-   * string errno code.
-   */
-  constructor(message, filePath, permission, cause) {
-    super(message);
-    this.name = "FilesystemError";
-    this.path = filePath;
-    this.permission = permission;
-    this.code = hasErrnoCode(cause) ? cause.code : void 0;
-    if (cause !== void 0) {
-      Object.defineProperty(this, "cause", {
-        value: cause,
-        writable: true,
-        enumerable: false,
-        configurable: true
-      });
-    }
-  }
-};
-function hasErrnoCode(err) {
-  return err instanceof Error && "code" in err && typeof err.code === "string";
-}
-function toFilesystemError(err, resourceLabel, filePath, permission) {
-  const detail = err instanceof Error ? err.message : String(err);
-  return new FilesystemError(
-    `Failed to ${permission} ${resourceLabel} at ${filePath}: ${detail}`,
-    filePath,
-    permission,
-    err
-  );
-}
-var BackendRegistry = class {
-  static backends = /* @__PURE__ */ new Map();
-  static setups = /* @__PURE__ */ new Map();
-  /**
-   * Register a backend factory.
-   * @param type - Backend type identifier
-   * @param factory - Factory function to create backend instances
-   */
-  static register(type, factory) {
-    this.backends.set(type, factory);
-  }
-  /**
-   * Create a backend instance by type.
-   * @param type - Backend type identifier
-   * @param config - Optional backend configuration forwarded to the factory
-   * @param configDir - Optional resolved config directory forwarded to the
-   *   factory, so file-based backends can default their storage under it
-   * @returns A SecretBackend instance
-   * @throws {@link BackendUnavailableError} if the backend type is not registered
-   */
-  static create(type, config, configDir) {
-    const factory = this.backends.get(type);
-    if (factory === void 0) {
-      throw new BackendUnavailableError(
-        `Unknown backend type: ${type}. Available types: ${Array.from(this.backends.keys()).join(", ")}`,
-        "unknown-type",
-        Array.from(this.backends.keys())
-      );
-    }
-    return factory(config, configDir);
-  }
-  /**
-   * Get all registered backend type identifiers.
-   * @returns Array of backend type identifiers
-   */
-  static getTypes() {
-    return Array.from(this.backends.keys());
-  }
-  /**
-   * Returns backend types that are available on the current system.
-   *
-   * @remarks
-   * Creates each registered backend via its factory, calls `isAvailable()`,
-   * and returns only the type identifiers whose backend reports availability.
-   * If a backend's `isAvailable()` call throws, that backend is excluded from
-   * the result rather than propagating the error.
-   *
-   * @returns Promise resolving to an array of available backend type identifiers
-   * @public
-   */
-  static async getAvailableTypes() {
-    const entries = Array.from(this.backends.entries());
-    const results = await Promise.all(
-      entries.map(async ([type, factory]) => {
-        try {
-          const backend = factory();
-          const available = await backend.isAvailable();
-          return available ? type : null;
-        } catch {
-          return null;
-        }
-      })
-    );
-    return results.filter((type) => type !== null);
-  }
-  /**
-   * Register a setup factory for a backend type.
-   * @param type - Backend type identifier
-   * @param factory - Factory function that creates a setup generator
-   */
-  static registerSetup(type, factory) {
-    this.setups.set(type, factory);
-  }
-  /**
-   * Get the setup factory for a backend type, if one is registered.
-   * @param type - Backend type identifier
-   * @returns The setup factory, or `undefined` if none is registered
-   */
-  static getSetup(type) {
-    return this.setups.get(type);
-  }
-  /**
-   * Check whether a setup factory is registered for the given backend type.
-   * @param type - Backend type identifier
-   * @returns `true` if a setup factory is registered
-   */
-  static hasSetup(type) {
-    return this.setups.has(type);
-  }
-  /**
-   * Clear all registered backend factories.
-   * Intended for use in tests only.
-   * @internal
-   */
-  static clearBackends() {
-    this.backends.clear();
-  }
-  /**
-   * Clear all registered setup factories.
-   * Intended for use in tests only.
-   * @internal
-   */
-  static clearSetups() {
-    this.setups.clear();
-  }
-};
-var GCM_IV_BYTES = 12;
-var GCM_KEY_BYTES = 32;
-var GCM_TAG_LENGTH_BITS = 128;
-function encryptGcm(key, plaintext) {
-  const iv = crypto2.randomBytes(GCM_IV_BYTES);
-  const cipher = crypto2.createCipheriv("aes-256-gcm", key, iv, {
-    authTagLength: GCM_TAG_LENGTH_BITS / 8
-  });
-  const encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
-  const authTag = cipher.getAuthTag();
-  return [iv.toString("base64"), authTag.toString("base64"), encrypted.toString("base64")].join(":");
-}
-function decryptGcm(key, encoded, path9 = "") {
-  const parts = encoded.split(":");
-  if (parts.length !== 3) {
-    throw new DecryptionError("Invalid encrypted envelope: expected iv:authTag:ciphertext", path9);
-  }
-  const [ivB64, authTagB64, ciphertextB64] = parts;
-  if (ivB64 === void 0 || authTagB64 === void 0 || ciphertextB64 === void 0) {
-    throw new DecryptionError("Invalid encrypted envelope: missing part", path9);
-  }
-  const iv = Buffer.from(ivB64, "base64");
-  const authTag = Buffer.from(authTagB64, "base64");
-  const ciphertext = Buffer.from(ciphertextB64, "base64");
-  try {
-    const decipher = crypto2.createDecipheriv("aes-256-gcm", key, iv, {
-      authTagLength: GCM_TAG_LENGTH_BITS / 8
-    });
-    decipher.setAuthTag(authTag);
-    const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-    return decrypted.toString("utf8");
-  } catch (err) {
-    throw new DecryptionError(
-      `Failed to decrypt envelope: ${err instanceof Error ? err.message : String(err)}`,
-      path9
-    );
-  }
-}
-async function getOrCreateWrapKey(keyPath) {
-  let existing;
-  try {
-    existing = await fs3.readFile(keyPath);
-  } catch (err) {
-    if (!(err instanceof Error && "code" in err && err.code === "ENOENT")) {
-      throw toFilesystemError(err, "wrapping key file", keyPath, "read");
-    }
-  }
-  if (existing?.byteLength === GCM_KEY_BYTES) {
-    return existing;
-  }
-  const key = crypto2.randomBytes(GCM_KEY_BYTES);
-  try {
-    await fs3.writeFile(keyPath, key, { mode: 384 });
-  } catch (err) {
-    throw toFilesystemError(err, "wrapping key file", keyPath, "write");
-  }
-  return key;
-}
-function getPlatformDefaultConfigDir() {
-  if (process.platform === "win32") {
-    const appData = process.env.APPDATA;
-    if (appData !== void 0) {
-      return path2.join(appData, "vaultkeeper");
-    }
-    return path2.join(os.homedir(), "AppData", "Roaming", "vaultkeeper");
-  }
-  return path2.join(os.homedir(), ".config", "vaultkeeper");
-}
-function getDefaultConfigDir() {
-  const envOverride = process.env.VAULTKEEPER_CONFIG_DIR;
-  if (envOverride !== void 0 && envOverride !== "") {
-    return envOverride;
-  }
-  return getPlatformDefaultConfigDir();
-}
-var STORAGE_DIR_NAME = "file";
-var KEY_FILE = ".key";
-var SIGNING_DIR_NAME = "signing-keys";
-var SIGNING_KEY_PREFIX = "signing-key:";
-var SUPPORTED_SIGNING_ALGORITHMS = ["EdDSA"];
-function computeKid(spkiDer) {
-  return crypto2.createHash("sha256").update(spkiDer).digest("base64url");
-}
-function displayKeyName(id) {
-  return id.startsWith(SIGNING_KEY_PREFIX) ? id.slice(SIGNING_KEY_PREFIX.length) : id;
-}
-function legacyStorageDir() {
-  return path2.join(os.homedir(), ".vaultkeeper", "file");
-}
-function resolveStorageDir(configuredPath, configDir) {
-  if (configuredPath !== void 0) {
-    return configuredPath;
-  }
-  return path2.join(configDir ?? getDefaultConfigDir(), STORAGE_DIR_NAME);
-}
-function getEntryPath(storageDir, id) {
-  const safeId = Buffer.from(id, "utf8").toString("hex");
-  return path2.join(storageDir, `${safeId}.enc`);
-}
-async function ensureStorageDir(storageDir) {
-  try {
-    await fs3.mkdir(storageDir, { recursive: true, mode: 448 });
-  } catch (err) {
-    throw new FilesystemError(
-      `Failed to create storage directory: ${storageDir}`,
-      storageDir,
-      "rwx",
-      err
-    );
-  }
-}
-async function getOrCreateKey(storageDir) {
-  return getOrCreateWrapKey(path2.join(storageDir, KEY_FILE));
-}
-var FileBackend = class _FileBackend {
-  type = "file";
-  displayName = "Encrypted File Store";
-  #storageDir;
-  /** Directory holding encrypted signing-key private material. */
-  #signingDir;
-  /**
-   * Pre-#99 default storage directory, consulted as a read-only fallback
-   * when `storageDir` was not explicitly configured. `undefined` when an
-   * explicit `storageDir` was given — an explicit path never falls back.
-   */
-  #legacyStorageDir;
-  /**
-   * @param storageDir - Directory in which encrypted secrets are stored.
-   *   Sourced from `BackendConfig.path`. Defaults to `<configDir>/file`.
-   * @param configDir - Resolved config directory, used to compute the
-   *   default `storageDir` when one is not explicitly provided. Ignored when
-   *   `storageDir` is given. Defaults to `getDefaultConfigDir()`.
-   */
-  constructor(storageDir, configDir) {
-    this.#storageDir = resolveStorageDir(storageDir, configDir);
-    this.#legacyStorageDir = storageDir === void 0 ? legacyStorageDir() : void 0;
-    this.#signingDir = path2.join(this.#storageDir, SIGNING_DIR_NAME);
-  }
-  async isAvailable() {
-    try {
-      await ensureStorageDir(this.#storageDir);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-  async store(id, secret) {
-    const storageDir = this.#storageDir;
-    await ensureStorageDir(storageDir);
-    const key = await getOrCreateKey(storageDir);
-    const entryPath = getEntryPath(storageDir, id);
-    const encrypted = encryptGcm(key, secret);
-    try {
-      await fs3.writeFile(entryPath, encrypted, { mode: 384 });
-    } catch (err) {
-      throw toFilesystemError(err, "secret file", entryPath, "write");
-    }
-  }
-  /**
-   * Attempt to read and decrypt the entry for `id` from `storageDir`.
-   * Returns `undefined` (rather than throwing) when the entry does not
-   * exist in `storageDir`, so callers can probe a fallback location.
-   */
-  async #tryRetrieveFrom(storageDir, id) {
-    const entryPath = getEntryPath(storageDir, id);
-    let encoded;
-    try {
-      encoded = await fs3.readFile(entryPath, "utf8");
-    } catch (err) {
-      if (err instanceof Error && "code" in err && err.code === "ENOENT") {
-        return void 0;
-      }
-      throw toFilesystemError(err, "secret file", entryPath, "read");
-    }
-    const key = await getOrCreateKey(storageDir);
-    try {
-      return decryptGcm(key, encoded, entryPath);
-    } catch (err) {
-      throw new DecryptionError(
-        `Failed to decrypt secret: ${err instanceof Error ? err.message : String(err)}`,
-        entryPath
-      );
-    }
-  }
-  async retrieve(id) {
-    const fromPrimary = await this.#tryRetrieveFrom(this.#storageDir, id);
-    if (fromPrimary !== void 0) {
-      return fromPrimary;
-    }
-    if (this.#legacyStorageDir !== void 0) {
-      const fromLegacy = await this.#tryRetrieveFrom(this.#legacyStorageDir, id);
-      if (fromLegacy !== void 0) {
-        return fromLegacy;
-      }
-    }
-    throw new SecretNotFoundError(`Secret not found in file store: ${id}`);
-  }
-  async delete(id) {
-    const entryPath = getEntryPath(this.#storageDir, id);
-    try {
-      await fs3.unlink(entryPath);
-      return;
-    } catch (err) {
-      if (!(err instanceof Error && "code" in err && err.code === "ENOENT")) {
-        throw toFilesystemError(err, "secret file", entryPath, "delete");
-      }
-    }
-    if (this.#legacyStorageDir !== void 0) {
-      const legacyEntryPath = getEntryPath(this.#legacyStorageDir, id);
-      try {
-        await fs3.unlink(legacyEntryPath);
-        return;
-      } catch (err) {
-        if (!(err instanceof Error && "code" in err && err.code === "ENOENT")) {
-          throw toFilesystemError(err, "secret file", legacyEntryPath, "delete");
-        }
-      }
-    }
-    throw new SecretNotFoundError(`Secret not found in file store: ${id}`);
-  }
-  async exists(id) {
-    if (await _FileBackend.#entryExists(this.#storageDir, id)) {
-      return true;
-    }
-    if (this.#legacyStorageDir !== void 0) {
-      return _FileBackend.#entryExists(this.#legacyStorageDir, id);
-    }
-    return false;
-  }
-  static async #entryExists(storageDir, id) {
-    try {
-      await fs3.access(getEntryPath(storageDir, id));
-      return true;
-    } catch {
-      return false;
-    }
-  }
-  async list() {
-    const ids = /* @__PURE__ */ new Set();
-    for (const storageDir of [this.#storageDir, this.#legacyStorageDir].filter(
-      (dir) => dir !== void 0
-    )) {
-      for (const id of await _FileBackend.#listEntries(storageDir)) {
-        ids.add(id);
-      }
-    }
-    return Array.from(ids);
-  }
-  static async #listEntries(storageDir) {
-    let entries;
-    try {
-      entries = await fs3.readdir(storageDir);
-    } catch {
-      return [];
-    }
-    return entries.filter((f) => f.endsWith(".enc")).map((f) => Buffer.from(f.slice(0, -4), "hex").toString("utf8"));
-  }
-  // --- Signing contract (SigningBackend) ---
-  /** On-disk path of the encrypted private key for a signing-key id. */
-  #signingKeyPath(id) {
-    const safeId = Buffer.from(id, "utf8").toString("hex");
-    return path2.join(this.#signingDir, `${safeId}.pem.enc`);
-  }
-  /**
-   * Load and decrypt the PKCS#8 private key PEM for `id`, or throw
-   * {@link SigningKeyNotFoundError} when no signing key exists under `id`.
-   */
-  async #loadSigningKeyPem(id) {
-    const keyPath = this.#signingKeyPath(id);
-    let encoded;
-    try {
-      encoded = await fs3.readFile(keyPath, "utf8");
-    } catch (err) {
-      if (err instanceof Error && "code" in err && err.code === "ENOENT") {
-        throw new SigningKeyNotFoundError(
-          `Signing key not found: ${displayKeyName(id)}`,
-          displayKeyName(id)
-        );
-      }
-      throw toFilesystemError(err, "signing key", keyPath, "read");
-    }
-    const wrapKey = await getOrCreateKey(this.#storageDir);
-    try {
-      return decryptGcm(wrapKey, encoded);
-    } catch (err) {
-      throw new DecryptionError(
-        `Failed to decrypt signing key: ${err instanceof Error ? err.message : String(err)}`,
-        keyPath
-      );
-    }
-  }
-  async generateSigningKey(id, algorithm) {
-    if (!SUPPORTED_SIGNING_ALGORITHMS.includes(algorithm)) {
-      throw new InvalidAlgorithmError(
-        `Unsupported signing algorithm '${algorithm}'. Supported: ${SUPPORTED_SIGNING_ALGORITHMS.join(", ")}.`,
-        algorithm,
-        [...SUPPORTED_SIGNING_ALGORITHMS]
-      );
-    }
-    await ensureStorageDir(this.#storageDir);
-    try {
-      await fs3.mkdir(this.#signingDir, { recursive: true, mode: 448 });
-    } catch (err) {
-      if (err instanceof Error && "code" in err && err.code !== "EEXIST") {
-        throw toFilesystemError(err, "signing-key directory", this.#signingDir, "create");
-      }
-    }
-    const keyPath = this.#signingKeyPath(id);
-    let keyExists = false;
-    try {
-      await fs3.access(keyPath);
-      keyExists = true;
-    } catch (err) {
-      if (!(err instanceof Error && "code" in err && err.code === "ENOENT")) {
-        throw toFilesystemError(err, "signing key", keyPath, "read");
-      }
-    }
-    if (keyExists) {
-      throw new SigningKeyAlreadyExistsError(
-        `Signing key already exists: ${displayKeyName(id)}`,
-        displayKeyName(id)
-      );
-    }
-    const { privateKey } = crypto2.generateKeyPairSync("ed25519");
-    const pkcs8Pem = privateKey.export({ type: "pkcs8", format: "pem" }).toString();
-    const wrapKey = await getOrCreateKey(this.#storageDir);
-    const encrypted = encryptGcm(wrapKey, pkcs8Pem);
-    try {
-      await fs3.writeFile(keyPath, encrypted, { mode: 384, flag: "wx" });
-    } catch (err) {
-      if (err instanceof Error && "code" in err && err.code === "EEXIST") {
-        throw new SigningKeyAlreadyExistsError(
-          `Signing key already exists: ${displayKeyName(id)}`,
-          displayKeyName(id)
-        );
-      }
-      throw toFilesystemError(err, "signing key", keyPath, "write");
-    }
-  }
-  /**
-   * Load, decrypt, and parse the private key for `id` into a `KeyObject`.
-   *
-   * A parse failure means the decrypted-at-rest material is corrupt or tampered
-   * (it decrypted cleanly but is not a valid PKCS#8 private key). It is
-   * translated into a typed {@link InvalidKeyMaterialError} — never allowed to
-   * surface as a raw Node crypto exception — and the message never echoes any
-   * part of the key material.
-   */
-  async #loadSigningKeyObject(id) {
-    const pkcs8Pem = await this.#loadSigningKeyPem(id);
-    try {
-      return crypto2.createPrivateKey(pkcs8Pem);
-    } catch {
-      throw new InvalidKeyMaterialError(
-        `The stored signing key for "${displayKeyName(id)}" is not valid private key material (it may be corrupt or tampered).`
-      );
-    }
-  }
-  async getPublicKey(id) {
-    const privateKey = await this.#loadSigningKeyObject(id);
-    const publicKey = crypto2.createPublicKey(privateKey);
-    const publicKeyPem = publicKey.export({ type: "spki", format: "pem" }).toString();
-    const spkiDer = publicKey.export({ type: "spki", format: "der" });
-    return {
-      publicKeyPem,
-      algorithm: "EdDSA",
-      kid: computeKid(spkiDer)
-    };
-  }
-  async signWithKey(id, data) {
-    const privateKey = await this.#loadSigningKeyObject(id);
-    return crypto2.sign(null, data, privateKey);
-  }
-};
-async function execCommand(command, args, options) {
-  const result = await execCommandFull(command, args, options);
-  if (result.exitCode !== 0) {
-    throw new ExecError(
-      `Command failed with exit code ${String(result.exitCode)}: ${result.stderr}`,
-      command
-    );
-  }
-  return result.stdout.trim();
-}
-function execCommandFull(command, args, options) {
-  return new Promise((resolve32, reject) => {
-    const proc = (0, import_child_process.spawn)(command, args, {
-      stdio: [options?.stdin !== void 0 ? "pipe" : "ignore", "pipe", "pipe"]
-    });
-    let stdout = "";
-    let stderr = "";
-    let timeoutHandle;
-    proc.stdout?.on("data", (data) => {
-      stdout += data.toString();
-    });
-    proc.stderr?.on("data", (data) => {
-      stderr += data.toString();
-    });
-    if (options?.stdin !== void 0 && proc.stdin) {
-      proc.stdin.write(options.stdin);
-      proc.stdin.end();
-    }
-    if (options?.timeoutMs !== void 0) {
-      timeoutHandle = setTimeout(() => {
-        timeoutHandle = void 0;
-        proc.kill("SIGTERM");
-        reject(new ExecError(`Command timed out after ${String(options.timeoutMs)}ms`, command));
-      }, options.timeoutMs);
-    }
-    proc.on("close", (code) => {
-      if (timeoutHandle !== void 0) {
-        clearTimeout(timeoutHandle);
-      }
-      resolve32({ stdout, stderr, exitCode: code ?? 1 });
-    });
-    proc.on("error", (error2) => {
-      if (timeoutHandle !== void 0) {
-        clearTimeout(timeoutHandle);
-      }
-      if ("code" in error2 && error2.code === "ENOENT") {
-        reject(
-          new PluginNotFoundError(
-            `'${command}' is not installed or not found in PATH`,
-            command,
-            ""
-          )
-        );
-      } else {
-        reject(new ExecError(`Failed to spawn '${command}': ${error2.message}`, command));
-      }
-    });
-  });
-}
-var ACCOUNT = "vaultkeeper";
-var SERVICE_PREFIX = "vaultkeeper:";
-var KeychainBackend = class {
-  type = "keychain";
-  displayName = "macOS Keychain";
-  async isAvailable() {
-    if (process.platform !== "darwin") {
-      return false;
-    }
-    try {
-      const result = await execCommandFull("security", ["version"]);
-      return result.exitCode === 0;
-    } catch {
-      return false;
-    }
-  }
-  async store(id, secret) {
-    const service = `${SERVICE_PREFIX}${id}`;
-    const encoded = Buffer.from(secret, "utf8").toString("base64");
-    await execCommandFull("security", ["delete-generic-password", "-a", ACCOUNT, "-s", service]);
-    await execCommand("security", [
-      "add-generic-password",
-      "-a",
-      ACCOUNT,
-      "-s",
-      service,
-      "-w",
-      encoded
-    ]);
-  }
-  async retrieve(id) {
-    const service = `${SERVICE_PREFIX}${id}`;
-    const result = await execCommandFull("security", [
-      "find-generic-password",
-      "-a",
-      ACCOUNT,
-      "-s",
-      service,
-      "-w"
-    ]);
-    if (result.exitCode !== 0) {
-      throw new SecretNotFoundError(`Secret not found in macOS Keychain: ${id}`);
-    }
-    const encoded = result.stdout.trim();
-    return Buffer.from(encoded, "base64").toString("utf8");
-  }
-  async delete(id) {
-    const service = `${SERVICE_PREFIX}${id}`;
-    const result = await execCommandFull("security", [
-      "delete-generic-password",
-      "-a",
-      ACCOUNT,
-      "-s",
-      service
-    ]);
-    if (result.exitCode !== 0) {
-      throw new SecretNotFoundError(`Secret not found in macOS Keychain: ${id}`);
-    }
-  }
-  async exists(id) {
-    const service = `${SERVICE_PREFIX}${id}`;
-    const result = await execCommandFull("security", [
-      "find-generic-password",
-      "-a",
-      ACCOUNT,
-      "-s",
-      service
-    ]);
-    return result.exitCode === 0;
-  }
-  async list() {
-    const result = await execCommandFull("security", ["dump-keychain"]);
-    if (result.exitCode !== 0) {
-      return [];
-    }
-    const ids = [];
-    const servicePattern = /0x00000007 <blob>="vaultkeeper:([^"]+)"/g;
-    let match = servicePattern.exec(result.stdout);
-    while (match !== null) {
-      const id = match[1];
-      if (id !== void 0) {
-        ids.push(id);
-      }
-      match = servicePattern.exec(result.stdout);
-    }
-    return ids;
-  }
-};
-function resolveStorageDir2(configuredPath) {
-  if (configuredPath !== void 0) {
-    return configuredPath;
-  }
-  return path2.join(os.homedir(), ".vaultkeeper", "dpapi");
-}
-function getEntryPath2(storageDir, id) {
-  const safeId = Buffer.from(id, "utf8").toString("hex");
-  return path2.join(storageDir, `${safeId}.enc`);
-}
-var DpapiBackend = class {
-  type = "dpapi";
-  displayName = "Windows DPAPI";
-  #storageDir;
-  /**
-   * @param storageDir - Directory in which encrypted blobs are stored.
-   *   Sourced from `BackendConfig.path`. Defaults to `$HOME/.vaultkeeper/dpapi`.
-   */
-  constructor(storageDir) {
-    this.#storageDir = resolveStorageDir2(storageDir);
-  }
-  async isAvailable() {
-    if (process.platform !== "win32") {
-      return false;
-    }
-    try {
-      const result = await execCommandFull("powershell", [
-        "-NoProfile",
-        "-Command",
-        "[System.Security.Cryptography.ProtectedData] | Out-Null; exit 0"
-      ]);
-      return result.exitCode === 0;
-    } catch {
-      return false;
-    }
-  }
-  async store(id, secret) {
-    const storageDir = this.#storageDir;
-    await fs3.mkdir(storageDir, { recursive: true });
-    const entryPath = getEntryPath2(storageDir, id);
-    const script = [
-      "Add-Type -AssemblyName System.Security",
-      `$bytes = [System.Text.Encoding]::UTF8.GetBytes(${JSON.stringify(secret)})`,
-      "$entropy = $null",
-      "$scope = [System.Security.Cryptography.DataProtectionScope]::CurrentUser",
-      "$encrypted = [System.Security.Cryptography.ProtectedData]::Protect($bytes, $entropy, $scope)",
-      `[System.IO.File]::WriteAllBytes(${JSON.stringify(entryPath)}, $encrypted)`
-    ].join("; ");
-    await execCommand("powershell", ["-NoProfile", "-Command", script]);
-  }
-  async retrieve(id) {
-    const storageDir = this.#storageDir;
-    const entryPath = getEntryPath2(storageDir, id);
-    try {
-      await fs3.access(entryPath);
-    } catch {
-      throw new SecretNotFoundError(`Secret not found in Windows DPAPI store: ${id}`);
-    }
-    const script = [
-      "Add-Type -AssemblyName System.Security",
-      `$encrypted = [System.IO.File]::ReadAllBytes(${JSON.stringify(entryPath)})`,
-      "$entropy = $null",
-      "$scope = [System.Security.Cryptography.DataProtectionScope]::CurrentUser",
-      "$bytes = [System.Security.Cryptography.ProtectedData]::Unprotect($encrypted, $entropy, $scope)",
-      "Write-Output ([System.Text.Encoding]::UTF8.GetString($bytes))"
-    ].join("; ");
-    return execCommand("powershell", ["-NoProfile", "-Command", script]);
-  }
-  async delete(id) {
-    const storageDir = this.#storageDir;
-    const entryPath = getEntryPath2(storageDir, id);
-    try {
-      await fs3.unlink(entryPath);
-    } catch (err) {
-      if (err instanceof Error && "code" in err && err.code === "ENOENT") {
-        throw new SecretNotFoundError(`Secret not found in Windows DPAPI store: ${id}`);
-      }
-      throw toFilesystemError(err, "secret file", entryPath, "delete");
-    }
-  }
-  async exists(id) {
-    const storageDir = this.#storageDir;
-    const entryPath = getEntryPath2(storageDir, id);
-    try {
-      await fs3.access(entryPath);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-  async list() {
-    const storageDir = this.#storageDir;
-    let entries;
-    try {
-      entries = await fs3.readdir(storageDir);
-    } catch {
-      return [];
-    }
-    return entries.filter((f) => f.endsWith(".enc")).map((f) => Buffer.from(f.slice(0, -4), "hex").toString("utf8"));
-  }
-};
-var ATTRIBUTE_KEY = "vaultkeeper-id";
-var LABEL_PREFIX = "vaultkeeper: ";
-var SecretToolBackend = class {
-  type = "secret-tool";
-  displayName = "Linux Secret Service (secret-tool)";
-  async isAvailable() {
-    if (process.platform !== "linux") {
-      return false;
-    }
-    try {
-      const result = await execCommandFull("secret-tool", ["--version"]);
-      return result.exitCode === 0;
-    } catch {
-      return false;
-    }
-  }
-  async store(id, secret) {
-    const label = `${LABEL_PREFIX}${id}`;
-    await execCommand("secret-tool", ["store", "--label", label, ATTRIBUTE_KEY, id], {
-      stdin: secret
-    });
-  }
-  async retrieve(id) {
-    const result = await execCommandFull("secret-tool", ["lookup", ATTRIBUTE_KEY, id]);
-    if (result.exitCode !== 0 || result.stdout.trim() === "") {
-      throw new SecretNotFoundError(`Secret not found in Secret Service: ${id}`);
-    }
-    return result.stdout.trim();
-  }
-  async delete(id) {
-    const result = await execCommandFull("secret-tool", ["clear", ATTRIBUTE_KEY, id]);
-    if (result.exitCode !== 0) {
-      throw new SecretNotFoundError(`Secret not found in Secret Service: ${id}`);
-    }
-  }
-  async exists(id) {
-    const result = await execCommandFull("secret-tool", ["lookup", ATTRIBUTE_KEY, id]);
-    return result.exitCode === 0 && result.stdout.trim() !== "";
-  }
-  async list() {
-    const result = await execCommandFull("secret-tool", ["search", ATTRIBUTE_KEY, ""]);
-    if (result.exitCode !== 0) {
-      return [];
-    }
-    const ids = [];
-    const attrPattern = new RegExp(`attribute\\.${ATTRIBUTE_KEY} = (.+)`, "g");
-    let match = attrPattern.exec(result.stdout);
-    while (match !== null) {
-      const id = match[1];
-      if (id !== void 0) {
-        ids.push(id);
-      }
-      match = attrPattern.exec(result.stdout);
-    }
-    return ids;
-  }
-};
-var TAG = "vaultkeeper";
-var PASSWORD_FIELD_TITLE = "password";
-async function findItemOverviewByTitle(client, vaultId, title) {
-  const overviews = await client.items.list(vaultId);
-  for (const overview of overviews) {
-    if (overview.title === title && overview.tags.includes(TAG)) {
-      return overview;
-    }
-  }
-  return void 0;
-}
-async function findItemByTitle(client, vaultId, title) {
-  const overview = await findItemOverviewByTitle(client, vaultId, title);
-  if (overview === void 0) return void 0;
-  return client.items.get(vaultId, overview.id);
-}
-function extractPasswordField(item) {
-  for (const field of item.fields) {
-    if (field.title === PASSWORD_FIELD_TITLE) {
-      return field.value;
-    }
-  }
-  return void 0;
-}
-async function storeSecretItem(client, vaultId, title, secret, passwordCategory, concealedFieldType) {
-  const existing = await findItemByTitle(client, vaultId, title);
-  if (existing !== void 0) {
-    const hasPasswordField = existing.fields.some((f) => f.title === PASSWORD_FIELD_TITLE);
-    const updatedFields = hasPasswordField ? existing.fields.map((f) => f.title === PASSWORD_FIELD_TITLE ? { ...f, value: secret } : f) : [
-      ...existing.fields,
-      {
-        id: "password",
-        title: PASSWORD_FIELD_TITLE,
-        fieldType: concealedFieldType,
-        value: secret
-      }
-    ];
-    await client.items.put({ ...existing, fields: updatedFields });
-  } else {
-    await client.items.create({
-      category: passwordCategory,
-      vaultId,
-      title,
-      tags: [TAG],
-      fields: [
-        {
-          id: "password",
-          title: PASSWORD_FIELD_TITLE,
-          fieldType: concealedFieldType,
-          value: secret
-        }
-      ]
-    });
-  }
-}
-async function deleteSecretItem(client, vaultId, title) {
-  const overview = await findItemOverviewByTitle(client, vaultId, title);
-  if (overview === void 0) return false;
-  await client.items.delete(vaultId, overview.id);
-  return true;
-}
-var INTEGRATION_NAME = "vaultkeeper";
-var SDK_PACKAGE = "@1password/sdk";
-var SDK_INSTALL_URL = "https://developer.1password.com/docs/sdks/";
-var SDK_NOT_INSTALLED_MESSAGE = `1Password SDK (${SDK_PACKAGE}) is not installed. Install it to use the 1Password backend.`;
-var PRESENCE_WRITE_TIMEOUT_MS = 3e4;
-function isModuleNotFoundError(error2) {
-  const hasNotFoundCode = (value) => {
-    if (value === null || typeof value !== "object" || !("code" in value)) {
-      return false;
-    }
-    const { code } = value;
-    return code === "ERR_MODULE_NOT_FOUND" || code === "MODULE_NOT_FOUND";
-  };
-  if (hasNotFoundCode(error2)) {
-    return true;
-  }
-  if (error2 !== null && typeof error2 === "object" && "cause" in error2) {
-    return hasNotFoundCode(error2.cause);
-  }
-  return false;
-}
+var import_stream = require("stream");
+var os = __toESM(require("os"), 1);
+var import_os = require("os");
 var cachedVersion;
-function getIntegrationVersion() {
-  if (cachedVersion !== void 0) return cachedVersion;
-  const dir = (0, import_path3.dirname)((0, import_url2.fileURLToPath)(importMetaUrl));
-  const candidates = [(0, import_path3.resolve)(dir, "..", "..", "package.json"), (0, import_path3.resolve)(dir, "..", "package.json")];
-  for (const candidate of candidates) {
-    if (!(0, import_fs2.existsSync)(candidate)) continue;
-    const raw = JSON.parse((0, import_fs2.readFileSync)(candidate, "utf8"));
-    if (raw !== null && typeof raw === "object" && "version" in raw && typeof raw.version === "string") {
-      cachedVersion = raw.version;
-      return cachedVersion;
-    }
-  }
-  throw new SetupError(
-    `Could not read version from vaultkeeper package.json. Tried paths: ${candidates.join(", ")}`,
-    "vaultkeeper package.json"
-  );
-}
-var SESSION_TIMEOUT_MS = 3e4;
-function isWorkerSuccess(res) {
-  return "value" in res;
-}
-function isWorkerResponse(value) {
-  if (value === null || typeof value !== "object") return false;
-  if ("value" in value && typeof value.value === "string") return true;
-  if ("error" in value && typeof value.error === "string" && "code" in value && typeof value.code === "string")
-    return true;
-  return false;
-}
-function isWorkerWriteSuccess(res) {
-  const record = { ...res };
-  return record.ok === true;
-}
-function isWorkerWriteResponse(value) {
-  if (value === null || typeof value !== "object") return false;
-  if ("ok" in value && value.ok === true) return true;
-  if ("error" in value && typeof value.error === "string" && "code" in value && typeof value.code === "string")
-    return true;
-  return false;
-}
-var OnePasswordBackend = class {
-  type = "1password";
-  displayName = "1Password";
-  vaultId;
-  account;
-  serviceAccountToken;
-  accessMode;
-  sessionTimeoutMs;
-  /** In-flight or resolved client promise — prevents duplicate createClient calls. */
-  clientPromise;
-  constructor(options) {
-    if (options.accessMode === "per-access" && options.serviceAccountToken !== void 0) {
-      throw new ConfigValidationError(
-        "per-access mode requires desktop biometric authentication and cannot be used with a service account token",
-        "options.accessMode"
-      );
-    }
-    if (options.account !== void 0 && options.serviceAccountToken !== void 0) {
-      throw new ConfigValidationError(
-        "account and serviceAccountToken are mutually exclusive \u2014 provide one or the other, not both",
-        "options.serviceAccountToken"
-      );
-    }
-    this.vaultId = options.vault;
-    this.sessionTimeoutMs = options.sessionTimeoutMs ?? SESSION_TIMEOUT_MS;
-    if (options.account !== void 0) {
-      this.account = options.account;
-    }
-    if (options.serviceAccountToken !== void 0) {
-      this.serviceAccountToken = options.serviceAccountToken;
-    }
-    this.accessMode = options.accessMode ?? "session";
-  }
-  async isAvailable() {
-    const sdk = await this.tryLoadSdk();
-    return sdk !== null;
-  }
-  /**
-   * Report this instance's capabilities.
-   *
-   * @remarks
-   * `presencePerUse` is `true` only in `per-access` mode, where every keyed
-   * operation (`retrieve()`, `store()`, `delete()`) spawns a fresh worker
-   * process that creates a new SDK client and triggers a per-operation
-   * biometric approval that cannot be satisfied from the cached session
-   * client. In the default `session` mode a single client is cached for all
-   * operations, so operations ride one earlier unlock — that mode reports
-   * `false`.
-   *
-   * **Operation coverage:** the per-access biometric path gates `retrieve()`,
-   * `store()`, and `delete()` — every keyed operation reachable from
-   * `presenceEnforcedOperations`. `exists()`/`list()` are read-only probes,
-   * not keyed operations the presence contract covers, so they continue to
-   * use the cached session client. This reports
-   * `presenceEnforcedOperations: ['read', 'store', 'delete']` (issue #211
-   * closed the earlier `store`/`delete` gap — see
-   * {@link https://github.com/mike-north/vaultkeeper/issues/211}).
-   *
-   * **Truth-basis / cached-OS-unlock caveat:** even for a covered operation
-   * the fresh action is "a fresh SDK client plus whatever the OS enforces at
-   * that moment" — a "fresh process/SDK client" is **not** the same as a
-   * guaranteed fresh hardware action. A per-access call can still ride a
-   * cached OS-level Touch ID / Windows Hello unlock if the OS does not
-   * re-prompt. The strongest per-use hardware guarantee comes from a touch
-   * device (YubiKey / gpg smartcard).
-   */
-  getCapabilities() {
-    if (this.accessMode === "per-access") {
-      return Promise.resolve({
-        presencePerUse: true,
-        presenceEnforcedOperations: ["read", "store", "delete"]
-      });
-    }
-    return Promise.resolve({ presencePerUse: false });
-  }
-  // ---- Session client management ----
-  /**
-   * Dynamically import the SDK. Returns `null` if the SDK is not installed or
-   * the native library cannot be loaded. Used by {@link isAvailable}, which
-   * only needs a yes/no answer; call {@link loadSdkOrThrow} on paths that must
-   * report *why* the SDK could not be loaded.
-   */
-  async tryLoadSdk() {
-    try {
-      const sdk = await Promise.resolve().then(() => __toESM(require_sdk(), 1));
-      return sdk;
-    } catch {
-      return null;
-    }
-  }
-  /**
-   * Dynamically import the SDK, throwing a typed {@link PluginNotFoundError}
-   * only when the module cannot be resolved (the optional peer is not
-   * installed). A present-but-broken SDK (native binding failure, init throw,
-   * incompatible Node) surfaces its real error instead of a misleading
-   * "not installed" message.
-   */
-  async loadSdkOrThrow() {
-    try {
-      return await Promise.resolve().then(() => __toESM(require_sdk(), 1));
-    } catch (error2) {
-      if (isModuleNotFoundError(error2)) {
-        throw new PluginNotFoundError(SDK_NOT_INSTALLED_MESSAGE, SDK_PACKAGE, SDK_INSTALL_URL);
-      }
-      throw error2;
-    }
-  }
-  /**
-   * Acquire (or create) a cached SDK client.
-   * Wraps `createClient` with a configurable timeout (default 30 s) to handle
-   * the known beta SDK hang after session expiry.
-   */
-  acquireClient() {
-    this.clientPromise ??= this.createClientInternal().catch((err) => {
-      this.clientPromise = void 0;
-      throw err;
-    });
-    return this.clientPromise;
-  }
-  async createClientInternal() {
-    const sdk = await this.loadSdkOrThrow();
-    const auth2 = this.buildAuth(sdk);
-    let timerId;
-    const timeoutPromise = new Promise((_resolve, reject) => {
-      timerId = setTimeout(() => {
-        reject(
-          new BackendLockedError("1Password session timed out waiting for authentication", true)
-        );
-      }, this.sessionTimeoutMs);
-    });
-    try {
-      const client = await Promise.race([
-        sdk.createClient({
-          auth: auth2,
-          integrationName: INTEGRATION_NAME,
-          integrationVersion: getIntegrationVersion()
-        }),
-        timeoutPromise
-      ]);
-      return client;
-    } catch (err) {
-      if (err instanceof BackendLockedError) {
-        throw err;
-      }
-      if (err instanceof sdk.DesktopSessionExpiredError) {
-        throw new BackendLockedError("1Password session has expired. Please unlock the app.", true);
-      }
-      throw new AuthorizationDeniedError(`1Password authentication failed: ${String(err)}`);
-    } finally {
-      if (timerId !== void 0) {
-        clearTimeout(timerId);
-      }
-    }
-  }
-  buildAuth(sdk) {
-    if (this.serviceAccountToken !== void 0) {
-      return this.serviceAccountToken;
-    }
-    const accountName = this.account ?? "";
-    return new sdk.DesktopAuth(accountName);
-  }
-  // ---- SecretBackend / ListableBackend implementation ----
-  async store(id, secret) {
-    if (this.accessMode === "per-access") {
-      return this.writeViaWorker("store", id, secret);
-    }
-    const { ItemCategory, ItemFieldType } = await this.requireSdk();
-    const client = await this.acquireClient();
-    await storeSecretItem(
-      client,
-      this.vaultId,
-      id,
-      secret,
-      ItemCategory.Password,
-      ItemFieldType.Concealed
-    );
-  }
-  async retrieve(id) {
-    if (this.accessMode === "per-access") {
-      return this.retrieveViaWorker(id);
-    }
-    return this.retrieveViaSession(id);
-  }
-  async retrieveViaSession(id) {
-    const client = await this.acquireClient();
-    const item = await findItemByTitle(client, this.vaultId, id);
-    if (item === void 0) {
-      throw new SecretNotFoundError(`Secret not found in 1Password: ${id}`);
-    }
-    const value = extractPasswordField(item);
-    if (value === void 0) {
-      throw new SecretNotFoundError(`Secret found in 1Password but missing password field: ${id}`);
-    }
-    return value;
-  }
-  /**
-   * Spawn the per-access worker script that triggers a fresh biometric prompt
-   * for each retrieval, then returns the secret from its stdout.
-   */
-  retrieveViaWorker(id) {
-    return new Promise((resolve32, reject) => {
-      const workerPath = (0, import_path3.join)((0, import_path3.dirname)((0, import_url2.fileURLToPath)(importMetaUrl)), "one-password-worker.js");
-      const accountArg = this.account ?? "";
-      const child = (0, import_child_process.spawn)(process.execPath, [workerPath, accountArg, this.vaultId, id], {
-        stdio: ["ignore", "pipe", "pipe"]
-      });
-      const stdoutChunks = [];
-      const stderrChunks = [];
-      child.stdout.on("data", (chunk) => {
-        stdoutChunks.push(chunk);
-      });
-      child.stderr.on("data", (chunk) => {
-        stderrChunks.push(chunk);
-      });
-      child.on("close", (code, signal) => {
-        const raw = Buffer.concat(stdoutChunks).toString("utf8").trim();
-        if (raw === "") {
-          const stderr = Buffer.concat(stderrChunks).toString("utf8").trim();
-          const exitDescription = typeof signal === "string" ? `terminated by signal ${signal}` : `exit code ${String(code)}`;
-          const detail = stderr !== "" ? stderr : exitDescription;
-          reject(
-            new BackendUnavailableError(
-              `1Password per-access worker crashed for secret ${id}: ${detail}`,
-              "worker-crashed",
-              ["1password"]
-            )
-          );
-          return;
-        }
-        let parsed;
-        try {
-          parsed = JSON.parse(raw);
-        } catch {
-          reject(new SecretNotFoundError(`Worker returned unparseable output for secret: ${id}`));
-          return;
-        }
-        if (!isWorkerResponse(parsed)) {
-          reject(
-            new SecretNotFoundError(`Worker returned unexpected response shape for secret: ${id}`)
-          );
-          return;
-        }
-        if (isWorkerSuccess(parsed)) {
-          resolve32(parsed.value);
-        } else {
-          switch (parsed.code) {
-            case "PLUGIN_NOT_FOUND":
-              reject(
-                new PluginNotFoundError(SDK_NOT_INSTALLED_MESSAGE, SDK_PACKAGE, SDK_INSTALL_URL)
-              );
-              break;
-            case "NOT_FOUND":
-              reject(new SecretNotFoundError(`Secret not found in 1Password: ${id}`));
-              break;
-            case "AUTH_DENIED":
-              reject(new AuthorizationDeniedError("1Password authentication was denied"));
-              break;
-            case "LOCKED":
-              reject(new BackendLockedError("1Password is locked. Please unlock and retry.", true));
-              break;
-            case "INTERNAL":
-              reject(
-                new BackendUnavailableError(
-                  `1Password per-access worker failed for secret ${id}: ${parsed.error}`,
-                  "worker-internal-error",
-                  ["1password"]
-                )
-              );
-              break;
-            default:
-              reject(new SecretNotFoundError(`Worker failed for secret ${id}: ${parsed.error}`));
-          }
-        }
-      });
-      child.on("error", (err) => {
-        reject(
-          new BackendUnavailableError(
-            `Failed to spawn 1Password per-access worker at ${workerPath}: ${String(err)}`,
-            "worker-spawn-failed",
-            ["1password"]
-          )
-        );
-      });
-    });
-  }
-  /**
-   * Spawn the per-access worker script to perform a `store` or `delete`,
-   * triggering a fresh biometric prompt for this single write (issue #211).
-   *
-   * @remarks
-   * For `store`, `secret` is delivered to the worker over **stdin**, never
-   * argv — it must never appear in a process listing, shell history, or log.
-   * `delete` needs no payload, so no stdin is written and the worker's stdin
-   * is left `'ignore'`d, mirroring the retrieve path's spawn options.
-   */
-  writeViaWorker(op, id, secret) {
-    return new Promise((resolve32, reject) => {
-      const workerPath = (0, import_path3.join)((0, import_path3.dirname)((0, import_url2.fileURLToPath)(importMetaUrl)), "one-password-worker.js");
-      const accountArg = this.account ?? "";
-      const needsStdin = secret !== void 0;
-      const child = (0, import_child_process.spawn)(process.execPath, [workerPath, accountArg, this.vaultId, id, op], {
-        stdio: [needsStdin ? "pipe" : "ignore", "pipe", "pipe"]
-      });
-      if (needsStdin && child.stdin !== null) {
-        child.stdin.on("error", () => {
-        });
-        child.stdin.write(secret, "utf8");
-        child.stdin.end();
-      }
-      const stdoutChunks = [];
-      const stderrChunks = [];
-      child.stdout?.on("data", (chunk) => {
-        stdoutChunks.push(chunk);
-      });
-      child.stderr?.on("data", (chunk) => {
-        stderrChunks.push(chunk);
-      });
-      child.on("close", (code, signal) => {
-        const raw = Buffer.concat(stdoutChunks).toString("utf8").trim();
-        if (raw === "") {
-          const stderr = Buffer.concat(stderrChunks).toString("utf8").trim();
-          const exitDescription = typeof signal === "string" ? `terminated by signal ${signal}` : `exit code ${String(code)}`;
-          const detail = stderr !== "" ? stderr : exitDescription;
-          reject(
-            new BackendUnavailableError(
-              `1Password per-access worker crashed during ${op} of secret ${id}: ${detail}`,
-              "worker-crashed",
-              ["1password"]
-            )
-          );
-          return;
-        }
-        let parsed;
-        try {
-          parsed = JSON.parse(raw);
-        } catch {
-          reject(
-            new BackendUnavailableError(
-              `Worker returned unparseable output during ${op} of secret ${id}`,
-              "worker-internal-error",
-              ["1password"]
-            )
-          );
-          return;
-        }
-        if (!isWorkerWriteResponse(parsed)) {
-          reject(
-            new BackendUnavailableError(
-              `Worker returned unexpected response shape during ${op} of secret ${id}`,
-              "worker-internal-error",
-              ["1password"]
-            )
-          );
-          return;
-        }
-        if (isWorkerWriteSuccess(parsed)) {
-          resolve32();
-          return;
-        }
-        switch (parsed.code) {
-          case "PLUGIN_NOT_FOUND":
-            reject(new PluginNotFoundError(SDK_NOT_INSTALLED_MESSAGE, SDK_PACKAGE, SDK_INSTALL_URL));
-            break;
-          case "NOT_FOUND":
-            reject(new SecretNotFoundError(`Secret not found in 1Password: ${id}`));
-            break;
-          case "LOCKED":
-            reject(new BackendLockedError("1Password is locked. Please unlock and retry.", true));
-            break;
-          case "PRESENCE_DECLINED":
-            reject(
-              new PresenceDeclinedError(
-                `1Password ${op} presence action was declined for secret ${id}`,
-                "1password"
-              )
-            );
-            break;
-          case "PRESENCE_TIMEOUT":
-            reject(
-              new PresenceTimeoutError(
-                `1Password ${op} presence action timed out for secret ${id}`,
-                "1password",
-                PRESENCE_WRITE_TIMEOUT_MS
-              )
-            );
-            break;
-          case "INTERNAL":
-            reject(
-              new BackendUnavailableError(
-                `1Password per-access worker failed during ${op} of secret ${id}: ${parsed.error}`,
-                "worker-internal-error",
-                ["1password"]
-              )
-            );
-            break;
-          default:
-            reject(
-              new BackendUnavailableError(
-                `Worker failed during ${op} of secret ${id}: ${parsed.error}`,
-                "worker-internal-error",
-                ["1password"]
-              )
-            );
-        }
-      });
-      child.on("error", (err) => {
-        reject(
-          new BackendUnavailableError(
-            `Failed to spawn 1Password per-access worker at ${workerPath}: ${String(err)}`,
-            "worker-spawn-failed",
-            ["1password"]
-          )
-        );
-      });
-    });
-  }
-  async delete(id) {
-    if (this.accessMode === "per-access") {
-      return this.writeViaWorker("delete", id);
-    }
-    const client = await this.acquireClient();
-    const deleted = await deleteSecretItem(client, this.vaultId, id);
-    if (!deleted) {
-      throw new SecretNotFoundError(`Secret not found in 1Password: ${id}`);
-    }
-  }
-  async exists(id) {
-    const client = await this.acquireClient();
-    const overview = await findItemOverviewByTitle(client, this.vaultId, id);
-    return overview !== void 0;
-  }
-  async list() {
-    const client = await this.acquireClient();
-    const overviews = await client.items.list(this.vaultId);
-    const ids = [];
-    for (const overview of overviews) {
-      if (overview.tags.includes(TAG)) {
-        ids.push(overview.title);
-      }
-    }
-    return ids;
-  }
-  // ---- Private helpers ----
-  /**
-   * Load SDK, throwing a typed {@link PluginNotFoundError} when it is not
-   * installed and surfacing the real error when it is present but broken.
-   */
-  requireSdk() {
-    return this.loadSdkOrThrow();
-  }
-};
-var YKMAN_INSTALL_URL = "https://developers.yubico.com/yubikey-manager/";
-var STORAGE_DIR_NAME2 = path2.join(".vaultkeeper", "yubikey");
-var METADATA_FILE = "metadata.json";
-var DEVICE_TIMEOUT_MS = 5e3;
-var GCM_IV_BYTES2 = 12;
-var GCM_KEY_BYTES2 = 32;
-var GCM_TAG_LENGTH_BITS2 = 128;
-var FORMAT_VERSION = "1";
-function resolveStorageDir3(configuredPath) {
-  if (configuredPath !== void 0) {
-    return configuredPath;
-  }
-  return path2.join(os.homedir(), STORAGE_DIR_NAME2);
-}
-function getEntryPath3(storageDir, id) {
-  const safeId = Buffer.from(id, "utf8").toString("hex");
-  return path2.join(storageDir, `${safeId}.enc`);
-}
-function isStringRecord(value) {
-  if (value === null || typeof value !== "object") {
-    return false;
-  }
-  return Object.values(value).every((v) => typeof v === "string");
-}
-async function loadMetadata(storageDir) {
-  const metaPath = path2.join(storageDir, METADATA_FILE);
-  try {
-    const raw = await fs3.readFile(metaPath, "utf8");
-    const parsed = JSON.parse(raw);
-    if (parsed !== null && typeof parsed === "object" && "entries" in parsed && isStringRecord(parsed.entries)) {
-      return { entries: parsed.entries };
-    }
-    return { entries: {} };
-  } catch {
-    return { entries: {} };
-  }
-}
-async function saveMetadata(storageDir, metadata) {
-  const metaPath = path2.join(storageDir, METADATA_FILE);
-  await fs3.writeFile(metaPath, JSON.stringify(metadata, null, 2), { mode: 384 });
-}
-var HMAC_RESPONSE_HEX_LENGTH = 40;
-var HMAC_RESPONSE_RE = /^[0-9a-fA-F]{40}$/;
-function deriveKey(hmacResponse, id) {
-  const trimmed = hmacResponse.trim();
-  if (!HMAC_RESPONSE_RE.test(trimmed)) {
-    throw new SetupError(
-      `Invalid YubiKey HMAC response: expected exactly ${String(HMAC_RESPONSE_HEX_LENGTH)} hex characters (20 bytes), got ${String(trimmed.length)} characters`,
-      "ykman"
-    );
-  }
-  const ikm = Buffer.from(trimmed, "hex");
-  const info2 = Buffer.from(`vaultkeeper-yubikey:${id}`, "utf8");
-  const keyMaterial = crypto2.hkdfSync("sha256", ikm, Buffer.alloc(0), info2, GCM_KEY_BYTES2);
-  return Buffer.from(keyMaterial);
-}
-function encryptGcm2(key, plaintext) {
-  const iv = crypto2.randomBytes(GCM_IV_BYTES2);
-  let encrypted;
-  let authTag;
-  try {
-    const cipher = crypto2.createCipheriv("aes-256-gcm", key, iv, {
-      authTagLength: GCM_TAG_LENGTH_BITS2 / 8
-    });
-    encrypted = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
-    authTag = cipher.getAuthTag();
-    return [
-      FORMAT_VERSION,
-      iv.toString("base64"),
-      authTag.toString("base64"),
-      encrypted.toString("base64")
-    ].join(":");
-  } finally {
-    key.fill(0);
-    iv.fill(0);
-    encrypted?.fill(0);
-    authTag?.fill(0);
-  }
-}
-function decryptGcm2(key, encoded, path9) {
-  const parts = encoded.split(":");
-  const versionSegment = parts[0] ?? "";
-  const parsedVersion = parseInt(versionSegment, 10);
-  const isNumericVersion = String(parsedVersion) === versionSegment && !Number.isNaN(parsedVersion);
-  if (!isNumericVersion) {
-    key.fill(0);
-    throw new DecryptionError(
-      "Encrypted file uses a legacy format (AES-256-CBC). Delete the secret and re-store it to migrate to AES-256-GCM.",
-      path9
-    );
-  }
-  if (versionSegment !== FORMAT_VERSION) {
-    key.fill(0);
-    throw new DecryptionError(
-      `Unsupported encrypted file version: ${versionSegment}. This vaultkeeper build only supports version ${FORMAT_VERSION}. Upgrade vaultkeeper to read this secret.`,
-      path9
-    );
-  }
-  if (parts.length !== 4) {
-    key.fill(0);
-    throw new DecryptionError(
-      `Invalid encrypted file format: expected ${FORMAT_VERSION}:iv:authTag:ciphertext`,
-      path9
-    );
-  }
-  const [_version, ivB64, authTagB64, ciphertextB64] = parts;
-  if (ivB64 === void 0 || authTagB64 === void 0 || ciphertextB64 === void 0) {
-    key.fill(0);
-    throw new DecryptionError("Invalid encrypted file format: missing part", path9);
-  }
-  let decrypted;
-  try {
-    const iv = Buffer.from(ivB64, "base64");
-    const authTag = Buffer.from(authTagB64, "base64");
-    const ciphertext = Buffer.from(ciphertextB64, "base64");
-    try {
-      const decipher = crypto2.createDecipheriv("aes-256-gcm", key, iv, {
-        authTagLength: GCM_TAG_LENGTH_BITS2 / 8
-      });
-      decipher.setAuthTag(authTag);
-      decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-    } catch (err) {
-      throw new DecryptionError(
-        `GCM authentication failed \u2014 ciphertext may be tampered or corrupt: ${err instanceof Error ? err.message : String(err)}`,
-        path9
-      );
-    }
-    const plaintext = decrypted.toString("utf8");
-    return plaintext;
-  } finally {
-    key.fill(0);
-    decrypted?.fill(0);
-  }
-}
-var YubikeyBackend = class {
-  type = "yubikey";
-  displayName = "YubiKey";
-  #storageDir;
-  /**
-   * Whether the configured challenge-response slot enforces a touch for every
-   * operation. When `true`, each `store`/`retrieve`/`delete` requires a fresh
-   * physical tap (see {@link YubikeyBackend.getCapabilities}). Sourced from
-   * configuration, not hardcoded by type — a slot without a touch policy
-   * reports `false`.
-   */
-  #requireTouch;
-  /**
-   * @param storageDir - Directory in which encrypted secrets and metadata are
-   *   stored. Sourced from `BackendConfig.path`. Defaults to
-   *   `$HOME/.vaultkeeper/yubikey`.
-   * @param requireTouch - Whether the configured challenge-response slot
-   *   enforces a touch-per-operation policy. Defaults to `false`. Sourced from
-   *   the operator's configuration and must match the physical slot's policy
-   *   (verify with `ykman otp info`); it governs the value reported by
-   *   {@link YubikeyBackend.getCapabilities}.
-   */
-  constructor(storageDir, requireTouch = false) {
-    this.#storageDir = resolveStorageDir3(storageDir);
-    this.#requireTouch = requireTouch;
-  }
-  /**
-   * Report this instance's capabilities.
-   *
-   * @remarks
-   * `presencePerUse` is `true` only when the configured slot enforces a
-   * touch-per-operation policy (`requireTouch`), in which case every
-   * challenge-response — and therefore every `store`/`retrieve`/`delete` — forces
-   * a fresh physical tap that cannot be satisfied from any cached state. A slot
-   * without a touch policy reports `false`; the answer is never derived from the
-   * backend `type` alone. Truth-basis: the reported value comes from the
-   * operator-declared `touchPolicy` configuration; confirm it matches the
-   * physical slot with `ykman otp info` (a manual verification).
-   */
-  getCapabilities() {
-    return Promise.resolve({ presencePerUse: this.#requireTouch });
-  }
-  async isAvailable() {
-    try {
-      const result = await execCommandFull("ykman", ["--version"]);
-      if (result.exitCode !== 0) {
-        return false;
-      }
-      const listResult = await execCommandFull("ykman", ["list"]);
-      return listResult.exitCode === 0 && listResult.stdout.trim() !== "";
-    } catch {
-      return false;
-    }
-  }
-  async requireDevice() {
-    const available = await this.isAvailable();
-    if (!available) {
-      const hasYkman = await execCommandFull("ykman", ["--version"]).then(
-        (r) => r.exitCode === 0,
-        () => false
-      );
-      if (!hasYkman) {
-        throw new PluginNotFoundError("ykman is not installed", "ykman", YKMAN_INSTALL_URL);
-      }
-      throw new DeviceNotPresentError("No YubiKey device detected", DEVICE_TIMEOUT_MS);
-    }
-  }
-  /**
-   * Perform the YubiKey HMAC-SHA1 challenge-response for `id` and return the
-   * raw hex response string. Throws on device failure.
-   */
-  async challengeResponse(id) {
-    const challenge = Buffer.from(`vaultkeeper:${id}`, "utf8").toString("hex");
-    const responseResult = await execCommandFull("ykman", ["otp", "calculate", "2", challenge]);
-    if (responseResult.exitCode !== 0) {
-      throw new ExecError(`YubiKey challenge-response failed: ${responseResult.stderr}`, "ykman");
-    }
-    return responseResult.stdout.trim();
-  }
-  async store(id, secret) {
-    await this.requireDevice();
-    const storageDir = this.#storageDir;
-    await fs3.mkdir(storageDir, { recursive: true, mode: 448 });
-    const hmacResponse = await this.challengeResponse(id);
-    const key = deriveKey(hmacResponse, id);
-    const encrypted = encryptGcm2(key, secret);
-    const entryPath = getEntryPath3(storageDir, id);
-    await fs3.writeFile(entryPath, encrypted, { mode: 384 });
-    const metadata = await loadMetadata(storageDir);
-    metadata.entries[id] = entryPath;
-    await saveMetadata(storageDir, metadata);
-  }
-  async retrieve(id) {
-    await this.requireDevice();
-    const storageDir = this.#storageDir;
-    const entryPath = getEntryPath3(storageDir, id);
-    try {
-      await fs3.access(entryPath);
-    } catch {
-      throw new SecretNotFoundError(`Secret not found in YubiKey store: ${id}`);
-    }
-    const encoded = await fs3.readFile(entryPath, "utf8");
-    const hmacResponse = await this.challengeResponse(id);
-    const key = deriveKey(hmacResponse, id);
-    return decryptGcm2(key, encoded, entryPath);
-  }
-  async delete(id) {
-    await this.requireDevice();
-    const storageDir = this.#storageDir;
-    const entryPath = getEntryPath3(storageDir, id);
-    try {
-      await fs3.unlink(entryPath);
-    } catch (err) {
-      if (err instanceof Error && "code" in err && err.code === "ENOENT") {
-        throw new SecretNotFoundError(`Secret not found in YubiKey store: ${id}`);
-      }
-      throw err;
-    }
-    const metadata = await loadMetadata(storageDir);
-    delete metadata.entries[id];
-    await saveMetadata(storageDir, metadata);
-  }
-  async exists(id) {
-    const storageDir = this.#storageDir;
-    const entryPath = getEntryPath3(storageDir, id);
-    try {
-      await fs3.access(entryPath);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-  async list() {
-    const storageDir = this.#storageDir;
-    const metadata = await loadMetadata(storageDir);
-    return Object.keys(metadata.entries);
-  }
-};
-function registerBuiltinBackends() {
-  BackendRegistry.register(
-    "file",
-    (config, configDir) => new FileBackend(config?.path, configDir)
-  );
-  BackendRegistry.register("keychain", () => new KeychainBackend());
-  BackendRegistry.register("dpapi", (config) => new DpapiBackend(config?.path));
-  BackendRegistry.register("secret-tool", () => new SecretToolBackend());
-  BackendRegistry.register("1password", (config) => {
-    const opts = config?.options;
-    const vaultId = opts?.vault ?? "";
-    const opOptions = {
-      vault: vaultId,
-      // 'session' is the safer default — 'per-access' re-prompts on every read.
-      accessMode: opts?.accessMode === "per-access" ? "per-access" : "session"
-    };
-    const account = opts?.account;
-    if (account !== void 0) {
-      opOptions.account = account;
-    }
-    const serviceAccountToken = opts?.serviceAccountToken;
-    if (serviceAccountToken !== void 0) {
-      opOptions.serviceAccountToken = serviceAccountToken;
-    }
-    return new OnePasswordBackend(opOptions);
-  });
-  BackendRegistry.register(
-    "yubikey",
-    (config) => (
-      // `touchPolicy: 'required'` in the backend options declares that the
-      // configured challenge-response slot enforces a touch per operation, which
-      // is what makes the instance presence-per-use capable (see
-      // YubikeyBackend.getCapabilities). Any other value (or absent) reports
-      // false — presence is never assumed from the backend type alone.
-      new YubikeyBackend(config?.path, config?.options?.touchPolicy === "required")
-    )
-  );
-}
-registerBuiltinBackends();
-var INSPECT_CUSTOM = /* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom");
-var SecretAccessorTarget = class {
-  read;
-  [INSPECT_CUSTOM];
-  constructor(readImpl, inspectImpl) {
-    this.read = readImpl;
-    this[INSPECT_CUSTOM] = inspectImpl;
-  }
-};
-
-// ../core/dist/index.js
-var cachedVersion2;
 function getPackageVersion() {
-  if (cachedVersion2 !== void 0) {
-    return cachedVersion2;
+  if (cachedVersion !== void 0) {
+    return cachedVersion;
   }
   {
-    cachedVersion2 = "0.10.1";
-    return cachedVersion2;
+    cachedVersion = "0.10.1";
+    return cachedVersion;
   }
 }
 var VersionIncompatibleError = class _VersionIncompatibleError extends Error {
@@ -46238,88 +41938,12 @@ var localConfigSchemaV1 = external_exports.object({
     message: "At least one identity must be defined"
   })
 }).strict();
-var privateKeyRefSchemaV2 = external_exports.discriminatedUnion("type", [
-  external_exports.object({
-    type: external_exports.literal("file"),
-    id: external_exports.string().min(1, "Secret ID cannot be empty")
-  }),
-  external_exports.object({
-    type: external_exports.literal("keychain"),
-    id: external_exports.string().min(1, "Secret ID cannot be empty")
-  }),
-  external_exports.object({
-    type: external_exports.literal("1password"),
-    id: external_exports.string().min(1, "Secret ID cannot be empty"),
-    vault: external_exports.string().optional()
-  }),
-  external_exports.object({
-    type: external_exports.literal("yubikey"),
-    id: external_exports.string().min(1, "Secret ID cannot be empty")
-  }),
-  external_exports.object({
-    type: external_exports.literal("filesystem"),
-    path: external_exports.string().min(1, "Filesystem path cannot be empty")
-  })
-]);
-var identitySchemaV2 = external_exports.object({
-  name: external_exports.string().min(1, "Identity name cannot be empty"),
-  email: external_exports.string().optional(),
-  github: external_exports.string().optional(),
-  publicKey: external_exports.string().min(1, "Public key cannot be empty"),
-  privateKey: privateKeyRefSchemaV2
-}).strict();
-var localConfigSchemaV2 = external_exports.object({
-  version: external_exports.literal(2),
-  activeIdentity: external_exports.string().min(1, "Active identity name cannot be empty"),
-  identities: external_exports.record(external_exports.string(), identitySchemaV2).refine((identities) => Object.keys(identities).length >= 1, {
-    message: "At least one identity must be defined"
-  })
-}).strict();
 var schemaV1 = fromZod("1", localConfigSchemaV1);
-var schemaV2 = fromZod("2", localConfigSchemaV2);
-function migratePrivateKeyRefV1ToV2(v1) {
-  switch (v1.type) {
-    case "file":
-      return { type: "filesystem", path: v1.path };
-    case "keychain":
-      return { type: "filesystem", path: `keychain://${v1.service}/${v1.account}` };
-    case "1password":
-      return {
-        type: "filesystem",
-        path: `1password://${v1.vault}/${v1.item}`
-      };
-    case "yubikey":
-      return { type: "filesystem", path: v1.encryptedKeyPath };
-  }
-}
 var identityMigrationGraph = createMigrationGraph({
   id: "attest-it-identity-config",
   versionStrategy: integerStrategy,
-  schemas: [schemaV1, schemaV2],
-  migrations: [
-    {
-      fromVersion: "1",
-      toVersion: "2",
-      irreversibleReason: "V1 private key refs lose provider-specific details when converted to the legacy filesystem fallback format. The original provider-specific fields (service, vault, item, etc.) cannot be fully recovered from the filesystem pseudo-URI paths.",
-      up: (v1Data) => {
-        const identities = {};
-        for (const [key, identity] of Object.entries(v1Data.identities)) {
-          identities[key] = {
-            name: identity.name,
-            publicKey: identity.publicKey,
-            privateKey: migratePrivateKeyRefV1ToV2(identity.privateKey),
-            ...identity.email !== void 0 && { email: identity.email },
-            ...identity.github !== void 0 && { github: identity.github }
-          };
-        }
-        return {
-          version: 2,
-          activeIdentity: v1Data.activeIdentity,
-          identities
-        };
-      }
-    }
-  ]
+  schemas: [schemaV1],
+  migrations: []
 });
 function versionSchema(version2) {
   return external_exports.union([external_exports.literal(version2), external_exports.literal(String(version2))]).transform(() => version2);
@@ -46518,17 +42142,17 @@ function toTeamMember(member) {
   return result;
 }
 function toGateConfig(gate) {
-  const fingerprint = {
+  const fingerprint2 = {
     paths: gate.fingerprint.paths
   };
   if (gate.fingerprint.exclude !== void 0) {
-    fingerprint.exclude = gate.fingerprint.exclude;
+    fingerprint2.exclude = gate.fingerprint.exclude;
   }
   return {
     name: gate.name,
     description: gate.description,
     authorizedSigners: gate.authorizedSigners,
-    fingerprint,
+    fingerprint: fingerprint2,
     maxAge: gate.maxAge
   };
 }
@@ -46659,12 +42283,12 @@ function isUnifiedShape(parsed) {
   return typeof parsed === "object" && parsed !== null && ("team" in parsed || "gates" in parsed);
 }
 function findUnifiedConfigPath(baseDir) {
-  const configDir = (0, import_path4.join)(baseDir, ".attest-it");
+  const configDir = (0, import_path3.join)(baseDir, ".attest-it");
   const candidates = ["config.yaml", "config.yml", "config.json"];
   for (const candidate of candidates) {
-    const configPath = (0, import_path4.join)(configDir, candidate);
+    const configPath = (0, import_path3.join)(configDir, candidate);
     try {
-      const content = (0, import_fs3.readFileSync)(configPath, "utf8");
+      const content = (0, import_fs2.readFileSync)(configPath, "utf8");
       const parsed = candidate.endsWith(".json") ? JSON.parse(content) : (0, import_yaml.parse)(content);
       if (isUnifiedShape(parsed)) {
         return configPath;
@@ -46675,12 +42299,12 @@ function findUnifiedConfigPath(baseDir) {
   return null;
 }
 function findPolicyPath(startDir = process.cwd()) {
-  const configDir = (0, import_path4.join)(startDir, ".attest-it");
+  const configDir = (0, import_path3.join)(startDir, ".attest-it");
   const candidates = ["policy.yaml", "policy.yml", "policy.json"];
   for (const candidate of candidates) {
-    const configPath = (0, import_path4.join)(configDir, candidate);
+    const configPath = (0, import_path3.join)(configDir, candidate);
     try {
-      (0, import_fs3.readFileSync)(configPath, "utf8");
+      (0, import_fs2.readFileSync)(configPath, "utf8");
       return configPath;
     } catch {
     }
@@ -46688,12 +42312,12 @@ function findPolicyPath(startDir = process.cwd()) {
   return null;
 }
 function findOperationalPath(startDir = process.cwd()) {
-  const configDir = (0, import_path4.join)(startDir, ".attest-it");
+  const configDir = (0, import_path3.join)(startDir, ".attest-it");
   const candidates = ["config.yaml", "config.yml", "config.json"];
   for (const candidate of candidates) {
-    const configPath = (0, import_path4.join)(configDir, candidate);
+    const configPath = (0, import_path3.join)(configDir, candidate);
     try {
-      (0, import_fs3.readFileSync)(configPath, "utf8");
+      (0, import_fs2.readFileSync)(configPath, "utf8");
       return configPath;
     } catch {
     }
@@ -46814,13 +42438,13 @@ function computeFinalFingerprint(fileHashes) {
   });
   const hashes = sorted.map((input) => input.hash);
   const concatenated = Buffer.concat(hashes);
-  const finalHash = crypto22.createHash("sha256").update(concatenated).digest();
+  const finalHash = crypto3.createHash("sha256").update(concatenated).digest();
   return `sha256:${finalHash.toString("hex")}`;
 }
 async function hashFileAsync(realPath, normalizedPath, stats) {
   if (stats.size > LARGE_FILE_THRESHOLD) {
-    return new Promise((resolve32, reject) => {
-      const hash2 = crypto22.createHash("sha256");
+    return new Promise((resolve6, reject) => {
+      const hash2 = crypto3.createHash("sha256");
       hash2.update(normalizedPath);
       hash2.update(":");
       const stream = fs.createReadStream(realPath);
@@ -46828,13 +42452,13 @@ async function hashFileAsync(realPath, normalizedPath, stats) {
         hash2.update(chunk);
       });
       stream.on("end", () => {
-        resolve32(hash2.digest());
+        resolve6(hash2.digest());
       });
       stream.on("error", reject);
     });
   }
   const content = await fs.promises.readFile(realPath);
-  const hash = crypto22.createHash("sha256");
+  const hash = crypto3.createHash("sha256");
   hash.update(normalizedPath);
   hash.update(":");
   hash.update(content);
@@ -46894,9 +42518,9 @@ async function computeFingerprint(options) {
     }
     fileHashInputs.push({ relativePath: normalizedPath, hash });
   }
-  const fingerprint = computeFinalFingerprint(fileHashInputs);
+  const fingerprint2 = computeFinalFingerprint(fileHashInputs);
   return {
-    fingerprint,
+    fingerprint: fingerprint2,
     files: sortedFiles,
     fileCount: sortedFiles.length
   };
@@ -46936,6 +42560,153 @@ async function listPackageFiles(packages, ignore = [], baseDir = process.cwd()) 
   }
   return allFiles;
 }
+async function runOpenSSL(args, passphrase) {
+  return new Promise((resolve6, reject) => {
+    const stdio = passphrase ? ["ignore", "pipe", "pipe", "pipe"] : ["ignore", "pipe", "pipe"];
+    const child = (0, import_child_process.spawn)("openssl", args, { stdio });
+    const stdoutChunks = [];
+    let stderr = "";
+    child.stdout?.on("data", (chunk) => {
+      stdoutChunks.push(chunk);
+    });
+    child.stderr?.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on("error", (err) => {
+      reject(new Error(`Failed to spawn OpenSSL: ${err.message}`));
+    });
+    child.on("close", (code) => {
+      resolve6({
+        exitCode: code ?? 1,
+        stdout: Buffer.concat(stdoutChunks),
+        stderr
+      });
+    });
+    if (passphrase) {
+      const passphraseStream = child.stdio[3];
+      if (!(passphraseStream instanceof import_stream.Writable)) {
+        reject(new Error("Expected a writable stream for the passphrase file descriptor"));
+        return;
+      }
+      passphraseStream.on("error", () => {
+      });
+      passphraseStream.write(passphrase + "\n");
+      passphraseStream.end();
+    }
+  });
+}
+async function checkOpenSSL() {
+  const result = await runOpenSSL(["version"]);
+  if (result.exitCode !== 0) {
+    throw new Error(`OpenSSL check failed: ${result.stderr}`);
+  }
+  return result.stdout.toString().trim();
+}
+var openSSLChecked = false;
+async function ensureOpenSSLAvailable() {
+  if (openSSLChecked) {
+    return;
+  }
+  try {
+    await checkOpenSSL();
+    openSSLChecked = true;
+  } catch {
+    throw new Error(
+      "OpenSSL is not installed or not in PATH. Please install OpenSSL to use attest-it. On macOS: brew install openssl. On Ubuntu: apt-get install openssl"
+    );
+  }
+}
+function getDefaultPrivateKeyPath() {
+  const homeDir = os.homedir();
+  if (process.platform === "win32") {
+    const appData = process.env.APPDATA ?? path3.join(homeDir, "AppData", "Roaming");
+    return path3.join(appData, "attest-it", "private.pem");
+  }
+  return path3.join(homeDir, ".config", "attest-it", "private.pem");
+}
+function getDefaultPublicKeyPath() {
+  return path3.join(process.cwd(), "attest-it-public.pem");
+}
+async function ensureDir(dirPath) {
+  try {
+    await fs2.mkdir(dirPath, { recursive: true });
+  } catch (err) {
+    if (err instanceof Error && "code" in err && err.code !== "EEXIST") {
+      throw err;
+    }
+  }
+}
+async function fileExists(filePath) {
+  try {
+    await fs2.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+async function cleanupFiles(...paths) {
+  for (const filePath of paths) {
+    try {
+      await fs2.unlink(filePath);
+    } catch {
+    }
+  }
+}
+async function generateKeyPair(options = {}) {
+  await ensureOpenSSLAvailable();
+  const {
+    privatePath = getDefaultPrivateKeyPath(),
+    publicPath = getDefaultPublicKeyPath(),
+    force = false,
+    passphrase
+  } = options;
+  const privateExists = await fileExists(privatePath);
+  const publicExists = await fileExists(publicPath);
+  if ((privateExists || publicExists) && !force) {
+    const existing = [privateExists ? privatePath : null, publicExists ? publicPath : null].filter(
+      Boolean
+    );
+    throw new Error(
+      `Key files already exist: ${existing.join(", ")}. Use force: true to overwrite.`
+    );
+  }
+  await ensureDir(path3.dirname(privatePath));
+  await ensureDir(path3.dirname(publicPath));
+  try {
+    const genArgs = [
+      "genpkey",
+      "-algorithm",
+      "RSA",
+      "-pkeyopt",
+      "rsa_keygen_bits:2048",
+      "-out",
+      privatePath
+    ];
+    if (passphrase) {
+      genArgs.push("-aes256", "-pass", "fd:3");
+    }
+    const genResult = await runOpenSSL(genArgs, passphrase);
+    if (genResult.exitCode !== 0) {
+      throw new Error(`Failed to generate private key: ${genResult.stderr}`);
+    }
+    await setKeyPermissions(privatePath);
+    const pubArgs = ["pkey", "-in", privatePath, "-pubout", "-out", publicPath];
+    if (passphrase) {
+      pubArgs.push("-passin", "fd:3");
+    }
+    const pubResult = await runOpenSSL(pubArgs, passphrase);
+    if (pubResult.exitCode !== 0) {
+      throw new Error(`Failed to extract public key: ${pubResult.stderr}`);
+    }
+    return {
+      privatePath,
+      publicPath
+    };
+  } catch (err) {
+    await cleanupFiles(privatePath, publicPath);
+    throw err;
+  }
+}
 async function setKeyPermissions(keyPath) {
   if (process.platform === "win32") {
     await fs2.chmod(keyPath, 384);
@@ -46948,7 +42719,7 @@ function isBuffer(value) {
 }
 function generateKeyPair2() {
   try {
-    const keyPair = crypto22.generateKeyPairSync("ed25519", {
+    const keyPair = crypto3.generateKeyPairSync("ed25519", {
       publicKeyEncoding: {
         type: "spki",
         format: "pem"
@@ -46962,7 +42733,7 @@ function generateKeyPair2() {
     if (typeof publicKey !== "string" || typeof privateKey !== "string") {
       throw new Error("Expected keypair to have string keys");
     }
-    const publicKeyObj = crypto22.createPublicKey(publicKey);
+    const publicKeyObj = crypto3.createPublicKey(publicKey);
     const publicKeyExport = publicKeyObj.export({
       type: "spki",
       format: "der"
@@ -47011,12 +42782,12 @@ function verify3(data, signature, publicKeyBase64) {
       // BIT STRING, 33 bytes (32 key + 1 padding)
     ]);
     const spkiBuffer = Buffer.concat([spkiHeader, rawPublicKey]);
-    const publicKeyObj = crypto22.createPublicKey({
+    const publicKeyObj = crypto3.createPublicKey({
       key: spkiBuffer,
       format: "der",
       type: "spki"
     });
-    return crypto22.verify(null, dataBuffer, publicKeyObj, signatureBuffer);
+    return crypto3.verify(null, dataBuffer, publicKeyObj, signatureBuffer);
   } catch (err) {
     if (err instanceof Error && err.message.includes("verification failed")) {
       return false;
@@ -47026,55 +42797,278 @@ function verify3(data, signature, publicKeyBase64) {
     );
   }
 }
-var VaultKeyProvider = class {
-  type;
-  displayName;
-  backend;
+var FilesystemKeyProvider = class {
+  type = "filesystem";
+  displayName = "Filesystem";
+  privateKeyPath;
   /**
-   * Create a new VaultKeyProvider.
-   * @param options - Provider options including the VaultKeeper backend
+   * Create a new FilesystemKeyProvider.
+   * @param options - Provider options
    */
-  constructor(options) {
-    this.backend = options.backend;
-    this.type = options.backend.type;
-    this.displayName = options.displayName;
+  constructor(options = {}) {
+    this.privateKeyPath = options.privateKeyPath ?? getDefaultPrivateKeyPath();
   }
   /**
-   * Check if the underlying VaultKeeper backend is available.
+   * Check if this provider is available.
+   * Filesystem provider is always available.
    */
   async isAvailable() {
-    return this.backend.isAvailable();
+    return Promise.resolve(true);
   }
   /**
-   * Check if a key exists in the VaultKeeper backend.
-   * @param keyRef - Secret identifier in the backend
+   * Check if a key exists at the given path.
+   * @param keyRef - Path to the private key file
    */
   async keyExists(keyRef) {
-    return this.backend.exists(keyRef);
+    try {
+      await fs2.access(keyRef);
+      return true;
+    } catch {
+      return false;
+    }
   }
   /**
-   * Retrieve the private key from VaultKeeper for signing.
-   *
-   * @remarks
-   * Downloads the PEM to a secure temporary file (mode 0o600) and returns
-   * a cleanup function that overwrites the file with random bytes before deletion.
-   *
-   * @param keyRef - Secret identifier in the backend
-   * @throws Error if the key does not exist in the backend
+   * Get the private key path for signing.
+   * Returns the path directly with a no-op cleanup function.
+   * @param keyRef - Path to the private key file
    */
   async getPrivateKey(keyRef) {
-    const pemContent = await this.backend.retrieve(keyRef);
-    const tempDir = await fs2.mkdtemp(path3.join(os2.tmpdir(), "attest-it-vk-"));
+    if (!await this.keyExists(keyRef)) {
+      throw new Error(`Private key not found: ${keyRef}`);
+    }
+    return {
+      keyPath: keyRef,
+      // No-op cleanup for filesystem provider
+      cleanup: async () => {
+      }
+    };
+  }
+  /**
+   * Generate a new keypair and store on filesystem.
+   * @param options - Key generation options
+   */
+  async generateKeyPair(options) {
+    const { publicKeyPath, force = false, passphrase } = options;
+    const cryptoOptions = {
+      privatePath: this.privateKeyPath,
+      publicPath: publicKeyPath,
+      force
+    };
+    if (passphrase !== void 0) {
+      cryptoOptions.passphrase = passphrase;
+    }
+    const result = await generateKeyPair(cryptoOptions);
+    const encrypted = passphrase !== void 0 && passphrase.length > 0;
+    const encryptionStatus = encrypted ? " (passphrase-encrypted)" : "";
+    return {
+      privateKeyRef: result.privatePath,
+      publicKeyPath: result.publicPath,
+      storageDescription: `Filesystem: ${result.privatePath}${encryptionStatus}`,
+      encrypted
+    };
+  }
+  /**
+   * Get the configuration for this provider.
+   */
+  getConfig() {
+    return {
+      type: this.type,
+      options: {
+        privateKeyPath: this.privateKeyPath
+      }
+    };
+  }
+};
+var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
+  type = "1password";
+  displayName = "1Password";
+  accountUuid;
+  vault;
+  itemName;
+  /**
+   * Create a new OnePasswordKeyProvider.
+   * @param options - Provider options
+   */
+  constructor(options) {
+    if (options.accountUuid !== void 0) {
+      this.accountUuid = options.accountUuid;
+    }
+    this.vault = options.vault;
+    this.itemName = options.itemName;
+  }
+  /**
+   * Check if the 1Password CLI is installed.
+   * @returns True if `op` command is available
+   */
+  static async isInstalled() {
+    try {
+      await execCommand("op", ["--version"]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * List all 1Password accounts.
+   * @returns Object containing accessible accounts and inaccessible accounts with reasons
+   */
+  static async listAccounts() {
+    const output = await execCommand("op", ["account", "list", "--format=json"]);
+    const parsed = JSON.parse(output);
+    if (!Array.isArray(parsed)) {
+      throw new Error("Unexpected response from 1Password: account list is not an array");
+    }
+    const basicAccounts = parsed;
+    const accountResults = [];
+    const RETRY_DELAY_MS = 500;
+    const MAX_RETRIES = 2;
+    for (const account of basicAccounts) {
+      if (!account.account_uuid) {
+        accountResults.push({
+          success: false,
+          email: account.email,
+          url: account.url,
+          reason: "Account missing account_uuid field"
+        });
+        continue;
+      }
+      let lastError;
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        if (attempt > 0 || accountResults.length > 0) {
+          await new Promise((resolve6) => setTimeout(resolve6, RETRY_DELAY_MS));
+        }
+        try {
+          const detailOutput = await execCommand("op", [
+            "account",
+            "get",
+            "--account",
+            account.account_uuid,
+            "--format=json"
+          ]);
+          const details = JSON.parse(detailOutput);
+          if (details !== null && typeof details === "object" && "name" in details && typeof details.name === "string") {
+            accountResults.push({
+              success: true,
+              account: { ...account, name: details.name }
+            });
+            lastError = void 0;
+            break;
+          }
+          lastError = "Account details response missing name field";
+          break;
+        } catch (err) {
+          lastError = err instanceof Error ? err.message : String(err);
+        }
+      }
+      if (lastError !== void 0) {
+        accountResults.push({
+          success: false,
+          email: account.email,
+          url: account.url,
+          reason: lastError
+        });
+      }
+    }
+    const accounts = [];
+    const inaccessible = [];
+    for (const result of accountResults) {
+      if (result.success) {
+        accounts.push(result.account);
+      } else {
+        inaccessible.push({
+          email: result.email,
+          url: result.url,
+          reason: result.reason
+        });
+      }
+    }
+    if (accounts.length === 0 && basicAccounts.length > 0) {
+      const reasons = inaccessible.map((a) => `  - ${a.email}: ${a.reason}`).join("\n");
+      throw new Error(
+        `Could not access any 1Password accounts. All ${String(basicAccounts.length)} account(s) failed:
+${reasons}`
+      );
+    }
+    return { accounts, inaccessible };
+  }
+  /**
+   * List vaults in a specific account.
+   * @param accountUuid - Account UUID from listAccounts() (optional if only one account)
+   * @returns Array of vault information
+   */
+  static async listVaults(accountUuid) {
+    const args = ["vault", "list", "--format=json"];
+    if (accountUuid) {
+      args.push("--account", accountUuid);
+    }
+    let output;
+    try {
+      output = await execCommand("op", args);
+    } catch (error2) {
+      throw new Error(
+        `Failed to list 1Password vaults${accountUuid ? ` for account ${accountUuid}` : ""}: ${error2 instanceof Error ? error2.message : String(error2)}`
+      );
+    }
+    const parsed = JSON.parse(output);
+    if (!Array.isArray(parsed)) {
+      throw new Error("Unexpected response from 1Password: vault list is not an array");
+    }
+    return parsed;
+  }
+  /**
+   * Check if this provider is available.
+   * Requires `op` CLI to be installed and authenticated.
+   */
+  async isAvailable() {
+    return _OnePasswordKeyProvider.isInstalled();
+  }
+  /**
+   * Check if a key exists in 1Password.
+   * @param keyRef - Item name in 1Password
+   */
+  async keyExists(keyRef) {
+    try {
+      const args = ["item", "get", keyRef, "--vault", this.vault, "--format=json"];
+      if (this.accountUuid) {
+        args.push("--account", this.accountUuid);
+      }
+      await execCommand("op", args);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Get the private key from 1Password for signing.
+   * Downloads to a temporary file and returns a cleanup function.
+   *
+   * @remarks
+   * For security, this runs in a new PTY which requires the user to authenticate
+   * (via Touch ID, password, etc.) each time. This prevents automated agents
+   * from using cached credentials.
+   *
+   * @param keyRef - Item name in 1Password
+   * @throws Error if the key does not exist in 1Password
+   */
+  async getPrivateKey(keyRef) {
+    if (!await this.keyExists(keyRef)) {
+      throw new Error(
+        `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` + (this.accountUuid ? ` (accountUuid: ${this.accountUuid})` : "")
+      );
+    }
+    const tempDir = await fs2.mkdtemp(path3.join(os.tmpdir(), "attest-it-"));
     const tempKeyPath = path3.join(tempDir, "private.pem");
     try {
-      await fs2.writeFile(tempKeyPath, pemContent, "utf-8");
+      const args = ["document", "get", keyRef, "--vault", this.vault, "--out-file", tempKeyPath];
+      if (this.accountUuid) {
+        args.push("--account", this.accountUuid);
+      }
+      await execInteractiveCommand("op", args);
       await setKeyPermissions(tempKeyPath);
       return {
         keyPath: tempKeyPath,
         cleanup: async () => {
           try {
-            const stat2 = await fs2.stat(tempKeyPath);
-            await fs2.writeFile(tempKeyPath, crypto22.randomBytes(stat2.size));
             await fs2.unlink(tempKeyPath);
             await fs2.rmdir(tempDir);
           } catch (cleanupError) {
@@ -47096,13 +43090,8 @@ var VaultKeyProvider = class {
     }
   }
   /**
-   * Generate a new Ed25519 keypair and store the private key in VaultKeeper.
-   *
-   * @remarks
-   * The public key is written to the filesystem for repository commit.
-   * The private key is stored in the VaultKeeper backend and the local
-   * copy is securely deleted.
-   *
+   * Generate a new Ed25519 keypair and store private key in 1Password.
+   * Public key is written to filesystem for repository commit.
    * @param options - Key generation options
    */
   async generateKeyPair(options) {
@@ -47114,20 +43103,317 @@ var VaultKeyProvider = class {
           `Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`
         );
       } catch (err) {
-        if (!(err instanceof Error && "code" in err && err.code === "ENOENT")) {
+        if (err instanceof Error && !err.message.includes("already exists")) ;
+        else {
           throw err;
         }
       }
     }
-    const keyPair = generateKeyPair2();
-    await fs2.mkdir(path3.dirname(publicKeyPath), { recursive: true });
-    await fs2.writeFile(publicKeyPath, keyPair.publicKey, "utf-8");
-    const secretId = `attest-it-${crypto22.randomUUID()}`;
-    await this.backend.store(secretId, keyPair.privateKey);
+    const tempDir = await fs2.mkdtemp(path3.join(os.tmpdir(), "attest-it-keygen-"));
+    const tempPrivateKeyPath = path3.join(tempDir, "private.pem");
+    try {
+      const keyPair = generateKeyPair2();
+      await fs2.writeFile(tempPrivateKeyPath, keyPair.privateKey, "utf-8");
+      await setKeyPermissions(tempPrivateKeyPath);
+      await fs2.mkdir(path3.dirname(publicKeyPath), { recursive: true });
+      await fs2.writeFile(publicKeyPath, keyPair.publicKey, "utf-8");
+      const args = [
+        "document",
+        "create",
+        tempPrivateKeyPath,
+        "--title",
+        this.itemName,
+        "--vault",
+        this.vault
+      ];
+      if (this.accountUuid) {
+        args.push("--account", this.accountUuid);
+      }
+      await execCommand("op", args);
+      await fs2.unlink(tempPrivateKeyPath);
+      await fs2.rmdir(tempDir);
+      return {
+        privateKeyRef: this.itemName,
+        publicKeyPath,
+        storageDescription: `1Password: ${this.vault}/${this.itemName}`
+      };
+    } catch (error2) {
+      try {
+        await fs2.rm(tempDir, { recursive: true, force: true });
+      } catch (cleanupError) {
+        console.warn(
+          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+        );
+      }
+      throw error2;
+    }
+  }
+  /**
+   * Get the configuration for this provider.
+   */
+  getConfig() {
     return {
-      privateKeyRef: secretId,
+      type: this.type,
+      options: {
+        ...this.accountUuid && { accountUuid: this.accountUuid },
+        vault: this.vault,
+        itemName: this.itemName
+      }
+    };
+  }
+};
+function getCleanEnvironment() {
+  const env = {};
+  for (const [key, value] of Object.entries(process.env)) {
+    if (!key.startsWith("OP_SESSION_") && key !== "OP_SERVICE_ACCOUNT_TOKEN") {
+      env[key] = value;
+    }
+  }
+  return env;
+}
+async function execCommand(command, args) {
+  return new Promise((resolve6, reject) => {
+    const proc = (0, import_child_process.spawn)(command, args, {
+      stdio: ["inherit", "pipe", "pipe"],
+      env: getCleanEnvironment()
+    });
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolve6(stdout.trim());
+      } else {
+        reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
+      }
+    });
+    proc.on("error", (error2) => {
+      reject(error2);
+    });
+  });
+}
+async function execInteractiveCommand(command, args) {
+  return new Promise((resolve6, reject) => {
+    const platform = process.platform;
+    let proc;
+    if (platform === "win32") {
+      proc = (0, import_child_process.spawn)(command, args, {
+        stdio: ["inherit", "pipe", "pipe"],
+        env: getCleanEnvironment()
+      });
+    } else if (platform === "darwin") {
+      proc = (0, import_child_process.spawn)("script", ["-q", "/dev/null", command, ...args], {
+        stdio: ["inherit", "pipe", "pipe"],
+        env: getCleanEnvironment()
+      });
+    } else {
+      const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "'\\''")}'`).join(" ");
+      const fullCommand = `${command} ${quotedArgs}`;
+      proc = (0, import_child_process.spawn)("script", ["-q", "/dev/null", "-c", fullCommand], {
+        stdio: ["inherit", "pipe", "pipe"],
+        env: getCleanEnvironment()
+      });
+    }
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolve6(stdout.trim());
+      } else {
+        reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
+      }
+    });
+    proc.on("error", (error2) => {
+      reject(error2);
+    });
+  });
+}
+var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
+  type = "macos-keychain";
+  displayName = "macOS Keychain";
+  itemName;
+  keychain;
+  static ACCOUNT = "attest-it";
+  /**
+   * Create a new MacOSKeychainKeyProvider.
+   * @param options - Provider options
+   */
+  constructor(options) {
+    this.itemName = options.itemName;
+    if (options.keychain !== void 0) {
+      this.keychain = options.keychain;
+    }
+  }
+  /**
+   * Check if this provider is available.
+   * Only available on macOS platforms.
+   */
+  static isAvailable() {
+    return process.platform === "darwin";
+  }
+  /**
+   * List available keychains on the system.
+   * @returns Array of keychain information
+   */
+  static async listKeychains() {
+    if (!_MacOSKeychainKeyProvider.isAvailable()) {
+      return [];
+    }
+    try {
+      const output = await execCommand2("security", ["list-keychains"]);
+      const keychains = [];
+      const lines = output.split("\n");
+      for (const line of lines) {
+        const match = /"(.+)"/.exec(line.trim());
+        if (match?.[1]) {
+          const fullPath = match[1];
+          const filename = fullPath.split("/").pop() ?? fullPath;
+          const name = filename.replace(/\.keychain(-db)?$/, "");
+          keychains.push({ path: fullPath, name });
+        }
+      }
+      return keychains;
+    } catch {
+      return [];
+    }
+  }
+  /**
+   * Check if this provider is available on the current system.
+   */
+  isAvailable() {
+    return Promise.resolve(_MacOSKeychainKeyProvider.isAvailable());
+  }
+  /**
+   * Check if a key exists in the keychain.
+   * @param keyRef - Item name in keychain
+   */
+  async keyExists(keyRef) {
+    try {
+      const args = ["find-generic-password", "-a", _MacOSKeychainKeyProvider.ACCOUNT, "-s", keyRef];
+      if (this.keychain) {
+        args.push(this.keychain);
+      }
+      await execCommand2("security", args);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Get the private key from keychain for signing.
+   * Downloads to a temporary file and returns a cleanup function.
+   * @param keyRef - Item name in keychain
+   * @throws Error if the key does not exist in keychain
+   */
+  async getPrivateKey(keyRef) {
+    if (!await this.keyExists(keyRef)) {
+      throw new Error(
+        `Key not found in macOS Keychain: "${keyRef}" (account: ${_MacOSKeychainKeyProvider.ACCOUNT})`
+      );
+    }
+    const tempDir = await fs2.mkdtemp(path3.join(os.tmpdir(), "attest-it-"));
+    const tempKeyPath = path3.join(tempDir, "private.pem");
+    try {
+      const findArgs = [
+        "find-generic-password",
+        "-a",
+        _MacOSKeychainKeyProvider.ACCOUNT,
+        "-s",
+        keyRef,
+        "-w"
+      ];
+      if (this.keychain) {
+        findArgs.push(this.keychain);
+      }
+      const base64Key = await execCommand2("security", findArgs);
+      const keyContent = Buffer.from(base64Key, "base64").toString("utf8");
+      await fs2.writeFile(tempKeyPath, keyContent, { mode: 384 });
+      await setKeyPermissions(tempKeyPath);
+      return {
+        keyPath: tempKeyPath,
+        cleanup: async () => {
+          try {
+            await fs2.unlink(tempKeyPath);
+            await fs2.rmdir(tempDir);
+          } catch (cleanupError) {
+            console.warn(
+              `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+            );
+          }
+        }
+      };
+    } catch (error2) {
+      try {
+        await fs2.rm(tempDir, { recursive: true, force: true });
+      } catch (cleanupError) {
+        console.warn(
+          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+        );
+      }
+      throw error2;
+    }
+  }
+  /**
+   * Generate a new Ed25519 keypair and store private key in keychain.
+   * Public key is written to filesystem for repository commit.
+   * @param options - Key generation options
+   */
+  async generateKeyPair(options) {
+    const { publicKeyPath, force = false } = options;
+    let publicKeyExists = false;
+    try {
+      await fs2.access(publicKeyPath);
+      publicKeyExists = true;
+    } catch (error2) {
+      if (error2 instanceof Error && "code" in error2 && error2.code !== "ENOENT") {
+        throw error2;
+      }
+    }
+    if (publicKeyExists && !force) {
+      throw new Error(
+        `Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`
+      );
+    }
+    const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = generateKeyPair2();
+    const publicKeyDir = path3.dirname(publicKeyPath);
+    await fs2.mkdir(publicKeyDir, { recursive: true });
+    const publicKeyPem = `-----BEGIN PUBLIC KEY-----
+${publicKeyBase64}
+-----END PUBLIC KEY-----
+`;
+    await fs2.writeFile(publicKeyPath, publicKeyPem, { mode: 420 });
+    const base64Key = Buffer.from(privateKeyPem, "utf8").toString("base64");
+    const addArgs = [
+      "add-generic-password",
+      "-a",
+      _MacOSKeychainKeyProvider.ACCOUNT,
+      "-s",
+      this.itemName,
+      "-w",
+      base64Key,
+      "-T",
+      "",
+      "-U"
+    ];
+    if (this.keychain) {
+      addArgs.push(this.keychain);
+    }
+    await execCommand2("security", addArgs);
+    return {
+      privateKeyRef: this.itemName,
       publicKeyPath,
-      storageDescription: `VaultKeeper (${this.backend.displayName}): ${secretId}`
+      storageDescription: `macOS Keychain: ${this.itemName}`
     };
   }
   /**
@@ -47136,23 +43422,225 @@ var VaultKeyProvider = class {
   getConfig() {
     return {
       type: this.type,
-      options: { backendType: this.backend.type }
+      options: {
+        itemName: this.itemName
+      }
     };
   }
 };
-var LegacyFilesystemKeyProvider = class {
-  type = "filesystem-legacy";
-  displayName = "Filesystem (Legacy)";
+async function execCommand2(command, args) {
+  return new Promise((resolve6, reject) => {
+    const proc = (0, import_child_process.spawn)(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolve6(stdout.trim());
+      } else {
+        reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
+      }
+    });
+    proc.on("error", (error2) => {
+      reject(error2);
+    });
+  });
+}
+var ATTEST_IT_HOME_ENV = "ATTEST_IT_HOME";
+var homeDirOverride = null;
+function getAttestItHomeDir() {
+  const envOverride = process.env[ATTEST_IT_HOME_ENV];
+  if (envOverride) {
+    return envOverride;
+  }
+  return homeDirOverride;
+}
+function getIdentityConfigDir(homeDir) {
+  if (homeDir) {
+    return homeDir;
+  }
+  const override = getAttestItHomeDir();
+  if (override) {
+    return override;
+  }
+  return (0, import_path3.join)((0, import_os.homedir)(), ".config", "attest-it");
+}
+var EncryptedKeyFileSchema = external_exports.object({
+  version: external_exports.literal(1),
+  iv: external_exports.string().min(1),
+  authTag: external_exports.string().min(1),
+  salt: external_exports.string().min(1),
+  challenge: external_exports.string().min(1),
+  ciphertext: external_exports.string().min(1),
+  slot: external_exports.union([external_exports.literal(1), external_exports.literal(2)]),
+  serial: external_exports.string().optional(),
+  aad: external_exports.string().optional()
+});
+var activeCleanupHandlers = /* @__PURE__ */ new Set();
+var processHandlersInstalled = false;
+function installProcessHandlers() {
+  if (processHandlersInstalled) return;
+  processHandlersInstalled = true;
+  const runCleanup = async () => {
+    const handlers = Array.from(activeCleanupHandlers);
+    await Promise.allSettled(handlers.map((h) => h()));
+  };
+  process.once("beforeExit", () => {
+    void runCleanup();
+  });
+  process.once("SIGINT", () => {
+    void runCleanup().finally(() => process.exit(130));
+  });
+  process.once("SIGTERM", () => {
+    void runCleanup().finally(() => process.exit(143));
+  });
+}
+function validateEncryptedKeyFile(data) {
+  const parsed = EncryptedKeyFileSchema.parse(data);
+  const iv = Buffer.from(parsed.iv, "base64");
+  if (iv.length !== 12) {
+    throw new Error(`Invalid IV size: expected 12 bytes, got ${String(iv.length)}`);
+  }
+  const authTag = Buffer.from(parsed.authTag, "base64");
+  if (authTag.length !== 16) {
+    throw new Error(`Invalid auth tag size: expected 16 bytes, got ${String(authTag.length)}`);
+  }
+  const salt = Buffer.from(parsed.salt, "base64");
+  if (salt.length !== 32) {
+    throw new Error(`Invalid salt size: expected 32 bytes, got ${String(salt.length)}`);
+  }
+  const challenge = Buffer.from(parsed.challenge, "base64");
+  if (challenge.length !== 32) {
+    throw new Error(`Invalid challenge size: expected 32 bytes, got ${String(challenge.length)}`);
+  }
+  return parsed;
+}
+function constructAAD(version2, slot, serial) {
+  const aadObject = {
+    version: version2,
+    slot,
+    serial: serial ?? "unspecified"
+  };
+  return Buffer.from(JSON.stringify(aadObject), "utf8");
+}
+var YubiKeyProvider = class _YubiKeyProvider {
+  type = "yubikey";
+  displayName = "YubiKey";
+  encryptedKeyPath;
+  slot;
+  serial;
   /**
-   * Check if this provider is available.
-   * The legacy filesystem provider is always available.
+   * Create a new YubiKeyProvider.
+   * @param options - Provider options
+   * @throws Error if encryptedKeyPath is outside the attest-it config directory
    */
-  async isAvailable() {
-    return Promise.resolve(true);
+  constructor(options) {
+    const resolvedPath = path3.resolve(options.encryptedKeyPath);
+    const configDir = getIdentityConfigDir();
+    if (!resolvedPath.startsWith(configDir)) {
+      throw new Error(
+        `Encrypted key path must be within attest-it config directory (${configDir}). Got: ${resolvedPath}`
+      );
+    }
+    this.encryptedKeyPath = resolvedPath;
+    this.slot = options.slot ?? 2;
+    if (options.serial !== void 0) {
+      this.serial = options.serial;
+    }
   }
   /**
-   * Check if a key exists at the given filesystem path.
-   * @param keyRef - Filesystem path to the private key file
+   * Check if ykman CLI is installed and available.
+   * @returns true if ykman is available
+   */
+  static async isInstalled() {
+    try {
+      await execCommand3("ykman", ["--version"]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Check if any YubiKey is connected.
+   * @returns true if at least one YubiKey is connected
+   */
+  static async isConnected() {
+    try {
+      const output = await execCommand3("ykman", ["list", "--serials"]);
+      return output.trim().length > 0;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * Check if HMAC challenge-response is configured on a slot.
+   * @param slot - Slot number (1 or 2)
+   * @param serial - Optional YubiKey serial number
+   * @returns true if challenge-response is configured
+   */
+  static async isChallengeResponseConfigured(slot = 2, serial) {
+    try {
+      const testChallenge = Buffer.from("attest-it-test-challenge-12345");
+      const args = ["otp", "calculate", String(slot), testChallenge.toString("hex")];
+      if (serial) {
+        args.unshift("--device", serial);
+      }
+      await execInteractiveCommand2("ykman", args);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  /**
+   * List connected YubiKeys.
+   * @returns Array of YubiKey information
+   */
+  static async listDevices() {
+    if (!await _YubiKeyProvider.isInstalled()) {
+      return [];
+    }
+    try {
+      const output = await execCommand3("ykman", ["list", "--serials"]);
+      const serials = output.trim().split("\n").filter((s) => s.length > 0);
+      const devices = [];
+      for (const serial of serials) {
+        try {
+          const infoOutput = await execCommand3("ykman", ["--device", serial, "info"]);
+          const typeMatch = /Device type:\s+(.+)/i.exec(infoOutput);
+          const fwMatch = /Firmware version:\s+(.+)/i.exec(infoOutput);
+          devices.push({
+            serial,
+            type: typeMatch?.[1]?.trim() ?? "YubiKey",
+            firmware: fwMatch?.[1]?.trim() ?? "Unknown"
+          });
+        } catch {
+          devices.push({
+            serial,
+            type: "YubiKey",
+            firmware: "Unknown"
+          });
+        }
+      }
+      return devices;
+    } catch {
+      return [];
+    }
+  }
+  /**
+   * Check if this provider is available on the current system.
+   * Requires ykman to be installed.
+   */
+  async isAvailable() {
+    return _YubiKeyProvider.isInstalled();
+  }
+  /**
+   * Check if an encrypted key file exists.
+   * @param keyRef - Path to encrypted key file
    */
   async keyExists(keyRef) {
     try {
@@ -47163,40 +43651,308 @@ var LegacyFilesystemKeyProvider = class {
     }
   }
   /**
-   * Get the private key path for signing.
-   * Returns the path directly with a no-op cleanup function.
-   * @param keyRef - Filesystem path to the private key file
+   * Get the private key by decrypting with YubiKey.
+   * Downloads to a temporary file and returns a cleanup function.
+   *
+   * **Important**: Always call the cleanup function when done to securely delete
+   * the temporary key file. The cleanup is also registered for process exit handlers.
+   *
+   * @param keyRef - Path to encrypted key file
+   * @throws Error if the key cannot be decrypted
    */
   async getPrivateKey(keyRef) {
+    installProcessHandlers();
     if (!await this.keyExists(keyRef)) {
-      throw new Error(`Private key not found: ${keyRef}`);
+      throw new Error(`Encrypted key file not found: ${keyRef}`);
     }
-    return {
-      keyPath: keyRef,
-      // No-op cleanup — key stays on filesystem
-      cleanup: async () => {
+    const encryptedData = await fs2.readFile(keyRef, "utf8");
+    let keyFile;
+    try {
+      const parsed = JSON.parse(encryptedData);
+      keyFile = validateEncryptedKeyFile(parsed);
+    } catch (err) {
+      if (err instanceof external_exports.ZodError) {
+        throw new Error(
+          `Invalid encrypted key file format: ${err.errors.map((e) => e.message).join(", ")}`
+        );
       }
+      throw new Error(`Invalid encrypted key file: malformed JSON or structure`);
+    }
+    const expectedSerial = this.serial ?? keyFile.serial;
+    if (!expectedSerial) {
+      console.warn(
+        "WARNING: No YubiKey serial number specified for key verification. Any YubiKey with the correct HMAC secret could decrypt this key. For better security, re-encrypt the key with a serial number specified."
+      );
+    }
+    if (expectedSerial) {
+      const devices = await _YubiKeyProvider.listDevices();
+      const matchingDevice = devices.find((d) => d.serial === expectedSerial);
+      if (!matchingDevice) {
+        throw new Error(
+          `Required YubiKey not found. Expected serial: ${expectedSerial}. Connected devices: ${devices.map((d) => d.serial).join(", ") || "none"}`
+        );
+      }
+    }
+    const challenge = Buffer.from(keyFile.challenge, "base64");
+    const response = await performChallengeResponse(challenge, keyFile.slot, expectedSerial);
+    const salt = Buffer.from(keyFile.salt, "base64");
+    const aesKey = deriveKey(response, salt);
+    const iv = Buffer.from(keyFile.iv, "base64");
+    const authTag = Buffer.from(keyFile.authTag, "base64");
+    const ciphertext = Buffer.from(keyFile.ciphertext, "base64");
+    let privateKeyContent;
+    try {
+      const decipher = crypto3.createDecipheriv("aes-256-gcm", aesKey, iv);
+      if (keyFile.aad) {
+        decipher.setAAD(Buffer.from(keyFile.aad, "base64"));
+      }
+      decipher.setAuthTag(authTag);
+      const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+      privateKeyContent = decrypted.toString("utf8");
+    } catch {
+      throw new Error(
+        "Failed to decrypt private key. Verify you are using the correct YubiKey and the encrypted key file has not been corrupted or tampered with."
+      );
+    }
+    const tempDir = await fs2.mkdtemp(path3.join(os.tmpdir(), "attest-it-"));
+    const tempKeyPath = path3.join(tempDir, "private.pem");
+    const cleanup = async () => {
+      activeCleanupHandlers.delete(cleanup);
+      try {
+        const keySize = Buffer.byteLength(privateKeyContent);
+        await fs2.writeFile(tempKeyPath, crypto3.randomBytes(keySize));
+        await fs2.unlink(tempKeyPath);
+        await fs2.rmdir(tempDir);
+      } catch {
+      }
+    };
+    try {
+      await fs2.writeFile(tempKeyPath, privateKeyContent, { mode: 384 });
+      await setKeyPermissions(tempKeyPath);
+      activeCleanupHandlers.add(cleanup);
+      return {
+        keyPath: tempKeyPath,
+        cleanup
+      };
+    } catch (error2) {
+      await cleanup();
+      throw error2;
+    }
+  }
+  /**
+   * Generate a new keypair and store encrypted with YubiKey.
+   * Public key is written to filesystem for repository commit.
+   *
+   * **Security Note**: Always specify a serial number to bind the key to a specific YubiKey.
+   *
+   * @param options - Key generation options
+   */
+  async generateKeyPair(options) {
+    const { publicKeyPath, force = false } = options;
+    if (!await _YubiKeyProvider.isChallengeResponseConfigured(this.slot, this.serial)) {
+      throw new Error(
+        `YubiKey slot ${String(this.slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp -t --generate 2" to configure it with touch required.`
+      );
+    }
+    if (!force && await this.keyExists(this.encryptedKeyPath)) {
+      throw new Error(
+        `Encrypted key file already exists: ${this.encryptedKeyPath}. Use force: true to overwrite.`
+      );
+    }
+    let serial;
+    if (this.serial) {
+      serial = this.serial;
+    } else {
+      const devices = await _YubiKeyProvider.listDevices();
+      if (devices.length === 1 && devices[0]) {
+        serial = devices[0].serial;
+      } else if (devices.length > 1) {
+        console.warn(
+          "WARNING: Multiple YubiKeys detected but no serial specified. Key will not be bound to a specific device. For better security, specify a serial number."
+        );
+      }
+    }
+    const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = generateKeyPair2();
+    const publicKeyDir = path3.dirname(publicKeyPath);
+    await fs2.mkdir(publicKeyDir, { recursive: true });
+    const publicKeyPemFile = `-----BEGIN PUBLIC KEY-----
+${publicKeyBase64}
+-----END PUBLIC KEY-----
+`;
+    await fs2.writeFile(publicKeyPath, publicKeyPemFile, { mode: 420 });
+    const privateKeyContent = privateKeyPem;
+    const challenge = crypto3.randomBytes(32);
+    const salt = crypto3.randomBytes(32);
+    const iv = crypto3.randomBytes(12);
+    const response = await performChallengeResponse(challenge, this.slot, this.serial);
+    const aesKey = deriveKey(response, salt);
+    const aad = constructAAD(1, this.slot, serial);
+    const cipher = crypto3.createCipheriv("aes-256-gcm", aesKey, iv);
+    cipher.setAAD(aad);
+    const ciphertext = Buffer.concat([
+      cipher.update(Buffer.from(privateKeyContent, "utf8")),
+      cipher.final()
+    ]);
+    const authTag = cipher.getAuthTag();
+    const keyFile = {
+      version: 1,
+      iv: iv.toString("base64"),
+      authTag: authTag.toString("base64"),
+      salt: salt.toString("base64"),
+      challenge: challenge.toString("base64"),
+      ciphertext: ciphertext.toString("base64"),
+      slot: this.slot,
+      aad: aad.toString("base64"),
+      ...serial && { serial }
+    };
+    await fs2.mkdir(path3.dirname(this.encryptedKeyPath), { recursive: true });
+    await fs2.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
+    await setKeyPermissions(this.encryptedKeyPath);
+    return {
+      privateKeyRef: this.encryptedKeyPath,
+      publicKeyPath,
+      storageDescription: `YubiKey-encrypted: ${this.encryptedKeyPath}`
     };
   }
   /**
-   * Not supported — legacy provider does not create new keys.
-   * @param _options - Unused key generation options
-   * @throws Always throws an informative error directing the user to `identity create`
+   * Encrypt an existing private key with YubiKey challenge-response.
+   *
+   * @remarks
+   * This static method allows encrypting a private key that was generated
+   * elsewhere (e.g., by the CLI) without having to create a provider instance first.
+   *
+   * **Security Note**: Always specify a serial number to bind the key to a specific YubiKey.
+   * The serial provides defense-in-depth by ensuring only the intended YubiKey can decrypt.
+   *
+   * @param options - Encryption options
+   * @returns Path to the encrypted key file and storage description
+   * @public
    */
-  // Must stay async so the throw below becomes a rejected Promise, matching the KeyProvider interface contract
-  // eslint-disable-next-line @typescript-eslint/require-await
-  async generateKeyPair(_options) {
-    throw new Error(
-      'Legacy filesystem provider does not support key generation. Use "attest-it identity create" with a VaultKeeper-backed provider.'
-    );
+  static async encryptPrivateKey(options) {
+    const { privateKey, encryptedKeyPath, slot = 2, serial } = options;
+    const resolvedPath = path3.resolve(encryptedKeyPath);
+    const configDir = getIdentityConfigDir();
+    if (!resolvedPath.startsWith(configDir)) {
+      throw new Error(
+        `Encrypted key path must be within attest-it config directory (${configDir}). Got: ${resolvedPath}`
+      );
+    }
+    if (!serial) {
+      console.warn(
+        "WARNING: No YubiKey serial number specified. Key will not be bound to a specific device. For better security, specify a serial number."
+      );
+    }
+    if (!await _YubiKeyProvider.isChallengeResponseConfigured(slot, serial)) {
+      throw new Error(
+        `YubiKey slot ${String(slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp -t --generate 2" to configure it with touch required.`
+      );
+    }
+    const challenge = crypto3.randomBytes(32);
+    const salt = crypto3.randomBytes(32);
+    const iv = crypto3.randomBytes(12);
+    const response = await performChallengeResponse(challenge, slot, serial);
+    const aesKey = deriveKey(response, salt);
+    const aad = constructAAD(1, slot, serial);
+    const cipher = crypto3.createCipheriv("aes-256-gcm", aesKey, iv);
+    cipher.setAAD(aad);
+    const ciphertext = Buffer.concat([
+      cipher.update(Buffer.from(privateKey, "utf8")),
+      cipher.final()
+    ]);
+    const authTag = cipher.getAuthTag();
+    const keyFile = {
+      version: 1,
+      iv: iv.toString("base64"),
+      authTag: authTag.toString("base64"),
+      salt: salt.toString("base64"),
+      challenge: challenge.toString("base64"),
+      ciphertext: ciphertext.toString("base64"),
+      slot,
+      aad: aad.toString("base64"),
+      ...serial && { serial }
+    };
+    await fs2.mkdir(path3.dirname(resolvedPath), { recursive: true });
+    await fs2.writeFile(resolvedPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
+    await setKeyPermissions(resolvedPath);
+    return {
+      encryptedKeyPath: resolvedPath,
+      storageDescription: `YubiKey-encrypted: ${resolvedPath}`
+    };
   }
   /**
    * Get the configuration for this provider.
    */
   getConfig() {
-    return { type: this.type, options: {} };
+    return {
+      type: this.type,
+      options: {
+        encryptedKeyPath: this.encryptedKeyPath,
+        slot: this.slot,
+        ...this.serial && { serial: this.serial }
+      }
+    };
   }
 };
+async function execCommand3(command, args) {
+  return new Promise((resolve6, reject) => {
+    const proc = (0, import_child_process.spawn)(command, args, { stdio: ["ignore", "pipe", "pipe"] });
+    let stdout = "";
+    let stderr = "";
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+    proc.stderr.on("data", (data) => {
+      stderr += data.toString();
+    });
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolve6(stdout.trim());
+      } else {
+        reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
+      }
+    });
+    proc.on("error", (error2) => {
+      reject(error2);
+    });
+  });
+}
+async function execInteractiveCommand2(command, args) {
+  return new Promise((resolve6, reject) => {
+    const proc = (0, import_child_process.spawn)(command, args, { stdio: ["inherit", "pipe", "inherit"] });
+    let stdout = "";
+    proc.stdout.on("data", (data) => {
+      stdout += data.toString();
+    });
+    proc.on("close", (code) => {
+      if (code === 0) {
+        resolve6(stdout.trim());
+      } else {
+        reject(new Error(`Command failed with exit code ${String(code)}`));
+      }
+    });
+    proc.on("error", (error2) => {
+      reject(error2);
+    });
+  });
+}
+async function performChallengeResponse(challenge, slot, serial) {
+  const args = ["otp", "calculate", String(slot), challenge.toString("hex")];
+  if (serial) {
+    args.unshift("--device", serial);
+  }
+  try {
+    const output = await execInteractiveCommand2("ykman", args);
+    return Buffer.from(output.trim(), "hex");
+  } catch {
+    throw new Error(
+      "YubiKey challenge-response failed. Verify your YubiKey is inserted, touch it if prompted, and ensure the slot is configured for challenge-response with touch required (ykman otp chalresp -t --generate <slot>)."
+    );
+  }
+}
+function deriveKey(response, salt) {
+  const derived = crypto3.hkdfSync("sha256", response, salt, "attest-it-yubikey-v1", 32);
+  return Buffer.from(derived);
+}
 var KeyProviderRegistry = class {
   static providers = /* @__PURE__ */ new Map();
   /**
@@ -47230,24 +43986,52 @@ var KeyProviderRegistry = class {
     return Array.from(this.providers.keys());
   }
 };
-KeyProviderRegistry.register("filesystem", (_config) => {
-  const backend = BackendRegistry.create("file");
-  return new VaultKeyProvider({ backend, displayName: "Filesystem" });
+KeyProviderRegistry.register("filesystem", (config) => {
+  const privateKeyPath = typeof config.options.privateKeyPath === "string" ? config.options.privateKeyPath : void 0;
+  if (privateKeyPath !== void 0) {
+    return new FilesystemKeyProvider({ privateKeyPath });
+  }
+  return new FilesystemKeyProvider();
 });
-KeyProviderRegistry.register("1password", (_config) => {
-  const backend = BackendRegistry.create("1password");
-  return new VaultKeyProvider({ backend, displayName: "1Password" });
+KeyProviderRegistry.register("1password", (config) => {
+  const { options } = config;
+  const accountUuid = typeof options.accountUuid === "string" ? options.accountUuid : void 0;
+  const vault = typeof options.vault === "string" ? options.vault : "";
+  const itemName = typeof options.itemName === "string" ? options.itemName : "";
+  if (!vault || !itemName) {
+    throw new Error("1Password provider requires vault and itemName options");
+  }
+  if (accountUuid !== void 0) {
+    return new OnePasswordKeyProvider({ accountUuid, vault, itemName });
+  }
+  return new OnePasswordKeyProvider({ vault, itemName });
 });
-KeyProviderRegistry.register("macos-keychain", (_config) => {
-  const backend = BackendRegistry.create("keychain");
-  return new VaultKeyProvider({ backend, displayName: "macOS Keychain" });
+KeyProviderRegistry.register("macos-keychain", (config) => {
+  const { options } = config;
+  const itemName = typeof options.itemName === "string" ? options.itemName : "";
+  if (!itemName) {
+    throw new Error("macOS Keychain provider requires itemName option");
+  }
+  return new MacOSKeychainKeyProvider({ itemName });
 });
-KeyProviderRegistry.register("yubikey", (_config) => {
-  const backend = BackendRegistry.create("yubikey");
-  return new VaultKeyProvider({ backend, displayName: "YubiKey" });
-});
-KeyProviderRegistry.register("filesystem-legacy", (_config) => {
-  return new LegacyFilesystemKeyProvider();
+KeyProviderRegistry.register("yubikey", (config) => {
+  const { options } = config;
+  const encryptedKeyPath = typeof options.encryptedKeyPath === "string" ? options.encryptedKeyPath : "";
+  if (!encryptedKeyPath) {
+    throw new Error("YubiKey provider requires encryptedKeyPath option");
+  }
+  const slot = typeof options.slot === "number" && (options.slot === 1 || options.slot === 2) ? options.slot : void 0;
+  const serial = typeof options.serial === "string" ? options.serial : void 0;
+  const providerOptions = {
+    encryptedKeyPath
+  };
+  if (slot !== void 0) {
+    providerOptions.slot = slot;
+  }
+  if (serial !== void 0) {
+    providerOptions.serial = serial;
+  }
+  return new YubiKeyProvider(providerOptions);
 });
 var cliExperienceSchema = external_exports.object({
   declinedCompletionInstall: external_exports.boolean().optional()
@@ -47316,8 +44100,8 @@ function isFileNotFoundError(error2) {
   }
   return false;
 }
-function verifySeal(seal, config) {
-  const { gateId, fingerprint, timestamp, sealedBy, signature } = seal;
+function verifySeal(seal2, config) {
+  const { gateId, fingerprint: fingerprint2, timestamp, sealedBy, signature } = seal2;
   if (!config.team) {
     return {
       valid: false,
@@ -47331,7 +44115,7 @@ function verifySeal(seal, config) {
       error: `Team member '${sealedBy}' not found in configuration`
     };
   }
-  const canonicalString = `${gateId}:${fingerprint}:${timestamp}`;
+  const canonicalString = `${gateId}:${fingerprint2}:${timestamp}`;
   try {
     const isValid2 = verify3(canonicalString, signature, teamMember.publicKey);
     if (!isValid2) {
@@ -47348,10 +44132,12 @@ function verifySeal(seal, config) {
     };
   }
 }
-var EMPTY_SEALS_FILE = {
-  version: 1,
-  seals: {}
-};
+function createEmptySealsFile() {
+  return {
+    version: 1,
+    seals: {}
+  };
+}
 function detectFormat2(filepath) {
   const ext = filepath.split(".").pop()?.toLowerCase();
   if (ext === "json") return "json";
@@ -47389,7 +44175,7 @@ async function readSeals(dir, sealsPathOverride) {
       content = await fs.promises.readFile(sealsPath, "utf8");
     } catch (error2) {
       if (isFileNotFoundError(error2)) {
-        return EMPTY_SEALS_FILE;
+        return createEmptySealsFile();
       }
       throw new Error(
         `Failed to read seals file: ${error2 instanceof Error ? error2.message : String(error2)}`
@@ -47414,7 +44200,7 @@ async function readSeals(dir, sealsPathOverride) {
     return parseSealsContent(content, "json");
   } catch (error2) {
     if (isFileNotFoundError(error2)) {
-      return EMPTY_SEALS_FILE;
+      return createEmptySealsFile();
     }
     throw new Error(
       `Failed to read seals file: ${error2 instanceof Error ? error2.message : String(error2)}`
@@ -47430,19 +44216,19 @@ function verifyGateSeal(config, gateId, seals, currentFingerprint) {
       message: `Gate '${gateId}' not found in configuration`
     };
   }
-  const seal = seals.seals[gateId];
-  if (!seal) {
+  const seal2 = seals.seals[gateId];
+  if (!seal2) {
     return {
       gateId,
       state: "MISSING",
       message: `No seal found for gate '${gateId}'`
     };
   }
-  if (seal.fingerprint !== currentFingerprint) {
+  if (seal2.fingerprint !== currentFingerprint) {
     return {
       gateId,
       state: "FINGERPRINT_MISMATCH",
-      seal,
+      seal: seal2,
       message: `Fingerprint changed since seal was created`
     };
   }
@@ -47450,17 +44236,17 @@ function verifyGateSeal(config, gateId, seals, currentFingerprint) {
     return {
       gateId,
       state: "UNKNOWN_SIGNER",
-      seal,
+      seal: seal2,
       message: `No team configuration found`
     };
   }
-  const teamMember = config.team[seal.sealedBy];
+  const teamMember = config.team[seal2.sealedBy];
   if (!teamMember) {
     return {
       gateId,
       state: "UNKNOWN_SIGNER",
-      seal,
-      message: `Signer '${seal.sealedBy}' not found in team`
+      seal: seal2,
+      message: `Signer '${seal2.sealedBy}' not found in team`
     };
   }
   const authorized = isAuthorizedSigner(config, gateId, teamMember.publicKey);
@@ -47468,22 +44254,22 @@ function verifyGateSeal(config, gateId, seals, currentFingerprint) {
     return {
       gateId,
       state: "UNKNOWN_SIGNER",
-      seal,
-      message: `Signer '${seal.sealedBy}' is not authorized for gate '${gateId}'`
+      seal: seal2,
+      message: `Signer '${seal2.sealedBy}' is not authorized for gate '${gateId}'`
     };
   }
-  const verificationResult = verifySeal(seal, config);
+  const verificationResult = verifySeal(seal2, config);
   if (!verificationResult.valid) {
     return {
       gateId,
       state: "INVALID_SIGNATURE",
-      seal,
+      seal: seal2,
       message: verificationResult.error ?? "Signature verification failed"
     };
   }
   try {
     const maxAgeMs = parseDuration(gate.maxAge);
-    const sealTimestamp = new Date(seal.timestamp).getTime();
+    const sealTimestamp = new Date(seal2.timestamp).getTime();
     const now = Date.now();
     const ageMs = now - sealTimestamp;
     if (ageMs > maxAgeMs) {
@@ -47492,7 +44278,7 @@ function verifyGateSeal(config, gateId, seals, currentFingerprint) {
       return {
         gateId,
         state: "STALE",
-        seal,
+        seal: seal2,
         message: `Seal is ${ageDays.toString()} days old, exceeds maxAge of ${maxAgeDays.toString()} days`
       };
     }
@@ -47500,14 +44286,14 @@ function verifyGateSeal(config, gateId, seals, currentFingerprint) {
     return {
       gateId,
       state: "STALE",
-      seal,
+      seal: seal2,
       message: `Cannot verify freshness: invalid maxAge format: ${error2 instanceof Error ? error2.message : String(error2)}`
     };
   }
   return {
     gateId,
     state: "VALID",
-    seal
+    seal: seal2
   };
 }
 function verifyAllSeals(config, seals, fingerprints) {
@@ -47516,8 +44302,8 @@ function verifyAllSeals(config, seals, fingerprints) {
   }
   const results = [];
   for (const gateId of Object.keys(config.gates)) {
-    const fingerprint = fingerprints[gateId];
-    if (!fingerprint) {
+    const fingerprint2 = fingerprints[gateId];
+    if (!fingerprint2) {
       results.push({
         gateId,
         state: "MISSING",
@@ -47525,7 +44311,7 @@ function verifyAllSeals(config, seals, fingerprints) {
       });
       continue;
     }
-    const result = verifyGateSeal(config, gateId, seals, fingerprint);
+    const result = verifyGateSeal(config, gateId, seals, fingerprint2);
     results.push(result);
   }
   return results;
