@@ -1,11 +1,11 @@
 import { Command } from 'commander'
 import { input } from '@inquirer/prompts'
-import { log, success, error } from '../../utils/output.js'
+import { log, success } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
 import { getTheme } from '../../components/theme.js'
 import { writeFile } from 'node:fs/promises'
 import { stringify as stringifyYaml } from 'yaml'
-import { resolveOrPrompt, isInteractiveTTY } from '../../utils/prompts.js'
+import { resolveOrPrompt, isInteractiveTTY, handlePromptableError } from '../../utils/prompts.js'
 import { resolveGateAuthorization, addTeamMemberToPolicy, loadPolicyForEdit } from './utils.js'
 
 interface AddOptions {
@@ -182,12 +182,7 @@ async function runAdd(options: AddOptions = {}): Promise<void> {
 
     log('')
   } catch (err) {
-    if (err instanceof Error) {
-      error(err.message)
-    } else {
-      error('Unknown error occurred')
-    }
-    process.exit(ExitCode.CONFIG_ERROR)
+    handlePromptableError(err, ExitCode.CONFIG_ERROR)
   }
 }
 

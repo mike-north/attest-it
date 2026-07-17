@@ -1,5 +1,7 @@
 import { confirm } from '@inquirer/prompts'
 import { getTheme, BOX_CHARS } from '../components/theme.js'
+import { error, log } from './output.js'
+import { ExitCode } from './exit-codes.js'
 
 export interface ConfirmOptions {
   message: string
@@ -104,6 +106,96 @@ export async function resolveOptionalOrPrompt(
     return (await prompt()).trim()
   }
   return defaultValue
+}
+
+/**
+ * Resolve a yes/no confirmation that may already be supplied via a CLI flag.
+ *
+ * @remarks
+ * Mirrors {@link resolveOrPrompt}'s "flag, or interactive prompt, or fail
+ * fast" resolution order, specialized for confirmations: if `autoConfirm` is
+ * true, resolves to `true` without ever invoking `prompt`. Otherwise, if
+ * stdin is not an interactive TTY, throws naming `flagName` instead of
+ * invoking `prompt` -- every confirmation in the CLI must go through this (or
+ * an equivalent) gate, since handing a closed/piped stdin directly to
+ * `@inquirer/prompts` either hangs (a stream that never closes) or, once
+ * stdin closes, throws its raw `ExitPromptError` ("User force closed the
+ * prompt with 0 null"). See issue #94.
+ *
+ * @param autoConfirm - Already-resolved flag value (e.g. `--yes`); when true,
+ * `prompt` is never invoked
+ * @param flagName - The flag name to report in the fail-fast error (e.g. `--yes`)
+ * @param prompt - Callback that interactively collects the confirmation
+ * @returns Whether the action was confirmed
+ * @throws Error if not auto-confirmed and stdin is not an interactive TTY
+ * @public
+ */
+export async function resolveConfirmation(
+  autoConfirm: boolean | undefined,
+  flagName: string,
+  prompt: () => Promise<boolean>,
+): Promise<boolean> {
+  if (autoConfirm) {
+    return true
+  }
+  if (!isInteractiveTTY()) {
+    throw new Error(
+      `Refusing to proceed without ${flagName} (no interactive terminal available to confirm). ` +
+        `Pass ${flagName} to run non-interactively.`,
+    )
+  }
+  return prompt()
+}
+
+/**
+ * True when `err` is `@inquirer/core`'s signal for an interrupted or
+ * force-closed prompt -- Ctrl-C during an interactive prompt, or (the case
+ * that matters for automation) the process's stdin ending while a prompt is
+ * still awaiting input on it.
+ *
+ * @remarks
+ * Checked by `name` rather than `instanceof`: `@inquirer/core`'s
+ * `ExitPromptError` class is a transitive dependency (only `@inquirer/prompts`
+ * is declared directly), so it is not an importable type here.
+ *
+ * @param err - The caught error
+ * @returns Whether `err` represents a cancelled/force-closed prompt
+ * @public
+ */
+export function isPromptCancellation(err: unknown): boolean {
+  return err instanceof Error && err.name === 'ExitPromptError'
+}
+
+/**
+ * Standard top-level `catch` handler for a command whose action may run an
+ * interactive prompt.
+ *
+ * @remarks
+ * Before this fix, a force-closed/interrupted prompt fell through to each
+ * command's generic error handling, surfacing `@inquirer/core`'s raw message
+ * ("User force closed the prompt with 0 null") under whatever fallback exit
+ * code that command used -- even though the `CANCELLED` exit code exists
+ * specifically for this case. This normalizes that path to the same clean
+ * "Cancelled" message and `CANCELLED` exit code a declined confirmation
+ * already uses, everywhere a command can prompt. See issues #94/#95.
+ *
+ * @param err - The caught error
+ * @param fallbackExitCode - Exit code for a non-cancellation error (commands
+ * differ here, so this is not hardcoded)
+ * @public
+ */
+export function handlePromptableError(err: unknown, fallbackExitCode: ExitCode): never {
+  if (isPromptCancellation(err)) {
+    log('Cancelled')
+    process.exit(ExitCode.CANCELLED)
+  } else {
+    if (err instanceof Error) {
+      error(err.message)
+    } else {
+      error('Unknown error occurred')
+    }
+    process.exit(fallbackExitCode)
+  }
 }
 
 /** Coerce a stdin chunk (Buffer or string, per Node's stream typing) into a Buffer. */

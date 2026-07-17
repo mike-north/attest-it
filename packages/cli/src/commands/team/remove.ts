@@ -3,6 +3,7 @@ import { confirm } from '@inquirer/prompts'
 import { readSealsSync, type PolicyConfig } from '@attest-it/core'
 import { log, success, error, warn } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
+import { handlePromptableError, resolveConfirmation } from '../../utils/prompts.js'
 import { getTheme } from '../../components/theme.js'
 import { writeFile } from 'node:fs/promises'
 import { stringify as stringifyYaml } from 'yaml'
@@ -18,8 +19,15 @@ export const removeCommand = new Command('remove')
 
 /**
  * Run the remove command to delete a team member.
+ *
+ * Non-interactive with `--force`: the confirmation resolves without
+ * prompting. Without `--force`, a closed/piped stdin fails fast naming
+ * `--force` instead of ever handing that stdin to the prompt library. See
+ * issue #94.
+ *
+ * @public
  */
-async function runRemove(slug: string, options: { force?: boolean }): Promise<void> {
+export async function runRemove(slug: string, options: { force?: boolean }): Promise<void> {
   try {
     const theme = getTheme()
 
@@ -91,17 +99,20 @@ async function runRemove(slug: string, options: { force?: boolean }): Promise<vo
       log('')
     }
 
-    // Confirm removal
-    if (!options.force) {
-      const confirmed = await confirm({
+    // Confirm removal. Gated behind "--force not supplied AND stdin is an
+    // interactive TTY": a closed or piped stdin without --force fails fast
+    // instead of ever handing that stdin to the prompt library, which either
+    // hangs or throws a raw, illegible error once stdin closes. See issue #94.
+    const confirmed = await resolveConfirmation(options.force, '--force', () =>
+      confirm({
         message: `Are you sure you want to remove "${slug}"?`,
         default: false,
-      })
+      }),
+    )
 
-      if (!confirmed) {
-        error('Removal cancelled')
-        process.exit(ExitCode.CANCELLED)
-      }
+    if (!confirmed) {
+      error('Removal cancelled')
+      process.exit(ExitCode.CANCELLED)
     }
 
     // Remove from team
@@ -130,11 +141,6 @@ async function runRemove(slug: string, options: { force?: boolean }): Promise<vo
     success(`Team member "${slug}" removed successfully`)
     log('')
   } catch (err) {
-    if (err instanceof Error) {
-      error(err.message)
-    } else {
-      error('Unknown error occurred')
-    }
-    process.exit(ExitCode.CONFIG_ERROR)
+    handlePromptableError(err, ExitCode.CONFIG_ERROR)
   }
 }

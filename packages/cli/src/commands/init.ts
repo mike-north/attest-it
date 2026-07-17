@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path'
 import { stringify as stringifyYaml } from 'yaml'
 import { migrateUnifiedContent } from '@attest-it/core'
 import { log, success, error } from '../utils/output.js'
-import { confirmAction, isInteractiveTTY } from '../utils/prompts.js'
+import { confirmAction, isInteractiveTTY, handlePromptableError } from '../utils/prompts.js'
 import { ExitCode } from '../utils/exit-codes.js'
 import { offerCompletionInstall } from '../utils/completion-offer.js'
 import { getPackageVersion } from '../utils/version.js'
@@ -303,12 +303,7 @@ async function runInit(options: InitOptions): Promise<void> {
     // Offer to install shell completions
     await offerCompletionInstall()
   } catch (err) {
-    if (err instanceof Error) {
-      error(err.message)
-    } else {
-      error('Unknown error occurred')
-    }
-    process.exit(ExitCode.CONFIG_ERROR)
+    handlePromptableError(err, ExitCode.CONFIG_ERROR)
   }
 }
 

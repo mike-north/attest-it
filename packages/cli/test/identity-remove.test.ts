@@ -12,6 +12,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import * as os from 'node:os'
 import { unlink } from 'node:fs/promises'
 import type { LocalConfig } from '@attest-it/core'
+import { ExitCode } from '../src/utils/exit-codes.js'
 
 vi.mock('node:fs/promises', () => ({
   unlink: vi.fn().mockResolvedValue(undefined),
@@ -31,6 +32,9 @@ vi.mock('@attest-it/core', async () => {
 })
 
 const mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {
+  // Intentionally empty
+})
+const mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {
   // Intentionally empty
 })
 const mockProcessExit = vi
@@ -64,8 +68,20 @@ function mockLocalConfig(overrides?: Partial<LocalConfig>): LocalConfig {
 }
 
 describe('identity remove', () => {
-  beforeEach(() => vi.clearAllMocks())
-  afterEach(() => vi.clearAllMocks())
+  const originalIsTTY = process.stdin.isTTY
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    // Most of these tests exercise the interactive confirmation prompts,
+    // only reachable with an interactive TTY (see issue #94's TTY guard).
+    // The dedicated non-interactive describe blocks below override this
+    // per-test.
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
+  })
+  afterEach(() => {
+    vi.clearAllMocks()
+    Object.defineProperty(process.stdin, 'isTTY', { value: originalIsTTY, configurable: true })
+  })
 
   it('resolves a leading ~ in a legacy filesystem key path before deleting it', async () => {
     vi.mocked(loadLocalConfig).mockResolvedValue(mockLocalConfig())
@@ -96,5 +112,82 @@ describe('identity remove', () => {
 
     expect(unlink).not.toHaveBeenCalled()
     expect(saveLocalConfig).toHaveBeenCalled()
+  })
+})
+
+// Regression coverage for issue #94: `identity remove` had no non-interactive
+// flag at all, and handing a closed/piped stdin directly to `confirm()`
+// either hung (an unclosed pipe) or produced a ~20MB runaway
+// terminal-escape-code render loop (a pipe that does close, e.g. `yes |`).
+describe('identity remove — non-interactive (--yes) (issue #94)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    Object.defineProperty(process.stdin, 'isTTY', { value: undefined, configurable: true })
+  })
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('removes non-interactively with --yes, never invoking the prompt library', async () => {
+    vi.mocked(loadLocalConfig).mockResolvedValue(mockLocalConfig())
+
+    await runRemove('bob', { yes: true })
+
+    expect(confirm).not.toHaveBeenCalled()
+    expect(unlink).not.toHaveBeenCalled() // --delete-key not given: safer default
+    expect(saveLocalConfig).toHaveBeenCalled()
+    expect(mockProcessExit).not.toHaveBeenCalled()
+  })
+
+  it('--yes with --delete-key also deletes the private key file, still without prompting', async () => {
+    vi.mocked(loadLocalConfig).mockResolvedValue(mockLocalConfig())
+
+    await runRemove('bob', { yes: true, deleteKey: true })
+
+    expect(confirm).not.toHaveBeenCalled()
+    expect(unlink).toHaveBeenCalledWith('/tmp/bob.pem')
+  })
+
+  it(
+    'fails fast naming --yes when no flag is given and stdin is not a TTY ' +
+      '(never invokes the prompt library, bounded output)',
+    async () => {
+      vi.mocked(loadLocalConfig).mockResolvedValue(mockLocalConfig())
+
+      await runRemove('bob')
+
+      expect(confirm).not.toHaveBeenCalled()
+      expect(unlink).not.toHaveBeenCalled()
+      expect(saveLocalConfig).not.toHaveBeenCalled()
+      expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('--yes'))
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CONFIG_ERROR)
+    },
+  )
+})
+
+// Regression coverage for issue #95: exit code 3 (CONFIG_ERROR) was
+// overloaded to also cover a force-closed/interrupted prompt, surfacing
+// @inquirer/core's raw "User force closed the prompt with 0 null" message.
+describe('identity remove — cancelled prompt maps to CANCELLED, not CONFIG_ERROR (issue #95)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
+  })
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('maps a force-closed prompt to a clean "Cancelled" message and exit code 4', async () => {
+    vi.mocked(loadLocalConfig).mockResolvedValue(mockLocalConfig())
+    const rawInquirerMessage = 'User force closed the prompt with 0 null'
+    const exitPromptError = new Error(rawInquirerMessage)
+    exitPromptError.name = 'ExitPromptError'
+    vi.mocked(confirm).mockRejectedValueOnce(exitPromptError)
+
+    await runRemove('bob')
+
+    expect(mockConsoleLog).toHaveBeenCalledWith('Cancelled')
+    expect(mockConsoleError).not.toHaveBeenCalledWith(expect.stringContaining(rawInquirerMessage))
+    expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CANCELLED)
   })
 })

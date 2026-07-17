@@ -85,6 +85,77 @@ function runCliNonInteractive(
   })
 }
 
+/**
+ * Result of {@link runCliWithPipedYes}: `killed` distinguishes "exited on its
+ * own" from "the test's safety-net timeout had to SIGKILL it" -- the whole
+ * point of the regression this guards against (issue #94) is that the
+ * process must exit on its own well before any external timeout.
+ */
+interface PipedYesResult extends RunResult {
+  killed: boolean
+}
+
+/**
+ * Run the built CLI with its stdin fed by a real, continuously-producing
+ * `yes` process -- the exact scenario issue #94 reports: piping infinite
+ * input into a command with no non-interactive flag caused `@inquirer/core`'s
+ * readline-based prompt to enter an unbounded (~20MB) terminal-escape-code
+ * render loop that never exited on its own. A hard timeout kills both
+ * processes as a safety net if the regression reappears, but the assertions
+ * that matter are that the CLI exits on its own (`killed: false`) with a
+ * small, bounded amount of output.
+ */
+function runCliWithPipedYes(
+  args: string[],
+  cwd: string,
+  env: NodeJS.ProcessEnv = {},
+): Promise<PipedYesResult> {
+  return new Promise((resolve, reject) => {
+    const yesProc = spawn('yes', [], { stdio: ['ignore', 'pipe', 'ignore'] })
+    const child = spawn('node', [CLI_PATH, ...args], {
+      cwd,
+      env: { ...process.env, NO_COLOR: '1', ...env },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    })
+    // The whole point of this regression guard is that the CLI exits (and
+    // closes its stdin) almost immediately, well before `yes` stops
+    // producing output -- `yes` writing into that now-closed pipe raises
+    // EPIPE, which must be swallowed rather than left to crash the test
+    // process as an unhandled exception.
+    child.stdin.on('error', () => undefined)
+    yesProc.stdout.on('error', () => undefined)
+    yesProc.stdout.pipe(child.stdin)
+
+    let stdout = ''
+    let stderr = ''
+    let killed = false
+    child.stdout.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString()
+    })
+    child.stderr.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString()
+    })
+
+    const timer = setTimeout(() => {
+      killed = true
+      child.kill('SIGKILL')
+      yesProc.kill('SIGKILL')
+    }, CLI_CALL_TIMEOUT_MS)
+
+    child.on('close', (code) => {
+      clearTimeout(timer)
+      yesProc.kill('SIGKILL')
+      resolve({ exitCode: code ?? 1, stdout, stderr, killed })
+    })
+
+    child.on('error', (err) => {
+      clearTimeout(timer)
+      yesProc.kill('SIGKILL')
+      reject(err)
+    })
+  })
+}
+
 async function runGit(args: string[], cwd: string): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const child = spawn('git', args, { cwd, stdio: 'ignore' })
@@ -319,4 +390,86 @@ describe('non-interactive setup end-to-end (issue #80)', () => {
     },
     CLI_CALL_TIMEOUT_MS * 2,
   )
+
+  describe('identity remove headless operation (issue #94)', () => {
+    it(
+      'removes an identity non-interactively with --yes and closed stdin',
+      async () => {
+        const env = { ATTEST_IT_HOME: homeDir }
+        await runCliNonInteractive(
+          ['identity', 'create', '--name', 'A', '--slug', 'a', '--storage', 'file'],
+          projectDir,
+          env,
+        )
+        await runCliNonInteractive(
+          ['identity', 'create', '--name', 'B', '--slug', 'b', '--storage', 'file'],
+          projectDir,
+          env,
+        )
+
+        const result = await runCliNonInteractive(
+          ['identity', 'remove', 'b', '--yes'],
+          projectDir,
+          env,
+        )
+
+        expect(result.exitCode).toBe(0)
+        expect(result.stdout).toContain('removed')
+      },
+      CLI_CALL_TIMEOUT_MS * 3,
+    )
+
+    it(
+      'fails fast (never hangs) when identity remove is given no --yes with no TTY',
+      async () => {
+        const env = { ATTEST_IT_HOME: homeDir }
+        await runCliNonInteractive(
+          ['identity', 'create', '--name', 'A', '--slug', 'a', '--storage', 'file'],
+          projectDir,
+          env,
+        )
+        await runCliNonInteractive(
+          ['identity', 'create', '--name', 'B', '--slug', 'b', '--storage', 'file'],
+          projectDir,
+          env,
+        )
+
+        const result = await runCliNonInteractive(['identity', 'remove', 'b'], projectDir, env)
+
+        expect(result.exitCode).not.toBe(0)
+        expect(result.stderr).toMatch(/--yes/)
+      },
+      CLI_CALL_TIMEOUT_MS * 3,
+    )
+
+    it(
+      'never enters the runaway prompt-render loop when stdin is piped from `yes`, ' +
+        'and produces bounded output',
+      async () => {
+        const env = { ATTEST_IT_HOME: homeDir }
+        await runCliNonInteractive(
+          ['identity', 'create', '--name', 'A', '--slug', 'a', '--storage', 'file'],
+          projectDir,
+          env,
+        )
+        await runCliNonInteractive(
+          ['identity', 'create', '--name', 'B', '--slug', 'b', '--storage', 'file'],
+          projectDir,
+          env,
+        )
+
+        const result = await runCliWithPipedYes(['identity', 'remove', 'b'], projectDir, env)
+
+        // Regression guard: prior to the fix, a piped `yes` with no --yes flag
+        // caused an unbounded (~20MB) terminal-escape-code render loop that
+        // never exited on its own -- this asserts the process exits by itself
+        // (never needed the safety-net SIGKILL) with a small, bounded amount
+        // of combined output.
+        expect(result.killed).toBe(false)
+        expect(result.exitCode).not.toBe(0)
+        expect(result.stdout.length + result.stderr.length).toBeLessThan(10_000)
+      },
+      CLI_CALL_TIMEOUT_MS,
+    )
+  })
 })

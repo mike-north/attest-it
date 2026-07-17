@@ -4,6 +4,7 @@ import { loadLocalConfig, saveLocalConfig } from '@attest-it/core'
 import { log, success, error, getTheme } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
 import { formatKeyLocation } from '../../utils/format-key-location.js'
+import { handlePromptableError, resolveConfirmation } from '../../utils/prompts.js'
 import { unlink } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import * as path from 'node:path'
@@ -11,15 +12,33 @@ import * as path from 'node:path'
 export const removeCommand = new Command('remove')
   .description('Delete identity and optionally delete private key')
   .argument('<slug>', 'Identity slug to remove')
-  .action(async (slug: string) => {
-    await runRemove(slug)
+  .option('-y, --yes', 'Skip the confirmation prompt(s) and remove non-interactively')
+  .option(
+    '--delete-key',
+    'Also delete the private key from storage when used with --yes (interactively, this is still asked separately; default: false)',
+  )
+  .action(async (slug: string, options: RemoveOptions) => {
+    await runRemove(slug, options)
   })
+
+interface RemoveOptions {
+  yes?: boolean
+  deleteKey?: boolean
+}
 
 /**
  * Run the remove command to delete an identity.
+ *
+ * Non-interactive with `--yes`: both confirmations resolve without prompting
+ * (identity removal proceeds; private-key deletion defaults to `false`
+ * unless `--delete-key` is also given -- the more destructive of the two
+ * actions is opt-in, not implied by `--yes` alone). Without `--yes`, a
+ * closed/piped stdin fails fast naming `--yes` instead of hanging on (or
+ * looping through) a prompt that can never resolve. See issue #94.
+ *
  * @public
  */
-export async function runRemove(slug: string): Promise<void> {
+export async function runRemove(slug: string, options: RemoveOptions = {}): Promise<void> {
   try {
     const config = await loadLocalConfig()
 
@@ -45,11 +64,16 @@ export async function runRemove(slug: string): Promise<void> {
     }
     log('')
 
-    // Confirm deletion
-    const confirmDelete = await confirm({
-      message: 'Are you sure you want to delete this identity?',
-      default: false,
-    })
+    // Confirm deletion. Gated behind "flag not supplied AND stdin is an
+    // interactive TTY": with --yes this proceeds without prompting; a closed
+    // or piped stdin with no flag fails fast instead of ever handing that
+    // stdin to the prompt library. See issue #94.
+    const confirmDelete = await resolveConfirmation(options.yes, '--yes', () =>
+      confirm({
+        message: 'Are you sure you want to delete this identity?',
+        default: false,
+      }),
+    )
 
     if (!confirmDelete) {
       log('Cancelled')
@@ -61,10 +85,16 @@ export async function runRemove(slug: string): Promise<void> {
     log(`  Private key: ${keyLocation}`)
     log('')
 
-    const deletePrivateKey = await confirm({
-      message: 'Also delete the private key from storage?',
-      default: false,
-    })
+    // Reaching this point already proved --yes was supplied or stdin is an
+    // interactive TTY (resolveConfirmation above would have thrown
+    // otherwise), so no separate non-interactive guard is needed here --
+    // only which default to use.
+    const deletePrivateKey = options.yes
+      ? (options.deleteKey ?? false)
+      : await confirm({
+          message: 'Also delete the private key from storage?',
+          default: false,
+        })
 
     // Delete private key if requested
     if (deletePrivateKey) {
@@ -144,11 +174,6 @@ export async function runRemove(slug: string): Promise<void> {
     success(`Identity "${slug}" removed`)
     log('')
   } catch (err) {
-    if (err instanceof Error) {
-      error(err.message)
-    } else {
-      error('Unknown error occurred')
-    }
-    process.exit(ExitCode.CONFIG_ERROR)
+    handlePromptableError(err, ExitCode.CONFIG_ERROR)
   }
 }

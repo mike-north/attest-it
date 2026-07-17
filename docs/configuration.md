@@ -482,14 +482,22 @@ When `attest-it verify` runs, each gate returns one of these states:
 `attest-it verify` and `attest-it status` share the same exit-code contract, defined in
 `packages/cli/src/utils/exit-codes.ts`:
 
-| Code | Constant     | Meaning                                                                                |
-| ---- | ------------ | -------------------------------------------------------------------------------------- |
-| 0    | SUCCESS      | All gates valid (STALE is a warning only)                                              |
-| 1    | FAILURE      | One or more gates invalid                                                              |
-| 2    | NO_WORK      | Configuration loaded successfully, but zero gates are defined — nothing to verify      |
-| 3    | CONFIG_ERROR | No discoverable configuration, an unreadable `--config` path, or invalid configuration |
-| 4    | CANCELLED    | User cancelled the operation                                                           |
-| 5    | MISSING_KEY  | Required private key file is missing                                                   |
+| Code | Constant           | Meaning                                                                                |
+| ---- | ------------------ | -------------------------------------------------------------------------------------- |
+| 0    | SUCCESS            | All gates valid (STALE is a warning only)                                              |
+| 1    | FAILURE            | One or more gates invalid                                                              |
+| 2    | NO_WORK            | Configuration loaded successfully, but zero gates are defined — nothing to verify      |
+| 3    | CONFIG_ERROR       | No discoverable configuration, an unreadable `--config` path, or invalid configuration |
+| 4    | CANCELLED          | User cancelled the operation (a declined or force-closed/interrupted prompt)           |
+| 5    | MISSING_KEY        | Required private key file is missing                                                   |
+| 6    | DIRTY_WORKING_TREE | `run`/`seal` refused because the git working tree has uncommitted changes              |
+
+**A cancelled prompt is `CANCELLED` (4), never `CONFIG_ERROR`** — whether declined or
+force-closed/interrupted (e.g. Ctrl-C, or a piped stdin that closes mid-prompt).
+
+**A dirty working tree is `DIRTY_WORKING_TREE` (6), never `CONFIG_ERROR`.** `run` refuses to run
+a suite when the working tree has uncommitted changes (unless `ATTEST_IT_ALLOW_DIRTY` is set) —
+a precondition failure, not a configuration problem.
 
 **Missing configuration is fail-closed, not fail-open.** If no `.attest-it/policy.yaml` (or
 `.yml`/`.json`) can be found — and no `--config <path>` override resolves either — both

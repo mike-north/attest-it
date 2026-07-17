@@ -6,7 +6,7 @@ import { ExitCode } from '../../utils/exit-codes.js'
 import { getTheme } from '../../components/theme.js'
 import { writeFile } from 'node:fs/promises'
 import { stringify as stringifyYaml } from 'yaml'
-import { resolveOrPrompt } from '../../utils/prompts.js'
+import { resolveOrPrompt, handlePromptableError } from '../../utils/prompts.js'
 import { resolveGateAuthorization, addTeamMemberToPolicy, loadPolicyForEdit } from './utils.js'
 
 interface JoinOptions {
@@ -132,11 +132,6 @@ export async function runJoin(options: JoinOptions = {}): Promise<void> {
 
     log('')
   } catch (err) {
-    if (err instanceof Error) {
-      error(err.message)
-    } else {
-      error('Unknown error occurred')
-    }
-    process.exit(ExitCode.CONFIG_ERROR)
+    handlePromptableError(err, ExitCode.CONFIG_ERROR)
   }
 }
