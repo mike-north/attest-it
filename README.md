@@ -162,12 +162,12 @@ See [Configuration Reference](docs/configuration.md) for all options.
 
 ### Sealing and Verification
 
-| Command             | Description                      |
-| ------------------- | -------------------------------- |
-| `seal [gates...]`   | Create seals for specified gates |
-| `verify [gates...]` | Verify seals (for CI)            |
-| `status`            | Show seal status for all gates   |
-| `run --suite`       | Run tests and optionally seal    |
+| Command             | Description                                                              |
+| ------------------- | ------------------------------------------------------------------------ |
+| `seal [gates...]`   | Create seals for specified gates                                         |
+| `verify [gates...]` | Verify seals -- **use this to gate CI**; exits non-zero on invalid gates |
+| `status`            | Show seal status for all gates -- informational only, always exits 0     |
+| `run --suite`       | Run tests and optionally seal                                            |
 
 ### Project Setup
 

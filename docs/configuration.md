@@ -374,9 +374,13 @@ npx attest-it run --filter 'unit-*'
 
 ## Local Identity Configuration
 
-Your identity is stored at `~/.config/attest-it/config.yaml`.
+Your identity is stored at `~/.config/attest-it/config.yaml`. This file uses the v2 schema:
+a top-level `version: 2`, and a flat VaultKeeper `id` per identity's `privateKey` (instead of
+the old per-provider fields like `path`/`vault`/`item`/`service`). This is the actual shape
+`attest-it identity create` writes — verified by generating a fresh identity, not hand-written:
 
 ```yaml
+version: 2
 activeIdentity: work
 
 identities:
@@ -387,9 +391,8 @@ identities:
     publicKey: MCowBQYDK2VwAyEAabc123...
     privateKey:
       type: 1password
+      id: attest-it-work-1a2b3c4d-5678-90ab-cdef-1234567890ab
       vault: Work
-      item: attest-it-signing-key
-      account: alice@example.com
 
   personal:
     name: Alice Smith
@@ -397,8 +400,7 @@ identities:
     publicKey: MCowBQYDK2VwAyEAdef456...
     privateKey:
       type: keychain
-      service: attest-it-personal
-      account: alice
+      id: attest-it-personal-2b3c4d5e-6789-01bc-def2-234567890abc
 ```
 
 ### Identity Fields
@@ -413,33 +415,35 @@ identities:
 
 ### Private Key Storage Options
 
+All backends store the private key itself via VaultKeeper, keyed by an opaque `id` that
+`identity create` generates -- `config.yaml` never holds a raw file path, vault name, or
+keychain service string directly (those were the old v1 per-provider fields).
+
 #### Filesystem
 
 ```yaml
 privateKey:
   type: file
-  path: ~/.config/attest-it/key.pem
+  id: attest-it-work-1a2b3c4d-5678-90ab-cdef-1234567890ab
 ```
 
-| Field  | Type   | Required | Description          |
-| ------ | ------ | -------- | -------------------- |
-| `type` | `file` | Yes      | Provider type        |
-| `path` | string | Yes      | Path to PEM key file |
+| Field  | Type   | Required | Description                              |
+| ------ | ------ | -------- | ---------------------------------------- |
+| `type` | `file` | Yes      | Provider type                            |
+| `id`   | string | Yes      | Opaque VaultKeeper secret ID for the key |
 
 #### macOS Keychain
 
 ```yaml
 privateKey:
   type: keychain
-  service: attest-it
-  account: alice
+  id: attest-it-personal-2b3c4d5e-6789-01bc-def2-234567890abc
 ```
 
-| Field     | Type       | Required | Description           |
-| --------- | ---------- | -------- | --------------------- |
-| `type`    | `keychain` | Yes      | Provider type         |
-| `service` | string     | Yes      | Keychain service name |
-| `account` | string     | Yes      | Keychain account name |
+| Field  | Type       | Required | Description                              |
+| ------ | ---------- | -------- | ---------------------------------------- |
+| `type` | `keychain` | Yes      | Provider type                            |
+| `id`   | string     | Yes      | Opaque VaultKeeper secret ID for the key |
 
 **Requirements:** macOS only
 
@@ -448,17 +452,15 @@ privateKey:
 ```yaml
 privateKey:
   type: 1password
-  vault: Private
-  item: attest-it-signing-key
-  account: user@example.com # optional
+  id: attest-it-work-3c4d5e6f-7890-12cd-ef34-34567890abcd
+  vault: Work
 ```
 
-| Field     | Type        | Required | Description                     |
-| --------- | ----------- | -------- | ------------------------------- |
-| `type`    | `1password` | Yes      | Provider type                   |
-| `vault`   | string      | Yes      | 1Password vault name            |
-| `item`    | string      | Yes      | Item name in vault              |
-| `account` | string      | No       | 1Password account (if multiple) |
+| Field   | Type        | Required | Description                              |
+| ------- | ----------- | -------- | ---------------------------------------- |
+| `type`  | `1password` | Yes      | Provider type                            |
+| `id`    | string      | Yes      | Opaque VaultKeeper secret ID for the key |
+| `vault` | string      | No       | 1Password vault name, for display/lookup |
 
 **Requirements:** 1Password CLI (`op`) must be installed
 
@@ -466,21 +468,26 @@ privateKey:
 
 ## Verification States
 
-When `attest-it verify` runs, each gate returns one of these states:
+Both `attest-it verify` and `attest-it status` evaluate each gate to one of the same states
+below and display it. The **Exit** column applies only to `verify` — it is the enforcement
+command, and this is the exit code it returns when a gate is in that state. `status` is
+purely informational: it always exits `0` (`SUCCESS`) after displaying these states,
+including `MISSING`, `FINGERPRINT_MISMATCH`, `INVALID_SIGNATURE`, and `UNKNOWN_SIGNER`. See
+[Exit Codes](#exit-codes) below.
 
-| State                  | Exit | Description                             |
-| ---------------------- | ---- | --------------------------------------- |
-| `VALID`                | 0    | Seal valid, signature verified, current |
-| `MISSING`              | 1    | No seal found for gate                  |
-| `STALE`                | 0    | Seal exceeds maxAge (warning only)      |
-| `FINGERPRINT_MISMATCH` | 1    | Code changed since seal was created     |
-| `INVALID_SIGNATURE`    | 1    | Signature verification failed           |
-| `UNKNOWN_SIGNER`       | 1    | Signer not in team configuration        |
+| State                  | `verify` Exit | Description                             |
+| ---------------------- | ------------- | --------------------------------------- |
+| `VALID`                | 0             | Seal valid, signature verified, current |
+| `MISSING`              | 1             | No seal found for gate                  |
+| `STALE`                | 0             | Seal exceeds maxAge (warning only)      |
+| `FINGERPRINT_MISMATCH` | 1             | Code changed since seal was created     |
+| `INVALID_SIGNATURE`    | 1             | Signature verification failed           |
+| `UNKNOWN_SIGNER`       | 1             | Signer not in team configuration        |
 
 ### Exit Codes
 
-`attest-it verify` and `attest-it status` share the same exit-code contract, defined in
-`packages/cli/src/utils/exit-codes.ts`:
+The exit codes below are defined once in `packages/cli/src/utils/exit-codes.ts` and used
+across commands, but `verify` and `status` use them differently:
 
 | Code | Constant     | Meaning                                                                                |
 | ---- | ------------ | -------------------------------------------------------------------------------------- |
@@ -491,6 +498,15 @@ When `attest-it verify` runs, each gate returns one of these states:
 | 4    | CANCELLED    | User cancelled the operation                                                           |
 | 5    | MISSING_KEY  | Required private key file is missing                                                   |
 
+**`status` is informational and always exits `SUCCESS` on gate results -- use `verify` to
+gate CI.** `status` reports gate states (`MISSING`, `FINGERPRINT_MISMATCH`,
+`INVALID_SIGNATURE`, `UNKNOWN_SIGNER`, `STALE`, etc.) so you can see what's wrong, but it
+never exits `FAILURE` for them -- it exits `SUCCESS` (0) as long as it successfully produced
+a report. Only `verify` returns `FAILURE` (1) when a gate is invalid. **Do not wire `status`
+into a CI gate expecting it to fail the build** -- it won't; wire `verify` instead. The one
+case where `status` _does_ fail closed is a missing/unreadable **configuration** itself (see
+below), which is a different concern from a gate's verification state.
+
 **Missing configuration is fail-closed, not fail-open.** If no `.attest-it/policy.yaml` (or
 `.yml`/`.json`) can be found — and no `--config <path>` override resolves either — both
 `verify` and `status` exit `CONFIG_ERROR`, never `SUCCESS`. This applies even when the
@@ -500,7 +516,8 @@ fails loudly instead of reporting a false green. Run `attest-it init` to scaffol
 A configuration that loads successfully but defines zero gates is different from a missing
 configuration — the config is valid, there is simply nothing to check. That case exits
 `NO_WORK` (2) rather than `CONFIG_ERROR`, and rather than silently exiting `SUCCESS` (which
-would make "verified" indistinguishable from "verified nothing").
+would make "verified" indistinguishable from "verified nothing"). This `NO_WORK` behavior is
+also shared by both `verify` and `status`.
 
 ---
 
@@ -519,10 +536,16 @@ settings:
 
 ```yaml
 privateKey:
-  type: file
+  type: filesystem
   path: ~/.config/attest-it/key.pem
   # Resolves to: /Users/alice/.config/attest-it/key.pem
 ```
+
+`type: filesystem` is the legacy shape that a v1-to-v2 migration produces for an old
+path-based key; it still supports `~` expansion. A fresh `identity create` instead writes
+`type: file` with an opaque VaultKeeper `id` (see [Local Identity
+Configuration](#local-identity-configuration)) — there is no raw path to resolve for that
+shape.
 
 ---
 
@@ -660,6 +683,24 @@ configuration must never be reported as a passing verification.
 
 If you passed `--config <path>` explicitly and that path doesn't exist or can't be read, the
 error names the path you gave instead of the auto-detected candidates.
+
+### Working Tree Has Uncommitted Changes
+
+```
+✗ Working tree has uncommitted changes. Please commit or stash before attesting.
+```
+
+**Cause:** `attest-it run --suite` (and `run` in interactive mode) refuses to run and seal
+against a dirty working tree -- this includes untracked files, so newly-created config or
+source files that haven't been added and committed yet will trigger it, not just modified
+tracked files. This precondition exists so the fingerprint a seal signs always corresponds
+to a specific commit, not to working-tree state that could change or vanish afterward.
+
+**Solution:** Commit (or stash) all pending changes -- including any `.attest-it/policy.yaml`
+/ `.attest-it/config.yaml` edits from setup -- before running `attest-it run --suite`. See
+[Step 4 of Getting Started](getting-started.md#step-4-run-tests-and-create-seal) for the
+documented order. To opt out (e.g. for local dogfooding of this repo on itself), set
+`ATTEST_IT_ALLOW_DIRTY=1`; this is not recommended for normal project use.
 
 ### Version Incompatible Error
 
