@@ -96,7 +96,10 @@ describe('KeyProviderRegistry', () => {
       const provider = KeyProviderRegistry.create(config)
 
       expect(provider).toBeInstanceOf(VaultKeyProvider)
-      expect(provider.type).toBe('file')
+      // Per #63's design, VaultKeyProvider.type is the stable 'vaultkeeper'
+      // string regardless of backend; the backend identity lives in
+      // provider.getConfig().options.backendType instead.
+      expect(provider.type).toBe('vaultkeeper')
       expect(provider.displayName).toBe('Filesystem')
     })
 
@@ -109,7 +112,9 @@ describe('KeyProviderRegistry', () => {
       const provider = KeyProviderRegistry.create(config)
 
       expect(provider).toBeInstanceOf(VaultKeyProvider)
-      expect(provider.type).toBe('1password')
+      // Per #63's design, VaultKeyProvider.type is the stable 'vaultkeeper'
+      // string regardless of backend.
+      expect(provider.type).toBe('vaultkeeper')
       expect(provider.displayName).toBe('1Password')
     })
 
@@ -122,7 +127,9 @@ describe('KeyProviderRegistry', () => {
       const provider = KeyProviderRegistry.create(config)
 
       expect(provider).toBeInstanceOf(VaultKeyProvider)
-      expect(provider.type).toBe('keychain')
+      // Per #63's design, VaultKeyProvider.type is the stable 'vaultkeeper'
+      // string regardless of backend.
+      expect(provider.type).toBe('vaultkeeper')
       expect(provider.displayName).toBe('macOS Keychain')
     })
 
@@ -135,7 +142,9 @@ describe('KeyProviderRegistry', () => {
       const provider = KeyProviderRegistry.create(config)
 
       expect(provider).toBeInstanceOf(VaultKeyProvider)
-      expect(provider.type).toBe('yubikey')
+      // Per #63's design, VaultKeyProvider.type is the stable 'vaultkeeper'
+      // string regardless of backend.
+      expect(provider.type).toBe('vaultkeeper')
       expect(provider.displayName).toBe('YubiKey')
     })
 
