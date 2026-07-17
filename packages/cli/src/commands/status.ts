@@ -55,7 +55,10 @@ interface GateStatus {
  * exiting 0: a missing/unreadable configuration exits {@link ExitCode.CONFIG_ERROR}
  * with a legible message instead of printing a bare empty table. A report command
  * that silently reports "nothing" on a broken config is exactly the fail-open
- * behavior this is meant to avoid.
+ * behavior this is meant to avoid. As with `verify`, a `STALE` seal (past maxAge
+ * but otherwise valid) is a warning, not a failure, and does not by itself cause
+ * a non-zero exit — only `MISSING`/`FINGERPRINT_MISMATCH`/`INVALID_SIGNATURE`/
+ * `UNKNOWN_SIGNER` states do.
  *
  * @param gates - Array of gate IDs to show status for, or empty for all gates
  * @param options - Command options

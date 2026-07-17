@@ -232,7 +232,13 @@ describe('status command', () => {
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('FINGERPRINT_MISMATCH'))
     })
 
-    it('should show STALE when seal exceeds maxAge', async () => {
+    it('should show STALE when seal exceeds maxAge, but exit SUCCESS since STALE is a warning not a failure', async () => {
+      // Regression test for PR #92 review thread: status.ts's JSDoc claims it
+      // "mirrors verify's exit-code semantics", but verify treats a STALE-only
+      // result set as SUCCESS (STALE is a warning, not a failure — see
+      // verify.ts's `hasStale` branch). status previously exited FAILURE (1)
+      // solely because a gate was STALE, contradicting that claim. It must now
+      // exit SUCCESS (0) to actually mirror verify.
       const mockAttestItConfig = createMockAttestItConfig()
       vi.mocked(loadSplitConfig).mockResolvedValue(mockAttestItConfig)
       vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
@@ -252,6 +258,54 @@ describe('status command', () => {
 
       expect(mockProcessExit).toHaveBeenCalledWith(0) // status is informational-only; always exits 0
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('STALE'))
+    })
+
+    it('should exit FAILURE when a STALE gate is mixed with a genuinely invalid gate', async () => {
+      // STALE alone is not a failure, but it must not mask a real failure among
+      // other gates either.
+      const mockAttestItConfig = {
+        ...createMockAttestItConfig(),
+        gates: {
+          gate1: {
+            name: 'Gate 1',
+            description: 'Gate 1',
+            authorizedSigners: ['alice'],
+            fingerprint: { paths: ['src/**/*.ts'] },
+            maxAge: '30d',
+          },
+          gate2: {
+            name: 'Gate 2',
+            description: 'Gate 2',
+            authorizedSigners: ['alice'],
+            fingerprint: { paths: ['lib/**/*.ts'] },
+            maxAge: '30d',
+          },
+        },
+      }
+      vi.mocked(loadSplitConfig).mockResolvedValue(mockAttestItConfig)
+      vi.mocked(readSealsSync).mockReturnValue(createMockSealsFile())
+      vi.mocked(computeFingerprintSync).mockReturnValue({
+        fingerprint: 'sha256:abc123def456',
+        fileCount: 10,
+        files: [],
+      })
+      vi.mocked(verifyAllSeals).mockReturnValue([
+        createMockVerificationResult({
+          gateId: 'gate1',
+          state: 'STALE',
+          message: 'Seal is 45 days old, exceeds maxAge of 30 days',
+        }),
+        createMockVerificationResult({
+          gateId: 'gate2',
+          state: 'MISSING',
+          seal: undefined,
+          message: 'No seal found',
+        }),
+      ])
+
+      await runStatus([], { json: true })
+
+      expect(mockProcessExit).toHaveBeenCalledWith(1)
     })
 
     it('should return exit code 3 when config not found', async () => {
