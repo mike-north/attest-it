@@ -5,7 +5,6 @@
 import { Command } from 'commander'
 import { spawn } from 'node:child_process'
 import { parse as parseShellCommand } from 'shell-quote'
-import { password } from '@inquirer/prompts'
 import {
   loadSplitConfig,
   computeFingerprint,
@@ -22,13 +21,11 @@ import {
   type Identity,
 } from '@attest-it/core'
 import { log, success, error, warn, verbose } from '../utils/output.js'
-import { confirmAction, isInteractiveTTY } from '../utils/prompts.js'
+import { confirmAction, isInteractiveTTY, handlePromptableError } from '../utils/prompts.js'
+import { resolveKeyPassphrase } from '../utils/passphrase.js'
 import { ExitCode } from '../utils/exit-codes.js'
 import { runInteractive } from './run-interactive.js'
 import { getAllSuiteStatuses } from './run-utils.js'
-
-/** Env var read for the passphrase of an encrypted file-backed identity key. */
-const KEY_PASSPHRASE_ENV = 'ATTEST_IT_KEY_PASSPHRASE'
 
 export const runCommand = new Command('run')
   .description('Execute tests and create attestation')
@@ -92,12 +89,7 @@ async function runTests(options: RunOptions): Promise<void> {
       filter: options.filter,
     })
   } catch (err) {
-    if (err instanceof Error) {
-      error(err.message)
-    } else {
-      error('Unknown error occurred')
-    }
-    process.exit(ExitCode.CONFIG_ERROR)
+    handlePromptableError(err, ExitCode.CONFIG_ERROR)
   }
 }
 
@@ -271,7 +263,7 @@ async function runDirectMode(options: RunOptions): Promise<void> {
     const isDirty = await checkDirtyWorkingTree()
     if (isDirty) {
       error('Working tree has uncommitted changes. Please commit or stash before attesting.')
-      process.exit(ExitCode.CONFIG_ERROR)
+      process.exit(ExitCode.DIRTY_WORKING_TREE)
     }
   }
 
@@ -325,7 +317,7 @@ async function runAllPending(options: RunOptions): Promise<void> {
     const isDirty = await checkDirtyWorkingTree()
     if (isDirty) {
       error('Working tree has uncommitted changes. Please commit or stash before attesting.')
-      process.exit(ExitCode.CONFIG_ERROR)
+      process.exit(ExitCode.DIRTY_WORKING_TREE)
     }
   }
 
@@ -545,34 +537,6 @@ async function promptForSeal(
 }
 
 /**
- * Resolve the passphrase needed to sign with an encrypted file-backed
- * private key (created via `identity create --storage file --passphrase-stdin`).
- *
- * Order: the `ATTEST_IT_KEY_PASSPHRASE` env var, then (interactively) a
- * masked prompt, then fail fast naming the env var -- this never hangs on a
- * prompt that can never resolve. See issue #80.
- *
- * @returns The resolved passphrase
- * @throws Error if non-interactive and the env var is not set
- */
-async function resolveKeyPassphrase(): Promise<string> {
-  const fromEnv = process.env[KEY_PASSPHRASE_ENV]
-  if (fromEnv !== undefined && fromEnv.length > 0) {
-    return fromEnv
-  }
-  if (isInteractiveTTY()) {
-    return password({
-      message: 'Passphrase for encrypted private key:',
-      validate: (value) => (value.length > 0 ? true : 'Passphrase cannot be empty'),
-    })
-  }
-  throw new Error(
-    `This identity's private key is passphrase-encrypted. Set ${KEY_PASSPHRASE_ENV} ` +
-      '(no interactive terminal available to prompt for it).',
-  )
-}
-
-/**
  * Create a key provider from an identity's private key reference.
  *
  * @param identity - The identity containing the private key reference
@@ -641,4 +605,4 @@ function getKeyRefFromIdentity(identity: Identity): string {
 }
 
 // Export for testing
-export { buildCommand, parseCommand, executeCommand, checkDirtyWorkingTree, resolveKeyPassphrase }
+export { buildCommand, parseCommand, executeCommand, checkDirtyWorkingTree }

@@ -15,6 +15,7 @@ import {
   readSealsSync,
   writeSealsSync,
   verifyGateSeal,
+  isEncryptedPrivateKeyPem,
   KeyProviderRegistry,
   API_SCHEMA_VERSION,
   type AttestItConfig,
@@ -25,6 +26,7 @@ import {
 } from '@attest-it/core'
 import { log, success, error, warn, verbose, outputJson } from '../utils/output.js'
 import { ExitCode } from '../utils/exit-codes.js'
+import { resolveKeyPassphrase } from '../utils/passphrase.js'
 
 export const sealCommand = new Command('seal')
   .description('Create seals for gates')
@@ -301,12 +303,21 @@ async function processSingleGate(
   // Clean up after reading
   await keyResult.cleanup()
 
+  // A file-backed key created with `identity create --passphrase-stdin` is
+  // encrypted; resolve the passphrase needed to sign with it from the
+  // environment, an interactive prompt, or fail fast. Shared with `run`'s
+  // seal-creation path -- see issue #94.
+  const passphrase = isEncryptedPrivateKeyPem(privateKeyPem)
+    ? await resolveKeyPassphrase()
+    : undefined
+
   // Create seal using identity slug (not display name) for verification lookup
   const seal = createSeal({
     gateId,
     fingerprint: fingerprintResult.fingerprint,
     sealedBy: identitySlug,
     privateKey: privateKeyPem,
+    ...(passphrase !== undefined && { passphrase }),
   })
 
   // Add seal to seals file

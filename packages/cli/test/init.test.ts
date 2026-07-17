@@ -27,10 +27,18 @@ vi.mock('node:fs', async () => {
 // to exercise the interactive overwrite-confirmation prompt unchanged; the
 // dedicated 'non-interactive guard' describe block below overrides it with
 // mockReturnValue(false) to exercise the fail-fast path from issue #80.
-vi.mock('../src/utils/prompts.js', () => ({
-  confirmAction: vi.fn(),
-  isInteractiveTTY: vi.fn(() => true),
-}))
+// handlePromptableError is left as the real implementation (via
+// importActual) -- it doesn't depend on isInteractiveTTY/confirmAction, and
+// tests rely on it actually calling the (separately mocked) process.exit.
+vi.mock('../src/utils/prompts.js', async () => {
+  const actual =
+    await vi.importActual<typeof import('../src/utils/prompts.js')>('../src/utils/prompts.js')
+  return {
+    ...actual,
+    confirmAction: vi.fn(),
+    isInteractiveTTY: vi.fn(() => true),
+  }
+})
 
 // Mock completion offer (no-op in tests)
 vi.mock('../src/utils/completion-offer.js', () => ({

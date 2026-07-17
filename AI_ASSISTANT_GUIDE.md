@@ -206,14 +206,28 @@ same thing**: `verify` uses them to report gate validity; `status` uses only `SU
 `NO_WORK`, and `CONFIG_ERROR` (never `FAILURE`, `CANCELLED`, or `MISSING_KEY`), because
 `status` is informational and does not enforce gate results.
 
-| Code | Constant     | Meaning                                                                                |
-| ---- | ------------ | -------------------------------------------------------------------------------------- |
-| 0    | SUCCESS      | Operation completed successfully (all seals valid)                                     |
-| 1    | FAILURE      | Tests failed, or one or more gate seals are invalid                                    |
-| 2    | NO_WORK      | Configuration loaded successfully, but zero gates are defined — nothing to verify      |
-| 3    | CONFIG_ERROR | No discoverable configuration, an unreadable `--config` path, or invalid configuration |
-| 4    | CANCELLED    | User cancelled the operation                                                           |
-| 5    | MISSING_KEY  | Required private key file is missing                                                   |
+| Code | Constant           | Meaning                                                                                |
+| ---- | ------------------ | -------------------------------------------------------------------------------------- |
+| 0    | SUCCESS            | Operation completed successfully (all seals valid)                                     |
+| 1    | FAILURE            | Tests failed, or one or more gate seals are invalid                                    |
+| 2    | NO_WORK            | Configuration loaded successfully, but zero gates are defined — nothing to verify      |
+| 3    | CONFIG_ERROR       | No discoverable configuration, an unreadable `--config` path, or invalid configuration |
+| 4    | CANCELLED          | User cancelled the operation (a declined or force-closed/interrupted prompt)           |
+| 5    | MISSING_KEY        | Required private key file is missing                                                   |
+| 6    | DIRTY_WORKING_TREE | `run` refused because the git working tree has uncommitted changes                     |
+
+**A cancelled prompt is always `CANCELLED` (4), never `CONFIG_ERROR`.** This applies to every
+interactive confirmation in the CLI (`identity create`/`remove`, `init`, `team add`/`join`/`remove`,
+`run`) — whether the user explicitly declines, or the prompt is interrupted/force-closed (e.g.
+Ctrl-C, or a piped stdin that closes mid-prompt). Prior to issue #95, a force-closed prompt fell
+through to `CONFIG_ERROR` with `@inquirer/core`'s raw, unpolished message; it's now reported as a
+clean `Cancelled` line under the documented `CANCELLED` code.
+
+**A dirty working tree is `DIRTY_WORKING_TREE` (6), never `CONFIG_ERROR`.** `run` refuses to
+execute a suite (and create its seal) when `git status --porcelain` reports uncommitted changes,
+unless `ATTEST_IT_ALLOW_DIRTY` is set. This is a precondition failure on an otherwise-valid
+configuration, not a configuration problem — so it gets its own code, distinguishable from "no
+configuration found" by an automation/CI consumer.
 
 **`attest-it status` always exits `SUCCESS` (0) on gate results, even `MISSING`,
 `FINGERPRINT_MISMATCH`, `INVALID_SIGNATURE`, `UNKNOWN_SIGNER`, or `STALE` — it displays

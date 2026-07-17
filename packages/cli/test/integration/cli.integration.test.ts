@@ -447,7 +447,9 @@ describe('CLI Integration Tests', () => {
 
       // Use --no-attest since attestation signing isn't the focus of this test
       const result = await runCli(['run', '--suite', 'example', '--no-attest'], tempDir)
-      expect(result.exitCode).toBe(3) // CONFIG_ERROR
+      // DIRTY_WORKING_TREE (6) -- distinct from CONFIG_ERROR (3): a dirty tree
+      // is a precondition failure, not a configuration problem. See issue #95.
+      expect(result.exitCode).toBe(6)
       expect(result.stderr).toContain('uncommitted')
     })
   })

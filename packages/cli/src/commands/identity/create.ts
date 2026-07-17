@@ -28,6 +28,7 @@ import {
   resolveOptionalOrPrompt,
   isInteractiveTTY,
   readStdin,
+  handlePromptableError,
 } from '../../utils/prompts.js'
 import { join } from 'node:path'
 
@@ -794,12 +795,7 @@ async function runCreate(options: CreateOptions): Promise<void> {
     // Offer to install shell completions
     await offerCompletionInstall()
   } catch (err) {
-    if (err instanceof Error) {
-      error(err.message)
-    } else {
-      error('Unknown error occurred')
-    }
-    process.exit(ExitCode.CONFIG_ERROR)
+    handlePromptableError(err, ExitCode.CONFIG_ERROR)
   }
 }
 

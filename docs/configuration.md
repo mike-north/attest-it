@@ -494,14 +494,22 @@ including `MISSING`, `FINGERPRINT_MISMATCH`, `INVALID_SIGNATURE`, and `UNKNOWN_S
 The exit codes below are defined once in `packages/cli/src/utils/exit-codes.ts` and used
 across commands, but `verify` and `status` use them differently:
 
-| Code | Constant     | Meaning                                                                                |
-| ---- | ------------ | -------------------------------------------------------------------------------------- |
-| 0    | SUCCESS      | All gates valid (STALE is a warning only)                                              |
-| 1    | FAILURE      | One or more gates invalid                                                              |
-| 2    | NO_WORK      | Configuration loaded successfully, but zero gates are defined — nothing to verify      |
-| 3    | CONFIG_ERROR | No discoverable configuration, an unreadable `--config` path, or invalid configuration |
-| 4    | CANCELLED    | User cancelled the operation                                                           |
-| 5    | MISSING_KEY  | Required private key file is missing                                                   |
+| Code | Constant           | Meaning                                                                                |
+| ---- | ------------------ | -------------------------------------------------------------------------------------- |
+| 0    | SUCCESS            | All gates valid (STALE is a warning only)                                              |
+| 1    | FAILURE            | One or more gates invalid                                                              |
+| 2    | NO_WORK            | Configuration loaded successfully, but zero gates are defined — nothing to verify      |
+| 3    | CONFIG_ERROR       | No discoverable configuration, an unreadable `--config` path, or invalid configuration |
+| 4    | CANCELLED          | User cancelled the operation (a declined or force-closed/interrupted prompt)           |
+| 5    | MISSING_KEY        | Required private key file is missing                                                   |
+| 6    | DIRTY_WORKING_TREE | `run` refused because the git working tree has uncommitted changes                     |
+
+**A cancelled prompt is `CANCELLED` (4), never `CONFIG_ERROR`** — whether declined or
+force-closed/interrupted (e.g. Ctrl-C, or a piped stdin that closes mid-prompt).
+
+**A dirty working tree is `DIRTY_WORKING_TREE` (6), never `CONFIG_ERROR`.** `run` refuses to run
+a suite when the working tree has uncommitted changes (unless `ATTEST_IT_ALLOW_DIRTY` is set) —
+a precondition failure, not a configuration problem.
 
 **`status` is informational and always exits `SUCCESS` on gate results -- use `verify` to
 gate CI.** `status` reports gate states (`MISSING`, `FINGERPRINT_MISMATCH`,

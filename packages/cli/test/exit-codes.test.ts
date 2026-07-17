@@ -7,6 +7,14 @@
  * tables and pin every row to the real enum value, so the docs can't silently
  * drift from the implementation again.
  *
+ * Extended for #95: exit code 3 (`CONFIG_ERROR`) was overloaded across "no
+ * config found" (correct), a cancelled prompt (should be `CANCELLED`), and a
+ * dirty working tree (should be its own code). `CANCELLED` was already
+ * documented and is covered by the existing per-row pin below; the new
+ * `DIRTY_WORKING_TREE` code added for the dirty-tree case is covered the same
+ * way, and the row-count/enum-membership assertions below now require both
+ * to be present and correctly mapped.
+ *
  * @see ../src/utils/exit-codes.ts
  */
 import { describe, it, expect } from 'vitest'
@@ -42,7 +50,7 @@ function parseExitCodeTable(markdown: string): DocumentedRow[] {
 const EXIT_CODE_BY_NAME: Record<string, number> = ExitCode
 
 describe('exit-code documentation matches the ExitCode enum (#81)', () => {
-  it('the enum itself has the six documented members', () => {
+  it('the enum itself has the seven documented members', () => {
     expect(ExitCode).toStrictEqual({
       SUCCESS: 0,
       FAILURE: 1,
@@ -50,6 +58,7 @@ describe('exit-code documentation matches the ExitCode enum (#81)', () => {
       CONFIG_ERROR: 3,
       CANCELLED: 4,
       MISSING_KEY: 5,
+      DIRTY_WORKING_TREE: 6,
     })
   })
 
@@ -61,7 +70,7 @@ describe('exit-code documentation matches the ExitCode enum (#81)', () => {
     }
 
     const rows = parseExitCodeTable(section)
-    expect(rows.length).toBe(6)
+    expect(rows.length).toBe(7)
 
     for (const row of rows) {
       expect(EXIT_CODE_BY_NAME[row.constant], `documented constant "${row.constant}"`).toBe(
@@ -85,7 +94,7 @@ describe('exit-code documentation matches the ExitCode enum (#81)', () => {
     }
 
     const rows = parseExitCodeTable(section)
-    expect(rows.length).toBe(6)
+    expect(rows.length).toBe(7)
 
     for (const row of rows) {
       expect(EXIT_CODE_BY_NAME[row.constant], `documented constant "${row.constant}"`).toBe(
@@ -97,5 +106,19 @@ describe('exit-code documentation matches the ExitCode enum (#81)', () => {
     for (const name of Object.keys(ExitCode)) {
       expect(documentedNames.has(name), `enum member "${name}" documented`).toBe(true)
     }
+  })
+
+  it('CANCELLED (4) is distinct from CONFIG_ERROR (3) -- issue #95', () => {
+    // A cancelled prompt (declined or force-closed/interrupted) must never
+    // collapse onto the same code as "no configuration found".
+    expect(ExitCode.CANCELLED).toBe(4)
+    expect(ExitCode.CANCELLED).not.toBe(ExitCode.CONFIG_ERROR)
+  })
+
+  it('DIRTY_WORKING_TREE (6) is distinct from CONFIG_ERROR (3) -- issue #95', () => {
+    // A dirty working tree is a precondition failure on valid configuration,
+    // not a configuration error -- it must not share CONFIG_ERROR's code.
+    expect(ExitCode.DIRTY_WORKING_TREE).toBe(6)
+    expect(ExitCode.DIRTY_WORKING_TREE).not.toBe(ExitCode.CONFIG_ERROR)
   })
 })

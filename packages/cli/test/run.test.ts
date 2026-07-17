@@ -4,8 +4,8 @@ import {
   parseCommand,
   executeCommand,
   checkDirtyWorkingTree,
-  resolveKeyPassphrase,
 } from '../src/commands/run.js'
+import { resolveKeyPassphrase } from '../src/utils/passphrase.js'
 import type { Config } from '@attest-it/core'
 import type { ChildProcess } from 'node:child_process'
 
@@ -38,11 +38,18 @@ vi.mock('../src/utils/output.js', () => ({
   info: vi.fn(),
 }))
 
-// Mock prompts
-vi.mock('../src/utils/prompts.js', () => ({
-  confirmAction: vi.fn(),
-  isInteractiveTTY: vi.fn(() => false),
-}))
+// Mock prompts. handlePromptableError is left as the real implementation
+// (via importActual) -- it doesn't depend on isInteractiveTTY/confirmAction,
+// and nothing here should silently swallow a call to it.
+vi.mock('../src/utils/prompts.js', async () => {
+  const actual =
+    await vi.importActual<typeof import('../src/utils/prompts.js')>('../src/utils/prompts.js')
+  return {
+    ...actual,
+    confirmAction: vi.fn(),
+    isInteractiveTTY: vi.fn(() => false),
+  }
+})
 
 // Mock @inquirer/prompts' password() -- used to prompt for an encrypted
 // identity key's passphrase interactively (issue #80)
