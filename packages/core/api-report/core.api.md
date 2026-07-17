@@ -144,8 +144,8 @@ export interface FingerprintConfig {
 // @public
 export interface FingerprintOptions {
     baseDir?: string;
-    ignore?: string[];
-    packages: string[];
+    exclude?: string[];
+    paths: string[];
 }
 
 // @public

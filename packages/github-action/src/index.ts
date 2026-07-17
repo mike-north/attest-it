@@ -177,8 +177,8 @@ export async function run(): Promise<void> {
     if (config.gates) {
       for (const [gateId, gateConfig] of Object.entries(config.gates)) {
         const result = await computeFingerprint({
-          packages: gateConfig.fingerprint.paths,
-          ...(gateConfig.fingerprint.exclude && { ignore: gateConfig.fingerprint.exclude }),
+          paths: gateConfig.fingerprint.paths,
+          ...(gateConfig.fingerprint.exclude && { exclude: gateConfig.fingerprint.exclude }),
         })
         fingerprints[gateId] = result.fingerprint
       }

@@ -142,8 +142,9 @@ describe('Interactive CLI Scenarios with fixturify-project', () => {
 
       const result = await runCli(['status'], project.baseDir)
 
-      // Exit code 1 = has pending suites (since no attestations created yet)
-      expect(result.exitCode).toBe(1)
+      // status is informational-only and always exits 0, even with pending
+      // suites (no seals created yet).
+      expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('tests')
     })
 

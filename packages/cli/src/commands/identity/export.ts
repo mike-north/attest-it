@@ -13,7 +13,7 @@ export const exportCommand = new Command('export')
   })
 
 /**
- * Run the export command to output a YAML snippet for team config.
+ * Run the export command to output a YAML snippet for the project's policy file.
  * @public
  */
 export async function runExport(slug?: string): Promise<void> {
@@ -39,7 +39,7 @@ export async function runExport(slug?: string): Promise<void> {
     log('')
     log(theme.blue.bold()('Team Configuration YAML:'))
     log('')
-    log(theme.muted('# Add this to .attest-it/policy.yaml under the "team:" key'))
+    log(theme.muted('# Add this to your project policy file (.attest-it/policy.yaml)'))
     log('')
 
     // Build export object (only include fields that are present)
@@ -65,7 +65,7 @@ export async function runExport(slug?: string): Promise<void> {
 
     log(yamlString)
     log('')
-    log(theme.muted('# The team owner can add this to the "team:" section of policy.yaml'))
+    log(theme.muted('# The team owner can add this to the "team:" section'))
     log('')
   } catch (err) {
     if (err instanceof Error) {

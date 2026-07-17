@@ -19,6 +19,7 @@ vi.mock('@attest-it/core', async () => {
     getGate: vi.fn(),
     readSealsSync: vi.fn(),
     writeSealsSync: vi.fn(),
+    verifyGateSeal: vi.fn(),
   }
 })
 
@@ -43,6 +44,7 @@ const {
   getGate,
   readSealsSync,
   writeSealsSync,
+  verifyGateSeal,
 } = await import('@attest-it/core')
 const { runSeal } = await import('../src/commands/seal.js')
 
@@ -116,6 +118,98 @@ describe('seal --json', () => {
     expect(writeSealsSync).not.toHaveBeenCalled()
     // Skips (but no failures) exit successfully.
     expect(mockProcessExit).toHaveBeenCalledWith(0)
+  })
+
+  // Regression: `seal` used to skip resealing whenever *any* seal existed for
+  // a gate, checking only presence and never validity. That let a stale seal
+  // (fingerprint changed, signature invalid, signer no longer authorized,
+  // etc.) survive indefinitely without --force. `seal` must now run full
+  // verification (verifyGateSeal) before deciding to skip.
+  it('reseals when an existing seal is present but no longer valid (e.g. fingerprint changed)', async () => {
+    const config = mockConfig()
+    vi.mocked(loadSplitConfig).mockResolvedValue(config)
+    vi.mocked(loadLocalConfigSync).mockReturnValue(mockLocalConfig('alice'))
+    vi.mocked(getActiveIdentity).mockReturnValue(mockIdentity('alice'))
+    const existingSeal = {
+      gateId: 'test-gate',
+      fingerprint: 'sha256:stale',
+      timestamp: '2024-01-01T00:00:00.000Z',
+      sealedBy: 'alice',
+      signature: 'sig',
+    }
+    vi.mocked(readSealsSync).mockReturnValue({
+      version: 1,
+      seals: { 'test-gate': existingSeal },
+    })
+    vi.mocked(getGate).mockReturnValue(config.gates?.['test-gate'])
+    vi.mocked(computeFingerprintSync).mockReturnValue({
+      fingerprint: 'sha256:fresh',
+      fileCount: 1,
+      files: [],
+    })
+    vi.mocked(isAuthorizedSigner).mockReturnValue(true)
+    // The existing seal's fingerprint no longer matches -- verification reports mismatch.
+    vi.mocked(verifyGateSeal).mockReturnValue({
+      gateId: 'test-gate',
+      state: 'FINGERPRINT_MISMATCH',
+      seal: existingSeal,
+      message: 'Fingerprint changed since seal was created',
+    })
+
+    await runSeal(['test-gate'], { json: true, dryRun: true })
+
+    // A dry run with a stale seal should report the gate as (would be) sealed,
+    // not skipped -- proving the skip-on-existence bug is fixed.
+    const printed = mockConsoleLog.mock.calls.map((c) => String(c[0])).join('\n')
+    expect(printed).toContain('"sealed"')
+    const parsed: { sealed: unknown[]; skipped: unknown[] } = JSON.parse(printed) as {
+      sealed: unknown[]
+      skipped: unknown[]
+    }
+    expect(parsed.sealed).toHaveLength(1)
+    expect(parsed.skipped).toHaveLength(0)
+  })
+
+  it('skips resealing when the existing seal is still valid (no --force)', async () => {
+    const config = mockConfig()
+    vi.mocked(loadSplitConfig).mockResolvedValue(config)
+    vi.mocked(loadLocalConfigSync).mockReturnValue(mockLocalConfig('alice'))
+    vi.mocked(getActiveIdentity).mockReturnValue(mockIdentity('alice'))
+    const existingSeal = {
+      gateId: 'test-gate',
+      fingerprint: 'sha256:fresh',
+      timestamp: '2024-01-01T00:00:00.000Z',
+      sealedBy: 'alice',
+      signature: 'sig',
+    }
+    vi.mocked(readSealsSync).mockReturnValue({
+      version: 1,
+      seals: { 'test-gate': existingSeal },
+    })
+    vi.mocked(getGate).mockReturnValue(config.gates?.['test-gate'])
+    vi.mocked(computeFingerprintSync).mockReturnValue({
+      fingerprint: 'sha256:fresh',
+      fileCount: 1,
+      files: [],
+    })
+    vi.mocked(isAuthorizedSigner).mockReturnValue(true)
+    vi.mocked(verifyGateSeal).mockReturnValue({
+      gateId: 'test-gate',
+      state: 'VALID',
+      seal: existingSeal,
+    })
+
+    await runSeal(['test-gate'], { json: true })
+
+    const printed = mockConsoleLog.mock.calls.map((c) => String(c[0])).join('\n')
+    const parsed: { sealed: unknown[]; skipped: { reason: string }[] } = JSON.parse(printed) as {
+      sealed: unknown[]
+      skipped: { reason: string }[]
+    }
+    expect(parsed.sealed).toHaveLength(0)
+    expect(parsed.skipped).toHaveLength(1)
+    expect(parsed.skipped[0]?.reason).toContain('already has a valid seal')
+    expect(writeSealsSync).not.toHaveBeenCalled()
   })
 
   it('emits a structured error object (not a bare line) on config failure', async () => {
