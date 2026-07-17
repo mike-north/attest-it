@@ -24,6 +24,43 @@ npx attest-it run --suite my-suite
 npx attest-it verify
 ```
 
+### Non-interactive (CI, embedders, agents)
+
+Every setup command above is interactive by default, but accepts flags so it
+can run with zero TTY prompts -- useful for CI, embedders, or agent-driven
+workflows. Pipe `< /dev/null` (or run under a supervisor with no TTY) and each
+command either completes without prompting or fails fast with a clear error
+naming the missing flag:
+
+```bash
+npm install attest-it
+
+# Create an identity with no prompts (file-backed key, optionally passphrase-encrypted)
+npx attest-it identity create --name "CI Bot" --storage file --slug ci-bot < /dev/null
+
+# Scaffold config non-interactively (fails fast with --force if files already exist)
+npx attest-it init --force < /dev/null
+
+# Add yourself to the team without prompting for gate authorization
+npx attest-it team join --gates my-gate < /dev/null
+
+# Run a suite and auto-confirm the seal
+npx attest-it run --suite my-suite --yes < /dev/null
+
+# In CI: verify all seals (already non-interactive)
+npx attest-it verify
+```
+
+To encrypt a file-backed private key, pipe a passphrase in via `--passphrase-stdin`:
+
+```bash
+echo "$CI_KEY_PASSPHRASE" | npx attest-it identity create \
+  --name "CI Bot" --storage file --slug ci-bot --passphrase-stdin
+```
+
+When `run` later needs to sign with that key, supply the same passphrase
+through the `ATTEST_IT_KEY_PASSPHRASE` environment variable.
+
 ## How It Works
 
 1. **Identity** - Your Ed25519 keypair (stored in 1Password, Keychain, YubiKey, or filesystem)

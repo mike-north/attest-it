@@ -149,6 +149,55 @@ describe('createSeal', () => {
       }),
     ).toThrow()
   })
+
+  // A passphrase-encrypted private key (from CLI's `identity create
+  // --passphrase-stdin`, issue #80) must be sign-able given the right
+  // passphrase, and must fail clearly otherwise.
+  describe('with a passphrase-encrypted private key', () => {
+    it('should create a verifiable seal when the correct passphrase is supplied', () => {
+      const { publicKey, privateKey } = generateKeyPair({ passphrase: 'seal-passphrase' })
+      const config = createTestConfig()
+      config.team ??= {}
+      config.team.alice = { name: 'Alice', publicKey }
+
+      const seal = createSeal({
+        gateId: 'unit-tests',
+        fingerprint: 'sha256:abc123',
+        sealedBy: 'alice',
+        privateKey,
+        passphrase: 'seal-passphrase',
+      })
+
+      expect(verifySeal(seal, config)).toEqual({ valid: true })
+    })
+
+    it('should throw when no passphrase is supplied for an encrypted private key', () => {
+      const { privateKey } = generateKeyPair({ passphrase: 'seal-passphrase' })
+
+      expect(() =>
+        createSeal({
+          gateId: 'unit-tests',
+          fingerprint: 'sha256:abc123',
+          sealedBy: 'alice',
+          privateKey,
+        }),
+      ).toThrow()
+    })
+
+    it('should throw when the wrong passphrase is supplied for an encrypted private key', () => {
+      const { privateKey } = generateKeyPair({ passphrase: 'seal-passphrase' })
+
+      expect(() =>
+        createSeal({
+          gateId: 'unit-tests',
+          fingerprint: 'sha256:abc123',
+          sealedBy: 'alice',
+          privateKey,
+          passphrase: 'wrong-passphrase',
+        }),
+      ).toThrow()
+    })
+  })
 })
 
 describe('verifySeal', () => {

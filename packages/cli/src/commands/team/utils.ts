@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { checkbox } from '@inquirer/prompts'
 import { findPolicyPath, parsePolicyContent, type PolicyConfig } from '@attest-it/core'
+import { isInteractiveTTY } from '../../utils/prompts.js'
 
 /**
  * Load the policy configuration for editing.
@@ -51,6 +52,50 @@ export async function promptForGateAuthorization(
   })
 
   return authorizedGates
+}
+
+/**
+ * Resolve which gates to authorize for a team member, from a `--gates` flag,
+ * an interactive checkbox prompt, or neither.
+ *
+ * @remarks
+ * Gate authorization is optional (a team member can be added with no gates
+ * authorized), so a missing `--gates` flag in a non-interactive context is
+ * not an error -- it resolves to an empty array rather than failing fast.
+ *
+ * @param gates - The gates configuration from the policy file
+ * @param gatesFlag - Comma-separated gate IDs from a `--gates` flag, if supplied
+ * @returns Array of gate IDs to authorize
+ * @throws Error if `gatesFlag` names a gate ID that does not exist
+ * @public
+ */
+export async function resolveGateAuthorization(
+  gates: PolicyConfig['gates'] | undefined,
+  gatesFlag?: string,
+): Promise<string[]> {
+  if (!gates || Object.keys(gates).length === 0) {
+    return []
+  }
+
+  if (gatesFlag !== undefined) {
+    const requested = gatesFlag
+      .split(',')
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0)
+    const unknown = requested.filter((id) => !Object.hasOwn(gates, id))
+    if (unknown.length > 0) {
+      throw new Error(
+        `--gates references unknown gate(s): ${unknown.join(', ')}. Known gates: ${Object.keys(gates).join(', ')}`,
+      )
+    }
+    return requested
+  }
+
+  if (!isInteractiveTTY()) {
+    return []
+  }
+
+  return promptForGateAuthorization(gates)
 }
 
 /**

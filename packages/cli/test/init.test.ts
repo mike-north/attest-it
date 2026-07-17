@@ -23,9 +23,13 @@ vi.mock('node:fs', async () => {
   }
 })
 
-// Mock prompts
+// Mock prompts. isInteractiveTTY defaults to true so existing tests continue
+// to exercise the interactive overwrite-confirmation prompt unchanged; the
+// dedicated 'non-interactive guard' describe block below overrides it with
+// mockReturnValue(false) to exercise the fail-fast path from issue #80.
 vi.mock('../src/utils/prompts.js', () => ({
   confirmAction: vi.fn(),
+  isInteractiveTTY: vi.fn(() => true),
 }))
 
 // Mock completion offer (no-op in tests)
@@ -54,7 +58,7 @@ const mockProcessExit = vi.spyOn(process, 'exit').mockImplementation(() => {
 })
 
 // Import mocked functions
-const { confirmAction } = await import('../src/utils/prompts.js')
+const { confirmAction, isInteractiveTTY } = await import('../src/utils/prompts.js')
 const { migrateUnifiedContent } = await import('@attest-it/core')
 
 // Load the *real* template files from disk (via the unmocked fs module) so the
@@ -100,6 +104,12 @@ describe('init command', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
+    // Most of these tests exercise the interactive overwrite-confirmation
+    // prompt, only reachable with an interactive TTY (see issue #80's
+    // fail-fast guard). The dedicated 'non-interactive' describe block below
+    // overrides this per-test to exercise the guard itself.
+    vi.mocked(isInteractiveTTY).mockReturnValue(true)
+
     // By default: nothing exists on disk (fresh init), no lock files.
     vi.mocked(fs.existsSync).mockReturnValue(false)
 
@@ -131,6 +141,44 @@ describe('init command', () => {
 
   afterEach(() => {
     vi.clearAllMocks()
+  })
+
+  describe('non-interactive guard (issue #80)', () => {
+    it('should fail fast naming --force when policy.yaml exists, stdin is not a TTY, and --force is omitted', async () => {
+      vi.mocked(isInteractiveTTY).mockReturnValue(false)
+      vi.mocked(fs.existsSync).mockImplementation((filePath) =>
+        filePath.toString().endsWith('policy.yaml'),
+      )
+
+      await expect(runInit({ dir: DEFAULT_DIR })).rejects.toThrow('process.exit called')
+
+      expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CONFIG_ERROR)
+      expect(mockConsoleError).toHaveBeenCalledWith(
+        expect.stringMatching(/Config already exists.*--force/),
+      )
+      expect(confirmAction).not.toHaveBeenCalled()
+      expect(fs.promises.writeFile).not.toHaveBeenCalled()
+    })
+
+    it('should proceed without prompting when stdin is not a TTY and --force is set, even if files exist', async () => {
+      vi.mocked(isInteractiveTTY).mockReturnValue(false)
+      vi.mocked(fs.existsSync).mockReturnValue(true)
+
+      await runInit({ dir: DEFAULT_DIR, force: true })
+
+      expect(confirmAction).not.toHaveBeenCalled()
+      expect(fs.promises.writeFile).toHaveBeenCalled()
+    })
+
+    it('should not require a TTY when neither config file exists yet', async () => {
+      vi.mocked(isInteractiveTTY).mockReturnValue(false)
+      vi.mocked(fs.existsSync).mockReturnValue(false)
+
+      await runInit({ dir: DEFAULT_DIR })
+
+      expect(confirmAction).not.toHaveBeenCalled()
+      expect(fs.promises.writeFile).toHaveBeenCalled()
+    })
   })
 
   describe('positive cases (default split scaffold)', () => {

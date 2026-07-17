@@ -111,6 +111,7 @@ function createMockChildProcess() {
 describe('runInteractive', () => {
   let mockExit: ReturnType<typeof vi.spyOn<typeof process, 'exit'>>
   let originalProcessExit: typeof process.exit
+  const originalIsTTY = process.stdin.isTTY
 
   beforeEach(() => {
     // Save original process.exit
@@ -124,6 +125,12 @@ describe('runInteractive', () => {
     // Reset all mocks
     vi.clearAllMocks()
 
+    // Most of these tests exercise the interactive UI (or code paths that run
+    // before it), which is only reachable with an interactive TTY (see issue
+    // #80's non-TTY guard). The dedicated 'non-interactive' describe block
+    // below overrides this per-test to exercise the guard itself.
+    Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
+
     // Setup default mocks
     vi.mocked(loadSplitConfig).mockResolvedValue(createMockConfig())
     vi.mocked(getAllSuiteStatuses).mockResolvedValue([
@@ -136,6 +143,28 @@ describe('runInteractive', () => {
   afterEach(() => {
     // Restore original process.exit
     mockExit.mockRestore()
+    Object.defineProperty(process.stdin, 'isTTY', { value: originalIsTTY, configurable: true })
+  })
+
+  describe('non-interactive guard (issue #80)', () => {
+    it('should fail fast instead of hanging when stdin is not a TTY and pending suites exist', async () => {
+      Object.defineProperty(process.stdin, 'isTTY', { value: undefined, configurable: true })
+
+      await expect(runInteractive({})).rejects.toThrow('process.exit called')
+
+      expect(error).toHaveBeenCalledWith(
+        expect.stringContaining('requires an interactive terminal'),
+      )
+      expect(mockExit).toHaveBeenCalledWith(ExitCode.CONFIG_ERROR)
+    })
+
+    it('should not require a TTY for --dry-run', async () => {
+      Object.defineProperty(process.stdin, 'isTTY', { value: undefined, configurable: true })
+
+      await expect(runInteractive({ dryRun: true })).rejects.toThrow('process.exit called')
+
+      expect(mockExit).toHaveBeenCalledWith(ExitCode.SUCCESS)
+    })
   })
 
   describe('dry run mode', () => {

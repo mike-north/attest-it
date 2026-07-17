@@ -5,6 +5,7 @@
 import { Command } from 'commander'
 import { spawn } from 'node:child_process'
 import { parse as parseShellCommand } from 'shell-quote'
+import { password } from '@inquirer/prompts'
 import {
   loadSplitConfig,
   computeFingerprint,
@@ -16,14 +17,18 @@ import {
   createSeal,
   readSealsSync,
   writeSealsSync,
+  isEncryptedPrivateKeyPem,
   type AttestItConfig,
   type Identity,
 } from '@attest-it/core'
 import { log, success, error, warn, verbose } from '../utils/output.js'
-import { confirmAction } from '../utils/prompts.js'
+import { confirmAction, isInteractiveTTY } from '../utils/prompts.js'
 import { ExitCode } from '../utils/exit-codes.js'
 import { runInteractive } from './run-interactive.js'
 import { getAllSuiteStatuses } from './run-utils.js'
+
+/** Env var read for the passphrase of an encrypted file-backed identity key. */
+const KEY_PASSPHRASE_ENV = 'ATTEST_IT_KEY_PASSPHRASE'
 
 export const runCommand = new Command('run')
   .description('Execute tests and create attestation')
@@ -33,6 +38,7 @@ export const runCommand = new Command('run')
   .option('--dry-run', 'Show what would run without executing')
   .option('-c, --continue', 'Resume interrupted session')
   .option('--filter <pattern>', 'Filter suites by pattern (glob-style)')
+  .option('-y, --yes', 'Automatically confirm seal creation without prompting')
   .action(async (options: RunOptions) => {
     await runTests(options)
   })
@@ -44,6 +50,7 @@ interface RunOptions {
   dryRun?: boolean
   continue?: boolean
   filter?: string
+  yes?: boolean
 }
 
 /**
@@ -396,20 +403,28 @@ async function runSingleSuite(
   // A successful run authorizes creating a seal for the suite's gate. The seal
   // is the single cryptographic record of the passing run (the legacy
   // attestations file has been retired).
-  await promptForSeal(suiteName, suiteConfig.gate, config)
+  await promptForSeal(suiteName, suiteConfig.gate, config, options.yes)
 }
 
 /**
  * Prompt for seal creation after successful suite execution.
  *
+ * Gated behind "flag not supplied AND stdin is an interactive TTY": with
+ * `--yes`, sealing proceeds without prompting; interactively without `--yes`,
+ * the existing confirm prompt runs unchanged; non-interactively without
+ * `--yes`, this fails fast instead of hanging on a prompt that can never
+ * resolve. See issue #80.
+ *
  * @param suiteName - Name of the suite that was executed
  * @param gateId - ID of the gate linked to the suite
  * @param config - Configuration object
+ * @param autoConfirm - Skip the confirmation prompt and seal automatically (from `--yes`)
  */
 async function promptForSeal(
   suiteName: string,
   gateId: string,
   config: AttestItConfig,
+  autoConfirm?: boolean,
 ): Promise<void> {
   log('')
   log(`Suite '${suiteName}' is linked to gate '${gateId}'`)
@@ -436,11 +451,23 @@ async function promptForSeal(
     return
   }
 
-  // Prompt for seal confirmation
-  const shouldSeal = await confirmAction({
-    message: `Create seal for gate '${gateId}'`,
-    default: true,
-  })
+  // Resolve seal confirmation: --yes skips the prompt; interactively without
+  // it, the existing confirm prompt runs; non-interactively without it, fail
+  // fast rather than hang on a prompt that can never resolve.
+  let shouldSeal: boolean
+  if (autoConfirm) {
+    shouldSeal = true
+  } else if (isInteractiveTTY()) {
+    shouldSeal = await confirmAction({
+      message: `Create seal for gate '${gateId}'`,
+      default: true,
+    })
+  } else {
+    throw new Error(
+      `Missing required --yes to confirm seal creation for gate '${gateId}' ` +
+        '(no interactive terminal available to prompt for it). Pass --yes to run non-interactively.',
+    )
+  }
 
   if (!shouldSeal) {
     log('Seal creation skipped')
@@ -477,6 +504,13 @@ async function promptForSeal(
     // Clean up after reading
     await keyResult.cleanup()
 
+    // A file-backed key created with `identity create --passphrase-stdin` is
+    // encrypted; resolve the passphrase needed to sign with it from the
+    // environment, an interactive prompt, or fail fast. See issue #80.
+    const passphrase = isEncryptedPrivateKeyPem(privateKeyPem)
+      ? await resolveKeyPassphrase()
+      : undefined
+
     // Create seal using identity slug (not display name) for verification lookup
     const identitySlug = localConfig.activeIdentity
     const seal = createSeal({
@@ -484,6 +518,7 @@ async function promptForSeal(
       fingerprint: gateFingerprint.fingerprint,
       sealedBy: identitySlug,
       privateKey: privateKeyPem,
+      ...(passphrase !== undefined && { passphrase }),
     })
 
     // Read existing seals
@@ -507,6 +542,34 @@ async function promptForSeal(
       error('Failed to create seal: Unknown error')
     }
   }
+}
+
+/**
+ * Resolve the passphrase needed to sign with an encrypted file-backed
+ * private key (created via `identity create --storage file --passphrase-stdin`).
+ *
+ * Order: the `ATTEST_IT_KEY_PASSPHRASE` env var, then (interactively) a
+ * masked prompt, then fail fast naming the env var -- this never hangs on a
+ * prompt that can never resolve. See issue #80.
+ *
+ * @returns The resolved passphrase
+ * @throws Error if non-interactive and the env var is not set
+ */
+async function resolveKeyPassphrase(): Promise<string> {
+  const fromEnv = process.env[KEY_PASSPHRASE_ENV]
+  if (fromEnv !== undefined && fromEnv.length > 0) {
+    return fromEnv
+  }
+  if (isInteractiveTTY()) {
+    return password({
+      message: 'Passphrase for encrypted private key:',
+      validate: (value) => (value.length > 0 ? true : 'Passphrase cannot be empty'),
+    })
+  }
+  throw new Error(
+    `This identity's private key is passphrase-encrypted. Set ${KEY_PASSPHRASE_ENV} ` +
+      '(no interactive terminal available to prompt for it).',
+  )
 }
 
 /**
@@ -578,4 +641,4 @@ function getKeyRefFromIdentity(identity: Identity): string {
 }
 
 // Export for testing
-export { buildCommand, parseCommand, executeCommand, checkDirtyWorkingTree }
+export { buildCommand, parseCommand, executeCommand, checkDirtyWorkingTree, resolveKeyPassphrase }

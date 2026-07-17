@@ -247,4 +247,62 @@ describe('Ed25519 Cryptography', () => {
       expect(ed25519.verify(dataString, sig2, keyPair.publicKey)).toBe(true)
     })
   })
+
+  // Passphrase-encrypted keys back CLI's `identity create --passphrase-stdin`
+  // (issue #80): a file-backed identity key can be encrypted so the
+  // passphrase (piped via stdin, never prompted) is required to sign with it.
+  describe('passphrase-encrypted keys', () => {
+    it('should produce a PKCS8 "ENCRYPTED PRIVATE KEY" PEM when a passphrase is supplied', () => {
+      const keyPair = ed25519.generateKeyPair({ passphrase: 'correct horse battery staple' })
+
+      expect(keyPair.privateKey).toContain('-----BEGIN ENCRYPTED PRIVATE KEY-----')
+      expect(keyPair.privateKey).toContain('-----END ENCRYPTED PRIVATE KEY-----')
+      expect(ed25519.isEncryptedPrivateKeyPem(keyPair.privateKey)).toBe(true)
+    })
+
+    it('should produce an unencrypted key when no passphrase is supplied', () => {
+      const keyPair = ed25519.generateKeyPair()
+
+      expect(keyPair.privateKey).toContain('-----BEGIN PRIVATE KEY-----')
+      expect(ed25519.isEncryptedPrivateKeyPem(keyPair.privateKey)).toBe(false)
+    })
+
+    it('should produce an unencrypted key when passphrase is an empty string', () => {
+      const keyPair = ed25519.generateKeyPair({ passphrase: '' })
+
+      expect(ed25519.isEncryptedPrivateKeyPem(keyPair.privateKey)).toBe(false)
+    })
+
+    it('should sign and verify correctly with an encrypted key given the right passphrase', () => {
+      const keyPair = ed25519.generateKeyPair({ passphrase: 'my-passphrase' })
+      const data = 'Attest this'
+
+      const signature = ed25519.sign(data, keyPair.privateKey, 'my-passphrase')
+
+      expect(ed25519.verify(data, signature, keyPair.publicKey)).toBe(true)
+    })
+
+    it('should throw when signing with an encrypted key and no passphrase', () => {
+      const keyPair = ed25519.generateKeyPair({ passphrase: 'my-passphrase' })
+
+      expect(() => ed25519.sign('data', keyPair.privateKey)).toThrow(/Failed to sign/)
+    })
+
+    it('should throw when signing with an encrypted key and the wrong passphrase', () => {
+      const keyPair = ed25519.generateKeyPair({ passphrase: 'my-passphrase' })
+
+      expect(() => ed25519.sign('data', keyPair.privateKey, 'wrong-passphrase')).toThrow(
+        /Failed to sign/,
+      )
+    })
+
+    it('should still sign correctly when an unnecessary passphrase is passed for an unencrypted key', () => {
+      const keyPair = ed25519.generateKeyPair()
+      const data = 'Attest this'
+
+      const signature = ed25519.sign(data, keyPair.privateKey, 'unused-passphrase')
+
+      expect(ed25519.verify(data, signature, keyPair.publicKey)).toBe(true)
+    })
+  })
 })

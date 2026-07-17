@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path'
 import { stringify as stringifyYaml } from 'yaml'
 import { migrateUnifiedContent } from '@attest-it/core'
 import { log, success, error } from '../utils/output.js'
-import { confirmAction } from '../utils/prompts.js'
+import { confirmAction, isInteractiveTTY } from '../utils/prompts.js'
 import { ExitCode } from '../utils/exit-codes.js'
 import { offerCompletionInstall } from '../utils/completion-offer.js'
 import { getPackageVersion } from '../utils/version.js'
@@ -134,10 +134,18 @@ async function ensureDevDependency(): Promise<{ packageManager: string; created:
  * Confirm overwrite of an existing file unless --force is set.
  *
  * @returns True if it is safe to write, false if the user declined.
+ * @throws Error if the file exists, --force was not passed, and stdin is not
+ * an interactive TTY -- prompting would hang forever, so this fails fast
+ * instead, naming --force as the flag needed to proceed non-interactively.
  */
 async function confirmOverwrite(filePath: string, force: boolean | undefined): Promise<boolean> {
   if (!fs.existsSync(filePath) || force) {
     return true
+  }
+  if (!isInteractiveTTY()) {
+    throw new Error(
+      `Config already exists at ${filePath}. Pass --force to overwrite non-interactively.`,
+    )
   }
   return confirmAction({
     message: `Config already exists at ${filePath}. Overwrite?`,

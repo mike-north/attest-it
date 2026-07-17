@@ -52,6 +52,8 @@ export interface CreateSealOptions {
   sealedBy: string
   /** PEM-encoded Ed25519 private key for signing */
   privateKey: string
+  /** Passphrase to decrypt `privateKey`, if it is passphrase-encrypted */
+  passphrase?: string
 }
 
 /**
@@ -74,7 +76,7 @@ export interface SignatureVerificationResult {
  * @public
  */
 export function createSeal(options: CreateSealOptions): Seal {
-  const { gateId, fingerprint, sealedBy, privateKey } = options
+  const { gateId, fingerprint, sealedBy, privateKey, passphrase } = options
 
   // Create ISO 8601 timestamp
   const timestamp = new Date().toISOString()
@@ -83,7 +85,7 @@ export function createSeal(options: CreateSealOptions): Seal {
   const canonicalString = `${gateId}:${fingerprint}:${timestamp}`
 
   // Sign the canonical string
-  const signature = ed25519.sign(canonicalString, privateKey)
+  const signature = ed25519.sign(canonicalString, privateKey, passphrase)
 
   return {
     gateId,

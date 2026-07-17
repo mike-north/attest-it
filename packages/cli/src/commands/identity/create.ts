@@ -14,6 +14,7 @@ import {
   isYubiKeyConnected,
   listYubiKeyDevices,
   isYubiKeyChallengeResponseConfigured,
+  KeyProviderRegistry,
   savePublicKey,
   storePrivateKey,
 } from '@attest-it/core'
@@ -22,18 +23,127 @@ import { log, success, error, info, verbose, getTheme } from '../../utils/output
 import { ExitCode } from '../../utils/exit-codes.js'
 import { validateSlug, validateEmail } from './validation.js'
 import { offerCompletionInstall } from '../../utils/completion-offer.js'
+import {
+  resolveOrPrompt,
+  resolveOptionalOrPrompt,
+  isInteractiveTTY,
+  readStdin,
+} from '../../utils/prompts.js'
 import { join } from 'node:path'
+
+/**
+ * Storage backend values accepted by `--storage`.
+ *
+ * These are the CLI-facing names (matching the existing interactive picker's
+ * choice values); {@link STORAGE_TYPE_TO_REGISTRY} maps each to the
+ * `KeyProviderRegistry` type it corresponds to, so a `--storage` value is
+ * always validated against whatever is *currently* registered rather than a
+ * list that can silently drift from it.
+ */
+const STORAGE_TYPES = ['file', 'keychain', '1password', 'yubikey'] as const
+type StorageType = (typeof STORAGE_TYPES)[number]
+
+const STORAGE_TYPE_TO_REGISTRY: Record<StorageType, string> = {
+  file: 'filesystem',
+  keychain: 'macos-keychain',
+  '1password': '1password',
+  yubikey: 'yubikey',
+}
+
+function isStorageType(value: string): value is StorageType {
+  return STORAGE_TYPES.some((storageType) => storageType === value)
+}
+
+/**
+ * Turn a display name into a lowercase, hyphenated slug candidate.
+ * @internal
+ */
+function slugify(name: string): string {
+  const base = name
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return base.length > 0 ? base : 'identity'
+}
+
+/**
+ * Derive a slug from a display name, disambiguating against existing
+ * identities with a numeric suffix if needed.
+ * @internal
+ */
+function deriveUniqueSlug(name: string, existingIdentities?: Record<string, unknown>): string {
+  const base = slugify(name)
+  if (!existingIdentities?.[base]) {
+    return base
+  }
+  let suffix = 2
+  while (existingIdentities[`${base}-${String(suffix)}`]) {
+    suffix += 1
+  }
+  return `${base}-${String(suffix)}`
+}
+
+interface CreateOptions {
+  name?: string
+  slug?: string
+  email?: string
+  github?: string
+  storage?: string
+  passphraseStdin?: boolean
+  keychainPath?: string
+  keychainItem?: string
+  opAccount?: string
+  opVault?: string
+  opItem?: string
+  yubikeySerial?: string
+  encryptedKeyName?: string
+}
 
 export const createCommand = new Command('create')
   .description('Create a new identity with Ed25519 keypair')
-  .action(async () => {
-    await runCreate()
+  .option('--name <name>', 'Display name for the identity')
+  .option('--slug <slug>', 'Unique identity slug (derived from --name when omitted)')
+  .option('--email <email>', 'Email address (optional)')
+  .option('--github <username>', 'GitHub username (optional)')
+  .option('--storage <backend>', `Key storage backend: ${STORAGE_TYPES.join('|')}`)
+  .option(
+    '--passphrase-stdin',
+    'Read a passphrase from stdin to encrypt a file-backed private key (only used with --storage file)',
+  )
+  .option(
+    '--keychain-path <path>',
+    'macOS Keychain path (needed only when multiple keychains exist)',
+  )
+  .option('--keychain-item <name>', 'macOS Keychain item name (default: attest-it-<slug>)')
+  .option(
+    '--op-account <uuid>',
+    '1Password account UUID (needed only when multiple accounts are signed in)',
+  )
+  .option('--op-vault <name>', '1Password vault name (needed only when multiple vaults exist)')
+  .option('--op-item <name>', '1Password item name (default: attest-it-<slug>)')
+  .option(
+    '--yubikey-serial <serial>',
+    'YubiKey serial number (needed only when multiple devices are connected)',
+  )
+  .option(
+    '--encrypted-key-name <name>',
+    'Encrypted key file name for YubiKey storage (default: <slug>.enc)',
+  )
+  .action(async (options: CreateOptions) => {
+    await runCreate(options)
   })
 
 /**
- * Run the create command to interactively create a new identity.
+ * Run the create command to create a new identity.
+ *
+ * Interactive by default when stdin is a TTY and flags are omitted. Every
+ * prompt is gated behind "flag not supplied AND stdin is an interactive TTY";
+ * when stdin is not a TTY and a required value is missing, this fails fast
+ * with an error naming the missing flag rather than hanging on a prompt that
+ * can never resolve. See issue #80.
  */
-async function runCreate(): Promise<void> {
+async function runCreate(options: CreateOptions): Promise<void> {
   try {
     const theme = getTheme()
 
@@ -44,36 +154,70 @@ async function runCreate(): Promise<void> {
     // Load existing config if it exists
     const existingConfig = await loadLocalConfig()
 
-    // Prompt for identity details
-    const slug = (
-      await input({
-        message: 'Identity slug (unique identifier):',
-        validate: (value) => validateSlug(value, existingConfig?.identities),
-      })
-    ).trim()
+    // Display name (required)
+    const name = await resolveOrPrompt(options.name, '--name', () =>
+      input({
+        message: 'Display name:',
+        validate: (value) => {
+          if (!value || value.trim().length === 0) {
+            return 'Name cannot be empty'
+          }
+          return true
+        },
+      }),
+    )
+    if (name.trim().length === 0) {
+      throw new Error('--name cannot be empty')
+    }
 
-    const name = await input({
-      message: 'Display name:',
-      validate: (value) => {
-        if (!value || value.trim().length === 0) {
-          return 'Name cannot be empty'
-        }
-        return true
-      },
-    })
+    // Slug (optional -- auto-derived from the name when omitted)
+    let slug: string
+    if (options.slug !== undefined) {
+      slug = options.slug.trim()
+      const validation = validateSlug(slug, existingConfig?.identities)
+      if (validation !== true) {
+        throw new Error(validation)
+      }
+    } else {
+      const derived = deriveUniqueSlug(name, existingConfig?.identities)
+      slug = isInteractiveTTY()
+        ? (
+            await input({
+              message: 'Identity slug (unique identifier):',
+              default: derived,
+              validate: (value) => validateSlug(value, existingConfig?.identities),
+            })
+          ).trim()
+        : derived
+    }
 
-    const email = (
-      await input({
-        message: 'Email (optional):',
-        default: '',
-        validate: validateEmail,
-      })
-    ).trim()
+    // Email (optional)
+    let email: string
+    if (options.email !== undefined) {
+      email = options.email.trim()
+      const emailValidation = validateEmail(email)
+      if (emailValidation !== true) {
+        throw new Error(emailValidation)
+      }
+    } else {
+      email = isInteractiveTTY()
+        ? (
+            await input({
+              message: 'Email (optional):',
+              default: '',
+              validate: validateEmail,
+            })
+          ).trim()
+        : ''
+    }
 
-    const github = await input({
-      message: 'GitHub username (optional):',
-      default: '',
-    })
+    // GitHub username (optional)
+    const github =
+      options.github !== undefined
+        ? options.github.trim()
+        : isInteractiveTTY()
+          ? (await input({ message: 'GitHub username (optional):', default: '' })).trim()
+          : ''
 
     // Check provider availability
     // Note: Checking 1Password/YubiKey may trigger authentication prompts
@@ -98,7 +242,7 @@ async function runCreate(): Promise<void> {
 
     // Build choices based on availability
     const configDir = getIdentityConfigDir()
-    const storageChoices: { name: string; value: string }[] = [
+    const storageChoices: { name: string; value: StorageType }[] = [
       { name: `File system (${join(configDir, 'keys')})`, value: 'file' },
     ]
 
@@ -116,20 +260,51 @@ async function runCreate(): Promise<void> {
         : 'YubiKey (not connected - insert YubiKey first)'
       storageChoices.push({ name: yubikeyLabel, value: 'yubikey' })
     } else {
-      // Show YubiKey as disabled option so users know it exists
+      // Show YubiKey as disabled option so users know it exists. The value
+      // is never read (the entry is disabled and cannot be selected), so it
+      // reuses the real 'yubikey' literal rather than inventing a sentinel
+      // that would need a type assertion to fit StorageType.
       storageChoices.push({
         name: theme.muted('YubiKey (install ykman CLI to enable)'),
-        value: 'yubikey-disabled',
+        value: 'yubikey',
         // @ts-expect-error -- @inquirer/prompts supports disabled property but types may not reflect it
         disabled: true,
       })
     }
 
-    // Prompt for key storage type
-    const keyStorageType = await select({
-      message: 'Where should the private key be stored?',
-      choices: storageChoices,
-    })
+    // Storage backend selector (required)
+    let flagStorage: StorageType | undefined
+    if (options.storage !== undefined) {
+      if (!isStorageType(options.storage)) {
+        throw new Error(
+          `Unknown --storage value "${options.storage}". Supported values: ${STORAGE_TYPES.join(', ')}`,
+        )
+      }
+      const registryType = STORAGE_TYPE_TO_REGISTRY[options.storage]
+      if (!KeyProviderRegistry.getProviderTypes().includes(registryType)) {
+        throw new Error(
+          `Storage backend "${options.storage}" is not registered in this build ` +
+            `(expected registry type "${registryType}"). Registered types: ${KeyProviderRegistry.getProviderTypes().join(', ')}`,
+        )
+      }
+      if (options.storage === 'keychain' && !keychainAvailable) {
+        throw new Error('macOS Keychain is not available on this system')
+      }
+      if (options.storage === '1password' && !opAvailable) {
+        throw new Error('1Password CLI (op) is not installed')
+      }
+      if (options.storage === 'yubikey' && !yubikeyInstalled) {
+        throw new Error('YubiKey CLI (ykman) is not installed')
+      }
+      flagStorage = options.storage
+    }
+
+    const keyStorageType = await resolveOrPrompt(flagStorage, '--storage', () =>
+      select({
+        message: 'Where should the private key be stored?',
+        choices: storageChoices,
+      }),
+    )
 
     // ============================================================
     // PHASE 1: Collect all provider-specific configuration
@@ -140,6 +315,7 @@ async function runCreate(): Promise<void> {
     interface FileStorageConfig {
       type: 'file'
       keyPath: string
+      passphrase?: string
     }
     interface KeychainStorageConfig {
       type: 'keychain'
@@ -172,7 +348,16 @@ async function runCreate(): Promise<void> {
         // Determine file path (respects --home-dir override)
         const keysDir = join(getIdentityConfigDir(), 'keys')
         const keyPath = join(keysDir, `${slug}.pem`)
-        storageConfig = { type: 'file', keyPath }
+
+        let passphrase: string | undefined
+        if (options.passphraseStdin) {
+          passphrase = await readStdin()
+          if (passphrase.length === 0) {
+            throw new Error('--passphrase-stdin was set but stdin was empty')
+          }
+        }
+
+        storageConfig = { type: 'file', keyPath, ...(passphrase !== undefined && { passphrase }) }
         break
       }
       case 'keychain': {
@@ -199,37 +384,53 @@ async function runCreate(): Promise<void> {
           return `${theme.blue.bold()(kc.name)} ${theme.muted(`(${kc.path})`)}`
         }
 
-        // Select keychain (auto-select if only one, typically "login")
+        // Select keychain (flag > auto-select if only one > prompt)
         let selectedKeychain: { name: string; path: string }
-        if (keychains.length === 1 && keychains[0]) {
+        if (options.keychainPath !== undefined) {
+          const found = keychains.find((kc) => kc.path === options.keychainPath)
+          if (!found) {
+            throw new Error(
+              `--keychain-path "${options.keychainPath}" not found. Available keychains: ${keychains.map((kc) => kc.path).join(', ')}`,
+            )
+          }
+          selectedKeychain = found
+        } else if (keychains.length === 1 && keychains[0]) {
           selectedKeychain = keychains[0]
           info(`Using keychain: ${formatKeychainChoice(selectedKeychain)}`)
         } else {
-          const selectedPath = await select({
-            message: 'Select keychain:',
-            choices: keychains.map((kc) => ({
-              name: formatKeychainChoice(kc),
-              value: kc.path,
-            })),
+          selectedKeychain = await resolveOrPrompt(undefined, '--keychain-path', async () => {
+            const selectedPath = await select({
+              message: 'Select keychain:',
+              choices: keychains.map((kc) => ({
+                name: formatKeychainChoice(kc),
+                value: kc.path,
+              })),
+            })
+            const foundKeychain = keychains.find((kc) => kc.path === selectedPath)
+            if (!foundKeychain) {
+              throw new Error('Selected keychain not found')
+            }
+            return foundKeychain
           })
-          const foundKeychain = keychains.find((kc) => kc.path === selectedPath)
-          if (!foundKeychain) {
-            throw new Error('Selected keychain not found')
-          }
-          selectedKeychain = foundKeychain
         }
 
         // Prompt for item name
-        const keychainItemName = await input({
-          message: 'Keychain item name:',
-          default: `attest-it-${slug}`,
-          validate: (value) => {
-            if (!value || value.trim().length === 0) {
-              return 'Item name cannot be empty'
-            }
-            return true
-          },
-        })
+        const keychainItemName = await resolveOptionalOrPrompt(
+          options.keychainItem,
+          '--keychain-item',
+          `attest-it-${slug}`,
+          () =>
+            input({
+              message: 'Keychain item name:',
+              default: `attest-it-${slug}`,
+              validate: (value) => {
+                if (!value || value.trim().length === 0) {
+                  return 'Item name cannot be empty'
+                }
+                return true
+              },
+            }),
+        )
 
         storageConfig = { type: 'keychain', selectedKeychain, keychainItemName }
         break
@@ -242,7 +443,7 @@ async function runCreate(): Promise<void> {
           'You may see biometric prompts or be asked to unlock 1Password for each configured account.',
         )
 
-        // List available 1Password accounts (includes friendly names from OnePasswordKeyProvider)
+        // List available 1Password accounts (includes friendly names)
         const { accounts, inaccessible } = await listOnePasswordAccounts()
 
         if (accounts.length === 0) {
@@ -267,22 +468,33 @@ async function runCreate(): Promise<void> {
           return `${theme.blue.bold()(acc.name)} ${theme.muted(`(${acc.url})`)}`
         }
 
-        // Select account (auto-select if only one)
+        // Select account (flag > auto-select if only one > prompt)
         // Use account_uuid as the identifier (required by `op` CLI)
         let selectedAccountUuid: string
         let selectedAccountDisplayName: string
-        if (accounts.length === 1 && accounts[0]) {
+        if (options.opAccount !== undefined) {
+          const found = accounts.find((acc) => acc.account_uuid === options.opAccount)
+          if (!found) {
+            throw new Error(
+              `--op-account "${options.opAccount}" not found among signed-in accounts`,
+            )
+          }
+          selectedAccountUuid = found.account_uuid
+          selectedAccountDisplayName = found.name
+        } else if (accounts.length === 1 && accounts[0]) {
           selectedAccountUuid = accounts[0].account_uuid
           selectedAccountDisplayName = accounts[0].name
           info(`Using 1Password account: ${formatAccountChoice(accounts[0])}`)
         } else {
-          selectedAccountUuid = await select({
-            message: 'Select 1Password account:',
-            choices: accounts.map((acc) => ({
-              name: formatAccountChoice(acc),
-              value: acc.account_uuid,
-            })),
-          })
+          selectedAccountUuid = await resolveOrPrompt(undefined, '--op-account', () =>
+            select({
+              message: 'Select 1Password account:',
+              choices: accounts.map((acc) => ({
+                name: formatAccountChoice(acc),
+                value: acc.account_uuid,
+              })),
+            }),
+          )
           const selectedAcc = accounts.find((acc) => acc.account_uuid === selectedAccountUuid)
           if (!selectedAcc) {
             throw new Error('Selected account not found')
@@ -297,26 +509,47 @@ async function runCreate(): Promise<void> {
           throw new Error(`No vaults found in 1Password account: ${selectedAccountDisplayName}`)
         }
 
-        // Select vault
-        const selectedVault = await select({
-          message: 'Select vault for private key storage:',
-          choices: vaults.map((v) => ({
-            name: v.name,
-            value: v.name,
-          })),
-        })
+        // Select vault (flag > auto-select if only one > prompt)
+        let selectedVault: string
+        if (options.opVault !== undefined) {
+          const found = vaults.find((v) => v.name === options.opVault)
+          if (!found) {
+            throw new Error(
+              `--op-vault "${options.opVault}" not found in account ${selectedAccountDisplayName}`,
+            )
+          }
+          selectedVault = found.name
+        } else if (vaults.length === 1 && vaults[0]) {
+          selectedVault = vaults[0].name
+        } else {
+          selectedVault = await resolveOrPrompt(undefined, '--op-vault', () =>
+            select({
+              message: 'Select vault for private key storage:',
+              choices: vaults.map((v) => ({
+                name: v.name,
+                value: v.name,
+              })),
+            }),
+          )
+        }
 
         // Prompt for item name
-        const item = await input({
-          message: '1Password item name:',
-          default: `attest-it-${slug}`,
-          validate: (value) => {
-            if (!value || value.trim().length === 0) {
-              return 'Item name cannot be empty'
-            }
-            return true
-          },
-        })
+        const item = await resolveOptionalOrPrompt(
+          options.opItem,
+          '--op-item',
+          `attest-it-${slug}`,
+          () =>
+            input({
+              message: '1Password item name:',
+              default: `attest-it-${slug}`,
+              validate: (value) => {
+                if (!value || value.trim().length === 0) {
+                  return 'Item name cannot be empty'
+                }
+                return true
+              },
+            }),
+        )
 
         storageConfig = {
           type: '1password',
@@ -355,19 +588,29 @@ async function runCreate(): Promise<void> {
           return `${theme.blue.bold()(yk.type)} ${theme.muted(`(Serial: ${yk.serial}, FW: ${yk.firmware})`)}`
         }
 
-        // Select YubiKey (auto-select if only one)
+        // Select YubiKey (flag > auto-select if only one > prompt)
         let selectedSerial: string
-        if (yubikeys.length === 1 && yubikeys[0]) {
+        if (options.yubikeySerial !== undefined) {
+          const found = yubikeys.find((yk) => yk.serial === options.yubikeySerial)
+          if (!found) {
+            throw new Error(
+              `--yubikey-serial "${options.yubikeySerial}" not found among connected devices`,
+            )
+          }
+          selectedSerial = found.serial
+        } else if (yubikeys.length === 1 && yubikeys[0]) {
           selectedSerial = yubikeys[0].serial
           info(`Using YubiKey: ${formatYubiKeyChoice(yubikeys[0])}`)
         } else {
-          selectedSerial = await select({
-            message: 'Select YubiKey:',
-            choices: yubikeys.map((yk) => ({
-              name: formatYubiKeyChoice(yk),
-              value: yk.serial,
-            })),
-          })
+          selectedSerial = await resolveOrPrompt(undefined, '--yubikey-serial', () =>
+            select({
+              message: 'Select YubiKey:',
+              choices: yubikeys.map((yk) => ({
+                name: formatYubiKeyChoice(yk),
+                value: yk.serial,
+              })),
+            }),
+          )
         }
 
         // Check if challenge-response is configured on slot 2
@@ -390,16 +633,22 @@ async function runCreate(): Promise<void> {
         }
 
         // Prompt for encrypted key file name
-        const encryptedKeyName = await input({
-          message: 'Encrypted key file name:',
-          default: `${slug}.enc`,
-          validate: (value) => {
-            if (!value || value.trim().length === 0) {
-              return 'File name cannot be empty'
-            }
-            return true
-          },
-        })
+        const encryptedKeyName = await resolveOptionalOrPrompt(
+          options.encryptedKeyName,
+          '--encrypted-key-name',
+          `${slug}.enc`,
+          () =>
+            input({
+              message: 'Encrypted key file name:',
+              default: `${slug}.enc`,
+              validate: (value) => {
+                if (!value || value.trim().length === 0) {
+                  return 'File name cannot be empty'
+                }
+                return true
+              },
+            }),
+        )
 
         // Determine encrypted key path
         const keysDir = join(getIdentityConfigDir(), 'keys')
@@ -409,7 +658,7 @@ async function runCreate(): Promise<void> {
         break
       }
       default:
-        throw new Error(`Unknown key storage type: ${keyStorageType}`)
+        throw new Error(`Unknown key storage type: ${String(keyStorageType)}`)
     }
 
     // ============================================================
@@ -419,7 +668,11 @@ async function runCreate(): Promise<void> {
     log('Generating Ed25519 keypair...')
 
     // Generate keypair (this is synchronous, returns KeyPair not Promise)
-    const keyPair = generateEd25519KeyPair()
+    const keyPair = generateEd25519KeyPair(
+      storageConfig.type === 'file' && storageConfig.passphrase !== undefined
+        ? { passphrase: storageConfig.passphrase }
+        : {},
+    )
 
     // ============================================================
     // PHASE 3: Store the key using collected configuration
@@ -433,9 +686,13 @@ async function runCreate(): Promise<void> {
       case 'file': {
         log('')
         info('Storing private key via VaultKeeper (file backend)...')
+        // When --passphrase-stdin is set, PHASE 2 already encrypted the PEM, so
+        // the value handed to VaultKeeper is the passphrase-protected key.
         const result = await storePrivateKey('file', keyPair.privateKey, name)
         privateKeyRef = { type: 'file', id: result.secretId }
-        keyStorageDescription = result.storageDescription
+        keyStorageDescription = storageConfig.passphrase
+          ? `${result.storageDescription} (passphrase-encrypted)`
+          : result.storageDescription
         break
       }
       case 'keychain': {
@@ -545,3 +802,6 @@ async function runCreate(): Promise<void> {
     process.exit(ExitCode.CONFIG_ERROR)
   }
 }
+
+// Exported for testing
+export { slugify, deriveUniqueSlug, runCreate }

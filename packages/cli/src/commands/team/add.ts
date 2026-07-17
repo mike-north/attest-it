@@ -5,19 +5,38 @@ import { ExitCode } from '../../utils/exit-codes.js'
 import { getTheme } from '../../components/theme.js'
 import { writeFile } from 'node:fs/promises'
 import { stringify as stringifyYaml } from 'yaml'
-import { promptForGateAuthorization, addTeamMemberToPolicy, loadPolicyForEdit } from './utils.js'
+import { resolveOrPrompt, isInteractiveTTY } from '../../utils/prompts.js'
+import { resolveGateAuthorization, addTeamMemberToPolicy, loadPolicyForEdit } from './utils.js'
+
+interface AddOptions {
+  slug?: string
+  name?: string
+  email?: string
+  github?: string
+  publicKey?: string
+  gates?: string
+}
 
 export const addCommand = new Command('add')
   .description('Add a new team member')
-  .action(async () => {
-    await runAdd()
+  .option('--slug <slug>', 'Unique identifier for the team member')
+  .option('--name <name>', 'Display name')
+  .option('--email <email>', 'Email address (optional)')
+  .option('--github <username>', 'GitHub username (optional)')
+  .option(
+    '--public-key <key>',
+    "Base64-encoded Ed25519 public key (from 'attest-it identity export')",
+  )
+  .option('--gates <ids>', 'Comma-separated gate IDs to authorize (default: none)')
+  .action(async (options: AddOptions) => {
+    await runAdd(options)
   })
 
 /**
  * Validate Base64 encoded Ed25519 public key.
  * Ed25519 public keys are 32 bytes, which is 44 characters in Base64.
  */
-function validatePublicKey(value: string): boolean | string {
+function validatePublicKey(value: string): true | string {
   if (!value || value.trim().length === 0) {
     return 'Public key cannot be empty'
   }
@@ -47,9 +66,15 @@ function validatePublicKey(value: string): boolean | string {
 }
 
 /**
- * Run the add command to interactively add a team member.
+ * Run the add command to add a team member.
+ *
+ * Interactive by default when stdin is a TTY and flags are omitted. Every
+ * prompt is gated behind "flag not supplied AND stdin is an interactive TTY";
+ * when stdin is not a TTY and a required value is missing, this fails fast
+ * with an error naming the missing flag rather than hanging on a prompt that
+ * can never resolve. See issue #80.
  */
-async function runAdd(): Promise<void> {
+async function runAdd(options: AddOptions = {}): Promise<void> {
   try {
     const theme = getTheme()
 
@@ -61,54 +86,72 @@ async function runAdd(): Promise<void> {
     const { policy, path: policyPath } = loadPolicyForEdit()
     const existingTeam = policy.team ?? {}
 
-    // Prompt for member details
-    const slug = await input({
-      message: 'Member slug (unique identifier):',
-      validate: (value) => {
-        if (!value || value.trim().length === 0) {
-          return 'Slug cannot be empty'
-        }
-        if (!/^[a-z0-9-]+$/.test(value)) {
-          return 'Slug must contain only lowercase letters, numbers, and hyphens'
-        }
-        // eslint-disable-next-line security/detect-object-injection
-        if (existingTeam[value]) {
-          return `Team member "${value}" already exists`
-        }
-        return true
-      },
-    })
+    const validateSlugInput = (value: string): true | string => {
+      if (!value || value.trim().length === 0) {
+        return 'Slug cannot be empty'
+      }
+      if (!/^[a-z0-9-]+$/.test(value)) {
+        return 'Slug must contain only lowercase letters, numbers, and hyphens'
+      }
+      // eslint-disable-next-line security/detect-object-injection
+      if (existingTeam[value]) {
+        return `Team member "${value}" already exists`
+      }
+      return true
+    }
 
-    const name = await input({
-      message: 'Display name:',
-      validate: (value) => {
-        if (!value || value.trim().length === 0) {
-          return 'Name cannot be empty'
-        }
-        return true
-      },
-    })
+    // Member details
+    const slug = await resolveOrPrompt(options.slug, '--slug', () =>
+      input({ message: 'Member slug (unique identifier):', validate: validateSlugInput }),
+    )
+    const slugValidation = validateSlugInput(slug)
+    if (slugValidation !== true) {
+      throw new Error(slugValidation)
+    }
 
-    const email = await input({
-      message: 'Email (optional):',
-      default: '',
-    })
+    const name = await resolveOrPrompt(options.name, '--name', () =>
+      input({
+        message: 'Display name:',
+        validate: (value) => {
+          if (!value || value.trim().length === 0) {
+            return 'Name cannot be empty'
+          }
+          return true
+        },
+      }),
+    )
+    if (name.trim().length === 0) {
+      throw new Error('--name cannot be empty')
+    }
 
-    const github = await input({
-      message: 'GitHub username (optional):',
-      default: '',
-    })
+    const email =
+      options.email ??
+      (isInteractiveTTY() ? await input({ message: 'Email (optional):', default: '' }) : '')
 
+    const github =
+      options.github ??
+      (isInteractiveTTY()
+        ? await input({ message: 'GitHub username (optional):', default: '' })
+        : '')
+
+    let publicKey: string
+    if (options.publicKey !== undefined) {
+      publicKey = options.publicKey
+    } else {
+      log('')
+      log('Paste the public key (from "attest-it identity export"):')
+      publicKey = await resolveOrPrompt(undefined, '--public-key', () =>
+        input({ message: 'Public key:', validate: validatePublicKey }),
+      )
+    }
+    const publicKeyValidation = validatePublicKey(publicKey)
+    if (publicKeyValidation !== true) {
+      throw new Error(publicKeyValidation)
+    }
+
+    // Resolve gate authorizations
     log('')
-    log('Paste the public key (from "attest-it identity export"):')
-    const publicKey = await input({
-      message: 'Public key:',
-      validate: validatePublicKey,
-    })
-
-    // Prompt for gate authorizations
-    log('')
-    const authorizedGates = await promptForGateAuthorization(policy.gates)
+    const authorizedGates = await resolveGateAuthorization(policy.gates, options.gates)
 
     // Update config with new team member
     const memberData: Parameters<typeof addTeamMemberToPolicy>[2] = {
@@ -147,3 +190,6 @@ async function runAdd(): Promise<void> {
     process.exit(ExitCode.CONFIG_ERROR)
   }
 }
+
+// Exported for testing
+export { runAdd }

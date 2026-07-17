@@ -1,9 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   buildCommand,
   parseCommand,
   executeCommand,
   checkDirtyWorkingTree,
+  resolveKeyPassphrase,
 } from '../src/commands/run.js'
 import type { Config } from '@attest-it/core'
 import type { ChildProcess } from 'node:child_process'
@@ -40,6 +41,13 @@ vi.mock('../src/utils/output.js', () => ({
 // Mock prompts
 vi.mock('../src/utils/prompts.js', () => ({
   confirmAction: vi.fn(),
+  isInteractiveTTY: vi.fn(() => false),
+}))
+
+// Mock @inquirer/prompts' password() -- used to prompt for an encrypted
+// identity key's passphrase interactively (issue #80)
+vi.mock('@inquirer/prompts', () => ({
+  password: vi.fn(),
 }))
 
 // Mock os module
@@ -48,6 +56,76 @@ vi.mock('node:os', () => ({
 }))
 
 const { spawn } = await import('node:child_process')
+const { isInteractiveTTY } = await import('../src/utils/prompts.js')
+const { password } = await import('@inquirer/prompts')
+
+describe('resolveKeyPassphrase', () => {
+  const PASSPHRASE_ENV = 'ATTEST_IT_KEY_PASSPHRASE'
+  const originalEnvValue = process.env[PASSPHRASE_ENV]
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    delete process.env.ATTEST_IT_KEY_PASSPHRASE
+  })
+
+  afterEach(() => {
+    if (originalEnvValue === undefined) {
+      delete process.env.ATTEST_IT_KEY_PASSPHRASE
+    } else {
+      process.env[PASSPHRASE_ENV] = originalEnvValue
+    }
+  })
+
+  it('should resolve from the ATTEST_IT_KEY_PASSPHRASE env var without prompting', async () => {
+    process.env[PASSPHRASE_ENV] = 'env-passphrase'
+
+    const result = await resolveKeyPassphrase()
+
+    expect(result).toBe('env-passphrase')
+    expect(password).not.toHaveBeenCalled()
+  })
+
+  it('should prompt interactively when the env var is unset and stdin is a TTY', async () => {
+    vi.mocked(isInteractiveTTY).mockReturnValue(true)
+    vi.mocked(password).mockResolvedValue('prompted-passphrase')
+
+    const result = await resolveKeyPassphrase()
+
+    expect(result).toBe('prompted-passphrase')
+    expect(password).toHaveBeenCalledTimes(1)
+  })
+
+  it('should fail fast naming the env var when unset and stdin is not a TTY (never hangs)', async () => {
+    vi.mocked(isInteractiveTTY).mockReturnValue(false)
+
+    await expect(resolveKeyPassphrase()).rejects.toThrow(PASSPHRASE_ENV)
+    expect(password).not.toHaveBeenCalled()
+  })
+
+  it('should treat an empty env var the same as unset', async () => {
+    process.env[PASSPHRASE_ENV] = ''
+    vi.mocked(isInteractiveTTY).mockReturnValue(false)
+
+    await expect(resolveKeyPassphrase()).rejects.toThrow(PASSPHRASE_ENV)
+  })
+
+  it('should reject an empty passphrase at the interactive prompt instead of accepting it', async () => {
+    // Regression test: an empty passphrase previously passed through
+    // resolveKeyPassphrase() unchecked, then caused ed25519 signing to fail
+    // with a cryptic OpenSSL decrypt error instead of a clear message.
+    vi.mocked(isInteractiveTTY).mockReturnValue(true)
+    vi.mocked(password).mockResolvedValue('prompted-passphrase')
+
+    await resolveKeyPassphrase()
+
+    const call = vi.mocked(password).mock.calls[0]
+    expect(call).toBeDefined()
+    const { validate } = call?.[0] ?? {}
+    expect(validate).toBeDefined()
+    expect(validate?.('')).toBe('Passphrase cannot be empty')
+    expect(validate?.('non-empty')).toBe(true)
+  })
+})
 
 describe('buildCommand', () => {
   // Helper to create a mock config
