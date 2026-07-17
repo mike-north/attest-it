@@ -10,7 +10,7 @@
  * @see Integration contract §"Interface expectations" and invariants 2 & 4
  */
 
-import { existsSync, writeFileSync } from 'node:fs'
+import { existsSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -251,6 +251,41 @@ describe('verifyAll', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.results).toHaveLength(0)
+  })
+})
+
+describe('corrupt seals file handling', () => {
+  it('returns a malformed failure (not a throw) from verifyOne when the seals file is corrupt', async () => {
+    project = createTestProject()
+    // Structurally invalid JSON — readSeals() throws on parse.
+    writeFileSync(join(project.baseDir, project.sealsPath), '{ not valid json', 'utf8')
+    const failure = expectFailure(await verifyOne(project.gatedFile, { baseDir: project.baseDir }))
+    expect(failure.failureClass).toBe('malformed')
+    expect(failure.gateId).toBe(project.gateId)
+  })
+
+  it('returns a malformed failure (not a throw) from seal() when the existing seals file is corrupt', async () => {
+    project = createTestProject()
+    writeFileSync(join(project.baseDir, project.sealsPath), '{ not valid json', 'utf8')
+    const failure = expectFailure(
+      await seal(project.gatedFile, { identity: 'alice' }, { baseDir: project.baseDir }),
+    )
+    expect(failure.failureClass).toBe('malformed')
+  })
+})
+
+describe('verifyAll changedSince fail-safe behavior', () => {
+  it('does not skip a gate when change detection errors (fails safe, not open)', async () => {
+    project = createTestProject()
+    const future = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+    // Delete the gate's source tree so listPackageFiles() throws while
+    // detecting whether the gate changed. Before the fix, that error was
+    // swallowed and read as "unchanged", silently skipping the gate.
+    rmSync(join(project.baseDir, 'src'), { recursive: true, force: true })
+    const result = await verifyAll({ changedSince: future }, { baseDir: project.baseDir })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.results).toHaveLength(1)
   })
 })
 

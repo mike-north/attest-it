@@ -123,7 +123,15 @@ async function verifyGate(
     })
   }
 
-  const seals = await readSeals(baseDir, config.settings.sealsPath)
+  let seals: SealsFile
+  try {
+    seals = await readSeals(baseDir, config.settings.sealsPath)
+  } catch (error) {
+    return fail('malformed', error instanceof Error ? error.message : String(error), {
+      gateId,
+      ...(artifactPath !== undefined && { path: artifactPath }),
+    })
+  }
   const verdict = verifyGateSeal(config, gateId, seals, fingerprint)
 
   if (verdict.state === 'VALID') {
@@ -377,7 +385,15 @@ export async function seal(
     privateKey: privateKeyPem,
   })
 
-  const existing: SealsFile = await readSeals(baseDir, loaded.settings.sealsPath)
+  let existing: SealsFile
+  try {
+    existing = await readSeals(baseDir, loaded.settings.sealsPath)
+  } catch (error) {
+    return fail('malformed', error instanceof Error ? error.message : String(error), {
+      gateId: gate,
+      path: artifactPath,
+    })
+  }
   const seals: SealsFile = {
     version: existing.version,
     seals: { ...existing.seals, [gate]: newSeal },
@@ -452,7 +468,9 @@ async function gateChangedSince(
   try {
     files = await listPackageFiles(gate.fingerprint.paths, gate.fingerprint.exclude ?? [], baseDir)
   } catch {
-    return false
+    // Indeterminate: fail safe by treating this gate as changed so it is
+    // re-verified rather than silently skipped as "unchanged".
+    return true
   }
   for (const file of files) {
     try {
@@ -461,7 +479,9 @@ async function gateChangedSince(
         return true
       }
     } catch {
-      // Unreadable file — ignore for change detection.
+      // Indeterminate: fail safe by treating this file as changed so the
+      // gate is re-verified rather than silently skipped as "unchanged".
+      return true
     }
   }
   return false
