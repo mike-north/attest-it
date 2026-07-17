@@ -9,8 +9,8 @@
  * 1. Check `op` CLI is installed
  * 2. List and select 1Password account
  * 3. List and select vault for test key storage
- * 4. Create ephemeral test identity with 1Password key provider
- * 5. Generate keypair and store private key in 1Password
+ * 4. Create ephemeral test identity with VaultKeeper 1Password backend
+ * 5. Generate keypair and store private key in 1Password via VaultKeeper
  * 6. Set up minimal test project with a simple gate
  * 7. Create a test seal using the 1Password-stored key
  * 8. Verify the seal passes validation
@@ -24,8 +24,14 @@
  *   --no-cleanup  Keep the test item in 1Password and temp project for inspection
  */
 
-import { OnePasswordKeyProvider } from '@attest-it/core'
+import {
+  isOnePasswordInstalled,
+  listOnePasswordAccounts,
+  listOnePasswordVaults,
+  VaultKeyProvider,
+} from '@attest-it/core'
 import type { OnePasswordAccount, OnePasswordVault, InaccessibleAccount } from '@attest-it/core'
+import { BackendRegistry } from 'vaultkeeper'
 import { select, confirm } from '@inquirer/prompts'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
@@ -118,7 +124,7 @@ function phaseBanner(phase: 'setup' | 'validation', title: string, description: 
  */
 interface TestContext {
   project?: Project
-  itemName?: string
+  secretId?: string
   vault?: string
   account?: string
 }
@@ -136,7 +142,7 @@ async function runIntegrationTest(): Promise<boolean> {
   console.log('='.repeat(80))
   console.log(colors.reset)
   console.log('This test will:')
-  console.log('  1. Create an ephemeral test identity with 1Password key provider')
+  console.log('  1. Create an ephemeral test identity with VaultKeeper 1Password backend')
   console.log('  2. Generate a keypair and store the private key in your 1Password vault')
   console.log('  3. Create a test seal using the stored key')
   console.log('  4. Verify the seal passes validation')
@@ -152,8 +158,8 @@ async function runIntegrationTest(): Promise<boolean> {
 
     // Step 1: Check if op CLI is installed
     step('Step 1: Checking if 1Password CLI is installed')
-    const isInstalled = await OnePasswordKeyProvider.isInstalled()
-    if (!isInstalled) {
+    const installed = await isOnePasswordInstalled()
+    if (!installed) {
       error('1Password CLI (op) is not installed or not in PATH')
       info('Install from: https://developer.1password.com/docs/cli/get-started/')
       return false
@@ -162,7 +168,7 @@ async function runIntegrationTest(): Promise<boolean> {
 
     // Step 2: List accounts
     step('Step 2: Listing 1Password accounts')
-    const { accounts, inaccessible } = await OnePasswordKeyProvider.listAccounts()
+    const { accounts, inaccessible } = await listOnePasswordAccounts()
     if (accounts.length === 0) {
       error('No 1Password accounts found')
       info('Sign in to 1Password CLI with: op account add')
@@ -190,7 +196,7 @@ async function runIntegrationTest(): Promise<boolean> {
 
     // Step 3: Select account
     step('Step 3: Selecting account')
-    // Type assertion: accounts from listAccounts() have guaranteed `name` property
+    // Type assertion: accounts from listOnePasswordAccounts() have guaranteed `name` property
     let selectedAccount: OnePasswordAccount & { name: string }
     if (accounts.length === 1) {
       selectedAccount = accounts[0]
@@ -215,7 +221,7 @@ async function runIntegrationTest(): Promise<boolean> {
 
     // Step 4: List vaults
     step('Step 4: Listing vaults')
-    const vaults = await OnePasswordKeyProvider.listVaults(selectedAccount.account_uuid)
+    const vaults = await listOnePasswordVaults(selectedAccount.account_uuid)
     if (vaults.length === 0) {
       error('No vaults found in account')
       return false
@@ -256,32 +262,32 @@ async function runIntegrationTest(): Promise<boolean> {
     ctx.project = project
     success(`Project created at: ${project.baseDir}`)
 
-    // Step 7: Generate keypair with 1Password provider
-    step('Step 7: Generating keypair and storing in 1Password')
-    const timestamp = String(Date.now())
-    const itemName = `attest-it-test-${timestamp}`
-    ctx.itemName = itemName
-    info(`Item name: ${itemName}`)
-
-    const provider = new OnePasswordKeyProvider({
-      accountUuid: selectedAccount.account_uuid,
-      vault: vaultName,
-      itemName,
+    // Step 7: Generate keypair with VaultKeyProvider (1Password backend)
+    step('Step 7: Generating keypair and storing in 1Password via VaultKeeper')
+    const backend = BackendRegistry.create('1password', {
+      type: '1password',
+      enabled: true,
+      options: {
+        account: ctx.account ?? '',
+        vault: vaultName,
+      },
     })
+    const provider = new VaultKeyProvider({ backend, displayName: '1Password' })
 
     const publicKeyPath = path.join(project.baseDir, '.attest-it', 'test-pubkey.pem')
     const keyGenResult = await provider.generateKeyPair({
       publicKeyPath,
       force: true,
     })
-    success('Keypair generated and private key stored in 1Password')
+    ctx.secretId = keyGenResult.privateKeyRef
+    success('Keypair generated and private key stored in 1Password via VaultKeeper')
     info(`Private key ref: ${keyGenResult.privateKeyRef}`)
     info(`Public key path: ${keyGenResult.publicKeyPath}`)
     info(`Storage: ${keyGenResult.storageDescription}`)
 
     // Step 8: Verify key exists in 1Password
     step('Step 8: Verifying key exists in 1Password')
-    const keyExists = await provider.keyExists(itemName)
+    const keyExists = await provider.keyExists(keyGenResult.privateKeyRef)
     if (!keyExists) {
       throw new Error('Key was not found in 1Password after upload')
     }
@@ -289,7 +295,7 @@ async function runIntegrationTest(): Promise<boolean> {
 
     // Step 9: Test retrieving the key
     step('Step 9: Testing key retrieval')
-    const retrievalResult = await provider.getPrivateKey(itemName)
+    const retrievalResult = await provider.getPrivateKey(keyGenResult.privateKeyRef)
     try {
       // Verify the file exists and has content
       const keyContent = await fs.readFile(retrievalResult.keyPath, 'utf-8')
@@ -320,7 +326,6 @@ async function runIntegrationTest(): Promise<boolean> {
     // Update the project config to use the test identity
     const configPath = path.join(project.baseDir, '.attest-it', 'config.yaml')
     const configContent = await fs.readFile(configPath, 'utf-8')
-    // Use exec() instead of match() for regex
     const lines = configContent.split('\n')
     let inTeamSection = false
     let inTestUser = false
@@ -372,7 +377,7 @@ async function runIntegrationTest(): Promise<boolean> {
     }
 
     // Retrieve the private key for signing (will prompt for 1Password unlock)
-    const { keyPath, cleanup } = await provider.getPrivateKey(itemName)
+    const { keyPath, cleanup } = await provider.getPrivateKey(keyGenResult.privateKeyRef)
     try {
       // Read the private key (PEM format needed for createSeal)
       const privateKeyPem = await fs.readFile(keyPath, 'utf-8')
@@ -453,20 +458,20 @@ async function runIntegrationTest(): Promise<boolean> {
     if (shouldCleanup) {
       step('Cleanup: Removing test artifacts')
 
-      // Delete the 1Password item
-      if (ctx.itemName && ctx.vault) {
+      // Delete the 1Password item (best effort by secret ID)
+      if (ctx.secretId && ctx.vault) {
         try {
-          const args = ['item', 'delete', ctx.itemName, '--vault', ctx.vault]
+          const args = ['item', 'delete', ctx.secretId, '--vault', ctx.vault]
           if (ctx.account) {
             args.push('--account', ctx.account)
           }
           await execa('op', args)
-          success(`Deleted 1Password item: ${ctx.itemName}`)
+          success(`Deleted 1Password item: ${ctx.secretId}`)
         } catch (cleanupError) {
           warn(
             `Failed to delete 1Password item: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
           )
-          info(`You may need to manually delete the item: ${ctx.itemName}`)
+          info(`You may need to manually delete the item: ${ctx.secretId}`)
         }
       }
 
@@ -487,8 +492,8 @@ async function runIntegrationTest(): Promise<boolean> {
       if (ctx.project) {
         info(`Project directory: ${ctx.project.baseDir}`)
       }
-      if (ctx.itemName) {
-        info(`1Password item: ${ctx.itemName}`)
+      if (ctx.secretId) {
+        info(`1Password secret ID: ${ctx.secretId}`)
       }
     }
   }

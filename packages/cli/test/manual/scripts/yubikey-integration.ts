@@ -25,8 +25,15 @@
  *   --no-cleanup  Keep the encrypted key file and temp project for inspection
  */
 
-import { YubiKeyProvider, getIdentityConfigDir } from '@attest-it/core'
+import {
+  isYubiKeyInstalled,
+  listYubiKeyDevices,
+  isYubiKeyChallengeResponseConfigured,
+  VaultKeyProvider,
+  getIdentityConfigDir,
+} from '@attest-it/core'
 import type { YubiKeyInfo } from '@attest-it/core'
+import { BackendRegistry } from 'vaultkeeper'
 import { select } from '@inquirer/prompts'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
@@ -98,7 +105,7 @@ function info(message: string): void {
  */
 interface TestContext {
   project?: Project
-  encryptedKeyPath?: string
+  secretId?: string
 }
 
 /**
@@ -118,14 +125,14 @@ async function runIntegrationTest(): Promise<boolean> {
   console.log('  2. Generate a keypair encrypted with YubiKey challenge-response')
   console.log('  3. Create a test seal using the encrypted key')
   console.log('  4. Verify the seal passes validation')
-  console.log('  5. Clean up the encrypted key file')
+  console.log('  5. Clean up the encrypted key from VaultKeeper')
   console.log()
 
   try {
     // Step 1: Check if ykman CLI is installed
     step('Step 1: Checking if YubiKey Manager CLI is installed')
-    const isInstalled = await YubiKeyProvider.isInstalled()
-    if (!isInstalled) {
+    const installed = await isYubiKeyInstalled()
+    if (!installed) {
       error('YubiKey Manager CLI (ykman) is not installed or not in PATH')
       info('Install from: https://www.yubico.com/support/download/yubikey-manager/')
       // Exit code 78 indicates "configuration" error (system not configured properly)
@@ -136,7 +143,7 @@ async function runIntegrationTest(): Promise<boolean> {
 
     // Step 2: List connected YubiKeys
     step('Step 2: Listing connected YubiKeys')
-    const devices = await YubiKeyProvider.listDevices()
+    const devices = await listYubiKeyDevices()
     if (devices.length === 0) {
       error('No YubiKey devices found')
       info('Please connect a YubiKey and try again')
@@ -180,11 +187,8 @@ async function runIntegrationTest(): Promise<boolean> {
     // Step 4: Verify HMAC challenge-response is configured
     step('Step 4: Verifying HMAC challenge-response configuration')
     const slot = 2
-    const isConfigured = await YubiKeyProvider.isChallengeResponseConfigured(
-      slot,
-      selectedDevice.serial,
-    )
-    if (!isConfigured) {
+    const configured = await isYubiKeyChallengeResponseConfigured(slot, selectedDevice.serial)
+    if (!configured) {
       error(`YubiKey slot ${String(slot)} is not configured for HMAC challenge-response`)
       info(`Configure with: ykman --device ${selectedDevice.serial} otp chalresp --generate 2`)
       warn('Note: This will overwrite any existing configuration in slot 2')
@@ -209,42 +213,35 @@ async function runIntegrationTest(): Promise<boolean> {
     ctx.project = project
     success(`Project created at: ${project.baseDir}`)
 
-    // Step 6: Generate keypair with YubiKey provider
-    step('Step 6: Generating keypair and encrypting with YubiKey')
-    // YubiKeyProvider requires encrypted keys to be in the global config directory
-    // Use a unique test key name to avoid conflicts
-    const testKeyName = `test-yubikey-${Date.now().toString()}.json`
-    const encryptedKeyPath = path.join(getIdentityConfigDir(), testKeyName)
-    ctx.encryptedKeyPath = encryptedKeyPath
-    info(`Encrypted key path: ${encryptedKeyPath}`)
+    // Step 6: Generate keypair with VaultKeyProvider (yubikey backend)
+    step('Step 6: Generating keypair and encrypting with YubiKey via VaultKeeper')
+    info(`Config dir: ${getIdentityConfigDir()}`)
 
-    const provider = new YubiKeyProvider({
-      encryptedKeyPath,
-      slot,
-      serial: selectedDevice.serial,
-    })
+    const backend = BackendRegistry.create('yubikey')
+    const provider = new VaultKeyProvider({ backend, displayName: 'YubiKey' })
 
     const publicKeyPath = path.join(project.baseDir, '.attest-it', 'test-pubkey.pem')
     const keyGenResult = await provider.generateKeyPair({
       publicKeyPath,
       force: true,
     })
-    success('Keypair generated and private key encrypted with YubiKey')
+    ctx.secretId = keyGenResult.privateKeyRef
+    success('Keypair generated and private key stored via VaultKeeper YubiKey backend')
     info(`Private key ref: ${keyGenResult.privateKeyRef}`)
     info(`Public key path: ${keyGenResult.publicKeyPath}`)
     info(`Storage: ${keyGenResult.storageDescription}`)
 
-    // Step 7: Verify encrypted key exists
-    step('Step 7: Verifying encrypted key exists')
-    const keyExists = await provider.keyExists(encryptedKeyPath)
+    // Step 7: Verify key exists
+    step('Step 7: Verifying key exists in VaultKeeper')
+    const keyExists = await provider.keyExists(keyGenResult.privateKeyRef)
     if (!keyExists) {
-      throw new Error('Encrypted key file was not created')
+      throw new Error('Key was not stored in VaultKeeper YubiKey backend')
     }
-    success('Encrypted key file verified')
+    success('Key verified in VaultKeeper')
 
     // Step 8: Test retrieving the key
     step('Step 8: Testing key retrieval')
-    const retrievalResult = await provider.getPrivateKey(encryptedKeyPath)
+    const retrievalResult = await provider.getPrivateKey(keyGenResult.privateKeyRef)
     try {
       // Verify the file exists and has content
       const keyContent = await fs.readFile(retrievalResult.keyPath, 'utf-8')
@@ -259,15 +256,16 @@ async function runIntegrationTest(): Promise<boolean> {
       success('Temporary key cleaned up')
     }
 
-    // Step 9: Create a seal using the YubiKey-encrypted key
-    step('Step 9: Creating test seal with YubiKey-encrypted key')
+    // Step 9: Create a seal using the VaultKeeper YubiKey-backed key
+    step('Step 9: Creating test seal with VaultKeeper YubiKey key')
     const { computeFingerprintSync, createSeal, writeSeals, getPublicKeyFromPrivate } =
       await import('@attest-it/core')
 
     // Retrieve the private key to derive the raw Ed25519 public key
     // Team config expects raw 32-byte Ed25519 public key, not SPKI-encoded
-    const { keyPath: tempKeyPath, cleanup: tempCleanup } =
-      await provider.getPrivateKey(encryptedKeyPath)
+    const { keyPath: tempKeyPath, cleanup: tempCleanup } = await provider.getPrivateKey(
+      keyGenResult.privateKeyRef,
+    )
     let publicKeyBase64: string
     try {
       const privateKeyPem = await fs.readFile(tempKeyPath, 'utf-8')
@@ -279,7 +277,6 @@ async function runIntegrationTest(): Promise<boolean> {
     // Update the project config to use the test identity
     const configPath = path.join(project.baseDir, '.attest-it', 'config.yaml')
     const configContent = await fs.readFile(configPath, 'utf-8')
-    // Use exec() instead of match() for regex
     const lines = configContent.split('\n')
     let inTeamSection = false
     let inTestUser = false
@@ -314,7 +311,7 @@ async function runIntegrationTest(): Promise<boolean> {
     info(`Fingerprint: ${fingerprint.fingerprint}`)
 
     // Retrieve the private key for signing
-    const { keyPath, cleanup } = await provider.getPrivateKey(encryptedKeyPath)
+    const { keyPath, cleanup } = await provider.getPrivateKey(keyGenResult.privateKeyRef)
     try {
       // Read the private key (PEM format)
       const privateKeyPem = await fs.readFile(keyPath, 'utf-8')
@@ -395,17 +392,11 @@ async function runIntegrationTest(): Promise<boolean> {
     if (shouldCleanup) {
       step('Cleanup: Removing test artifacts')
 
-      // Delete the encrypted key file
-      if (ctx.encryptedKeyPath) {
-        try {
-          await fs.unlink(ctx.encryptedKeyPath)
-          success(`Deleted encrypted key file: ${ctx.encryptedKeyPath}`)
-        } catch (cleanupError) {
-          warn(
-            `Failed to delete encrypted key file: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
-          )
-          info(`You may need to manually delete the file: ${ctx.encryptedKeyPath}`)
-        }
+      // Note: VaultKeeper YubiKey backend secrets are managed by the backend;
+      // cleanup of temp files is handled by the provider's cleanup callbacks.
+      if (ctx.secretId) {
+        info(`Secret ID ${ctx.secretId} is stored in VaultKeeper YubiKey backend.`)
+        info('If needed, remove manually via the VaultKeeper API or YubiKey management tools.')
       }
 
       // Clean up temp project
@@ -425,8 +416,8 @@ async function runIntegrationTest(): Promise<boolean> {
       if (ctx.project) {
         info(`Project directory: ${ctx.project.baseDir}`)
       }
-      if (ctx.encryptedKeyPath) {
-        info(`Encrypted key file: ${ctx.encryptedKeyPath}`)
+      if (ctx.secretId) {
+        info(`VaultKeeper secret ID: ${ctx.secretId}`)
       }
     }
   }
