@@ -44,7 +44,7 @@ function runCliNonInteractive(
   env: NodeJS.ProcessEnv = {},
 ): Promise<RunResult> {
   return new Promise((resolve, reject) => {
-    const child = spawn('node', [CLI_PATH, ...args], {
+    const child = spawn(process.execPath, [CLI_PATH, ...args], {
       cwd,
       env: { ...process.env, NO_COLOR: '1', ...env },
       // stdin: 'ignore' is Node's equivalent of `< /dev/null` -- there is
@@ -112,7 +112,7 @@ function runCliWithPipedYes(
 ): Promise<PipedYesResult> {
   return new Promise((resolve, reject) => {
     const yesProc = spawn('yes', [], { stdio: ['ignore', 'pipe', 'ignore'] })
-    const child = spawn('node', [CLI_PATH, ...args], {
+    const child = spawn(process.execPath, [CLI_PATH, ...args], {
       cwd,
       env: { ...process.env, NO_COLOR: '1', ...env },
       stdio: ['pipe', 'pipe', 'pipe'],
