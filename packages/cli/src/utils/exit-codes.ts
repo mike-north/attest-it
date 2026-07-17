@@ -30,10 +30,9 @@ export const ExitCode = {
    * @remarks
    * Distinct from `CONFIG_ERROR`: a dirty working tree is a precondition
    * failure on an otherwise-valid configuration, not a problem with the
-   * configuration itself. Prior to this code's introduction, `run`/`seal`
-   * reused `CONFIG_ERROR` for this refusal, which made it indistinguishable
-   * from "no configuration found" to an automation/CI consumer. See issue
-   * #95.
+   * configuration itself. Prior to this code's introduction, `run` reused
+   * `CONFIG_ERROR` for this refusal, which made it indistinguishable from
+   * "no configuration found" to an automation/CI consumer. See issue #95.
    */
   DIRTY_WORKING_TREE: 6,
 } as const

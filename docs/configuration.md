@@ -490,7 +490,7 @@ When `attest-it verify` runs, each gate returns one of these states:
 | 3    | CONFIG_ERROR       | No discoverable configuration, an unreadable `--config` path, or invalid configuration |
 | 4    | CANCELLED          | User cancelled the operation (a declined or force-closed/interrupted prompt)           |
 | 5    | MISSING_KEY        | Required private key file is missing                                                   |
-| 6    | DIRTY_WORKING_TREE | `run`/`seal` refused because the git working tree has uncommitted changes              |
+| 6    | DIRTY_WORKING_TREE | `run` refused because the git working tree has uncommitted changes                     |
 
 **A cancelled prompt is `CANCELLED` (4), never `CONFIG_ERROR`** — whether declined or
 force-closed/interrupted (e.g. Ctrl-C, or a piped stdin that closes mid-prompt).

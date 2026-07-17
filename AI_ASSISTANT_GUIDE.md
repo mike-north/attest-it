@@ -207,7 +207,7 @@ only authoritative source. `verify` and `status` share this contract.
 | 3    | CONFIG_ERROR       | No discoverable configuration, an unreadable `--config` path, or invalid configuration |
 | 4    | CANCELLED          | User cancelled the operation (a declined or force-closed/interrupted prompt)           |
 | 5    | MISSING_KEY        | Required private key file is missing                                                   |
-| 6    | DIRTY_WORKING_TREE | `run`/`seal` refused because the git working tree has uncommitted changes              |
+| 6    | DIRTY_WORKING_TREE | `run` refused because the git working tree has uncommitted changes                     |
 
 **A cancelled prompt is always `CANCELLED` (4), never `CONFIG_ERROR`.** This applies to every
 interactive confirmation in the CLI (`identity create`/`remove`, `init`, `team add`/`join`/`remove`,

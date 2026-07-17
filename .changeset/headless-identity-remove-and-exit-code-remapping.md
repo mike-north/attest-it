@@ -23,9 +23,9 @@
 
 - A cancelled interactive prompt — declined, or force-closed/interrupted (Ctrl-C, or a piped
   stdin that closes mid-prompt) — now always exits `CANCELLED` (4), never `CONFIG_ERROR` (3),
-  across every command that prompts (`identity create`/`remove`, `init`, `team
-add`/`join`/`remove`, `run`). A force-closed prompt also now reports a clean `Cancelled` message
-  instead of `@inquirer/core`'s raw `User force closed the prompt with 0 null`.
+  across every command that prompts (`identity create`/`remove`, `init`,
+  `team add`/`join`/`remove`, `run`). A force-closed prompt also now reports a clean `Cancelled`
+  message instead of `@inquirer/core`'s raw `User force closed the prompt with 0 null`.
 - `run`'s dirty-working-tree refusal now exits a new dedicated code, **`DIRTY_WORKING_TREE` (6)**,
   instead of `CONFIG_ERROR` (3) — a dirty tree is a precondition failure, not a configuration
   problem, and automation consuming exit codes needs to tell the two apart.
