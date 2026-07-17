@@ -108,6 +108,23 @@ describe('resolveKeyPassphrase', () => {
 
     await expect(resolveKeyPassphrase()).rejects.toThrow(PASSPHRASE_ENV)
   })
+
+  it('should reject an empty passphrase at the interactive prompt instead of accepting it', async () => {
+    // Regression test: an empty passphrase previously passed through
+    // resolveKeyPassphrase() unchecked, then caused ed25519 signing to fail
+    // with a cryptic OpenSSL decrypt error instead of a clear message.
+    vi.mocked(isInteractiveTTY).mockReturnValue(true)
+    vi.mocked(password).mockResolvedValue('prompted-passphrase')
+
+    await resolveKeyPassphrase()
+
+    const call = vi.mocked(password).mock.calls[0]
+    expect(call).toBeDefined()
+    const { validate } = call?.[0] ?? {}
+    expect(validate).toBeDefined()
+    expect(validate?.('')).toBe('Passphrase cannot be empty')
+    expect(validate?.('non-empty')).toBe(true)
+  })
 })
 
 describe('buildCommand', () => {

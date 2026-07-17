@@ -417,6 +417,7 @@ async function runCreate(options: CreateOptions): Promise<void> {
         // Prompt for item name
         const keychainItemName = await resolveOptionalOrPrompt(
           options.keychainItem,
+          '--keychain-item',
           `attest-it-${slug}`,
           () =>
             input({
@@ -533,17 +534,21 @@ async function runCreate(options: CreateOptions): Promise<void> {
         }
 
         // Prompt for item name
-        const item = await resolveOptionalOrPrompt(options.opItem, `attest-it-${slug}`, () =>
-          input({
-            message: '1Password item name:',
-            default: `attest-it-${slug}`,
-            validate: (value) => {
-              if (!value || value.trim().length === 0) {
-                return 'Item name cannot be empty'
-              }
-              return true
-            },
-          }),
+        const item = await resolveOptionalOrPrompt(
+          options.opItem,
+          '--op-item',
+          `attest-it-${slug}`,
+          () =>
+            input({
+              message: '1Password item name:',
+              default: `attest-it-${slug}`,
+              validate: (value) => {
+                if (!value || value.trim().length === 0) {
+                  return 'Item name cannot be empty'
+                }
+                return true
+              },
+            }),
         )
 
         storageConfig = {
@@ -630,6 +635,7 @@ async function runCreate(options: CreateOptions): Promise<void> {
         // Prompt for encrypted key file name
         const encryptedKeyName = await resolveOptionalOrPrompt(
           options.encryptedKeyName,
+          '--encrypted-key-name',
           `${slug}.enc`,
           () =>
             input({

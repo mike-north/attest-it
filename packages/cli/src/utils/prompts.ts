@@ -73,19 +73,32 @@ export async function resolveOrPrompt<T>(
  * Interactively, `prompt` is invoked (typically pre-filled with the same
  * default) so a human can still override it.
  *
+ * A *supplied* value that is empty (or all whitespace) after trimming is
+ * rejected rather than silently accepted: every caller's interactive
+ * `prompt` already enforces "cannot be empty" via its `validate` callback,
+ * so a flag-supplied empty string must fail the same way instead of
+ * bypassing that check.
+ *
  * @param value - The already-supplied value (e.g. a parsed CLI flag), if any
+ * @param flagName - The flag name to report if a supplied `value` is empty (e.g. `--name`)
  * @param defaultValue - Value to use when non-interactive and `value` is missing
  * @param prompt - Callback that interactively collects the value
  * @returns The resolved value
+ * @throws Error if `value` is supplied but empty (or all whitespace)
  * @public
  */
 export async function resolveOptionalOrPrompt(
   value: string | undefined,
+  flagName: string,
   defaultValue: string,
   prompt: () => Promise<string>,
 ): Promise<string> {
   if (value !== undefined) {
-    return value.trim()
+    const trimmed = value.trim()
+    if (trimmed.length === 0) {
+      throw new Error(`${flagName} cannot be empty`)
+    }
+    return trimmed
   }
   if (isInteractiveTTY()) {
     return (await prompt()).trim()

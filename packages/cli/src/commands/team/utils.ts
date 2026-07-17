@@ -82,8 +82,7 @@ export async function resolveGateAuthorization(
       .split(',')
       .map((id) => id.trim())
       .filter((id) => id.length > 0)
-    // eslint-disable-next-line security/detect-object-injection -- id is validated below via the resulting `unknown` list before use
-    const unknown = requested.filter((id) => !gates[id])
+    const unknown = requested.filter((id) => !Object.hasOwn(gates, id))
     if (unknown.length > 0) {
       throw new Error(
         `--gates references unknown gate(s): ${unknown.join(', ')}. Known gates: ${Object.keys(gates).join(', ')}`,

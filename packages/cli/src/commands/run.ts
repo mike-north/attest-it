@@ -561,7 +561,10 @@ async function resolveKeyPassphrase(): Promise<string> {
     return fromEnv
   }
   if (isInteractiveTTY()) {
-    return password({ message: 'Passphrase for encrypted private key:' })
+    return password({
+      message: 'Passphrase for encrypted private key:',
+      validate: (value) => (value.length > 0 ? true : 'Passphrase cannot be empty'),
+    })
   }
   throw new Error(
     `This identity's private key is passphrase-encrypted. Set ${KEY_PASSPHRASE_ENV} ` +

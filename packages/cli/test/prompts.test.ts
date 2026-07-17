@@ -80,7 +80,12 @@ describe('resolveOptionalOrPrompt', () => {
   it('should return the trimmed supplied value without invoking the prompt', async () => {
     const prompt = vi.fn().mockResolvedValue('should not be used')
 
-    const result = await resolveOptionalOrPrompt('  flag-value  ', 'default-value', prompt)
+    const result = await resolveOptionalOrPrompt(
+      '  flag-value  ',
+      '--name',
+      'default-value',
+      prompt,
+    )
 
     expect(result).toBe('flag-value')
     expect(prompt).not.toHaveBeenCalled()
@@ -90,7 +95,7 @@ describe('resolveOptionalOrPrompt', () => {
     Object.defineProperty(process.stdin, 'isTTY', { value: true, configurable: true })
     const prompt = vi.fn().mockResolvedValue('prompted-value')
 
-    const result = await resolveOptionalOrPrompt(undefined, 'default-value', prompt)
+    const result = await resolveOptionalOrPrompt(undefined, '--name', 'default-value', prompt)
 
     expect(result).toBe('prompted-value')
     expect(prompt).toHaveBeenCalledTimes(1)
@@ -100,9 +105,20 @@ describe('resolveOptionalOrPrompt', () => {
     Object.defineProperty(process.stdin, 'isTTY', { value: undefined, configurable: true })
     const prompt = vi.fn().mockResolvedValue('should not be used')
 
-    const result = await resolveOptionalOrPrompt(undefined, 'default-value', prompt)
+    const result = await resolveOptionalOrPrompt(undefined, '--name', 'default-value', prompt)
 
     expect(result).toBe('default-value')
+    expect(prompt).not.toHaveBeenCalled()
+  })
+
+  it('should reject a supplied value that is empty (or all whitespace) instead of silently accepting it', async () => {
+    // Regression test: a flag-supplied empty string previously bypassed the
+    // "cannot be empty" validation every interactive `prompt` enforces.
+    const prompt = vi.fn().mockResolvedValue('should not be used')
+
+    await expect(resolveOptionalOrPrompt('   ', '--name', 'default-value', prompt)).rejects.toThrow(
+      '--name cannot be empty',
+    )
     expect(prompt).not.toHaveBeenCalled()
   })
 })
