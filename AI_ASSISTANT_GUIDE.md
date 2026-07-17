@@ -196,14 +196,23 @@ User can rotate keys to a new provider: `npx attest-it identity create` (create 
 
 ## Exit Codes
 
-| Code | Constant     | Meaning                   |
-| ---- | ------------ | ------------------------- |
-| 0    | SUCCESS      | All seals valid           |
-| 1    | INVALID      | One or more seals invalid |
-| 2    | NO_GATES     | No gates configured       |
-| 3    | CONFIG_ERROR | Configuration error       |
-| 4    | CANCELLED    | User cancelled            |
-| 5    | KEY_ERROR    | Key provider error        |
+These are the actual constants exported from `packages/cli/src/utils/exit-codes.ts` — the
+only authoritative source. `verify` and `status` share this contract.
+
+| Code | Constant     | Meaning                                                                                |
+| ---- | ------------ | -------------------------------------------------------------------------------------- |
+| 0    | SUCCESS      | Operation completed successfully (all seals valid)                                     |
+| 1    | FAILURE      | Tests failed, or one or more gate seals are invalid                                    |
+| 2    | NO_WORK      | Configuration loaded successfully, but zero gates are defined — nothing to verify      |
+| 3    | CONFIG_ERROR | No discoverable configuration, an unreadable `--config` path, or invalid configuration |
+| 4    | CANCELLED    | User cancelled the operation                                                           |
+| 5    | MISSING_KEY  | Required private key file is missing                                                   |
+
+**Missing configuration fails closed.** `attest-it verify` and `attest-it status` exit
+`CONFIG_ERROR`, never `SUCCESS`, when no `.attest-it/policy.yaml` is discoverable (or an
+explicit `--config` path can't be read) — including in a directory with no `.attest-it/` at
+all. Do not tell a user that a bare `SUCCESS` from a directory lacking `.attest-it/` means
+"nothing to worry about" — treat it as a real failure and point them at `attest-it init`.
 
 ## What AI Assistants Should NOT Do
 

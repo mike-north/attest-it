@@ -18,7 +18,7 @@ const program = new Command()
 program
   .name('attest-it')
   .description('Human-gated test attestation system')
-  .option('-c, --config <path>', 'Path to config file')
+  .option('-c, --config <path>', 'Path to policy config file (overrides auto-detection)')
   .option('-v, --verbose', 'Verbose output')
   .option('-q, --quiet', 'Minimal output')
 
