@@ -44152,6 +44152,7 @@ async function glob(patternsOrOptions, options) {
 
 // ../core/dist/index.js
 import * as os2 from "os";
+import { homedir as homedir3 } from "os";
 
 // ../../node_modules/.pnpm/vaultkeeper@0.7.0_@1password+sdk@0.4.0_@types+node@22.19.3/node_modules/vaultkeeper/dist/index.js
 init_esm_shims();
@@ -46847,15 +46848,15 @@ function isGlobPattern(pathStr) {
   return /[*?{}[\]]/.test(pathStr);
 }
 function validateOptions(options) {
-  if (options.packages.length === 0) {
-    throw new Error("packages array must not be empty");
+  if (options.paths.length === 0) {
+    throw new Error("paths array must not be empty");
   }
   const baseDir = options.baseDir ?? process.cwd();
-  for (const pkg of options.packages) {
-    if (!isGlobPattern(pkg)) {
-      const pkgPath = path3.resolve(baseDir, pkg);
-      if (!fs.existsSync(pkgPath)) {
-        throw new Error(`Package path does not exist: ${pkgPath}`);
+  for (const p of options.paths) {
+    if (!isGlobPattern(p)) {
+      const resolvedPath = path3.resolve(baseDir, p);
+      if (!fs.existsSync(resolvedPath)) {
+        throw new Error(`Path does not exist: ${resolvedPath}`);
       }
     }
   }
@@ -46863,7 +46864,7 @@ function validateOptions(options) {
 }
 async function computeFingerprint(options) {
   const baseDir = validateOptions(options);
-  const files = await listPackageFiles(options.packages, options.ignore, baseDir);
+  const files = await listPackageFiles(options.paths, options.exclude, baseDir);
   const sortedFiles = sortFiles(files);
   const fileHashCache = /* @__PURE__ */ new Map();
   const fileHashInputs = [];
@@ -47155,6 +47156,12 @@ var VaultKeyProvider = class {
     };
   }
 };
+function resolveLegacyPath(p) {
+  if (p === "~" || p.startsWith("~/")) {
+    return path3.join(homedir3(), p.slice(1));
+  }
+  return p;
+}
 var LegacyFilesystemKeyProvider = class {
   type = "filesystem-legacy";
   displayName = "Filesystem (Legacy)";
@@ -47167,11 +47174,11 @@ var LegacyFilesystemKeyProvider = class {
   }
   /**
    * Check if a key exists at the given filesystem path.
-   * @param keyRef - Filesystem path to the private key file
+   * @param keyRef - Filesystem path to the private key file (may contain a leading `~`)
    */
   async keyExists(keyRef) {
     try {
-      await fs2.access(keyRef);
+      await fs2.access(resolveLegacyPath(keyRef));
       return true;
     } catch {
       return false;
@@ -47179,15 +47186,15 @@ var LegacyFilesystemKeyProvider = class {
   }
   /**
    * Get the private key path for signing.
-   * Returns the path directly with a no-op cleanup function.
-   * @param keyRef - Filesystem path to the private key file
+   * Returns the resolved (tilde-expanded) path with a no-op cleanup function.
+   * @param keyRef - Filesystem path to the private key file (may contain a leading `~`)
    */
   async getPrivateKey(keyRef) {
     if (!await this.keyExists(keyRef)) {
       throw new Error(`Private key not found: ${keyRef}`);
     }
     return {
-      keyPath: keyRef,
+      keyPath: resolveLegacyPath(keyRef),
       // No-op cleanup — key stays on filesystem
       cleanup: async () => {
       }
@@ -47709,8 +47716,8 @@ async function run() {
     if (config.gates) {
       for (const [gateId, gateConfig] of Object.entries(config.gates)) {
         const result = await computeFingerprint({
-          packages: gateConfig.fingerprint.paths,
-          ...gateConfig.fingerprint.exclude && { ignore: gateConfig.fingerprint.exclude }
+          paths: gateConfig.fingerprint.paths,
+          ...gateConfig.fingerprint.exclude && { exclude: gateConfig.fingerprint.exclude }
         });
         fingerprints[gateId] = result.fingerprint;
       }

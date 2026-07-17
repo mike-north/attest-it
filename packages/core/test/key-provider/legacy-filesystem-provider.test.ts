@@ -9,11 +9,23 @@
  * that reads PEM directly from filesystem paths.
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import * as fs from 'node:fs/promises'
 import * as path from 'node:path'
 import * as os from 'node:os'
 import { LegacyFilesystemKeyProvider } from '../../src/key-provider/legacy-filesystem-provider.js'
+
+// `node:os`'s named exports are non-configurable in Vitest's ESM environment,
+// so `vi.spyOn(os, 'homedir')` cannot redefine it -- a full module mock is
+// required instead. `mockHomedir` is a mutable box the mock factory closes
+// over, so each test can point "home" at its own tmp directory; it defaults
+// to '' so tests outside the "tilde expansion" block (which don't touch
+// homedir) are unaffected.
+const mockHomedir = { current: '' }
+vi.mock('node:os', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:os')>()
+  return { ...actual, homedir: () => mockHomedir.current }
+})
 
 describe('LegacyFilesystemKeyProvider', () => {
   let tmpDir: string
@@ -110,6 +122,43 @@ describe('LegacyFilesystemKeyProvider', () => {
       const keyPath = path.join(tmpDir, 'missing-key.pem')
 
       await expect(provider.getPrivateKey(keyPath)).rejects.toThrow(keyPath)
+    })
+
+    // Regression: a hand-edited v1 config carrying a `~`-prefixed key path
+    // (e.g. `~/attest-it/private.pem`) previously failed with "Private key
+    // not found" because Node's fs APIs don't perform shell tilde expansion --
+    // the raw `~/...` string was passed straight to `fs.access`/`fs.readFile`.
+    describe('tilde expansion', () => {
+      beforeEach(() => {
+        mockHomedir.current = tmpDir
+      })
+
+      afterEach(() => {
+        mockHomedir.current = ''
+      })
+
+      it('keyExists resolves a leading ~ to the home directory', async () => {
+        await fs.mkdir(path.join(tmpDir, 'keys'), { recursive: true })
+        await fs.writeFile(
+          path.join(tmpDir, 'keys', 'tilde-key.pem'),
+          '-----BEGIN EC PRIVATE KEY-----\ntest\n-----END EC PRIVATE KEY-----',
+        )
+
+        const exists = await provider.keyExists('~/keys/tilde-key.pem')
+        expect(exists).toBe(true)
+      })
+
+      it('getPrivateKey resolves a leading ~ and returns the expanded path', async () => {
+        await fs.mkdir(path.join(tmpDir, 'keys'), { recursive: true })
+        const realPath = path.join(tmpDir, 'keys', 'tilde-key.pem')
+        await fs.writeFile(
+          realPath,
+          '-----BEGIN EC PRIVATE KEY-----\ntest\n-----END EC PRIVATE KEY-----',
+        )
+
+        const result = await provider.getPrivateKey('~/keys/tilde-key.pem')
+        expect(result.keyPath).toBe(realPath)
+      })
     })
   })
 

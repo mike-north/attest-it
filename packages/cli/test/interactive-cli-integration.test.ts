@@ -119,7 +119,11 @@ describe('Interactive CLI Integration Tests', () => {
   })
 
   describe('Exit code handling', () => {
-    it('should return exit code 1 when there are pending suites', async () => {
+    // Regression: `status` used to exit 1 whenever any gate was invalid
+    // (MISSING, FINGERPRINT_MISMATCH, etc.), conflating an informational
+    // report with CI enforcement. `status` is now always exit 0 when it
+    // successfully produces a report -- `verify` is the enforcement command.
+    it('always exits 0 when it successfully reports status, even with pending suites', async () => {
       project = await createAllMissingFixture()
       await setupProject(project)
 
@@ -128,8 +132,7 @@ describe('Interactive CLI Integration Tests', () => {
         reject: false,
       })
 
-      // Exit code 1 = has pending suites (NOT an error)
-      expect(result.exitCode).toBe(1)
+      expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('MISSING')
     })
 
@@ -146,20 +149,20 @@ describe('Interactive CLI Integration Tests', () => {
       })
 
       // Should not crash
-      expect([0, 1]).toContain(result.exitCode)
+      expect(result.exitCode).toBe(0)
     })
 
-    it('should return exit code 3 for actual errors', async () => {
-      project = await createMultiSuiteFixture()
-      // Don't set up project - missing keypair should cause error
+    it('should return exit code 3 when no gates are defined (a genuine setup error)', async () => {
+      // A project with no suites has no gates either -- distinct from
+      // "status successfully reports invalid gates" (exit 0 above).
+      project = await createProjectFixture({ name: 'no-gates-project', suites: [] })
 
       const result = await execa('node', [CLI_PATH, 'status'], {
         cwd: project.baseDir,
         reject: false,
       })
 
-      // Should fail with actual error (missing public key)
-      expect(result.exitCode).toBeGreaterThanOrEqual(1)
+      expect(result.exitCode).toBe(3)
     })
   })
 
@@ -220,8 +223,8 @@ describe('Interactive CLI Integration Tests', () => {
       project = await createMultiSuiteFixture()
       await setupProject(project)
 
-      // Run without attestation creation (--no-attest) to avoid RSA signing issue
-      // Ed25519 keys from fixture don't work with OpenSSL-based attestation signing
+      // Run without seal creation (--no-attest) so the test can create a seal
+      // directly via the fixture helper below, decoupling suite execution from sealing
       const result = await execa(
         'node',
         [CLI_PATH, 'run', '--suite', 'unit-tests', '--no-attest'],
@@ -289,8 +292,8 @@ describe('Interactive CLI Integration Tests', () => {
         reject: false,
       })
 
-      // Exit code 1 = has pending work
-      expect(result.exitCode).toBe(1)
+      // status is informational-only and exits 0 even with pending work.
+      expect(result.exitCode).toBe(0)
 
       // All suites should show as MISSING
       expect(result.stdout).toContain('MISSING')
@@ -321,7 +324,7 @@ describe('Interactive CLI Integration Tests', () => {
         await new Promise((resolve) => setTimeout(resolve, 100))
       }
 
-      // Run tests with --no-attest to avoid RSA signing, then create seal directly
+      // Run tests with --no-attest, then create the seal directly via the fixture helper
       const result = await execa('node', [CLI_PATH, 'run', '--suite', 'suite-1', '--no-attest'], {
         cwd: project.baseDir,
         reject: false,
@@ -340,13 +343,13 @@ describe('Interactive CLI Integration Tests', () => {
       // Should show test passed
       expect(result.stdout).toMatch(/passed|completed/i)
 
-      // Now create seal directly using Ed25519 keys (bypassing old RSA attestation system)
+      // Now create seal directly using Ed25519 keys (bypassing the interactive CLI flow)
       const { createSealDirectly } = await import('./helpers/fixture-factory.js')
       const { computeFingerprintSync } = await import('@attest-it/core')
 
       const fingerprint = computeFingerprintSync({
-        packages: ['.'],
-        ignore: ['.attest-it/**'],
+        paths: ['.'],
+        exclude: ['.attest-it/**'],
         baseDir: project.baseDir,
       })
 
@@ -415,8 +418,8 @@ describe('Interactive CLI Integration Tests', () => {
       const { computeFingerprintSync } = await import('@attest-it/core')
 
       const fingerprint = computeFingerprintSync({
-        packages: ['.'],
-        ignore: ['.attest-it/**'],
+        paths: ['.'],
+        exclude: ['.attest-it/**'],
         baseDir: project.baseDir,
       })
 

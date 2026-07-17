@@ -64,6 +64,7 @@ function loadTemplate(name: string): string {
 interface PackageJson {
   name: string
   version: string
+  dependencies?: Record<string, string>
   devDependencies?: Record<string, string>
   [key: string]: unknown
 }
@@ -153,10 +154,13 @@ async function ensureDevDependency(): Promise<{
     created = true
   }
 
-  // Add devDependency
+  // Add devDependency (skip if already present in dependencies or devDependencies)
+  const deps = packageJson.dependencies
   const devDeps = packageJson.devDependencies ?? {}
-  devDeps['attest-it'] = '^' + getPackageVersion()
-  packageJson.devDependencies = devDeps
+  if (!deps?.['attest-it'] && !devDeps['attest-it']) {
+    devDeps['attest-it'] = '^' + getPackageVersion()
+    packageJson.devDependencies = devDeps
+  }
 
   await fs.promises.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n')
 

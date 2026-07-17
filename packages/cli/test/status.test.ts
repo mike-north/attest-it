@@ -161,7 +161,7 @@ describe('status command', () => {
       await runStatus([], {})
 
       expect(computeFingerprintSync).toHaveBeenCalledTimes(2)
-      expect(mockProcessExit).toHaveBeenCalledWith(1) // Invalid because MISSING
+      expect(mockProcessExit).toHaveBeenCalledWith(0) // status is informational-only; always exits 0
     })
 
     it('should output JSON with --json flag', async () => {
@@ -202,7 +202,7 @@ describe('status command', () => {
 
       await runStatus([], { json: true })
 
-      expect(mockProcessExit).toHaveBeenCalledWith(1)
+      expect(mockProcessExit).toHaveBeenCalledWith(0) // status is informational-only; always exits 0
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('MISSING'))
     })
 
@@ -224,7 +224,7 @@ describe('status command', () => {
 
       await runStatus([], { json: true })
 
-      expect(mockProcessExit).toHaveBeenCalledWith(1)
+      expect(mockProcessExit).toHaveBeenCalledWith(0) // status is informational-only; always exits 0
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('FINGERPRINT_MISMATCH'))
     })
 
@@ -246,7 +246,7 @@ describe('status command', () => {
 
       await runStatus([], { json: true })
 
-      expect(mockProcessExit).toHaveBeenCalledWith(1)
+      expect(mockProcessExit).toHaveBeenCalledWith(0) // status is informational-only; always exits 0
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('STALE'))
     })
 
@@ -362,7 +362,7 @@ describe('status command', () => {
 
       await runStatus([], { json: true })
 
-      expect(mockProcessExit).toHaveBeenCalledWith(1)
+      expect(mockProcessExit).toHaveBeenCalledWith(0) // status is informational-only; always exits 0
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('INVALID_SIGNATURE'))
     })
 
@@ -384,7 +384,7 @@ describe('status command', () => {
 
       await runStatus([], { json: true })
 
-      expect(mockProcessExit).toHaveBeenCalledWith(1)
+      expect(mockProcessExit).toHaveBeenCalledWith(0) // status is informational-only; always exits 0
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('UNKNOWN_SIGNER'))
     })
 
@@ -427,7 +427,7 @@ describe('status command', () => {
 
       await runStatus([], {})
 
-      expect(mockProcessExit).toHaveBeenCalledWith(1)
+      expect(mockProcessExit).toHaveBeenCalledWith(0) // status is informational-only; always exits 0
     })
   })
 })

@@ -64,42 +64,63 @@ For identity and team management commands, see the [main README](../../README.md
 ### Programmatic API
 
 ```typescript
-import { loadConfig, computeFingerprint, verifyAttestations, generateKeyPair } from 'attest-it'
+import { loadSplitConfig, computeFingerprint, readSeals, verifyAllSeals } from 'attest-it'
 
-// Load configuration
-const config = await loadConfig('.attest-it/config.yaml')
+// Load the split configuration (policy.yaml + config.yaml)
+const config = await loadSplitConfig({ baseDir: process.cwd() })
 
-// Compute fingerprint for a suite
+// Look up the gate explicitly -- a missing gate should fail with a clear
+// error instead of silently falling through to computeFingerprint's generic
+// "paths array must not be empty"
+const gate = config.gates?.['my-gate']
+if (!gate) {
+  throw new Error('Gate "my-gate" not found in policy.yaml')
+}
+
+// Compute fingerprint for the gate
 const result = await computeFingerprint({
-  packages: config.suites['my-suite'].packages,
-  basedir: process.cwd(),
+  paths: gate.fingerprint.paths,
+  baseDir: process.cwd(),
 })
 
-// Verify all attestations
-const verification = await verifyAttestations({
-  config,
-  repoRoot: process.cwd(),
-})
+// Verify all gates' seals against their current fingerprints
+const sealsFile = await readSeals(process.cwd(), config.settings.sealsPath)
+const verification = verifyAllSeals(config, sealsFile, { 'my-gate': result.fingerprint })
 ```
 
 ## Configuration
 
-Create `.attest-it/config.yaml`:
+Create `.attest-it/policy.yaml` (trust-critical: team + gates) and `.attest-it/config.yaml`
+(operational: suites) — `attest-it init` scaffolds both:
 
 ```yaml
+# .attest-it/policy.yaml
 version: 1
 
 settings:
   maxAgeDays: 30
-  algorithm: ed25519
   publicKeyPath: .attest-it/pubkey.pem
-  attestationsPath: .attest-it/attestations.json
+  sealsPath: .attest-it/seals.json
+
+gates:
+  desktop-tests:
+    name: Desktop Tests
+    description: Tests requiring desktop application
+    authorizedSigners: [alice]
+    fingerprint:
+      paths:
+        - packages/my-app
+    maxAge: 30d
+```
+
+```yaml
+# .attest-it/config.yaml
+version: 1
 
 suites:
   desktop-tests:
+    gate: desktop-tests
     description: Tests requiring desktop application
-    packages:
-      - packages/my-app
     command: pnpm vitest --project desktop
 ```
 

@@ -257,6 +257,62 @@ describe('init command', () => {
       })
     })
 
+    // Regression: `init` used to unconditionally add attest-it to
+    // devDependencies, even when it was already a runtime `dependencies`
+    // entry (a plausible setup for a CLI that's also imported programmatically).
+    // That produced a package.json listing attest-it twice, in both sections.
+    it('should not duplicate attest-it into devDependencies when already a dependency', async () => {
+      vi.mocked(fs.existsSync).mockImplementation((filePath) => filePath === 'package.json')
+      vi.mocked(fs.promises.readFile).mockResolvedValue(
+        JSON.stringify({
+          name: 'test-project',
+          version: '1.0.0',
+          dependencies: { 'attest-it': '^0.9.0' },
+        }),
+      )
+
+      await runInit({ dir: DEFAULT_DIR })
+
+      const writeCalls = vi.mocked(fs.promises.writeFile).mock.calls
+      const packageJsonWrite = writeCalls.find((c) => c[0].toString() === 'package.json')
+      expect(packageJsonWrite).toBeDefined()
+      if (!packageJsonWrite) throw new Error('expected package.json write')
+      const content: unknown = packageJsonWrite[1]
+      if (typeof content !== 'string') throw new Error('expected string content')
+      const packageJson: unknown = JSON.parse(content)
+      expect(packageJson).toMatchObject({
+        dependencies: { 'attest-it': '^0.9.0' },
+      })
+      // Must not have added a duplicate, conflicting devDependencies entry.
+      expect(packageJson).not.toHaveProperty('devDependencies.attest-it')
+    })
+
+    it('should not duplicate attest-it into devDependencies when already present there', async () => {
+      vi.mocked(fs.existsSync).mockImplementation((filePath) => filePath === 'package.json')
+      vi.mocked(fs.promises.readFile).mockResolvedValue(
+        JSON.stringify({
+          name: 'test-project',
+          version: '1.0.0',
+          devDependencies: { 'attest-it': '^0.9.0' },
+        }),
+      )
+
+      await runInit({ dir: DEFAULT_DIR })
+
+      const writeCalls = vi.mocked(fs.promises.writeFile).mock.calls
+      const packageJsonWrite = writeCalls.find((c) => c[0].toString() === 'package.json')
+      expect(packageJsonWrite).toBeDefined()
+      if (!packageJsonWrite) throw new Error('expected package.json write')
+      const content: unknown = packageJsonWrite[1]
+      if (typeof content !== 'string') throw new Error('expected string content')
+      const packageJson: unknown = JSON.parse(content)
+      // The existing pinned version must survive untouched, not be
+      // overwritten with the currently running CLI's version.
+      expect(packageJson).toMatchObject({
+        devDependencies: { 'attest-it': '^0.9.0' },
+      })
+    })
+
     it('should not prompt for confirmation when neither file exists', async () => {
       await runInit({ dir: DEFAULT_DIR })
 

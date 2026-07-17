@@ -14,6 +14,7 @@ import {
   createSeal,
   readSealsSync,
   writeSealsSync,
+  verifyGateSeal,
   KeyProviderRegistry,
   API_SCHEMA_VERSION,
   type AttestItConfig,
@@ -240,24 +241,31 @@ async function processSingleGate(
     return { sealed: false, skipped: true, reason: 'Gate not found in configuration' }
   }
 
-  // Check if gate already has a valid seal and --force not specified
-  // eslint-disable-next-line security/detect-object-injection
-  const existingSeal = sealsFile.seals[gateId]
-  if (existingSeal && !options.force) {
-    return {
-      sealed: false,
-      skipped: true,
-      reason: 'Gate already has a seal (use --force to override)',
-    }
-  }
-
-  // Compute current fingerprint
+  // Compute current fingerprint (needed both for seal creation and validity check)
   const fingerprintResult = computeFingerprintSync({
-    packages: gate.fingerprint.paths,
-    ...(gate.fingerprint.exclude && { ignore: gate.fingerprint.exclude }),
+    paths: gate.fingerprint.paths,
+    ...(gate.fingerprint.exclude && { exclude: gate.fingerprint.exclude }),
   })
   if (!options.json) {
     verbose(`  Fingerprint: ${fingerprintResult.fingerprint}`)
+  }
+
+  // Check if gate already has a valid seal (full verification, not just existence)
+  // and --force not specified
+  // eslint-disable-next-line security/detect-object-injection
+  const existingSeal = sealsFile.seals[gateId]
+  if (existingSeal && !options.force) {
+    const verification = verifyGateSeal(config, gateId, sealsFile, fingerprintResult.fingerprint)
+    if (verification.state === 'VALID') {
+      return {
+        sealed: false,
+        skipped: true,
+        reason: 'Gate already has a valid seal (use --force to override)',
+      }
+    }
+    if (!options.json) {
+      verbose(`  Existing seal is invalid (${verification.state}), replacing`)
+    }
   }
 
   // Check if user is authorized to seal this gate

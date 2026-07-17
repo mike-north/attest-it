@@ -14,10 +14,10 @@ const LARGE_FILE_THRESHOLD = 50 * 1024 * 1024 // 50MB
  * @public
  */
 export interface FingerprintOptions {
-  /** Package directories to include */
-  packages: string[]
+  /** Paths or glob patterns to include in fingerprint */
+  paths: string[]
   /** Glob patterns to exclude from fingerprint */
-  ignore?: string[]
+  exclude?: string[]
   /** Base directory for resolving paths */
   baseDir?: string
 }
@@ -143,19 +143,19 @@ function isGlobPattern(pathStr: string): boolean {
  * Validate fingerprint options and return base directory.
  */
 function validateOptions(options: FingerprintOptions): string {
-  if (options.packages.length === 0) {
-    throw new Error('packages array must not be empty')
+  if (options.paths.length === 0) {
+    throw new Error('paths array must not be empty')
   }
 
   const baseDir = options.baseDir ?? process.cwd()
 
-  // Verify all non-glob package paths exist
+  // Verify all non-glob paths exist
   // Glob patterns are validated later by tinyglobby
-  for (const pkg of options.packages) {
-    if (!isGlobPattern(pkg)) {
-      const pkgPath = path.resolve(baseDir, pkg)
-      if (!fs.existsSync(pkgPath)) {
-        throw new Error(`Package path does not exist: ${pkgPath}`)
+  for (const p of options.paths) {
+    if (!isGlobPattern(p)) {
+      const resolvedPath = path.resolve(baseDir, p)
+      if (!fs.existsSync(resolvedPath)) {
+        throw new Error(`Path does not exist: ${resolvedPath}`)
       }
     }
   }
@@ -176,14 +176,14 @@ function validateOptions(options: FingerprintOptions): string {
  *
  * @param options - Configuration for fingerprint computation
  * @returns Result containing the fingerprint hash and list of files processed
- * @throws Error if packages array is empty or if package paths don't exist
+ * @throws Error if paths array is empty or if paths don't exist
  * @public
  */
 export async function computeFingerprint(options: FingerprintOptions): Promise<FingerprintResult> {
   const baseDir = validateOptions(options)
 
-  // List all files in packages
-  const files = await listPackageFiles(options.packages, options.ignore, baseDir)
+  // List all files in paths
+  const files = await listPackageFiles(options.paths, options.exclude, baseDir)
 
   // Sort files lexicographically
   const sortedFiles = sortFiles(files)
@@ -256,15 +256,15 @@ export async function computeFingerprint(options: FingerprintOptions): Promise<F
  *
  * @param options - Configuration for fingerprint computation
  * @returns Result containing the fingerprint hash and list of files processed
- * @throws Error if packages array is empty or if package paths don't exist
+ * @throws Error if paths array is empty or if paths don't exist
  * @public
  * @see {@link computeFingerprint} for the async version
  */
 export function computeFingerprintSync(options: FingerprintOptions): FingerprintResult {
   const baseDir = validateOptions(options)
 
-  // List all files in packages (sync version)
-  const files = listPackageFilesSync(options.packages, options.ignore, baseDir)
+  // List all files in paths (sync version)
+  const files = listPackageFilesSync(options.paths, options.exclude, baseDir)
 
   // Sort files lexicographically
   const sortedFiles = sortFiles(files)

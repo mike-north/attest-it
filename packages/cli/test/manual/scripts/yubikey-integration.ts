@@ -304,8 +304,8 @@ async function runIntegrationTest(): Promise<boolean> {
 
     // Compute fingerprint for the gate
     const fingerprint = computeFingerprintSync({
-      packages: ['.'],
-      ignore: ['.attest-it/**'],
+      paths: ['.'],
+      exclude: ['.attest-it/**'],
       baseDir: project.baseDir,
     })
     info(`Fingerprint: ${fingerprint.fingerprint}`)
@@ -348,8 +348,8 @@ async function runIntegrationTest(): Promise<boolean> {
 
     // Compute current fingerprint again
     const currentFingerprint = computeFingerprintSync({
-      packages: ['.'],
-      ignore: ['.attest-it/**'],
+      paths: ['.'],
+      exclude: ['.attest-it/**'],
       baseDir: project.baseDir,
     })
 

@@ -18,6 +18,8 @@
  */
 
 import * as fs from 'node:fs/promises'
+import * as path from 'node:path'
+import { homedir } from 'node:os'
 import type {
   KeyProvider,
   KeyProviderConfig,
@@ -25,6 +27,23 @@ import type {
   KeyGenerationResult,
   KeygenProviderOptions,
 } from './types.js'
+
+/**
+ * Expand a leading `~` to the user's home directory.
+ * Shell tilde expansion is not performed by Node's filesystem APIs, so a
+ * hand-edited v1 config carrying a `~`-prefixed path must be expanded
+ * explicitly at the point of I/O.
+ * `packages/cli/src/commands/identity/remove.ts` duplicates this same
+ * expansion for the delete path — not shared via export because this
+ * module's internals are intentionally not part of the package's public API.
+ * @internal
+ */
+function resolveLegacyPath(p: string): string {
+  if (p === '~' || p.startsWith('~/')) {
+    return path.join(homedir(), p.slice(1))
+  }
+  return p
+}
 
 /**
  * Key provider that reads PEM keys directly from legacy filesystem paths.
@@ -52,11 +71,11 @@ export class LegacyFilesystemKeyProvider implements KeyProvider {
 
   /**
    * Check if a key exists at the given filesystem path.
-   * @param keyRef - Filesystem path to the private key file
+   * @param keyRef - Filesystem path to the private key file (may contain a leading `~`)
    */
   async keyExists(keyRef: string): Promise<boolean> {
     try {
-      await fs.access(keyRef)
+      await fs.access(resolveLegacyPath(keyRef))
       return true
     } catch {
       return false
@@ -65,8 +84,8 @@ export class LegacyFilesystemKeyProvider implements KeyProvider {
 
   /**
    * Get the private key path for signing.
-   * Returns the path directly with a no-op cleanup function.
-   * @param keyRef - Filesystem path to the private key file
+   * Returns the resolved (tilde-expanded) path with a no-op cleanup function.
+   * @param keyRef - Filesystem path to the private key file (may contain a leading `~`)
    */
   async getPrivateKey(keyRef: string): Promise<KeyRetrievalResult> {
     if (!(await this.keyExists(keyRef))) {
@@ -74,7 +93,7 @@ export class LegacyFilesystemKeyProvider implements KeyProvider {
     }
 
     return {
-      keyPath: keyRef,
+      keyPath: resolveLegacyPath(keyRef),
       // No-op cleanup — key stays on filesystem
       cleanup: async () => {
         // Nothing to clean up - key stays on filesystem

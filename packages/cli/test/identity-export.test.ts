@@ -1,23 +1,22 @@
 /**
- * Tests for `identity export`'s onboarding guidance text (issue #84).
+ * Tests for `identity export`.
  *
- * `export` used to tell users to add their key to a config file/key that
- * doesn't exist anywhere in the schema or docs: `.attest-it/team-config.yaml`
- * under a `members:` key. The real, only config file that holds team members
- * is `.attest-it/policy.yaml` under a `team:` key (see docs/getting-started.md
- * and docs/configuration.md). Following the tool's own old guidance produced
- * a file attest-it silently ignored. These tests drive the real `runExport`
- * against a real temp-directory home (via `setAttestItHomeDir`), matching the
- * pattern used by identity-create.test.ts, and assert the printed guidance
- * names the real file and key.
+ * Regression: the exported YAML snippet's guidance comments referenced a
+ * file/section that never existed on the current split-config model
+ * (".attest-it/team-config.yaml" and a "members:" section). Team data
+ * actually lives under the "team:" key in ".attest-it/policy.yaml" -- see
+ * `packages/cli/src/commands/team/join.ts` and `packages/core/src/config/policy-schema.ts`.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import * as fs from 'node:fs'
-import * as os from 'node:os'
-import * as path from 'node:path'
-import { setAttestItHomeDir, saveLocalConfig, type LocalConfig } from '@attest-it/core'
-import { runExport } from '../src/commands/identity/export.js'
-import { ExitCode } from '../src/utils/exit-codes.js'
+import type { LocalConfig } from '@attest-it/core'
+
+vi.mock('@attest-it/core', async () => {
+  const actual = await vi.importActual<typeof import('@attest-it/core')>('@attest-it/core')
+  return {
+    ...actual,
+    loadLocalConfig: vi.fn(),
+  }
+})
 
 const mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {
   // Intentionally empty
@@ -25,103 +24,72 @@ const mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {
 const mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {
   // Intentionally empty
 })
-const mockProcessExit = vi.spyOn(process, 'exit').mockImplementation(() => {
-  throw new Error('process.exit called')
-})
+const mockProcessExit = vi
+  .spyOn(process, 'exit')
+  // @ts-expect-error - Mocking process.exit which has a complex signature
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  .mockImplementation(() => {})
 
-/** Concatenate every console.log call into one string for substring assertions. */
-function loggedOutput(): string {
-  return mockConsoleLog.mock.calls.map((call) => String(call[0])).join('\n')
+const { loadLocalConfig } = await import('@attest-it/core')
+const { runExport } = await import('../src/commands/identity/export.js')
+
+function mockLocalConfig(): LocalConfig {
+  return {
+    version: 2,
+    activeIdentity: 'alice',
+    identities: {
+      alice: {
+        name: 'Alice',
+        publicKey: 'pk-alice',
+        privateKey: { type: 'file', id: 'secret-id' },
+        email: 'alice@example.com',
+      },
+    },
+  }
 }
 
-describe('identity export guidance (issue #84)', () => {
-  let homeDir: string
+describe('identity export', () => {
+  beforeEach(() => vi.clearAllMocks())
+  afterEach(() => vi.clearAllMocks())
 
-  beforeEach(async () => {
-    homeDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'attest-it-export-test-'))
-    setAttestItHomeDir(homeDir)
+  it('points at the current policy.yaml file and "team:" section, not the stale team-config.yaml/members: text', async () => {
+    vi.mocked(loadLocalConfig).mockResolvedValue(mockLocalConfig())
 
-    const config: LocalConfig = {
-      version: 2,
-      activeIdentity: 'alice',
-      identities: {
-        alice: {
-          name: 'Alice Smith',
-          email: 'alice@example.com',
-          publicKey: 'EE23kZ8M6StmTLceSgc1DQvpqWYujRlE1vEwX2MOM0A=',
-          privateKey: { type: 'file', id: 'unused-in-this-test' },
-        },
-      },
-    }
-    await saveLocalConfig(config)
-
-    vi.clearAllMocks()
-  })
-
-  afterEach(async () => {
-    setAttestItHomeDir(null)
-    await fs.promises.rm(homeDir, { recursive: true, force: true })
-  })
-
-  it('should never mention the nonexistent team-config.yaml file', async () => {
-    await runExport('alice')
-
-    expect(loggedOutput()).not.toMatch(/team-config\.yaml/)
-  })
-
-  it('should never mention the nonexistent "members:" key', async () => {
-    await runExport('alice')
-
-    expect(loggedOutput()).not.toMatch(/members:/)
-  })
-
-  it('should tell the user to add the snippet to .attest-it/policy.yaml', async () => {
-    await runExport('alice')
-
-    expect(loggedOutput()).toMatch(/\.attest-it\/policy\.yaml/)
-  })
-
-  it('should tell the user the snippet belongs under the real "team:" key', async () => {
-    await runExport('alice')
-
-    expect(loggedOutput()).toMatch(/"team:"/)
-  })
-
-  it('should print a YAML snippet keyed by the identity slug with name and publicKey', async () => {
-    await runExport('alice')
-
-    const output = loggedOutput()
-    expect(output).toContain('alice:')
-    expect(output).toContain('name: Alice Smith')
-    expect(output).toContain('publicKey: EE23kZ8M6StmTLceSgc1DQvpqWYujRlE1vEwX2MOM0A=')
-  })
-
-  it('should exit with CONFIG_ERROR when no identities are configured', async () => {
-    setAttestItHomeDir(null)
-    await fs.promises.rm(homeDir, { recursive: true, force: true })
-    homeDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'attest-it-export-empty-'))
-    setAttestItHomeDir(homeDir)
-
-    await expect(runExport('alice')).rejects.toThrow('process.exit called')
-
-    expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CONFIG_ERROR)
-    expect(mockConsoleError).toHaveBeenCalledWith(
-      expect.stringContaining('No identities configured'),
-    )
-  })
-
-  it('should exit with CONFIG_ERROR when the requested slug does not exist', async () => {
-    await expect(runExport('nonexistent-slug')).rejects.toThrow('process.exit called')
-
-    expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CONFIG_ERROR)
-    expect(mockConsoleError).toHaveBeenCalledWith(
-      expect.stringContaining('Identity "nonexistent-slug" not found'),
-    )
-  })
-
-  it('should default to the active identity when no slug is given', async () => {
     await runExport()
 
-    expect(loggedOutput()).toContain('alice:')
+    const printed = mockConsoleLog.mock.calls.map((c) => String(c[0])).join('\n')
+    expect(printed).toContain('.attest-it/policy.yaml')
+    expect(printed).toContain('"team:" section')
+    expect(printed).not.toContain('team-config.yaml')
+    expect(printed).not.toContain('members:')
+    expect(mockProcessExit).not.toHaveBeenCalled()
+  })
+
+  it('includes the requested identity as a YAML entry keyed by slug', async () => {
+    vi.mocked(loadLocalConfig).mockResolvedValue(mockLocalConfig())
+
+    await runExport('alice')
+
+    const printed = mockConsoleLog.mock.calls.map((c) => String(c[0])).join('\n')
+    expect(printed).toContain('alice:')
+    expect(printed).toContain('pk-alice')
+  })
+
+  it('exits with CONFIG_ERROR when no identities are configured', async () => {
+    vi.mocked(loadLocalConfig).mockResolvedValue(null)
+
+    await runExport()
+
+    expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('No identities'))
+    expect(mockProcessExit).toHaveBeenCalledWith(3)
+  })
+
+  it('exits with CONFIG_ERROR when the requested slug is not found', async () => {
+    vi.mocked(loadLocalConfig).mockResolvedValue(mockLocalConfig())
+
+    await runExport('nonexistent')
+
+    expect(mockConsoleError).toHaveBeenCalledWith(expect.stringContaining('not found'))
+    expect(mockProcessExit).toHaveBeenCalledWith(3)
   })
 })

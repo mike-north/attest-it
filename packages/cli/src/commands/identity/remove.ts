@@ -5,6 +5,8 @@ import { log, success, error, getTheme } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
 import { formatKeyLocation } from '../../utils/format-key-location.js'
 import { unlink } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import * as path from 'node:path'
 
 export const removeCommand = new Command('remove')
   .description('Delete identity and optionally delete private key')
@@ -15,8 +17,9 @@ export const removeCommand = new Command('remove')
 
 /**
  * Run the remove command to delete an identity.
+ * @public
  */
-async function runRemove(slug: string): Promise<void> {
+export async function runRemove(slug: string): Promise<void> {
   try {
     const config = await loadLocalConfig()
 
@@ -79,10 +82,21 @@ async function runRemove(slug: string): Promise<void> {
           break
         }
         case 'filesystem': {
-          // Legacy filesystem key — delete the file directly
+          // Legacy filesystem key — delete the file directly. The stored path
+          // may contain a leading `~` (from a hand-edited v1 config); Node's
+          // fs APIs don't expand it, so resolve it explicitly before deleting.
+          // Mirrors `resolveLegacyPath` in
+          // `@attest-it/core`'s `key-provider/legacy-filesystem-provider.ts` —
+          // not shared via export because that module's internals are
+          // intentionally not part of the package's public API.
           try {
-            await unlink(identity.privateKey.path)
-            log(`  Deleted legacy private key file: ${identity.privateKey.path}`)
+            const rawPath = identity.privateKey.path
+            const resolvedPath =
+              rawPath === '~' || rawPath.startsWith('~/')
+                ? path.join(homedir(), rawPath.slice(1))
+                : rawPath
+            await unlink(resolvedPath)
+            log(`  Deleted legacy private key file: ${rawPath}`)
           } catch (err) {
             // Ignore file not found errors
             if (err && typeof err === 'object' && 'code' in err && err.code !== 'ENOENT') {

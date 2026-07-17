@@ -6,10 +6,10 @@ Core library for the attest-it human-gated test attestation system.
 
 This package provides the core business logic for attest-it:
 
-- Configuration loading and validation
+- Split configuration loading and validation (trust-critical `policy.yaml` + operational `config.yaml`)
 - Fingerprint computation for test files and packages
-- Attestation file reading and writing with signing
-- Cryptographic key generation and verification (via OpenSSL)
+- Seal creation, storage, and verification with Ed25519 signing
+- Cryptographic key generation and verification (Ed25519 natively; legacy RSA-2048 via OpenSSL)
 - Verification logic for CI pipelines
 
 ## Installation
@@ -24,11 +24,15 @@ Most users should install the `attest-it` umbrella package instead, which includ
 
 ### Loading Configuration
 
-```typescript
-import { loadConfig, findConfigPath } from '@attest-it/core'
+Configuration is split into a trust-critical `policy.yaml` (team, gates, security settings) and an
+operational `config.yaml` (suites, command settings). `loadSplitConfig` loads and merges both into
+a single `AttestItConfig` (the `Config` type still exists for the retired unified format, but
+`AttestItConfig` is what the CLI and seal APIs operate on):
 
-const configPath = await findConfigPath('/path/to/repo')
-const config = await loadConfig(configPath)
+```typescript
+import { loadSplitConfig } from '@attest-it/core'
+
+const config = await loadSplitConfig({ baseDir: '/path/to/repo' })
 ```
 
 ### Computing Fingerprints
@@ -37,80 +41,77 @@ const config = await loadConfig(configPath)
 import { computeFingerprint } from '@attest-it/core'
 
 const result = await computeFingerprint({
-  packages: ['packages/my-app'],
-  basedir: '/path/to/repo',
-  ignore: ['**/*.test.ts'],
+  paths: ['packages/my-app'],
+  baseDir: '/path/to/repo',
+  exclude: ['**/*.test.ts'],
 })
 
 console.log(result.fingerprint) // "sha256:abc123..."
 console.log(result.fileCount) // 42
 ```
 
-### Working with Attestations
+### Creating and Verifying Seals
+
+Seals (not attestations — the original attestation model was retired in favor of this seal system)
+are Ed25519-signed records that a gate's fingerprint was verified at a point in time:
 
 ```typescript
 import {
-  readAndVerifyAttestations,
-  writeSignedAttestations,
-  createAttestation,
-  upsertAttestation,
+  loadSplitConfig,
+  computeFingerprint,
+  createSeal,
+  readSeals,
+  writeSeals,
+  verifyAllSeals,
 } from '@attest-it/core'
+import { readFileSync } from 'node:fs'
 
-// Read and verify existing attestations
-const { attestations } = await readAndVerifyAttestations({
-  filepath: '.attest-it/attestations.json',
-  publicKeyPath: '.attest-it/pubkey.pem',
+const baseDir = '/path/to/repo'
+const config = await loadSplitConfig({ baseDir })
+
+// Compute the current fingerprint for a gate
+const result = await computeFingerprint({
+  paths: ['packages/my-app'],
+  baseDir,
 })
 
-// Create a new attestation
-const newAttestation = createAttestation({
-  suite: 'desktop-tests',
-  fingerprint: 'sha256:abc123...',
-  command: 'pnpm vitest --project desktop',
-  exitCode: 0,
+// Create a seal for that gate, signed with the identity's private key
+const privateKeyPem = readFileSync('/path/to/private-key.pem', 'utf8')
+const seal = createSeal({
+  gateId: 'desktop-tests',
+  fingerprint: result.fingerprint,
+  sealedBy: 'alice',
+  privateKey: privateKeyPem,
 })
 
-// Add to attestations and save
-const updated = upsertAttestation(attestations, newAttestation)
-await writeSignedAttestations({
-  filepath: '.attest-it/attestations.json',
-  attestations: updated,
-  privateKeyPath: '~/.config/attest-it/key.pem',
-})
-```
+// Add it to the seals file and persist
+const sealsFile = await readSeals(baseDir, config.settings.sealsPath)
+sealsFile.seals[seal.gateId] = seal
+await writeSeals(baseDir, sealsFile, config.settings.sealsPath)
 
-### Verification
-
-```typescript
-import { verifyAttestations } from '@attest-it/core'
-
-const result = await verifyAttestations({
-  config,
-  repoRoot: '/path/to/repo',
-})
-
-if (result.success) {
-  console.log('All attestations valid')
-} else {
-  for (const suite of result.suites) {
-    if (suite.status !== 'VALID') {
-      console.log(`${suite.suite}: ${suite.status} - ${suite.message}`)
-    }
+// Verify all gates' seals against their current fingerprints
+const results = verifyAllSeals(config, sealsFile, { 'desktop-tests': result.fingerprint })
+for (const r of results) {
+  if (r.state !== 'VALID') {
+    console.log(`${r.gateId}: ${r.state} - ${r.message ?? ''}`)
   }
 }
 ```
 
 ### Key Generation
 
-```typescript
-import { generateKeyPair, getDefaultPrivateKeyPath } from '@attest-it/core'
+New identities should be created via `attest-it identity create`, which stores the private key
+through a VaultKeeper-backed provider (filesystem, macOS Keychain, 1Password, or YubiKey).
+Programmatically, an Ed25519 keypair can be generated directly:
 
-const paths = await generateKeyPair({
-  algorithm: 'ed25519',
-  publicPath: '.attest-it/pubkey.pem',
-  privatePath: getDefaultPrivateKeyPath(),
-})
+```typescript
+import { generateEd25519KeyPair } from '@attest-it/core'
+
+const { publicKey, privateKey } = generateEd25519KeyPair()
 ```
+
+A legacy RSA-2048 keypair generator (`generateKeyPair`, via OpenSSL) also remains exported for
+backward compatibility with older, non-Ed25519 signing flows.
 
 ## API Documentation
 

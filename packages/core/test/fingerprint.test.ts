@@ -16,7 +16,7 @@ describe('fingerprint', () => {
           fs.writeFileSync(testFile, 'hello world')
 
           const result = await computeFingerprint({
-            packages: ['.'],
+            paths: ['.'],
             baseDir: tempDir,
           })
 
@@ -30,12 +30,12 @@ describe('fingerprint', () => {
 
       it('should produce consistent fingerprint across multiple calls', async () => {
         const result1 = await computeFingerprint({
-          packages: ['src'],
+          paths: ['src'],
           baseDir: TEST_PROJECT_DIR,
         })
 
         const result2 = await computeFingerprint({
-          packages: ['src'],
+          paths: ['src'],
           baseDir: TEST_PROJECT_DIR,
         })
 
@@ -46,7 +46,7 @@ describe('fingerprint', () => {
 
       it('should handle multiple files in sorted order', async () => {
         const result = await computeFingerprint({
-          packages: ['src'],
+          paths: ['src'],
           baseDir: TEST_PROJECT_DIR,
         })
 
@@ -61,8 +61,8 @@ describe('fingerprint', () => {
 
       it('should respect ignore patterns', async () => {
         const result = await computeFingerprint({
-          packages: ['.'],
-          ignore: ['src/**'],
+          paths: ['.'],
+          exclude: ['src/**'],
           baseDir: TEST_PROJECT_DIR,
         })
 
@@ -72,8 +72,8 @@ describe('fingerprint', () => {
 
       it('should respect .gitignore', async () => {
         const result = await computeFingerprint({
-          packages: ['.'],
-          ignore: ['.git/**'], // Exclude .git directory from results
+          paths: ['.'],
+          exclude: ['.git/**'], // Exclude .git directory from results
           baseDir: TEST_PROJECT_DIR,
         })
 
@@ -88,7 +88,7 @@ describe('fingerprint', () => {
 
       it('should handle binary files correctly', async () => {
         const result = await computeFingerprint({
-          packages: ['.'],
+          paths: ['.'],
           baseDir: TEST_PROJECT_DIR,
         })
 
@@ -105,7 +105,7 @@ describe('fingerprint', () => {
           fs.symlinkSync(targetFile, linkFile)
 
           const result = await computeFingerprint({
-            packages: ['.'],
+            paths: ['.'],
             baseDir: tempDir,
           })
 
@@ -128,7 +128,7 @@ describe('fingerprint', () => {
           fs.writeFileSync(path.join(pkg2, 'file2.txt'), 'content2')
 
           const result = await computeFingerprint({
-            packages: ['pkg1', 'pkg2'],
+            paths: ['pkg1', 'pkg2'],
             baseDir: tempDir,
           })
 
@@ -142,21 +142,21 @@ describe('fingerprint', () => {
     })
 
     describe('negative tests', () => {
-      it('should throw error for empty packages array', async () => {
+      it('should throw error for empty paths array', async () => {
         await expect(
           computeFingerprint({
-            packages: [],
+            paths: [],
           }),
-        ).rejects.toThrow('packages array must not be empty')
+        ).rejects.toThrow('paths array must not be empty')
       })
 
       it('should throw error for non-existent package path', async () => {
         await expect(
           computeFingerprint({
-            packages: ['non-existent-path'],
+            paths: ['non-existent-path'],
             baseDir: TEST_PROJECT_DIR,
           }),
-        ).rejects.toThrow('Package path does not exist')
+        ).rejects.toThrow('Path does not exist')
       })
 
       it('should detect circular symlinks when multiple symlinks point to same file', async () => {
@@ -176,7 +176,7 @@ describe('fingerprint', () => {
           // The circular symlink detection is to prevent infinite loops,
           // but multiple symlinks to same file just means the file is hashed multiple times
           const result = await computeFingerprint({
-            packages: ['.'],
+            paths: ['.'],
             baseDir: tempDir,
           })
 
@@ -192,9 +192,9 @@ describe('fingerprint', () => {
       it('should produce same fingerprint regardless of file discovery order', async () => {
         // Run multiple times to ensure consistency
         const results = await Promise.all([
-          computeFingerprint({ packages: ['src'], baseDir: TEST_PROJECT_DIR }),
-          computeFingerprint({ packages: ['src'], baseDir: TEST_PROJECT_DIR }),
-          computeFingerprint({ packages: ['src'], baseDir: TEST_PROJECT_DIR }),
+          computeFingerprint({ paths: ['src'], baseDir: TEST_PROJECT_DIR }),
+          computeFingerprint({ paths: ['src'], baseDir: TEST_PROJECT_DIR }),
+          computeFingerprint({ paths: ['src'], baseDir: TEST_PROJECT_DIR }),
         ])
 
         const fingerprints = results.map((r) => r.fingerprint)
@@ -207,7 +207,7 @@ describe('fingerprint', () => {
           fs.writeFileSync(path.join(tempDir, 'file1.txt'), 'content1')
 
           const result1 = await computeFingerprint({
-            packages: ['.'],
+            paths: ['.'],
             baseDir: tempDir,
           })
 
@@ -215,7 +215,7 @@ describe('fingerprint', () => {
           fs.writeFileSync(path.join(tempDir, 'file2.txt'), 'content2')
 
           const result2 = await computeFingerprint({
-            packages: ['.'],
+            paths: ['.'],
             baseDir: tempDir,
           })
 
@@ -232,7 +232,7 @@ describe('fingerprint', () => {
           fs.writeFileSync(path.join(tempDir, 'file2.txt'), 'content2')
 
           const result1 = await computeFingerprint({
-            packages: ['.'],
+            paths: ['.'],
             baseDir: tempDir,
           })
 
@@ -240,7 +240,7 @@ describe('fingerprint', () => {
           fs.unlinkSync(path.join(tempDir, 'file2.txt'))
 
           const result2 = await computeFingerprint({
-            packages: ['.'],
+            paths: ['.'],
             baseDir: tempDir,
           })
 
@@ -257,7 +257,7 @@ describe('fingerprint', () => {
           fs.writeFileSync(testFile, 'original content')
 
           const result1 = await computeFingerprint({
-            packages: ['.'],
+            paths: ['.'],
             baseDir: tempDir,
           })
 
@@ -265,7 +265,7 @@ describe('fingerprint', () => {
           fs.writeFileSync(testFile, 'modified content')
 
           const result2 = await computeFingerprint({
-            packages: ['.'],
+            paths: ['.'],
             baseDir: tempDir,
           })
 
@@ -281,7 +281,7 @@ describe('fingerprint', () => {
           fs.writeFileSync(path.join(tempDir, 'oldname.txt'), 'content')
 
           const result1 = await computeFingerprint({
-            packages: ['.'],
+            paths: ['.'],
             baseDir: tempDir,
           })
 
@@ -289,7 +289,7 @@ describe('fingerprint', () => {
           fs.renameSync(path.join(tempDir, 'oldname.txt'), path.join(tempDir, 'newname.txt'))
 
           const result2 = await computeFingerprint({
-            packages: ['.'],
+            paths: ['.'],
             baseDir: tempDir,
           })
 
@@ -305,7 +305,7 @@ describe('fingerprint', () => {
         const tempDir = fs.mkdtempSync(path.join(__dirname, 'test-'))
         try {
           const result = await computeFingerprint({
-            packages: ['.'],
+            paths: ['.'],
             baseDir: tempDir,
           })
 
@@ -324,7 +324,7 @@ describe('fingerprint', () => {
           fs.writeFileSync(path.join(tempDir, weirdName), 'content')
 
           const result = await computeFingerprint({
-            packages: ['.'],
+            paths: ['.'],
             baseDir: tempDir,
           })
 
@@ -343,7 +343,7 @@ describe('fingerprint', () => {
           fs.writeFileSync(path.join(deepPath, 'deep.txt'), 'deep content')
 
           const result = await computeFingerprint({
-            packages: ['.'],
+            paths: ['.'],
             baseDir: tempDir,
           })
 
@@ -359,12 +359,12 @@ describe('fingerprint', () => {
   describe('computeFingerprintSync', () => {
     it('should produce same result as async version', () => {
       const asyncResult = computeFingerprint({
-        packages: ['src'],
+        paths: ['src'],
         baseDir: TEST_PROJECT_DIR,
       })
 
       const syncResult = computeFingerprintSync({
-        packages: ['src'],
+        paths: ['src'],
         baseDir: TEST_PROJECT_DIR,
       })
 
@@ -375,21 +375,21 @@ describe('fingerprint', () => {
       })
     })
 
-    it('should throw error for empty packages array', () => {
+    it('should throw error for empty paths array', () => {
       expect(() =>
         computeFingerprintSync({
-          packages: [],
+          paths: [],
         }),
-      ).toThrow('packages array must not be empty')
+      ).toThrow('paths array must not be empty')
     })
 
     it('should throw error for non-existent package path', () => {
       expect(() =>
         computeFingerprintSync({
-          packages: ['non-existent-path'],
+          paths: ['non-existent-path'],
           baseDir: TEST_PROJECT_DIR,
         }),
-      ).toThrow('Package path does not exist')
+      ).toThrow('Path does not exist')
     })
   })
 

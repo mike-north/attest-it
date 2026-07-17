@@ -306,8 +306,8 @@ export async function createRealAttestation(
 
       // Compute fingerprint for the gate (use projectDir as baseDir)
       const fingerprint = computeFingerprintSync({
-        packages: ['.'],
-        ignore: ['.attest-it/**'],
+        paths: ['.'],
+        exclude: ['.attest-it/**'],
         baseDir: projectDir,
       })
 

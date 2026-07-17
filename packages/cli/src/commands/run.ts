@@ -372,8 +372,8 @@ async function runSingleSuite(
 
   // Compute fingerprint using gate's fingerprint configuration
   const fingerprintOptions = {
-    packages: gateConfig.fingerprint.paths,
-    ...(gateConfig.fingerprint.exclude && { ignore: gateConfig.fingerprint.exclude }),
+    paths: gateConfig.fingerprint.paths,
+    ...(gateConfig.fingerprint.exclude && { exclude: gateConfig.fingerprint.exclude }),
   }
   const fingerprintResult = await computeFingerprint(fingerprintOptions)
   verbose(`Fingerprint: ${fingerprintResult.fingerprint}`)
@@ -486,8 +486,8 @@ async function promptForSeal(
 
     // Compute fingerprint for the gate
     const gateFingerprint = computeFingerprintSync({
-      packages: gate.fingerprint.paths,
-      ...(gate.fingerprint.exclude && { ignore: gate.fingerprint.exclude }),
+      paths: gate.fingerprint.paths,
+      ...(gate.fingerprint.exclude && { exclude: gate.fingerprint.exclude }),
     })
 
     // Create key provider from identity's private key reference

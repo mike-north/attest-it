@@ -111,8 +111,8 @@ async function verifyGate(
   let fingerprint: string
   try {
     const result = await computeFingerprint({
-      packages: gate.fingerprint.paths,
-      ...(gate.fingerprint.exclude && { ignore: gate.fingerprint.exclude }),
+      paths: gate.fingerprint.paths,
+      ...(gate.fingerprint.exclude && { exclude: gate.fingerprint.exclude }),
       baseDir,
     })
     fingerprint = result.fingerprint
@@ -272,8 +272,8 @@ export async function fingerprint(
 
   try {
     const result = await computeFingerprint({
-      packages: gateConfig.fingerprint.paths,
-      ...(gateConfig.fingerprint.exclude && { ignore: gateConfig.fingerprint.exclude }),
+      paths: gateConfig.fingerprint.paths,
+      ...(gateConfig.fingerprint.exclude && { exclude: gateConfig.fingerprint.exclude }),
       baseDir,
     })
     return {
@@ -363,8 +363,8 @@ export async function seal(
 
   // Compute the fingerprint to sign.
   const fingerprintResult = await computeFingerprint({
-    packages: gateConfig.fingerprint.paths,
-    ...(gateConfig.fingerprint.exclude && { ignore: gateConfig.fingerprint.exclude }),
+    paths: gateConfig.fingerprint.paths,
+    ...(gateConfig.fingerprint.exclude && { exclude: gateConfig.fingerprint.exclude }),
     baseDir,
   })
 
