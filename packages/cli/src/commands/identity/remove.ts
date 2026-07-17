@@ -85,6 +85,10 @@ export async function runRemove(slug: string): Promise<void> {
           // Legacy filesystem key — delete the file directly. The stored path
           // may contain a leading `~` (from a hand-edited v1 config); Node's
           // fs APIs don't expand it, so resolve it explicitly before deleting.
+          // Mirrors `resolveLegacyPath` in
+          // `@attest-it/core`'s `key-provider/legacy-filesystem-provider.ts` —
+          // not shared via export because that module's internals are
+          // intentionally not part of the package's public API.
           try {
             const rawPath = identity.privateKey.path
             const resolvedPath =

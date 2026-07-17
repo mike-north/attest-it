@@ -64,18 +64,27 @@ For identity and team management commands, see the [main README](../../README.md
 ### Programmatic API
 
 ```typescript
-import { loadSplitConfig, computeFingerprint, verifyAllSeals } from 'attest-it'
+import { loadSplitConfig, computeFingerprint, readSeals, verifyAllSeals } from 'attest-it'
 
 // Load the split configuration (policy.yaml + config.yaml)
 const config = await loadSplitConfig({ baseDir: process.cwd() })
 
-// Compute fingerprint for a gate
+// Look up the gate explicitly -- a missing gate should fail with a clear
+// error instead of silently falling through to computeFingerprint's generic
+// "paths array must not be empty"
+const gate = config.gates?.['my-gate']
+if (!gate) {
+  throw new Error('Gate "my-gate" not found in policy.yaml')
+}
+
+// Compute fingerprint for the gate
 const result = await computeFingerprint({
-  paths: config.gates?.['my-gate']?.fingerprint.paths ?? [],
+  paths: gate.fingerprint.paths,
   baseDir: process.cwd(),
 })
 
 // Verify all gates' seals against their current fingerprints
+const sealsFile = await readSeals(process.cwd(), config.settings.sealsPath)
 const verification = verifyAllSeals(config, sealsFile, { 'my-gate': result.fingerprint })
 ```
 

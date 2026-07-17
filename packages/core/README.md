@@ -56,9 +56,27 @@ Seals (not attestations — the original attestation model was retired in favor 
 are Ed25519-signed records that a gate's fingerprint was verified at a point in time:
 
 ```typescript
-import { createSeal, readSeals, writeSeals, verifyAllSeals } from '@attest-it/core'
+import {
+  loadSplitConfig,
+  computeFingerprint,
+  createSeal,
+  readSeals,
+  writeSeals,
+  verifyAllSeals,
+} from '@attest-it/core'
+import { readFileSync } from 'node:fs'
 
-// Create a seal for a gate
+const baseDir = '/path/to/repo'
+const config = await loadSplitConfig({ baseDir })
+
+// Compute the current fingerprint for a gate
+const result = await computeFingerprint({
+  paths: ['packages/my-app'],
+  baseDir,
+})
+
+// Create a seal for that gate, signed with the identity's private key
+const privateKeyPem = readFileSync('/path/to/private-key.pem', 'utf8')
 const seal = createSeal({
   gateId: 'desktop-tests',
   fingerprint: result.fingerprint,
@@ -67,9 +85,9 @@ const seal = createSeal({
 })
 
 // Add it to the seals file and persist
-const sealsFile = await readSeals('/path/to/repo', config.settings.sealsPath)
+const sealsFile = await readSeals(baseDir, config.settings.sealsPath)
 sealsFile.seals[seal.gateId] = seal
-await writeSeals('/path/to/repo', sealsFile, config.settings.sealsPath)
+await writeSeals(baseDir, sealsFile, config.settings.sealsPath)
 
 // Verify all gates' seals against their current fingerprints
 const results = verifyAllSeals(config, sealsFile, { 'desktop-tests': result.fingerprint })

@@ -33,6 +33,9 @@ import type {
  * Shell tilde expansion is not performed by Node's filesystem APIs, so a
  * hand-edited v1 config carrying a `~`-prefixed path must be expanded
  * explicitly at the point of I/O.
+ * `packages/cli/src/commands/identity/remove.ts` duplicates this same
+ * expansion for the delete path — not shared via export because this
+ * module's internals are intentionally not part of the package's public API.
  * @internal
  */
 function resolveLegacyPath(p: string): string {
