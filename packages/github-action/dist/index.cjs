@@ -13149,7 +13149,7 @@ var require_fetch = __commonJS({
         this.emit("terminated", error2);
       }
     };
-    function fetch(input, init = {}) {
+    function fetch2(input, init = {}) {
       webidl.argumentLengthCheck(arguments, 1, { header: "globalThis.fetch" });
       const p = createDeferredPromise();
       let requestObject;
@@ -14079,7 +14079,7 @@ var require_fetch = __commonJS({
       }
     }
     module2.exports = {
-      fetch,
+      fetch: fetch2,
       Fetch,
       fetching,
       finalizeAndReportTiming
@@ -17357,7 +17357,7 @@ var require_undici = __commonJS({
     module2.exports.getGlobalDispatcher = getGlobalDispatcher;
     if (util2.nodeMajor > 16 || util2.nodeMajor === 16 && util2.nodeMinor >= 8) {
       let fetchImpl = null;
-      module2.exports.fetch = async function fetch(resource) {
+      module2.exports.fetch = async function fetch2(resource) {
         if (!fetchImpl) {
           fetchImpl = require_fetch().fetch;
         }
@@ -32731,16 +32731,16 @@ function fetchWrapper(requestOptions) {
   let headers = {};
   let status;
   let url;
-  let { fetch } = globalThis;
+  let { fetch: fetch2 } = globalThis;
   if (requestOptions.request?.fetch) {
-    fetch = requestOptions.request.fetch;
+    fetch2 = requestOptions.request.fetch;
   }
-  if (!fetch) {
+  if (!fetch2) {
     throw new Error(
       "fetch is not set. Please pass a fetch implementation as new Octokit({ request: { fetch }}). Learn more at https://github.com/octokit/octokit.js/#fetch-missing"
     );
   }
-  return fetch(requestOptions.url, {
+  return fetch2(requestOptions.url, {
     method: requestOptions.method,
     body: requestOptions.body,
     redirect: requestOptions.request?.redirect,
@@ -41797,9 +41797,110 @@ async function glob(patternsOrOptions, options) {
 }
 
 // ../core/dist/index.js
-var import_child_process = require("child_process");
 var os = __toESM(require("os"), 1);
-var import_os = require("os");
+
+// ../../node_modules/.pnpm/vaultkeeper@0.4.0/node_modules/vaultkeeper/dist/index.js
+init_cjs_shims();
+var path5 = __toESM(require("path"), 1);
+var VaultError = class extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "VaultError";
+  }
+};
+var BackendUnavailableError = class extends VaultError {
+  /**
+   * Machine-readable reason code describing why the backend is unavailable
+   * (e.g. `'none-enabled'`, `'all-failed'`).
+   */
+  reason;
+  /**
+   * The backend type identifiers that were attempted before this error was
+   * thrown.
+   */
+  attempted;
+  constructor(message, reason, attempted) {
+    super(message);
+    this.name = "BackendUnavailableError";
+    this.reason = reason;
+    this.attempted = attempted;
+  }
+};
+var BackendRegistry = class {
+  static backends = /* @__PURE__ */ new Map();
+  /**
+   * Register a backend factory.
+   * @param type - Backend type identifier
+   * @param factory - Factory function to create backend instances
+   */
+  static register(type, factory) {
+    this.backends.set(type, factory);
+  }
+  /**
+   * Create a backend instance by type.
+   * @param type - Backend type identifier
+   * @returns A SecretBackend instance
+   * @throws Error if the backend type is not registered
+   */
+  static create(type) {
+    const factory = this.backends.get(type);
+    if (factory === void 0) {
+      throw new BackendUnavailableError(
+        `Unknown backend type: ${type}. Available types: ${Array.from(this.backends.keys()).join(", ")}`,
+        "unknown-type",
+        Array.from(this.backends.keys())
+      );
+    }
+    return factory();
+  }
+  /**
+   * Get all registered backend type identifiers.
+   * @returns Array of backend type identifiers
+   */
+  static getTypes() {
+    return Array.from(this.backends.keys());
+  }
+  /**
+   * Returns backend types that are available on the current system.
+   *
+   * @remarks
+   * Creates each registered backend via its factory, calls `isAvailable()`,
+   * and returns only the type identifiers whose backend reports availability.
+   * If a backend's `isAvailable()` call throws, that backend is excluded from
+   * the result rather than propagating the error.
+   *
+   * @returns Promise resolving to an array of available backend type identifiers
+   * @public
+   */
+  static async getAvailableTypes() {
+    const entries = Array.from(this.backends.entries());
+    const results = await Promise.all(
+      entries.map(async ([type, factory]) => {
+        try {
+          const backend = factory();
+          const available = await backend.isAvailable();
+          return available ? type : null;
+        } catch {
+          return null;
+        }
+      })
+    );
+    return results.filter((type) => type !== null);
+  }
+};
+path5.join(".vaultkeeper", "file");
+path5.join(".vaultkeeper", "yubikey");
+var INSPECT_CUSTOM = /* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom");
+var SecretAccessorTarget = class {
+  read;
+  [INSPECT_CUSTOM];
+  constructor(readImpl, inspectImpl) {
+    this.read = readImpl;
+    this[INSPECT_CUSTOM] = inspectImpl;
+  }
+};
+
+// ../core/dist/index.js
 var cachedVersion;
 function getPackageVersion() {
   if (cachedVersion !== void 0) {
@@ -42559,153 +42660,6 @@ async function listPackageFiles(packages, ignore = [], baseDir = process.cwd()) 
   }
   return allFiles;
 }
-async function runOpenSSL(args, stdin) {
-  return new Promise((resolve4, reject) => {
-    const child = (0, import_child_process.spawn)("openssl", args, {
-      stdio: ["pipe", "pipe", "pipe"]
-    });
-    const stdoutChunks = [];
-    let stderr = "";
-    child.stdout.on("data", (chunk) => {
-      stdoutChunks.push(chunk);
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
-    child.on("error", (err) => {
-      reject(new Error(`Failed to spawn OpenSSL: ${err.message}`));
-    });
-    child.on("close", (code) => {
-      resolve4({
-        exitCode: code ?? 1,
-        stdout: Buffer.concat(stdoutChunks),
-        stderr
-      });
-    });
-    if (stdin) {
-      child.stdin.write(stdin);
-    }
-    child.stdin.end();
-  });
-}
-async function checkOpenSSL() {
-  const result = await runOpenSSL(["version"]);
-  if (result.exitCode !== 0) {
-    throw new Error(`OpenSSL check failed: ${result.stderr}`);
-  }
-  return result.stdout.toString().trim();
-}
-var openSSLChecked = false;
-async function ensureOpenSSLAvailable() {
-  if (openSSLChecked) {
-    return;
-  }
-  try {
-    await checkOpenSSL();
-    openSSLChecked = true;
-  } catch {
-    throw new Error(
-      "OpenSSL is not installed or not in PATH. Please install OpenSSL to use attest-it. On macOS: brew install openssl. On Ubuntu: apt-get install openssl"
-    );
-  }
-}
-function getDefaultPrivateKeyPath() {
-  const homeDir = os.homedir();
-  if (process.platform === "win32") {
-    const appData = process.env.APPDATA ?? path3.join(homeDir, "AppData", "Roaming");
-    return path3.join(appData, "attest-it", "private.pem");
-  }
-  return path3.join(homeDir, ".config", "attest-it", "private.pem");
-}
-function getDefaultPublicKeyPath() {
-  return path3.join(process.cwd(), "attest-it-public.pem");
-}
-async function ensureDir(dirPath) {
-  try {
-    await fs2.mkdir(dirPath, { recursive: true });
-  } catch (err) {
-    if (err instanceof Error && "code" in err && err.code !== "EEXIST") {
-      throw err;
-    }
-  }
-}
-async function fileExists(filePath) {
-  try {
-    await fs2.access(filePath);
-    return true;
-  } catch {
-    return false;
-  }
-}
-async function cleanupFiles(...paths) {
-  for (const filePath of paths) {
-    try {
-      await fs2.unlink(filePath);
-    } catch {
-    }
-  }
-}
-async function generateKeyPair(options = {}) {
-  await ensureOpenSSLAvailable();
-  const {
-    privatePath = getDefaultPrivateKeyPath(),
-    publicPath = getDefaultPublicKeyPath(),
-    force = false,
-    passphrase
-  } = options;
-  const privateExists = await fileExists(privatePath);
-  const publicExists = await fileExists(publicPath);
-  if ((privateExists || publicExists) && !force) {
-    const existing = [privateExists ? privatePath : null, publicExists ? publicPath : null].filter(
-      Boolean
-    );
-    throw new Error(
-      `Key files already exist: ${existing.join(", ")}. Use force: true to overwrite.`
-    );
-  }
-  await ensureDir(path3.dirname(privatePath));
-  await ensureDir(path3.dirname(publicPath));
-  try {
-    const genArgs = [
-      "genpkey",
-      "-algorithm",
-      "RSA",
-      "-pkeyopt",
-      "rsa_keygen_bits:2048",
-      "-out",
-      privatePath
-    ];
-    if (passphrase) {
-      genArgs.push("-aes256", "-pass", "stdin");
-    }
-    const genResult = await runOpenSSL(
-      genArgs,
-      passphrase ? Buffer.from(passphrase + "\n") : void 0
-    );
-    if (genResult.exitCode !== 0) {
-      throw new Error(`Failed to generate private key: ${genResult.stderr}`);
-    }
-    await setKeyPermissions(privatePath);
-    const pubArgs = ["pkey", "-in", privatePath, "-pubout", "-out", publicPath];
-    if (passphrase) {
-      pubArgs.push("-passin", "stdin");
-    }
-    const pubResult = await runOpenSSL(
-      pubArgs,
-      passphrase ? Buffer.from(passphrase + "\n") : void 0
-    );
-    if (pubResult.exitCode !== 0) {
-      throw new Error(`Failed to extract public key: ${pubResult.stderr}`);
-    }
-    return {
-      privatePath,
-      publicPath
-    };
-  } catch (err) {
-    await cleanupFiles(privatePath, publicPath);
-    throw err;
-  }
-}
 async function setKeyPermissions(keyPath) {
   if (process.platform === "win32") {
     await fs2.chmod(keyPath, 384);
@@ -42796,679 +42750,6 @@ function verify3(data, signature, publicKeyBase64) {
     );
   }
 }
-var FilesystemKeyProvider = class {
-  type = "filesystem";
-  displayName = "Filesystem";
-  privateKeyPath;
-  /**
-   * Create a new FilesystemKeyProvider.
-   * @param options - Provider options
-   */
-  constructor(options = {}) {
-    this.privateKeyPath = options.privateKeyPath ?? getDefaultPrivateKeyPath();
-  }
-  /**
-   * Check if this provider is available.
-   * Filesystem provider is always available.
-   */
-  async isAvailable() {
-    return Promise.resolve(true);
-  }
-  /**
-   * Check if a key exists at the given path.
-   * @param keyRef - Path to the private key file
-   */
-  async keyExists(keyRef) {
-    try {
-      await fs2.access(keyRef);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-  /**
-   * Get the private key path for signing.
-   * Returns the path directly with a no-op cleanup function.
-   * @param keyRef - Path to the private key file
-   */
-  async getPrivateKey(keyRef) {
-    if (!await this.keyExists(keyRef)) {
-      throw new Error(`Private key not found: ${keyRef}`);
-    }
-    return {
-      keyPath: keyRef,
-      // No-op cleanup for filesystem provider
-      cleanup: async () => {
-      }
-    };
-  }
-  /**
-   * Generate a new keypair and store on filesystem.
-   * @param options - Key generation options
-   */
-  async generateKeyPair(options) {
-    const { publicKeyPath, force = false, passphrase } = options;
-    const cryptoOptions = {
-      privatePath: this.privateKeyPath,
-      publicPath: publicKeyPath,
-      force
-    };
-    if (passphrase !== void 0) {
-      cryptoOptions.passphrase = passphrase;
-    }
-    const result = await generateKeyPair(cryptoOptions);
-    const encrypted = passphrase !== void 0 && passphrase.length > 0;
-    const encryptionStatus = encrypted ? " (passphrase-encrypted)" : "";
-    return {
-      privateKeyRef: result.privatePath,
-      publicKeyPath: result.publicPath,
-      storageDescription: `Filesystem: ${result.privatePath}${encryptionStatus}`,
-      encrypted
-    };
-  }
-  /**
-   * Get the configuration for this provider.
-   */
-  getConfig() {
-    return {
-      type: this.type,
-      options: {
-        privateKeyPath: this.privateKeyPath
-      }
-    };
-  }
-};
-var OnePasswordKeyProvider = class _OnePasswordKeyProvider {
-  type = "1password";
-  displayName = "1Password";
-  accountUuid;
-  vault;
-  itemName;
-  /**
-   * Create a new OnePasswordKeyProvider.
-   * @param options - Provider options
-   */
-  constructor(options) {
-    if (options.accountUuid !== void 0) {
-      this.accountUuid = options.accountUuid;
-    }
-    this.vault = options.vault;
-    this.itemName = options.itemName;
-  }
-  /**
-   * Check if the 1Password CLI is installed.
-   * @returns True if `op` command is available
-   */
-  static async isInstalled() {
-    try {
-      await execCommand("op", ["--version"]);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-  /**
-   * List all 1Password accounts.
-   * @returns Object containing accessible accounts and inaccessible accounts with reasons
-   */
-  static async listAccounts() {
-    const output = await execCommand("op", ["account", "list", "--format=json"]);
-    const parsed = JSON.parse(output);
-    if (!Array.isArray(parsed)) {
-      throw new Error("Unexpected response from 1Password: account list is not an array");
-    }
-    const basicAccounts = parsed;
-    const accountResults = [];
-    const RETRY_DELAY_MS = 500;
-    const MAX_RETRIES = 2;
-    for (const account of basicAccounts) {
-      if (!account.account_uuid) {
-        accountResults.push({
-          success: false,
-          email: account.email,
-          url: account.url,
-          reason: "Account missing account_uuid field"
-        });
-        continue;
-      }
-      let lastError;
-      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-        if (attempt > 0 || accountResults.length > 0) {
-          await new Promise((resolve4) => setTimeout(resolve4, RETRY_DELAY_MS));
-        }
-        try {
-          const detailOutput = await execCommand("op", [
-            "account",
-            "get",
-            "--account",
-            account.account_uuid,
-            "--format=json"
-          ]);
-          const details = JSON.parse(detailOutput);
-          if (details !== null && typeof details === "object" && "name" in details && typeof details.name === "string") {
-            accountResults.push({
-              success: true,
-              account: { ...account, name: details.name }
-            });
-            lastError = void 0;
-            break;
-          }
-          lastError = "Account details response missing name field";
-          break;
-        } catch (err) {
-          lastError = err instanceof Error ? err.message : String(err);
-        }
-      }
-      if (lastError !== void 0) {
-        accountResults.push({
-          success: false,
-          email: account.email,
-          url: account.url,
-          reason: lastError
-        });
-      }
-    }
-    const accounts = [];
-    const inaccessible = [];
-    for (const result of accountResults) {
-      if (result.success) {
-        accounts.push(result.account);
-      } else {
-        inaccessible.push({
-          email: result.email,
-          url: result.url,
-          reason: result.reason
-        });
-      }
-    }
-    if (accounts.length === 0 && basicAccounts.length > 0) {
-      const reasons = inaccessible.map((a) => `  - ${a.email}: ${a.reason}`).join("\n");
-      throw new Error(
-        `Could not access any 1Password accounts. All ${String(basicAccounts.length)} account(s) failed:
-${reasons}`
-      );
-    }
-    return { accounts, inaccessible };
-  }
-  /**
-   * List vaults in a specific account.
-   * @param accountUuid - Account UUID from listAccounts() (optional if only one account)
-   * @returns Array of vault information
-   */
-  static async listVaults(accountUuid) {
-    const args = ["vault", "list", "--format=json"];
-    if (accountUuid) {
-      args.push("--account", accountUuid);
-    }
-    let output;
-    try {
-      output = await execCommand("op", args);
-    } catch (error2) {
-      throw new Error(
-        `Failed to list 1Password vaults${accountUuid ? ` for account ${accountUuid}` : ""}: ${error2 instanceof Error ? error2.message : String(error2)}`
-      );
-    }
-    const parsed = JSON.parse(output);
-    if (!Array.isArray(parsed)) {
-      throw new Error("Unexpected response from 1Password: vault list is not an array");
-    }
-    return parsed;
-  }
-  /**
-   * Check if this provider is available.
-   * Requires `op` CLI to be installed and authenticated.
-   */
-  async isAvailable() {
-    return _OnePasswordKeyProvider.isInstalled();
-  }
-  /**
-   * Check if a key exists in 1Password.
-   * @param keyRef - Item name in 1Password
-   */
-  async keyExists(keyRef) {
-    try {
-      const args = ["item", "get", keyRef, "--vault", this.vault, "--format=json"];
-      if (this.accountUuid) {
-        args.push("--account", this.accountUuid);
-      }
-      await execCommand("op", args);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-  /**
-   * Get the private key from 1Password for signing.
-   * Downloads to a temporary file and returns a cleanup function.
-   *
-   * @remarks
-   * For security, this runs in a new PTY which requires the user to authenticate
-   * (via Touch ID, password, etc.) each time. This prevents automated agents
-   * from using cached credentials.
-   *
-   * @param keyRef - Item name in 1Password
-   * @throws Error if the key does not exist in 1Password
-   */
-  async getPrivateKey(keyRef) {
-    if (!await this.keyExists(keyRef)) {
-      throw new Error(
-        `Key not found in 1Password: "${keyRef}" (vault: ${this.vault})` + (this.accountUuid ? ` (accountUuid: ${this.accountUuid})` : "")
-      );
-    }
-    const tempDir = await fs2.mkdtemp(path3.join(os.tmpdir(), "attest-it-"));
-    const tempKeyPath = path3.join(tempDir, "private.pem");
-    try {
-      const args = ["document", "get", keyRef, "--vault", this.vault, "--out-file", tempKeyPath];
-      if (this.accountUuid) {
-        args.push("--account", this.accountUuid);
-      }
-      await execInteractiveCommand("op", args);
-      await setKeyPermissions(tempKeyPath);
-      return {
-        keyPath: tempKeyPath,
-        cleanup: async () => {
-          try {
-            await fs2.unlink(tempKeyPath);
-            await fs2.rmdir(tempDir);
-          } catch (cleanupError) {
-            console.warn(
-              `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
-            );
-          }
-        }
-      };
-    } catch (error2) {
-      try {
-        await fs2.rm(tempDir, { recursive: true, force: true });
-      } catch (cleanupError) {
-        console.warn(
-          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
-        );
-      }
-      throw error2;
-    }
-  }
-  /**
-   * Generate a new Ed25519 keypair and store private key in 1Password.
-   * Public key is written to filesystem for repository commit.
-   * @param options - Key generation options
-   */
-  async generateKeyPair(options) {
-    const { publicKeyPath, force = false } = options;
-    if (!force) {
-      try {
-        await fs2.access(publicKeyPath);
-        throw new Error(
-          `Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`
-        );
-      } catch (err) {
-        if (err instanceof Error && !err.message.includes("already exists")) ;
-        else {
-          throw err;
-        }
-      }
-    }
-    const tempDir = await fs2.mkdtemp(path3.join(os.tmpdir(), "attest-it-keygen-"));
-    const tempPrivateKeyPath = path3.join(tempDir, "private.pem");
-    try {
-      const keyPair = generateKeyPair2();
-      await fs2.writeFile(tempPrivateKeyPath, keyPair.privateKey, "utf-8");
-      await setKeyPermissions(tempPrivateKeyPath);
-      await fs2.mkdir(path3.dirname(publicKeyPath), { recursive: true });
-      await fs2.writeFile(publicKeyPath, keyPair.publicKey, "utf-8");
-      const args = [
-        "document",
-        "create",
-        tempPrivateKeyPath,
-        "--title",
-        this.itemName,
-        "--vault",
-        this.vault
-      ];
-      if (this.accountUuid) {
-        args.push("--account", this.accountUuid);
-      }
-      await execCommand("op", args);
-      await fs2.unlink(tempPrivateKeyPath);
-      await fs2.rmdir(tempDir);
-      return {
-        privateKeyRef: this.itemName,
-        publicKeyPath,
-        storageDescription: `1Password: ${this.vault}/${this.itemName}`
-      };
-    } catch (error2) {
-      try {
-        await fs2.rm(tempDir, { recursive: true, force: true });
-      } catch (cleanupError) {
-        console.warn(
-          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
-        );
-      }
-      throw error2;
-    }
-  }
-  /**
-   * Get the configuration for this provider.
-   */
-  getConfig() {
-    return {
-      type: this.type,
-      options: {
-        ...this.accountUuid && { accountUuid: this.accountUuid },
-        vault: this.vault,
-        itemName: this.itemName
-      }
-    };
-  }
-};
-function getCleanEnvironment() {
-  const env = {};
-  for (const [key, value] of Object.entries(process.env)) {
-    if (!key.startsWith("OP_SESSION_") && key !== "OP_SERVICE_ACCOUNT_TOKEN") {
-      env[key] = value;
-    }
-  }
-  return env;
-}
-async function execCommand(command, args) {
-  return new Promise((resolve4, reject) => {
-    const proc = (0, import_child_process.spawn)(command, args, {
-      stdio: ["inherit", "pipe", "pipe"],
-      env: getCleanEnvironment()
-    });
-    let stdout = "";
-    let stderr = "";
-    proc.stdout.on("data", (data) => {
-      stdout += data.toString();
-    });
-    proc.stderr.on("data", (data) => {
-      stderr += data.toString();
-    });
-    proc.on("close", (code) => {
-      if (code === 0) {
-        resolve4(stdout.trim());
-      } else {
-        reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
-      }
-    });
-    proc.on("error", (error2) => {
-      reject(error2);
-    });
-  });
-}
-async function execInteractiveCommand(command, args) {
-  return new Promise((resolve4, reject) => {
-    const platform = process.platform;
-    let proc;
-    if (platform === "win32") {
-      proc = (0, import_child_process.spawn)(command, args, {
-        stdio: ["inherit", "pipe", "pipe"],
-        env: getCleanEnvironment()
-      });
-    } else if (platform === "darwin") {
-      proc = (0, import_child_process.spawn)("script", ["-q", "/dev/null", command, ...args], {
-        stdio: ["inherit", "pipe", "pipe"],
-        env: getCleanEnvironment()
-      });
-    } else {
-      const quotedArgs = args.map((arg) => `'${arg.replace(/'/g, "'\\''")}'`).join(" ");
-      const fullCommand = `${command} ${quotedArgs}`;
-      proc = (0, import_child_process.spawn)("script", ["-q", "/dev/null", "-c", fullCommand], {
-        stdio: ["inherit", "pipe", "pipe"],
-        env: getCleanEnvironment()
-      });
-    }
-    let stdout = "";
-    let stderr = "";
-    proc.stdout.on("data", (data) => {
-      stdout += data.toString();
-    });
-    proc.stderr.on("data", (data) => {
-      stderr += data.toString();
-    });
-    proc.on("close", (code) => {
-      if (code === 0) {
-        resolve4(stdout.trim());
-      } else {
-        reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
-      }
-    });
-    proc.on("error", (error2) => {
-      reject(error2);
-    });
-  });
-}
-var MacOSKeychainKeyProvider = class _MacOSKeychainKeyProvider {
-  type = "macos-keychain";
-  displayName = "macOS Keychain";
-  itemName;
-  keychain;
-  static ACCOUNT = "attest-it";
-  /**
-   * Create a new MacOSKeychainKeyProvider.
-   * @param options - Provider options
-   */
-  constructor(options) {
-    this.itemName = options.itemName;
-    if (options.keychain !== void 0) {
-      this.keychain = options.keychain;
-    }
-  }
-  /**
-   * Check if this provider is available.
-   * Only available on macOS platforms.
-   */
-  static isAvailable() {
-    return process.platform === "darwin";
-  }
-  /**
-   * List available keychains on the system.
-   * @returns Array of keychain information
-   */
-  static async listKeychains() {
-    if (!_MacOSKeychainKeyProvider.isAvailable()) {
-      return [];
-    }
-    try {
-      const output = await execCommand2("security", ["list-keychains"]);
-      const keychains = [];
-      const lines = output.split("\n");
-      for (const line of lines) {
-        const match = /"(.+)"/.exec(line.trim());
-        if (match?.[1]) {
-          const fullPath = match[1];
-          const filename = fullPath.split("/").pop() ?? fullPath;
-          const name = filename.replace(/\.keychain(-db)?$/, "");
-          keychains.push({ path: fullPath, name });
-        }
-      }
-      return keychains;
-    } catch {
-      return [];
-    }
-  }
-  /**
-   * Check if this provider is available on the current system.
-   */
-  isAvailable() {
-    return Promise.resolve(_MacOSKeychainKeyProvider.isAvailable());
-  }
-  /**
-   * Check if a key exists in the keychain.
-   * @param keyRef - Item name in keychain
-   */
-  async keyExists(keyRef) {
-    try {
-      const args = ["find-generic-password", "-a", _MacOSKeychainKeyProvider.ACCOUNT, "-s", keyRef];
-      if (this.keychain) {
-        args.push(this.keychain);
-      }
-      await execCommand2("security", args);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-  /**
-   * Get the private key from keychain for signing.
-   * Downloads to a temporary file and returns a cleanup function.
-   * @param keyRef - Item name in keychain
-   * @throws Error if the key does not exist in keychain
-   */
-  async getPrivateKey(keyRef) {
-    if (!await this.keyExists(keyRef)) {
-      throw new Error(
-        `Key not found in macOS Keychain: "${keyRef}" (account: ${_MacOSKeychainKeyProvider.ACCOUNT})`
-      );
-    }
-    const tempDir = await fs2.mkdtemp(path3.join(os.tmpdir(), "attest-it-"));
-    const tempKeyPath = path3.join(tempDir, "private.pem");
-    try {
-      const findArgs = [
-        "find-generic-password",
-        "-a",
-        _MacOSKeychainKeyProvider.ACCOUNT,
-        "-s",
-        keyRef,
-        "-w"
-      ];
-      if (this.keychain) {
-        findArgs.push(this.keychain);
-      }
-      const base64Key = await execCommand2("security", findArgs);
-      const keyContent = Buffer.from(base64Key, "base64").toString("utf8");
-      await fs2.writeFile(tempKeyPath, keyContent, { mode: 384 });
-      await setKeyPermissions(tempKeyPath);
-      return {
-        keyPath: tempKeyPath,
-        cleanup: async () => {
-          try {
-            await fs2.unlink(tempKeyPath);
-            await fs2.rmdir(tempDir);
-          } catch (cleanupError) {
-            console.warn(
-              `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
-            );
-          }
-        }
-      };
-    } catch (error2) {
-      try {
-        await fs2.rm(tempDir, { recursive: true, force: true });
-      } catch (cleanupError) {
-        console.warn(
-          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
-        );
-      }
-      throw error2;
-    }
-  }
-  /**
-   * Generate a new Ed25519 keypair and store private key in keychain.
-   * Public key is written to filesystem for repository commit.
-   * @param options - Key generation options
-   */
-  async generateKeyPair(options) {
-    const { publicKeyPath, force = false } = options;
-    let publicKeyExists = false;
-    try {
-      await fs2.access(publicKeyPath);
-      publicKeyExists = true;
-    } catch (error2) {
-      if (error2 instanceof Error && "code" in error2 && error2.code !== "ENOENT") {
-        throw error2;
-      }
-    }
-    if (publicKeyExists && !force) {
-      throw new Error(
-        `Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`
-      );
-    }
-    const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = generateKeyPair2();
-    const publicKeyDir = path3.dirname(publicKeyPath);
-    await fs2.mkdir(publicKeyDir, { recursive: true });
-    const publicKeyPem = `-----BEGIN PUBLIC KEY-----
-${publicKeyBase64}
------END PUBLIC KEY-----
-`;
-    await fs2.writeFile(publicKeyPath, publicKeyPem, { mode: 420 });
-    const base64Key = Buffer.from(privateKeyPem, "utf8").toString("base64");
-    const addArgs = [
-      "add-generic-password",
-      "-a",
-      _MacOSKeychainKeyProvider.ACCOUNT,
-      "-s",
-      this.itemName,
-      "-w",
-      base64Key,
-      "-T",
-      "",
-      "-U"
-    ];
-    if (this.keychain) {
-      addArgs.push(this.keychain);
-    }
-    await execCommand2("security", addArgs);
-    return {
-      privateKeyRef: this.itemName,
-      publicKeyPath,
-      storageDescription: `macOS Keychain: ${this.itemName}`
-    };
-  }
-  /**
-   * Get the configuration for this provider.
-   */
-  getConfig() {
-    return {
-      type: this.type,
-      options: {
-        itemName: this.itemName
-      }
-    };
-  }
-};
-async function execCommand2(command, args) {
-  return new Promise((resolve4, reject) => {
-    const proc = (0, import_child_process.spawn)(command, args, { stdio: ["ignore", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
-    proc.stdout.on("data", (data) => {
-      stdout += data.toString();
-    });
-    proc.stderr.on("data", (data) => {
-      stderr += data.toString();
-    });
-    proc.on("close", (code) => {
-      if (code === 0) {
-        resolve4(stdout.trim());
-      } else {
-        reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
-      }
-    });
-    proc.on("error", (error2) => {
-      reject(error2);
-    });
-  });
-}
-var ATTEST_IT_HOME_ENV = "ATTEST_IT_HOME";
-var homeDirOverride = null;
-function getAttestItHomeDir() {
-  const envOverride = process.env[ATTEST_IT_HOME_ENV];
-  if (envOverride) {
-    return envOverride;
-  }
-  return homeDirOverride;
-}
-function getIdentityConfigDir(homeDir) {
-  if (homeDir) {
-    return homeDir;
-  }
-  const override = getAttestItHomeDir();
-  if (override) {
-    return override;
-  }
-  return (0, import_path3.join)((0, import_os.homedir)(), ".config", "attest-it");
-}
 var EncryptedKeyFileSchema = external_exports.object({
   version: external_exports.literal(1),
   iv: external_exports.string().min(1),
@@ -43480,402 +42761,108 @@ var EncryptedKeyFileSchema = external_exports.object({
   serial: external_exports.string().optional(),
   aad: external_exports.string().optional()
 });
-var activeCleanupHandlers = /* @__PURE__ */ new Set();
-var processHandlersInstalled = false;
-function installProcessHandlers() {
-  if (processHandlersInstalled) return;
-  processHandlersInstalled = true;
-  const runCleanup = async () => {
-    const handlers = Array.from(activeCleanupHandlers);
-    await Promise.allSettled(handlers.map((h) => h()));
-  };
-  process.once("beforeExit", () => {
-    void runCleanup();
-  });
-  process.once("SIGINT", () => {
-    void runCleanup().finally(() => process.exit(130));
-  });
-  process.once("SIGTERM", () => {
-    void runCleanup().finally(() => process.exit(143));
-  });
-}
-function validateEncryptedKeyFile(data) {
-  const parsed = EncryptedKeyFileSchema.parse(data);
-  const iv = Buffer.from(parsed.iv, "base64");
-  if (iv.length !== 12) {
-    throw new Error(`Invalid IV size: expected 12 bytes, got ${String(iv.length)}`);
-  }
-  const authTag = Buffer.from(parsed.authTag, "base64");
-  if (authTag.length !== 16) {
-    throw new Error(`Invalid auth tag size: expected 16 bytes, got ${String(authTag.length)}`);
-  }
-  const salt = Buffer.from(parsed.salt, "base64");
-  if (salt.length !== 32) {
-    throw new Error(`Invalid salt size: expected 32 bytes, got ${String(salt.length)}`);
-  }
-  const challenge = Buffer.from(parsed.challenge, "base64");
-  if (challenge.length !== 32) {
-    throw new Error(`Invalid challenge size: expected 32 bytes, got ${String(challenge.length)}`);
-  }
-  return parsed;
-}
-function constructAAD(version2, slot, serial) {
-  const aadObject = {
-    version: version2,
-    slot,
-    serial: serial ?? "unspecified"
-  };
-  return Buffer.from(JSON.stringify(aadObject), "utf8");
-}
-var YubiKeyProvider = class _YubiKeyProvider {
-  type = "yubikey";
-  displayName = "YubiKey";
-  encryptedKeyPath;
-  slot;
-  serial;
+var VaultKeyProvider = class {
+  type;
+  displayName;
+  backend;
   /**
-   * Create a new YubiKeyProvider.
-   * @param options - Provider options
-   * @throws Error if encryptedKeyPath is outside the attest-it config directory
+   * Create a new VaultKeyProvider.
+   * @param options - Provider options including the VaultKeeper backend
    */
   constructor(options) {
-    const resolvedPath = path3.resolve(options.encryptedKeyPath);
-    const configDir = getIdentityConfigDir();
-    if (!resolvedPath.startsWith(configDir)) {
-      throw new Error(
-        `Encrypted key path must be within attest-it config directory (${configDir}). Got: ${resolvedPath}`
-      );
-    }
-    this.encryptedKeyPath = resolvedPath;
-    this.slot = options.slot ?? 2;
-    if (options.serial !== void 0) {
-      this.serial = options.serial;
-    }
+    this.backend = options.backend;
+    this.type = "vaultkeeper";
+    this.displayName = options.displayName;
   }
   /**
-   * Check if ykman CLI is installed and available.
-   * @returns true if ykman is available
-   */
-  static async isInstalled() {
-    try {
-      await execCommand3("ykman", ["--version"]);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-  /**
-   * Check if any YubiKey is connected.
-   * @returns true if at least one YubiKey is connected
-   */
-  static async isConnected() {
-    try {
-      const output = await execCommand3("ykman", ["list", "--serials"]);
-      return output.trim().length > 0;
-    } catch {
-      return false;
-    }
-  }
-  /**
-   * Check if HMAC challenge-response is configured on a slot.
-   * @param slot - Slot number (1 or 2)
-   * @param serial - Optional YubiKey serial number
-   * @returns true if challenge-response is configured
-   */
-  static async isChallengeResponseConfigured(slot = 2, serial) {
-    try {
-      const testChallenge = Buffer.from("attest-it-test-challenge-12345");
-      const args = ["otp", "calculate", String(slot), testChallenge.toString("hex")];
-      if (serial) {
-        args.unshift("--device", serial);
-      }
-      await execInteractiveCommand2("ykman", args);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-  /**
-   * List connected YubiKeys.
-   * @returns Array of YubiKey information
-   */
-  static async listDevices() {
-    if (!await _YubiKeyProvider.isInstalled()) {
-      return [];
-    }
-    try {
-      const output = await execCommand3("ykman", ["list", "--serials"]);
-      const serials = output.trim().split("\n").filter((s) => s.length > 0);
-      const devices = [];
-      for (const serial of serials) {
-        try {
-          const infoOutput = await execCommand3("ykman", ["--device", serial, "info"]);
-          const typeMatch = /Device type:\s+(.+)/i.exec(infoOutput);
-          const fwMatch = /Firmware version:\s+(.+)/i.exec(infoOutput);
-          devices.push({
-            serial,
-            type: typeMatch?.[1]?.trim() ?? "YubiKey",
-            firmware: fwMatch?.[1]?.trim() ?? "Unknown"
-          });
-        } catch {
-          devices.push({
-            serial,
-            type: "YubiKey",
-            firmware: "Unknown"
-          });
-        }
-      }
-      return devices;
-    } catch {
-      return [];
-    }
-  }
-  /**
-   * Check if this provider is available on the current system.
-   * Requires ykman to be installed.
+   * Check if the underlying VaultKeeper backend is available.
    */
   async isAvailable() {
-    return _YubiKeyProvider.isInstalled();
+    return this.backend.isAvailable();
   }
   /**
-   * Check if an encrypted key file exists.
-   * @param keyRef - Path to encrypted key file
+   * Check if a key exists in the VaultKeeper backend.
+   * @param keyRef - Secret identifier in the backend
    */
   async keyExists(keyRef) {
-    try {
-      await fs2.access(keyRef);
-      return true;
-    } catch {
-      return false;
-    }
+    return this.backend.exists(keyRef);
   }
   /**
-   * Get the private key by decrypting with YubiKey.
-   * Downloads to a temporary file and returns a cleanup function.
+   * Retrieve the private key from VaultKeeper for signing.
    *
-   * **Important**: Always call the cleanup function when done to securely delete
-   * the temporary key file. The cleanup is also registered for process exit handlers.
+   * @remarks
+   * Downloads the PEM to a secure temporary file (mode 0o600) and returns
+   * a cleanup function that overwrites the file with random bytes before deletion.
    *
-   * @param keyRef - Path to encrypted key file
-   * @throws Error if the key cannot be decrypted
+   * @param keyRef - Secret identifier in the backend
+   * @throws Error if the key does not exist in the backend
    */
   async getPrivateKey(keyRef) {
-    installProcessHandlers();
-    if (!await this.keyExists(keyRef)) {
-      throw new Error(`Encrypted key file not found: ${keyRef}`);
-    }
-    const encryptedData = await fs2.readFile(keyRef, "utf8");
-    let keyFile;
-    try {
-      const parsed = JSON.parse(encryptedData);
-      keyFile = validateEncryptedKeyFile(parsed);
-    } catch (err) {
-      if (err instanceof external_exports.ZodError) {
-        throw new Error(
-          `Invalid encrypted key file format: ${err.errors.map((e) => e.message).join(", ")}`
-        );
-      }
-      throw new Error(`Invalid encrypted key file: malformed JSON or structure`);
-    }
-    const expectedSerial = this.serial ?? keyFile.serial;
-    if (!expectedSerial) {
-      console.warn(
-        "WARNING: No YubiKey serial number specified for key verification. Any YubiKey with the correct HMAC secret could decrypt this key. For better security, re-encrypt the key with a serial number specified."
-      );
-    }
-    if (expectedSerial) {
-      const devices = await _YubiKeyProvider.listDevices();
-      const matchingDevice = devices.find((d) => d.serial === expectedSerial);
-      if (!matchingDevice) {
-        throw new Error(
-          `Required YubiKey not found. Expected serial: ${expectedSerial}. Connected devices: ${devices.map((d) => d.serial).join(", ") || "none"}`
-        );
-      }
-    }
-    const challenge = Buffer.from(keyFile.challenge, "base64");
-    const response = await performChallengeResponse(challenge, keyFile.slot, expectedSerial);
-    const salt = Buffer.from(keyFile.salt, "base64");
-    const aesKey = deriveKey(response, salt);
-    const iv = Buffer.from(keyFile.iv, "base64");
-    const authTag = Buffer.from(keyFile.authTag, "base64");
-    const ciphertext = Buffer.from(keyFile.ciphertext, "base64");
-    let privateKeyContent;
-    try {
-      const decipher = crypto3.createDecipheriv("aes-256-gcm", aesKey, iv);
-      if (keyFile.aad) {
-        decipher.setAAD(Buffer.from(keyFile.aad, "base64"));
-      }
-      decipher.setAuthTag(authTag);
-      const decrypted = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
-      privateKeyContent = decrypted.toString("utf8");
-    } catch {
-      throw new Error(
-        "Failed to decrypt private key. Verify you are using the correct YubiKey and the encrypted key file has not been corrupted or tampered with."
-      );
-    }
-    const tempDir = await fs2.mkdtemp(path3.join(os.tmpdir(), "attest-it-"));
+    const pemContent = await this.backend.retrieve(keyRef);
+    const tempDir = await fs2.mkdtemp(path3.join(os.tmpdir(), "attest-it-vk-"));
     const tempKeyPath = path3.join(tempDir, "private.pem");
-    const cleanup = async () => {
-      activeCleanupHandlers.delete(cleanup);
-      try {
-        const keySize = Buffer.byteLength(privateKeyContent);
-        await fs2.writeFile(tempKeyPath, crypto3.randomBytes(keySize));
-        await fs2.unlink(tempKeyPath);
-        await fs2.rmdir(tempDir);
-      } catch {
-      }
-    };
     try {
-      await fs2.writeFile(tempKeyPath, privateKeyContent, { mode: 384 });
+      await fs2.writeFile(tempKeyPath, pemContent, "utf-8");
       await setKeyPermissions(tempKeyPath);
-      activeCleanupHandlers.add(cleanup);
       return {
         keyPath: tempKeyPath,
-        cleanup
+        cleanup: async () => {
+          try {
+            const stat2 = await fs2.stat(tempKeyPath);
+            await fs2.writeFile(tempKeyPath, crypto3.randomBytes(stat2.size));
+            await fs2.unlink(tempKeyPath);
+            await fs2.rmdir(tempDir);
+          } catch (cleanupError) {
+            console.warn(
+              `Warning: Failed to clean up temporary key file at ${tempKeyPath}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+            );
+          }
+        }
       };
     } catch (error2) {
-      await cleanup();
+      try {
+        await fs2.rm(tempDir, { recursive: true, force: true });
+      } catch (cleanupError) {
+        console.warn(
+          `Warning: Failed to clean up temporary key directory at ${tempDir}: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`
+        );
+      }
       throw error2;
     }
   }
   /**
-   * Generate a new keypair and store encrypted with YubiKey.
-   * Public key is written to filesystem for repository commit.
+   * Generate a new Ed25519 keypair and store the private key in VaultKeeper.
    *
-   * **Security Note**: Always specify a serial number to bind the key to a specific YubiKey.
+   * @remarks
+   * The public key is written to the filesystem for repository commit.
+   * The private key is stored in the VaultKeeper backend and the local
+   * copy is securely deleted.
    *
    * @param options - Key generation options
    */
   async generateKeyPair(options) {
     const { publicKeyPath, force = false } = options;
-    if (!await _YubiKeyProvider.isChallengeResponseConfigured(this.slot, this.serial)) {
-      throw new Error(
-        `YubiKey slot ${String(this.slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp -t --generate 2" to configure it with touch required.`
-      );
-    }
-    if (!force && await this.keyExists(this.encryptedKeyPath)) {
-      throw new Error(
-        `Encrypted key file already exists: ${this.encryptedKeyPath}. Use force: true to overwrite.`
-      );
-    }
-    let serial;
-    if (this.serial) {
-      serial = this.serial;
-    } else {
-      const devices = await _YubiKeyProvider.listDevices();
-      if (devices.length === 1 && devices[0]) {
-        serial = devices[0].serial;
-      } else if (devices.length > 1) {
-        console.warn(
-          "WARNING: Multiple YubiKeys detected but no serial specified. Key will not be bound to a specific device. For better security, specify a serial number."
+    if (!force) {
+      try {
+        await fs2.access(publicKeyPath);
+        throw new Error(
+          `Public key file already exists: ${publicKeyPath}. Use force: true to overwrite.`
         );
+      } catch (err) {
+        if (!(err instanceof Error && "code" in err && err.code === "ENOENT")) {
+          throw err;
+        }
       }
     }
-    const { publicKey: publicKeyBase64, privateKey: privateKeyPem } = generateKeyPair2();
-    const publicKeyDir = path3.dirname(publicKeyPath);
-    await fs2.mkdir(publicKeyDir, { recursive: true });
-    const publicKeyPemFile = `-----BEGIN PUBLIC KEY-----
-${publicKeyBase64}
------END PUBLIC KEY-----
-`;
-    await fs2.writeFile(publicKeyPath, publicKeyPemFile, { mode: 420 });
-    const privateKeyContent = privateKeyPem;
-    const challenge = crypto3.randomBytes(32);
-    const salt = crypto3.randomBytes(32);
-    const iv = crypto3.randomBytes(12);
-    const response = await performChallengeResponse(challenge, this.slot, this.serial);
-    const aesKey = deriveKey(response, salt);
-    const aad = constructAAD(1, this.slot, serial);
-    const cipher = crypto3.createCipheriv("aes-256-gcm", aesKey, iv);
-    cipher.setAAD(aad);
-    const ciphertext = Buffer.concat([
-      cipher.update(Buffer.from(privateKeyContent, "utf8")),
-      cipher.final()
-    ]);
-    const authTag = cipher.getAuthTag();
-    const keyFile = {
-      version: 1,
-      iv: iv.toString("base64"),
-      authTag: authTag.toString("base64"),
-      salt: salt.toString("base64"),
-      challenge: challenge.toString("base64"),
-      ciphertext: ciphertext.toString("base64"),
-      slot: this.slot,
-      aad: aad.toString("base64"),
-      ...serial && { serial }
-    };
-    await fs2.mkdir(path3.dirname(this.encryptedKeyPath), { recursive: true });
-    await fs2.writeFile(this.encryptedKeyPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
-    await setKeyPermissions(this.encryptedKeyPath);
+    const keyPair = generateKeyPair2();
+    await fs2.mkdir(path3.dirname(publicKeyPath), { recursive: true });
+    await fs2.writeFile(publicKeyPath, keyPair.publicKey, "utf-8");
+    const secretId = `attest-it-${crypto3.randomUUID()}`;
+    await this.backend.store(secretId, keyPair.privateKey);
     return {
-      privateKeyRef: this.encryptedKeyPath,
+      privateKeyRef: secretId,
       publicKeyPath,
-      storageDescription: `YubiKey-encrypted: ${this.encryptedKeyPath}`
-    };
-  }
-  /**
-   * Encrypt an existing private key with YubiKey challenge-response.
-   *
-   * @remarks
-   * This static method allows encrypting a private key that was generated
-   * elsewhere (e.g., by the CLI) without having to create a provider instance first.
-   *
-   * **Security Note**: Always specify a serial number to bind the key to a specific YubiKey.
-   * The serial provides defense-in-depth by ensuring only the intended YubiKey can decrypt.
-   *
-   * @param options - Encryption options
-   * @returns Path to the encrypted key file and storage description
-   * @public
-   */
-  static async encryptPrivateKey(options) {
-    const { privateKey, encryptedKeyPath, slot = 2, serial } = options;
-    const resolvedPath = path3.resolve(encryptedKeyPath);
-    const configDir = getIdentityConfigDir();
-    if (!resolvedPath.startsWith(configDir)) {
-      throw new Error(
-        `Encrypted key path must be within attest-it config directory (${configDir}). Got: ${resolvedPath}`
-      );
-    }
-    if (!serial) {
-      console.warn(
-        "WARNING: No YubiKey serial number specified. Key will not be bound to a specific device. For better security, specify a serial number."
-      );
-    }
-    if (!await _YubiKeyProvider.isChallengeResponseConfigured(slot, serial)) {
-      throw new Error(
-        `YubiKey slot ${String(slot)} is not configured for HMAC challenge-response. Ensure your YubiKey is connected and use "ykman otp chalresp -t --generate 2" to configure it with touch required.`
-      );
-    }
-    const challenge = crypto3.randomBytes(32);
-    const salt = crypto3.randomBytes(32);
-    const iv = crypto3.randomBytes(12);
-    const response = await performChallengeResponse(challenge, slot, serial);
-    const aesKey = deriveKey(response, salt);
-    const aad = constructAAD(1, slot, serial);
-    const cipher = crypto3.createCipheriv("aes-256-gcm", aesKey, iv);
-    cipher.setAAD(aad);
-    const ciphertext = Buffer.concat([
-      cipher.update(Buffer.from(privateKey, "utf8")),
-      cipher.final()
-    ]);
-    const authTag = cipher.getAuthTag();
-    const keyFile = {
-      version: 1,
-      iv: iv.toString("base64"),
-      authTag: authTag.toString("base64"),
-      salt: salt.toString("base64"),
-      challenge: challenge.toString("base64"),
-      ciphertext: ciphertext.toString("base64"),
-      slot,
-      aad: aad.toString("base64"),
-      ...serial && { serial }
-    };
-    await fs2.mkdir(path3.dirname(resolvedPath), { recursive: true });
-    await fs2.writeFile(resolvedPath, JSON.stringify(keyFile, null, 2), { mode: 384 });
-    await setKeyPermissions(resolvedPath);
-    return {
-      encryptedKeyPath: resolvedPath,
-      storageDescription: `YubiKey-encrypted: ${resolvedPath}`
+      storageDescription: `VaultKeeper (${this.backend.displayName}): ${secretId}`
     };
   }
   /**
@@ -43884,74 +42871,10 @@ ${publicKeyBase64}
   getConfig() {
     return {
       type: this.type,
-      options: {
-        encryptedKeyPath: this.encryptedKeyPath,
-        slot: this.slot,
-        ...this.serial && { serial: this.serial }
-      }
+      options: { backendType: this.backend.type }
     };
   }
 };
-async function execCommand3(command, args) {
-  return new Promise((resolve4, reject) => {
-    const proc = (0, import_child_process.spawn)(command, args, { stdio: ["ignore", "pipe", "pipe"] });
-    let stdout = "";
-    let stderr = "";
-    proc.stdout.on("data", (data) => {
-      stdout += data.toString();
-    });
-    proc.stderr.on("data", (data) => {
-      stderr += data.toString();
-    });
-    proc.on("close", (code) => {
-      if (code === 0) {
-        resolve4(stdout.trim());
-      } else {
-        reject(new Error(`Command failed with exit code ${String(code)}: ${stderr}`));
-      }
-    });
-    proc.on("error", (error2) => {
-      reject(error2);
-    });
-  });
-}
-async function execInteractiveCommand2(command, args) {
-  return new Promise((resolve4, reject) => {
-    const proc = (0, import_child_process.spawn)(command, args, { stdio: ["inherit", "pipe", "inherit"] });
-    let stdout = "";
-    proc.stdout.on("data", (data) => {
-      stdout += data.toString();
-    });
-    proc.on("close", (code) => {
-      if (code === 0) {
-        resolve4(stdout.trim());
-      } else {
-        reject(new Error(`Command failed with exit code ${String(code)}`));
-      }
-    });
-    proc.on("error", (error2) => {
-      reject(error2);
-    });
-  });
-}
-async function performChallengeResponse(challenge, slot, serial) {
-  const args = ["otp", "calculate", String(slot), challenge.toString("hex")];
-  if (serial) {
-    args.unshift("--device", serial);
-  }
-  try {
-    const output = await execInteractiveCommand2("ykman", args);
-    return Buffer.from(output.trim(), "hex");
-  } catch {
-    throw new Error(
-      "YubiKey challenge-response failed. Verify your YubiKey is inserted, touch it if prompted, and ensure the slot is configured for challenge-response with touch required (ykman otp chalresp -t --generate <slot>)."
-    );
-  }
-}
-function deriveKey(response, salt) {
-  const derived = crypto3.hkdfSync("sha256", response, salt, "attest-it-yubikey-v1", 32);
-  return Buffer.from(derived);
-}
 var KeyProviderRegistry = class {
   static providers = /* @__PURE__ */ new Map();
   /**
@@ -43985,52 +42908,21 @@ var KeyProviderRegistry = class {
     return Array.from(this.providers.keys());
   }
 };
-KeyProviderRegistry.register("filesystem", (config) => {
-  const privateKeyPath = typeof config.options.privateKeyPath === "string" ? config.options.privateKeyPath : void 0;
-  if (privateKeyPath !== void 0) {
-    return new FilesystemKeyProvider({ privateKeyPath });
-  }
-  return new FilesystemKeyProvider();
+KeyProviderRegistry.register("filesystem", (_config) => {
+  const backend = BackendRegistry.create("file");
+  return new VaultKeyProvider({ backend, displayName: "Filesystem" });
 });
-KeyProviderRegistry.register("1password", (config) => {
-  const { options } = config;
-  const accountUuid = typeof options.accountUuid === "string" ? options.accountUuid : void 0;
-  const vault = typeof options.vault === "string" ? options.vault : "";
-  const itemName = typeof options.itemName === "string" ? options.itemName : "";
-  if (!vault || !itemName) {
-    throw new Error("1Password provider requires vault and itemName options");
-  }
-  if (accountUuid !== void 0) {
-    return new OnePasswordKeyProvider({ accountUuid, vault, itemName });
-  }
-  return new OnePasswordKeyProvider({ vault, itemName });
+KeyProviderRegistry.register("1password", (_config) => {
+  const backend = BackendRegistry.create("1password");
+  return new VaultKeyProvider({ backend, displayName: "1Password" });
 });
-KeyProviderRegistry.register("macos-keychain", (config) => {
-  const { options } = config;
-  const itemName = typeof options.itemName === "string" ? options.itemName : "";
-  if (!itemName) {
-    throw new Error("macOS Keychain provider requires itemName option");
-  }
-  return new MacOSKeychainKeyProvider({ itemName });
+KeyProviderRegistry.register("macos-keychain", (_config) => {
+  const backend = BackendRegistry.create("keychain");
+  return new VaultKeyProvider({ backend, displayName: "macOS Keychain" });
 });
-KeyProviderRegistry.register("yubikey", (config) => {
-  const { options } = config;
-  const encryptedKeyPath = typeof options.encryptedKeyPath === "string" ? options.encryptedKeyPath : "";
-  if (!encryptedKeyPath) {
-    throw new Error("YubiKey provider requires encryptedKeyPath option");
-  }
-  const slot = typeof options.slot === "number" && (options.slot === 1 || options.slot === 2) ? options.slot : void 0;
-  const serial = typeof options.serial === "string" ? options.serial : void 0;
-  const providerOptions = {
-    encryptedKeyPath
-  };
-  if (slot !== void 0) {
-    providerOptions.slot = slot;
-  }
-  if (serial !== void 0) {
-    providerOptions.serial = serial;
-  }
-  return new YubiKeyProvider(providerOptions);
+KeyProviderRegistry.register("yubikey", (_config) => {
+  const backend = BackendRegistry.create("yubikey");
+  return new VaultKeyProvider({ backend, displayName: "YubiKey" });
 });
 var cliExperienceSchema = external_exports.object({
   declinedCompletionInstall: external_exports.boolean().optional()

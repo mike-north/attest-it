@@ -265,51 +265,11 @@ describe('YubiKeyProvider', () => {
       expect(providerTypes).toContain('yubikey')
     })
 
-    it('should create provider from registry with config', async () => {
-      const { KeyProviderRegistry } = await import('../../src/key-provider/registry.js')
-      const testKeyPath = path.join(tmpDir, 'key.enc')
-
-      const createdProvider = KeyProviderRegistry.create({
-        type: 'yubikey',
-        options: {
-          encryptedKeyPath: testKeyPath,
-          slot: 1,
-          serial: '12345678',
-        },
-      })
-
-      expect(createdProvider.type).toBe('yubikey')
-      expect(createdProvider.displayName).toBe('YubiKey')
-
-      const config = createdProvider.getConfig()
-      expect(config.options.encryptedKeyPath).toBe(testKeyPath)
-      expect(config.options.slot).toBe(1)
-      expect(config.options.serial).toBe('12345678')
-    })
-
-    it('should throw if encryptedKeyPath is missing', async () => {
-      const { KeyProviderRegistry } = await import('../../src/key-provider/registry.js')
-
-      expect(() =>
-        KeyProviderRegistry.create({
-          type: 'yubikey',
-          options: {},
-        }),
-      ).toThrow(/encryptedKeyPath/)
-    })
-
-    it('should throw if encryptedKeyPath is outside config directory', async () => {
-      const { KeyProviderRegistry } = await import('../../src/key-provider/registry.js')
-
-      expect(() =>
-        KeyProviderRegistry.create({
-          type: 'yubikey',
-          options: {
-            encryptedKeyPath: '/outside/config/dir/key.enc',
-          },
-        }),
-      ).toThrow(/must be within attest-it config directory/)
-    })
+    // Note: After migration to VaultKeyProvider, the registry factory no longer
+    // validates provider-specific config (encryptedKeyPath, slot, serial). Config
+    // validation that was previously done by the YubiKeyProvider constructor now
+    // happens at the VaultKeeper backend level. The registry factory simply creates
+    // a VaultKeyProvider backed by the VaultKeeper yubikey backend.
   })
 
   describe('mock-based crypto tests', () => {
