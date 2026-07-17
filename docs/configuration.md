@@ -375,9 +375,11 @@ npx attest-it run --filter 'unit-*'
 ## Local Identity Configuration
 
 Your identity is stored at `~/.config/attest-it/config.yaml`. This file uses the v2 schema:
-a top-level `version: 2`, and a flat VaultKeeper `id` per identity's `privateKey` (instead of
-the old per-provider fields like `path`/`vault`/`item`/`service`). This is the actual shape
-`attest-it identity create` writes — verified by generating a fresh identity, not hand-written:
+a top-level `version: 2`, and a flat VaultKeeper `id` per identity's `privateKey` in place of
+the old v1 per-provider identifier fields (`item`, `service`, `account`). One v1 field
+survives in v2: the `1password` backend can still carry an optional `vault` name alongside
+its opaque `id` (see [1Password](#1password) below). This is the actual shape `attest-it
+identity create` writes — verified by generating a fresh identity, not hand-written:
 
 ```yaml
 version: 2
@@ -416,8 +418,11 @@ identities:
 ### Private Key Storage Options
 
 All backends store the private key itself via VaultKeeper, keyed by an opaque `id` that
-`identity create` generates -- `config.yaml` never holds a raw file path, vault name, or
-keychain service string directly (those were the old v1 per-provider fields).
+`identity create` generates -- `config.yaml` never holds a keychain service string or
+1Password item name directly (those were the old v1 per-provider fields). Two exceptions:
+the `1password` variant can still carry an optional `vault` name (see below), and the legacy
+`filesystem` variant produced by a v1-to-v2 migration still stores a raw `path` (see
+[Path Resolution](#path-resolution)).
 
 #### Filesystem
 
@@ -698,7 +703,7 @@ to a specific commit, not to working-tree state that could change or vanish afte
 
 **Solution:** Commit (or stash) all pending changes -- including any `.attest-it/policy.yaml`
 / `.attest-it/config.yaml` edits from setup -- before running `attest-it run --suite`. See
-[Step 4 of Getting Started](getting-started.md#step-4-run-tests-and-create-seal) for the
+[Step 3b of Getting Started](getting-started.md#step-3b-commit-your-configuration) for the
 documented order. To opt out (e.g. for local dogfooding of this repo on itself), set
 `ATTEST_IT_ALLOW_DIRTY=1`; this is not recommended for normal project use.
 

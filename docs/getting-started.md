@@ -407,11 +407,13 @@ Age: 2 days
 Overall: All gates valid
 ```
 
-**`status` is informational and always exits `0`**, even when a gate is `MISSING`,
-`FINGERPRINT_MISMATCH`, or otherwise invalid -- it reports what it finds rather than
-enforcing it. Don't wire `status` into CI expecting it to fail the build on a bad gate; use
-`attest-it verify` for that (see [Step 6](#step-6-set-up-ci-verification) and
-[Exit Codes](configuration.md#exit-codes)).
+**`status` is informational and exits `0` when it successfully reports gate results** --
+even when a gate is `MISSING`, `FINGERPRINT_MISMATCH`, or otherwise invalid, it reports what
+it finds rather than enforcing it. Don't wire `status` into CI expecting it to fail the build
+on a bad gate; use `attest-it verify` for that (see [Step 6](#step-6-set-up-ci-verification)).
+`status` still fails closed on the configuration itself, though: it exits `CONFIG_ERROR` on a
+missing/unreadable config and `NO_WORK` when the config defines zero gates -- see
+[Exit Codes](configuration.md#exit-codes).
 
 ## Common Workflows
 
