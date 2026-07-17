@@ -260,9 +260,9 @@ describe('status command', () => {
       expect(mockConsoleLog).toHaveBeenCalledWith(expect.stringContaining('STALE'))
     })
 
-    it('should exit FAILURE when a STALE gate is mixed with a genuinely invalid gate', async () => {
-      // STALE alone is not a failure, but it must not mask a real failure among
-      // other gates either.
+    it("exits 0 (informational) even when gates are STALE or invalid — enforcement is verify's job", async () => {
+      // status reports gate results (including STALE and MISSING) but never
+      // enforces them; it always exits 0 on results. `verify` is the gate.
       const mockAttestItConfig = {
         ...createMockAttestItConfig(),
         gates: {
@@ -305,7 +305,7 @@ describe('status command', () => {
 
       await runStatus([], { json: true })
 
-      expect(mockProcessExit).toHaveBeenCalledWith(1)
+      expect(mockProcessExit).toHaveBeenCalledWith(0)
     })
 
     it('should return exit code 3 when config not found', async () => {

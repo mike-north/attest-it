@@ -51,14 +51,13 @@ interface GateStatus {
  * Displays the current status of seals for all gates or specific gates,
  * including validation status, fingerprints, and age information.
  *
- * `status` deliberately mirrors `verify`'s exit-code semantics rather than always
- * exiting 0: a missing/unreadable configuration exits {@link ExitCode.CONFIG_ERROR}
- * with a legible message instead of printing a bare empty table. A report command
- * that silently reports "nothing" on a broken config is exactly the fail-open
- * behavior this is meant to avoid. As with `verify`, a `STALE` seal (past maxAge
- * but otherwise valid) is a warning, not a failure, and does not by itself cause
- * a non-zero exit — only `MISSING`/`FINGERPRINT_MISMATCH`/`INVALID_SIGNATURE`/
- * `UNKNOWN_SIGNER` states do.
+ * `status` is informational and always exits 0 when it successfully reports gate
+ * results — including `MISSING`/`FINGERPRINT_MISMATCH`/`INVALID_SIGNATURE`/
+ * `UNKNOWN_SIGNER`/`STALE` states, which it displays rather than enforces.
+ * Enforcement is `verify`'s job. The one fail-closed case: a missing/unreadable
+ * *configuration* exits {@link ExitCode.CONFIG_ERROR} with a legible message
+ * instead of printing a bare empty table — a report that silently succeeds on a
+ * broken config is exactly the fail-open behavior this avoids (see #81).
  *
  * @param gates - Array of gate IDs to show status for, or empty for all gates
  * @param options - Command options
@@ -160,7 +159,10 @@ async function runStatus(
       displayStatusTable(results)
     }
 
-    // Status is informational — always exit 0. Use `verify` for enforcement.
+    // Status is informational — it reports gate results (including MISSING,
+    // FINGERPRINT_MISMATCH, INVALID_SIGNATURE, UNKNOWN_SIGNER, STALE) and always
+    // exits 0. Enforcement is `verify`'s job. Status fails closed only on a
+    // missing/unreadable *configuration* (handled below), never on gate results.
     process.exit(ExitCode.SUCCESS)
   } catch (err) {
     if (err instanceof SplitConfigNotFoundError) {
