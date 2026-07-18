@@ -16,7 +16,13 @@
 import { stat } from 'node:fs/promises'
 import * as path from 'node:path'
 import type { AttestItConfig, GateConfig } from '../types.js'
-import { loadSplitConfig } from '../config/index.js'
+import {
+  loadSplitConfig,
+  findPolicyPath,
+  computePolicyFingerprint,
+  verifyRootGate,
+  isBlockingRootGateState,
+} from '../config/index.js'
 import { computeFingerprint, computeFingerprintsPerFile, listPackageFiles } from '../fingerprint.js'
 import { loadLocalConfigSync } from '../identity/index.js'
 import {
@@ -56,6 +62,7 @@ import {
   type StatusResult,
   type VerifyAllParams,
   type VerifyAllResult,
+  type VerifyOptions,
 } from './types.js'
 
 /**
@@ -70,6 +77,159 @@ async function loadConfigOrFail(baseDir: string): Promise<AttestItConfig | ApiFa
   } catch (error) {
     return fail('malformed', error instanceof Error ? error.message : String(error))
   }
+}
+
+/**
+ * Resolve the caller-supplied **trusted** policy source into an
+ * {@link AttestItConfig}, or an {@link ApiFailure} if none was supplied or it
+ * could not be loaded.
+ *
+ * The trusted config supplies the authorized root signers and team the
+ * working-tree policy's own root seal is checked against — the in-process analog
+ * of the Action's base branch. Precedence: an explicit {@link VerifyOptions.trustedConfig}
+ * wins; otherwise a {@link VerifyOptions.trustedPolicyPath} is loaded from disk.
+ * When neither is supplied we fail closed with `untrusted-config` rather than
+ * trusting the working-tree anchor.
+ */
+async function resolveTrustedConfig(
+  baseDir: string,
+  options: VerifyOptions,
+): Promise<AttestItConfig | ApiFailure> {
+  if (options.trustedConfig) {
+    return options.trustedConfig
+  }
+  if (options.trustedPolicyPath !== undefined) {
+    try {
+      return await loadSplitConfig({
+        baseDir,
+        policySource: { type: 'filesystem', path: options.trustedPolicyPath },
+      })
+    } catch (error) {
+      return fail(
+        'malformed',
+        `Failed to load trusted policy from '${options.trustedPolicyPath}': ` +
+          (error instanceof Error ? error.message : String(error)),
+      )
+    }
+  }
+  return fail(
+    'untrusted-config',
+    'Policy defines a rootGate but no trusted policy source was supplied. ' +
+      'Pass `trustedConfig` (a pre-loaded base-branch config) or `trustedPolicyPath` ' +
+      "(a path to the trusted policy file) so the working-tree policy's root seal can be " +
+      'verified against a trusted anchor. Refusing to trust the working-tree anchor.',
+  )
+}
+
+/**
+ * The MANDATORY root-gate pre-step for the embeddable verify operations.
+ *
+ * Mirrors the CLI `verify` and GitHub Action pre-step: BEFORE any gate is
+ * evaluated, verify the working-tree policy's own root seal against a
+ * caller-supplied **trusted** policy source. Returns `null` when gate evaluation
+ * may proceed, or an {@link ApiFailure} (`untrusted-config`, or `malformed` for
+ * an unreadable seal/policy state) that the caller must surface as the verdict.
+ *
+ * The enforcement decision is gated on the **trusted** anchor, never on the
+ * untrusted working-tree config. If we short-circuited on the working tree's own
+ * `rootGate`, an attacker could simply **delete** `rootGate` from their branch's
+ * `policy.yaml`, self-authorize a gate, and skip enforcement entirely — a trust
+ * bypass. So we resolve the trusted source first and let *its* `rootGate` decide
+ * whether the pre-step runs, regardless of what the working tree still declares.
+ *
+ * Fail-closed semantics:
+ * - No trusted source supplied **and** the working-tree policy has no `rootGate`
+ *   → a genuinely un-anchored repo (predates the bootstrap ceremony); there is
+ *   nothing to verify, so evaluation proceeds unchanged (backward compatible),
+ *   exactly as the CLI/Action treat an un-anchored repo (`NOT_ANCHORED`,
+ *   non-blocking). This is the ONLY skip path when no trusted source is given.
+ * - No trusted source supplied **but** the working-tree policy declares a
+ *   `rootGate` → we cannot verify that claim against a trusted root →
+ *   `untrusted-config` (never a silent pass).
+ * - Trusted source supplied and its policy defines a `rootGate` → verify the
+ *   working-tree policy's root seal against the trusted anchor REGARDLESS of
+ *   whether the working tree still declares a `rootGate`. A working tree that
+ *   deleted `rootGate` (or changed the policy) has no matching root seal →
+ *   `MISSING`/`FINGERPRINT_MISMATCH`; a self-added signer → `UNKNOWN_SIGNER` —
+ *   all `untrusted-config`, carrying the precise root-gate message.
+ * - Trusted source supplied but its policy has no `rootGate` → the trusted
+ *   anchor itself is not anchored; there is nothing to protect, so evaluation
+ *   proceeds (mirrors the Action skipping the pre-step when the base branch has
+ *   no `rootGate`).
+ * - The working-tree root seal verifies (`VALID`/`STALE`) → proceed; gates then
+ *   evaluate against the now-trusted working-tree config.
+ */
+async function enforceRootGate(
+  config: AttestItConfig,
+  baseDir: string,
+  options: VerifyOptions,
+): Promise<ApiFailure | null> {
+  const trustedSourceSupplied =
+    options.trustedConfig !== undefined || options.trustedPolicyPath !== undefined
+
+  // The ONLY skip path: no trusted source AND a working tree that never claimed
+  // to be anchored. Everything else must resolve the trusted anchor first — the
+  // untrusted working-tree config never gets to decide whether enforcement runs.
+  if (!trustedSourceSupplied && !config.rootGate) {
+    return null
+  }
+
+  // Resolve the trusted anchor. With no trusted source this returns the
+  // fail-closed `untrusted-config` failure (the working tree declares a
+  // `rootGate` we cannot verify).
+  const trusted = await resolveTrustedConfig(baseDir, options)
+  if (isApiFailure(trusted)) {
+    return trusted
+  }
+
+  // The TRUSTED anchor decides enforcement. If it defines no `rootGate`, it is
+  // not itself anchored — nothing to protect — so evaluation proceeds.
+  if (!trusted.rootGate) {
+    return null
+  }
+
+  // The root seal and the policy fingerprint come from the WORKING TREE; the
+  // authorized root signers come from the TRUSTED config — so a self-added
+  // signer, an unsealed policy change, or a deleted `rootGate` (no matching root
+  // seal) is rejected here, before any gate is trusted.
+  let seals: SealsFile
+  try {
+    seals = await readSeals(baseDir, config.settings.sealsPath)
+  } catch (error) {
+    return fail('malformed', error instanceof Error ? error.message : String(error))
+  }
+
+  const policyPath = findPolicyPath(baseDir)
+  if (policyPath === null) {
+    return fail(
+      'malformed',
+      'Policy file not found for root-gate verification (expected .attest-it/policy.yaml)',
+    )
+  }
+
+  let policyFingerprint: string
+  try {
+    policyFingerprint = await computePolicyFingerprint(baseDir, policyPath)
+  } catch (error) {
+    return fail('malformed', error instanceof Error ? error.message : String(error))
+  }
+
+  const rootResult = verifyRootGate({
+    config: trusted,
+    policyFingerprint,
+    seals,
+    trustedSourceLabel: options.trustedPolicyPath
+      ? `root signers from ${options.trustedPolicyPath}`
+      : 'root signers from the supplied trusted config',
+  })
+
+  if (isBlockingRootGateState(rootResult.state)) {
+    return fail('untrusted-config', rootResult.message, { gateId: rootResult.gateId })
+  }
+
+  // VALID, STALE (a warning, not a failure), or NOT_ANCHORED (the trusted source
+  // itself is not anchored — nothing to protect): gate evaluation may proceed.
+  return null
 }
 
 /**
@@ -641,13 +801,14 @@ export async function seal(
  * `untrusted-config`, or `malformed`). Expected failure states are never thrown.
  *
  * @param artifactPath - The artifact path.
- * @param options - {@link ApiOptions}
+ * @param options - {@link VerifyOptions} (the trusted policy source for
+ *   root-gate enforcement, plus {@link ApiOptions.baseDir}).
  * @returns The verification outcome.
  * @public
  */
 export async function verifyOne(
   artifactPath: string,
-  options: ApiOptions = {},
+  options: VerifyOptions = {},
 ): Promise<ArtifactVerification> {
   const baseDir = options.baseDir ?? process.cwd()
   const config = await loadConfigOrFail(baseDir)
@@ -656,11 +817,12 @@ export async function verifyOne(
   }
   const loaded = config
 
-  const trust = evaluateConfigTrust(loaded, baseDir)
-  if (!trust.trusted) {
-    return fail('untrusted-config', trust.reason ?? 'Configuration is not trust-anchored', {
-      path: artifactPath,
-    })
+  // MANDATORY PRE-STEP: verify the config's OWN root seal against the trusted
+  // anchor before any gate is trusted. Fails closed on a blocking root-gate
+  // state or an absent trusted source (see {@link enforceRootGate}).
+  const rootFailure = await enforceRootGate(loaded, baseDir, options)
+  if (rootFailure) {
+    return { ...rootFailure, path: artifactPath }
   }
 
   const gateId = await resolveSingleGateOrFail(loaded, artifactPath, baseDir)
@@ -714,15 +876,16 @@ async function gateChangedSince(
  *
  * @param params - {@link VerifyAllParams}; `changedSince` (ISO-8601) filters to
  *   gates with at least one file modified at/after that time (by fs mtime).
- * @param options - {@link ApiOptions}
+ * @param options - {@link VerifyOptions} (the trusted policy source for
+ *   root-gate enforcement, plus {@link ApiOptions.baseDir}).
  * @returns Per-gate {@link ArtifactVerification} outcomes, or a top-level
- *   {@link ApiFailure} if config load, trust evaluation, or a bad
+ *   {@link ApiFailure} if config load, root-gate enforcement, or a bad
  *   `changedSince` value fails.
  * @public
  */
 export async function verifyAll(
   params: VerifyAllParams = {},
-  options: ApiOptions = {},
+  options: VerifyOptions = {},
 ): Promise<VerifyAllResult | ApiFailure> {
   const baseDir = options.baseDir ?? process.cwd()
   const config = await loadConfigOrFail(baseDir)
@@ -731,9 +894,12 @@ export async function verifyAll(
   }
   const loaded = config
 
-  const trust = evaluateConfigTrust(loaded, baseDir)
-  if (!trust.trusted) {
-    return fail('untrusted-config', trust.reason ?? 'Configuration is not trust-anchored')
+  // MANDATORY PRE-STEP: verify the config's OWN root seal against the trusted
+  // anchor before any gate is trusted. Fails closed on a blocking root-gate
+  // state or an absent trusted source (see {@link enforceRootGate}).
+  const rootFailure = await enforceRootGate(loaded, baseDir, options)
+  if (rootFailure) {
+    return rootFailure
   }
 
   let since: Date | undefined
