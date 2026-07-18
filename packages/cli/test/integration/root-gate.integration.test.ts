@@ -11,7 +11,7 @@
  * @see Issue #72 acceptance criteria
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { spawn } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
@@ -33,6 +33,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const CLI_PATH = path.resolve(__dirname, '../../dist/bin/attest-it.js')
 const FIXTURE_PATH = path.resolve(__dirname, '../fixtures/sample-project')
 const CLI_TIMEOUT_MS = 15000
+// Each test spawns several real CLI subprocesses in sequence (identity create,
+// init/bootstrap, seal, verify, …). vitest's 5s default is far too tight for
+// that on a cold CI runner, so give the whole suite a generous per-test budget.
+const TEST_TIMEOUT_MS = 90000
+vi.setConfig({ testTimeout: TEST_TIMEOUT_MS, hookTimeout: TEST_TIMEOUT_MS })
 
 interface RunResult {
   exitCode: number
