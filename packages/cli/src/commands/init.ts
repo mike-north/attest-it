@@ -279,6 +279,25 @@ async function runInit(options: InitOptions): Promise<void> {
     const policyPath = path.join(configDir, 'policy.yaml')
     const operationalPath = path.join(configDir, 'config.yaml')
 
+    // Additive trust-anchor bootstrap. Establishing a root signer on a repo
+    // that has already been initialized must NEVER re-scaffold from the empty
+    // template — doing so wipes existing `gates:`/`suites:` and orphans any
+    // seal, silently, while still printing "Trust anchor established" (issue
+    // #127). When --root-signer targets an existing policy.yaml, take a
+    // dedicated path that merges in only the rootGate + signer and leaves
+    // everything else untouched. This path needs no --force.
+    if (options.rootSigner !== undefined && fs.existsSync(policyPath)) {
+      await establishRootSignerOnExistingConfig(options.rootSigner, policyPath)
+      return
+    }
+
+    // Full (re-)scaffold path — fresh init, or an explicit --force overwrite.
+    // Guard first: the full re-scaffold writes empty templates, so it must
+    // refuse to silently discard a populated config. If existing gates/suites
+    // would be lost, print exactly what is at stake and require an explicit
+    // confirmation (never a silent wipe, even with --force). See issue #127.
+    await guardAgainstDestructiveRescaffold(options, policyPath, operationalPath)
+
     if (!(await confirmOverwrite(policyPath, options.force))) {
       error('Init cancelled')
       process.exit(ExitCode.CANCELLED)
@@ -326,8 +345,12 @@ async function runInit(options: InitOptions): Promise<void> {
     } else {
       log("  2. Run: attest-it identity create  (if you haven't already)")
       log('  3. Run: attest-it team join')
-      log('  4. Bootstrap the trust anchor: attest-it init --root-signer <your-identity-slug>')
-      log(`  5. Edit ${policyPath} to define your gates, and ${operationalPath} to define suites`)
+      log(`  4. Edit ${policyPath} to define your gates, and ${operationalPath} to define suites`)
+      log('  5. Bootstrap the trust anchor: attest-it init --root-signer <your-identity-slug>')
+      log(
+        '     (safe to run at any time — it merges in the root gate and leaves your ' +
+          'existing gates, suites, and seals untouched)',
+      )
     }
 
     // Offer to install shell completions
@@ -335,6 +358,143 @@ async function runInit(options: InitOptions): Promise<void> {
   } catch (err) {
     handlePromptableError(err, ExitCode.CONFIG_ERROR)
   }
+}
+
+/**
+ * Read the keys of a top-level map section (e.g. `gates`, `suites`) from a
+ * YAML config file, returning `[]` when the file is absent, unparseable, or the
+ * section is missing/empty. Used to detect whether a re-scaffold would discard
+ * real user data. See issue #127.
+ *
+ * @param filePath - Absolute path to the YAML config file.
+ * @param section - Top-level map key to inspect (a fixed literal, never user input).
+ */
+function readSectionKeys(filePath: string, section: 'gates' | 'suites'): string[] {
+  if (!fs.existsSync(filePath)) {
+    return []
+  }
+  let parsed: unknown
+  try {
+    parsed = parseYaml(fs.readFileSync(filePath, 'utf8'))
+  } catch {
+    // A malformed existing file has no recoverable sections to protect.
+    return []
+  }
+  if (!isPlainRecord(parsed)) {
+    return []
+  }
+  // `section` is one of two hard-coded literals, not attacker-controlled.
+  // eslint-disable-next-line security/detect-object-injection
+  const value = parsed[section]
+  return isPlainRecord(value) ? Object.keys(value) : []
+}
+
+/**
+ * Refuse to let the full re-scaffold silently empty a populated config.
+ *
+ * The default `init` path (and `init --force`) overwrites `policy.yaml` and
+ * `config.yaml` with empty templates. If either file already defines
+ * `gates:`/`suites:`, that overwrite is destructive: it wipes trust/operational
+ * data and orphans any seal. This guard detects that case, prints exactly what
+ * would be lost, and requires an explicit confirmation — a `--force` flag alone
+ * is never enough to discard real data non-interactively. See issue #127.
+ *
+ * @throws Error when a populated config would be discarded and no interactive
+ * terminal is available to confirm the destructive overwrite.
+ */
+async function guardAgainstDestructiveRescaffold(
+  options: InitOptions,
+  policyPath: string,
+  operationalPath: string,
+): Promise<void> {
+  const gateKeys = readSectionKeys(policyPath, 'gates')
+  const suiteKeys = readSectionKeys(operationalPath, 'suites')
+  if (gateKeys.length === 0 && suiteKeys.length === 0) {
+    return
+  }
+
+  warn('Re-scaffolding from the empty template would DISCARD existing configuration:')
+  if (gateKeys.length > 0) {
+    log(`  policy.yaml gates:  ${gateKeys.join(', ')}`)
+  }
+  if (suiteKeys.length > 0) {
+    log(`  config.yaml suites: ${suiteKeys.join(', ')}`)
+  }
+  log('')
+  log('To establish a root signer without touching this config, run the non-destructive path:')
+  log('  attest-it init --root-signer <your-identity-slug>')
+  log('')
+
+  if (!isInteractiveTTY()) {
+    throw new Error(
+      'Refusing to re-scaffold over a populated config: this would discard the gates/suites ' +
+        'listed above and orphan any seal. Re-run in an interactive terminal to confirm the ' +
+        'overwrite, or use "attest-it init --root-signer <slug>" to establish a root signer ' +
+        'non-destructively.',
+    )
+  }
+
+  const confirmed = await confirmAction({
+    message: 'Overwrite and permanently discard the gates/suites listed above',
+    default: false,
+  })
+  if (!confirmed) {
+    error('Init cancelled')
+    process.exit(ExitCode.CANCELLED)
+  }
+}
+
+/**
+ * Resolve and validate the active local identity that will act as root signer.
+ *
+ * The bootstrapping signer must be the operator's active local identity, since
+ * only that identity's private key can create the anchoring seal. Throws with an
+ * actionable message when no active identity exists or when `rootSigner` names a
+ * different identity.
+ */
+function resolveBootstrapIdentity(rootSigner: string): {
+  identity: Identity
+  identitySlug: string
+} {
+  const localConfig = loadLocalConfigSync()
+  const identity = localConfig ? getActiveIdentity(localConfig) : undefined
+  const identitySlug = localConfig?.activeIdentity
+  if (!identity || !identitySlug) {
+    throw new Error(
+      'Cannot bootstrap the root gate: no active local identity found. ' +
+        'Run "attest-it identity create" first.',
+    )
+  }
+  if (rootSigner !== identitySlug) {
+    throw new Error(
+      `--root-signer '${rootSigner}' does not match your active identity ` +
+        `'${identitySlug}'. The bootstrapping signer must be an identity you hold the ` +
+        'private key for, so that it can create the anchoring seal.',
+    )
+  }
+  return { identity, identitySlug }
+}
+
+/**
+ * Establish a root signer on an already-initialized repository, additively.
+ *
+ * This is the non-destructive counterpart to the full scaffold: it merges only
+ * the `rootGate` (and the signer's `team` entry) into the existing
+ * `policy.yaml` and creates the anchoring seal, leaving existing `gates:`,
+ * `suites:`, `team:`, and any prior seals untouched. It requires no `--force`.
+ * See issue #127.
+ */
+async function establishRootSignerOnExistingConfig(
+  rootSigner: string,
+  policyPath: string,
+): Promise<void> {
+  const { identity, identitySlug } = resolveBootstrapIdentity(rootSigner)
+  await bootstrapRootGate(identity, identitySlug, policyPath)
+
+  log('')
+  log('Next steps:')
+  log(`  1. Review the updated ${policyPath} and commit it on your default branch`)
+  log('  2. Run: attest-it verify')
 }
 
 /**
@@ -355,20 +515,8 @@ async function maybeBootstrapRootGate(options: InitOptions, policyPath: string):
 
   // Explicit flag path.
   if (options.rootSigner !== undefined) {
-    if (!identity || !identitySlug) {
-      throw new Error(
-        'Cannot bootstrap the root gate: no active local identity found. ' +
-          'Run "attest-it identity create" first.',
-      )
-    }
-    if (options.rootSigner !== identitySlug) {
-      throw new Error(
-        `--root-signer '${options.rootSigner}' does not match your active identity ` +
-          `'${identitySlug}'. The bootstrapping signer must be an identity you hold the ` +
-          'private key for, so that it can create the anchoring seal.',
-      )
-    }
-    await bootstrapRootGate(identity, identitySlug, policyPath)
+    const resolved = resolveBootstrapIdentity(options.rootSigner)
+    await bootstrapRootGate(resolved.identity, resolved.identitySlug, policyPath)
     return true
   }
 
