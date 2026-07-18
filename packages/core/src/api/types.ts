@@ -113,14 +113,23 @@ export interface GateDescriptor {
   name: string
   /** Description of what the gate protects. */
   description: string
+  /**
+   * How the gate maps matched files to seals: `single` (one combined
+   * fingerprint) or `pattern` (one seal per matched file). Absent when the gate
+   * omits `kind` (defaults to `single`).
+   */
+  kind?: 'single' | 'pattern'
   /** Team member slugs authorized to seal this gate. */
   authorizedSigners: string[]
   /** Glob patterns whose matched files form the gate's fingerprint. */
   paths: string[]
   /** Glob patterns excluded from the fingerprint. */
   exclude: string[]
-  /** Maximum seal age before it is considered expired (duration string). */
-  maxAge: string
+  /**
+   * Maximum seal age before it is considered expired (duration string). Absent
+   * when the gate omits `maxAge`, meaning it never expires (indefinite).
+   */
+  maxAge?: string
 }
 
 /**

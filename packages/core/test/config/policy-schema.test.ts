@@ -187,6 +187,63 @@ gates:
         expect(gate?.maxAge).toBe('7d')
       })
 
+      it('should accept a gate with NO maxAge (indefinite gate, #69)', () => {
+        const yaml = `
+version: 1
+gates:
+  forever:
+    name: Forever Gate
+    description: Sealed until content changes
+    authorizedSigners:
+      - alice
+    fingerprint:
+      paths:
+        - src/**
+`
+        const config = parsePolicyContent(yaml, 'yaml')
+        const gate = config.gates?.forever
+        expect(gate).toBeDefined()
+        // maxAge is genuinely absent, not defaulted to a sentinel.
+        expect(gate?.maxAge).toBeUndefined()
+      })
+
+      it('should accept a pattern-kind gate (#69)', () => {
+        const yaml = `
+version: 1
+gates:
+  tools:
+    name: Tools
+    description: Per-file sealed tool scripts
+    kind: pattern
+    authorizedSigners:
+      - alice
+    fingerprint:
+      paths:
+        - tools/*.sh
+    maxAge: 30d
+`
+        const config = parsePolicyContent(yaml, 'yaml')
+        const gate = config.gates?.tools
+        expect(gate?.kind).toBe('pattern')
+      })
+
+      it('should reject an unknown gate kind', () => {
+        const yaml = `
+version: 1
+gates:
+  tools:
+    name: Tools
+    description: Bad kind
+    kind: quorum
+    authorizedSigners:
+      - alice
+    fingerprint:
+      paths:
+        - tools/*.sh
+`
+        expect(() => parsePolicyContent(yaml, 'yaml')).toThrow()
+      })
+
       it('should parse policy with both team and gates', () => {
         const yaml = `
 version: 1
@@ -441,7 +498,9 @@ gates:
         expect(() => parsePolicyContent(yaml, 'yaml')).toThrow('fingerprint')
       })
 
-      it('should reject gate without maxAge', () => {
+      it('should ACCEPT a gate without maxAge (indefinite gate, #69)', () => {
+        // maxAge became optional in #69: a gate with no maxAge never expires.
+        // This previously rejected; the new contract is that it is valid.
         const yaml = `
 version: 1
 gates:
@@ -454,8 +513,8 @@ gates:
       paths:
         - src/**
 `
-        expect(() => parsePolicyContent(yaml, 'yaml')).toThrow(PolicyValidationError)
-        expect(() => parsePolicyContent(yaml, 'yaml')).toThrow('maxAge')
+        const config = parsePolicyContent(yaml, 'yaml')
+        expect(config.gates?.test?.maxAge).toBeUndefined()
       })
 
       it('should reject gate with invalid maxAge duration', () => {

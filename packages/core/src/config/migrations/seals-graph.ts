@@ -42,6 +42,10 @@ function versionSchema<V extends number>(version: V) {
  */
 const sealSchemaV1 = z.object({
   gateId: z.string().min(1, 'Gate ID cannot be empty'),
+  // Present only for per-file seals of a pattern gate; identifies which file
+  // within the gate the seal covers (repo-relative, forward-slash). Additive and
+  // optional so existing single-gate seals validate unchanged.
+  artifactPath: z.string().min(1, 'Artifact path cannot be empty').optional(),
   fingerprint: z
     .string()
     .regex(/^sha256:[a-f0-9]+$/i, 'Invalid fingerprint format (expected sha256:<hex>)'),

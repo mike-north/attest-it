@@ -774,3 +774,67 @@ describe('verification edge cases', () => {
     expect(result.state).toBe('VALID')
   })
 })
+
+describe('verifyGateSeal - optional maxAge (indefinite gate, #69)', () => {
+  it('never reports STALE for a gate with NO maxAge, regardless of seal age', () => {
+    const { publicKey, privateKey } = generateKeyPair()
+    const config = createTestConfig()
+    config.team ??= {}
+    config.team.alice = { name: 'Alice Developer', publicKey }
+    config.gates ??= {}
+    // A gate with maxAge omitted entirely (indefinite — never expires).
+    config.gates.indefinite = {
+      name: 'Indefinite',
+      description: 'Sealed forever until content changes',
+      authorizedSigners: ['alice'],
+      fingerprint: { paths: ['**/*'] },
+      // no maxAge
+    }
+
+    const fingerprint = 'sha256:abc123'
+    // A seal from 1000 days ago — ancient by any duration standard.
+    const ancient = new Date(Date.now() - 1000 * 24 * 60 * 60 * 1000).toISOString()
+    const canonicalString = `indefinite:${fingerprint}:${ancient}`
+    const seal: Seal = {
+      gateId: 'indefinite',
+      fingerprint,
+      timestamp: ancient,
+      sealedBy: 'alice',
+      signature: sign(canonicalString, privateKey),
+    }
+    const seals: SealsFile = { version: 1, seals: { indefinite: seal } }
+
+    const result = verifyGateSeal(config, 'indefinite', seals, fingerprint)
+    expect(result.state).toBe('VALID')
+    expect(result.state).not.toBe('STALE')
+  })
+
+  it('CONTRAST: the same ancient seal IS stale once the gate declares a maxAge', () => {
+    const { publicKey, privateKey } = generateKeyPair()
+    const config = createTestConfig()
+    config.team ??= {}
+    config.team.alice = { name: 'Alice Developer', publicKey }
+    config.gates ??= {}
+    config.gates.bounded = {
+      name: 'Bounded',
+      description: 'Expires after 30 days',
+      authorizedSigners: ['alice'],
+      fingerprint: { paths: ['**/*'] },
+      maxAge: '30d',
+    }
+
+    const fingerprint = 'sha256:abc123'
+    const ancient = new Date(Date.now() - 1000 * 24 * 60 * 60 * 1000).toISOString()
+    const seal: Seal = {
+      gateId: 'bounded',
+      fingerprint,
+      timestamp: ancient,
+      sealedBy: 'alice',
+      signature: sign(`bounded:${fingerprint}:${ancient}`, privateKey),
+    }
+    const seals: SealsFile = { version: 1, seals: { bounded: seal } }
+
+    const result = verifyGateSeal(config, 'bounded', seals, fingerprint)
+    expect(result.state).toBe('STALE')
+  })
+})

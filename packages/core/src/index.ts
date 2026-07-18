@@ -12,6 +12,7 @@ export type {
   TeamMember,
   FingerprintConfig,
   GateConfig,
+  GateKind,
   RootGateConfig,
   SuiteConfig,
   AttestItConfig,
@@ -87,8 +88,14 @@ export {
 } from './config/index.js'
 
 // Fingerprinting
-export { computeFingerprint, computeFingerprintSync, listPackageFiles } from './fingerprint.js'
-export type { FingerprintOptions, FingerprintResult } from './fingerprint.js'
+export {
+  computeFingerprint,
+  computeFingerprintSync,
+  computeFingerprintsPerFile,
+  computeFingerprintsPerFileSync,
+  listPackageFiles,
+} from './fingerprint.js'
+export type { FingerprintOptions, FingerprintResult, PerFileFingerprint } from './fingerprint.js'
 
 // Cryptography
 export {
@@ -241,11 +248,14 @@ export {
   writeSealsSync,
   verifyGateSeal,
   verifyAllSeals,
+  verifyPatternArtifactSeal,
   CURRENT_SEALS_VERSION,
   slugifySegment,
   resolveSealsRoot,
   writeSealFileSync,
+  writeSealFile,
   listStoredSealsSync,
+  listStoredSeals,
   type Seal,
   type SealsFile,
   type StoredSeal,

@@ -118,11 +118,30 @@ export function slugifySegment(input: string): string {
 
 /**
  * Compute the repo-relative path (from the seals root) of the file that stores a
- * given gate's seal by a given signer.
+ * seal.
+ *
+ * @remarks
+ * An ordinary single-gate seal is stored at `<gateSlug>/<signerSlug>.seal`. A
+ * per-file **pattern-gate** seal (one whose `artifactPath` is set) inserts an
+ * artifact segment — `<gateSlug>/<artifactSlug>/<signerSlug>.seal` — so every
+ * matched file's seal lives in its own path and none collides. Every segment
+ * reuses the same collision-safe {@link slugifySegment}.
  * @internal
  */
-function sealRelPath(gateId: string, sealedBy: string): string {
-  return path.join(slugifySegment(gateId), slugifySegment(sealedBy) + SEAL_FILE_EXT)
+function sealRelPath(gateId: string, sealedBy: string, artifactPath?: string): string {
+  const signerFile = slugifySegment(sealedBy) + SEAL_FILE_EXT
+  if (artifactPath !== undefined) {
+    return path.join(slugifySegment(gateId), slugifySegment(artifactPath), signerFile)
+  }
+  return path.join(slugifySegment(gateId), signerFile)
+}
+
+/**
+ * Compute the storage path for a seal, honoring its {@link Seal.artifactPath}.
+ * @internal
+ */
+function sealRelPathFor(seal: Seal): string {
+  return sealRelPath(seal.gateId, seal.sealedBy, seal.artifactPath)
 }
 
 /**
@@ -169,6 +188,10 @@ function legacyMonolithCandidates(root: string): string[] {
 function serializeSeal(seal: Seal): string {
   const ordered = {
     gateId: seal.gateId,
+    // Emitted immediately after gateId (and only when set) so per-file pattern
+    // seals round-trip; omitted entirely for single-gate seals so their content
+    // stays byte-identical to the pre-pattern format.
+    ...(seal.artifactPath !== undefined && { artifactPath: seal.artifactPath }),
     fingerprint: seal.fingerprint,
     timestamp: seal.timestamp,
     sealedBy: seal.sealedBy,
@@ -270,15 +293,48 @@ export function listStoredSealsSync(root: string): StoredSeal[] {
 }
 
 /**
- * Write a single seal file (sync) at its deterministic per-(gate, signer) path,
- * coexisting with any other signer's file for the same gate.
+ * Write a single seal file (sync) at its deterministic path, coexisting with any
+ * other seal file (a different signer, or a different pattern-gate artifact) for
+ * the same gate.
+ *
+ * @remarks
+ * This is the low-level primitive that pattern-gate per-file seals **must** use.
+ * The aggregate `writeSealsToDirSync` is inherently one-file-per-gate and prunes
+ * every file outside its desired set, so routing per-file seals through it would
+ * delete siblings. Per-file seals are written here (and read via
+ * {@link listStoredSealsSync}); the aggregate read/write path deliberately
+ * ignores any seal carrying an {@link Seal.artifactPath}.
  * @public
  */
 export function writeSealFileSync(root: string, seal: Seal): string {
-  const target = path.join(root, sealRelPath(seal.gateId, seal.sealedBy))
+  const target = path.join(root, sealRelPathFor(seal))
   fs.mkdirSync(path.dirname(target), { recursive: true })
   fs.writeFileSync(target, serializeSeal(seal), 'utf8')
   return target
+}
+
+/**
+ * Write a single seal file (async) at its deterministic path. See
+ * {@link writeSealFileSync} for the pattern-gate rationale.
+ * @public
+ */
+export async function writeSealFile(root: string, seal: Seal): Promise<string> {
+  const target = path.join(root, sealRelPathFor(seal))
+  await fs.promises.mkdir(path.dirname(target), { recursive: true })
+  await fs.promises.writeFile(target, serializeSeal(seal), 'utf8')
+  return target
+}
+
+/**
+ * Whether a seal participates in the aggregate (one-per-gate) view.
+ *
+ * Per-file pattern-gate seals (those carrying an {@link Seal.artifactPath}) do
+ * not: the aggregate is keyed by gate alone and cannot represent one seal per
+ * matched file, so it must neither surface them on read nor prune them on write.
+ * @internal
+ */
+function isAggregateSeal(seal: Seal): boolean {
+  return seal.artifactPath === undefined
 }
 
 /**
@@ -290,6 +346,8 @@ export function writeSealFileSync(root: string, seal: Seal): string {
 export function readSealsFromDirSync(root: string): SealsFile {
   const seals: Record<string, Seal> = {}
   for (const { seal } of listStoredSealsSync(root)) {
+    // Per-file pattern-gate seals are not part of the one-per-gate aggregate.
+    if (!isAggregateSeal(seal)) continue
     const current = seals[seal.gateId]
     if (!current || isPreferredOver(seal, current)) {
       seals[seal.gateId] = seal
@@ -333,14 +391,32 @@ export function writeSealsToDirSync(root: string, sealsFile: SealsFile): void {
     }
   }
 
-  // Remove files not in the desired set (removed gates / stale signer files).
+  // Remove files not in the desired set (removed gates / stale signer files),
+  // but never touch per-file pattern-gate seals: they live outside the aggregate
+  // and are managed only through the low-level per-file API. Pruning them here is
+  // exactly the silent seal loss the pattern-gate write path must avoid.
   for (const p of existing) {
-    if (!desired.has(p)) {
+    if (!desired.has(p) && isAggregateSealFileSync(p)) {
       fs.rmSync(p, { force: true })
     }
   }
 
   pruneEmptyDirsSync(root)
+}
+
+/**
+ * Whether the seal file at `p` participates in the aggregate view. A file that
+ * cannot be read/parsed is treated as an aggregate seal (fail toward the existing
+ * one-per-gate behavior); a validly-parsed per-file pattern seal is excluded so
+ * an aggregate write never prunes it.
+ * @internal
+ */
+function isAggregateSealFileSync(p: string): boolean {
+  try {
+    return isAggregateSeal(parseSeal(fs.readFileSync(p, 'utf8'), p))
+  } catch {
+    return true
+  }
 }
 
 /**
@@ -475,12 +551,29 @@ export async function readSealsFromDir(root: string): Promise<SealsFile> {
   const seals: Record<string, Seal> = {}
   for (const p of paths) {
     const seal = parseSeal(await fs.promises.readFile(p, 'utf8'), p)
+    // Per-file pattern-gate seals are not part of the one-per-gate aggregate.
+    if (!isAggregateSeal(seal)) continue
     const current = seals[seal.gateId]
     if (!current || isPreferredOver(seal, current)) {
       seals[seal.gateId] = seal
     }
   }
   return { version: CURRENT_SEALS_VERSION, seals }
+}
+
+/**
+ * List every stored seal under `root` (async), one entry per `.seal` file,
+ * including per-file pattern-gate seals. The async counterpart to
+ * {@link listStoredSealsSync}.
+ * @public
+ */
+export async function listStoredSeals(root: string): Promise<StoredSeal[]> {
+  const paths = await listSealFilePaths(root)
+  const out: StoredSeal[] = []
+  for (const p of paths) {
+    out.push({ path: p, seal: parseSeal(await fs.promises.readFile(p, 'utf8'), p) })
+  }
+  return out
 }
 
 /**
@@ -510,12 +603,25 @@ export async function writeSealsToDir(root: string, sealsFile: SealsFile): Promi
   }
 
   for (const p of existing) {
-    if (!desired.has(p)) {
+    // Never prune per-file pattern-gate seals (see writeSealsToDirSync).
+    if (!desired.has(p) && (await isAggregateSealFile(p))) {
       await fs.promises.rm(p, { force: true })
     }
   }
 
   pruneEmptyDirsSync(root)
+}
+
+/**
+ * Async counterpart to {@link isAggregateSealFileSync}.
+ * @internal
+ */
+async function isAggregateSealFile(p: string): Promise<boolean> {
+  try {
+    return isAggregateSeal(parseSeal(await fs.promises.readFile(p, 'utf8'), p))
+  } catch {
+    return true
+  }
 }
 
 /**

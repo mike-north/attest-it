@@ -338,13 +338,52 @@ gates:
 
 ### Gate Fields
 
-| Field               | Type     | Required | Default | Description                                  |
-| ------------------- | -------- | -------- | ------- | -------------------------------------------- |
-| `name`              | string   | Yes      | -       | Display name (min 1 character)               |
-| `description`       | string   | Yes      | -       | Human-readable description (min 1 character) |
-| `authorizedSigners` | string[] | Yes      | -       | Team member slugs who can seal (min 1)       |
-| `fingerprint`       | object   | Yes      | -       | Fingerprint configuration                    |
-| `maxAge`            | string   | Yes      | -       | Maximum seal age (duration string)           |
+| Field               | Type                  | Required | Default    | Description                                                    |
+| ------------------- | --------------------- | -------- | ---------- | -------------------------------------------------------------- |
+| `name`              | string                | Yes      | -          | Display name (min 1 character)                                 |
+| `description`       | string                | Yes      | -          | Human-readable description (min 1 character)                   |
+| `kind`              | `single` \| `pattern` | No       | `single`   | How matched files map to seals (see [Gate Kinds](#gate-kinds)) |
+| `authorizedSigners` | string[]              | Yes      | -          | Team member slugs who can seal (min 1)                         |
+| `fingerprint`       | object                | Yes      | -          | Fingerprint configuration                                      |
+| `maxAge`            | string                | No       | indefinite | Maximum seal age (duration string). Omit to never expire.      |
+
+### Gate Kinds
+
+A gate's `kind` controls how its matched files map to seals:
+
+- **`single`** (the default when `kind` is omitted): every matched file is combined
+  into **one** fingerprint covered by **one** seal. Changing any matched file
+  invalidates the gate's single seal. This is the historical gate behavior.
+- **`pattern`**: each matched file is fingerprinted and sealed **independently**.
+  Sealing `tools/a.sh` says nothing about `tools/b.sh`, and a **new** file matching
+  the gate's globs simply shows up as unsealed — no `policy.yaml` edit (and therefore
+  no re-seal of unrelated files) is required. Changing one byte of a sealed file flips
+  only that file to invalid; its siblings are unaffected.
+
+```yaml
+# .attest-it/policy.yaml — a pattern gate: one definition, per-file seals
+gates:
+  tools:
+    name: Tool Scripts
+    description: Each tool script is attested independently
+    kind: pattern
+    authorizedSigners:
+      - alice
+    fingerprint:
+      paths:
+        - tools/*.sh
+    # maxAge omitted → these seals never expire (valid until content changes)
+```
+
+Under a pattern gate, `status` and `verify` report one row **per matched file**
+(deterministically ordered by path), each with its own sealed/unsealed/invalid state.
+
+### Optional `maxAge` (indefinite gates)
+
+`maxAge` is optional. When omitted, the gate **never expires**: `verify` and `status`
+never report an age-based (`STALE`) result for it, regardless of how old the seal is —
+the seal stays valid until the covered content changes. Provide a duration string only
+when you want seals to be considered stale after a fixed period.
 
 ### Fingerprint Configuration
 

@@ -43,6 +43,26 @@ export interface TestProject {
 export interface CreateTestProjectOptions {
   /** Signers authorized on the gate. Defaults to `['alice']`. */
   authorizedSigners?: string[]
+  /**
+   * Gate kind. Defaults to `single` (omitted from config). When `pattern`, the
+   * gate seals each matched file independently.
+   */
+  kind?: 'single' | 'pattern'
+  /**
+   * Glob paths the gate fingerprints. Defaults to `['src/**']`. Pattern-gate
+   * tests typically pass something like `['tools/*.sh']`.
+   */
+  gatePaths?: string[]
+  /**
+   * Gate `maxAge`. Defaults to `'30d'`. Pass `null` to omit `maxAge` entirely
+   * (an indefinite gate that never expires).
+   */
+  maxAge?: string | null
+  /**
+   * Extra files to create under `baseDir` before the gate is evaluated, as a map
+   * of repo-relative path → content. Used to populate a pattern gate's matches.
+   */
+  files?: Record<string, string>
 }
 
 /**
@@ -52,6 +72,7 @@ export interface CreateTestProjectOptions {
  */
 export function createTestProject(options: CreateTestProjectOptions = {}): TestProject {
   const authorizedSigners = options.authorizedSigners ?? ['alice']
+  const gatePaths = options.gatePaths ?? ['src/**']
   const baseDir = mkdtempSync(join(tmpdir(), 'attest-it-api-base-'))
   const homeDir = mkdtempSync(join(tmpdir(), 'attest-it-api-home-'))
 
@@ -68,21 +89,30 @@ export function createTestProject(options: CreateTestProjectOptions = {}): TestP
   mkdirSync(join(baseDir, 'src', 'lib'), { recursive: true })
   writeFileSync(join(baseDir, gatedFile), 'export const tool = () => 42\n', 'utf8')
 
+  // Any extra files (e.g. a pattern gate's matched artifacts).
+  for (const [relPath, content] of Object.entries(options.files ?? {})) {
+    const abs = join(baseDir, relPath)
+    mkdirSync(join(abs, '..'), { recursive: true })
+    writeFileSync(abs, content, 'utf8')
+  }
+
   // Split config: policy (trust) + operational (suites).
   const gateId = 'tools'
+  const gateConfig: Record<string, unknown> = {
+    name: 'Tools',
+    description: 'Forged tool scripts',
+    ...(options.kind !== undefined && { kind: options.kind }),
+    authorizedSigners,
+    fingerprint: { paths: gatePaths },
+    ...(options.maxAge !== null && { maxAge: options.maxAge ?? '30d' }),
+  }
   const policy = {
     version: 1,
     team: {
       alice: { name: 'Alice Developer', publicKey: alice.publicKey },
     },
     gates: {
-      [gateId]: {
-        name: 'Tools',
-        description: 'Forged tool scripts',
-        authorizedSigners,
-        fingerprint: { paths: ['src/**'] },
-        maxAge: '30d',
-      },
+      [gateId]: gateConfig,
     },
   }
   const operational = {

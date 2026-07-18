@@ -8,7 +8,7 @@
  */
 
 import * as path from 'node:path'
-import type { AttestItConfig } from '../types.js'
+import type { AttestItConfig, GateConfig } from '../types.js'
 import type { Identity } from '../identity/index.js'
 import { listPackageFiles } from '../fingerprint.js'
 import { KeyProviderRegistry } from '../key-provider/index.js'
@@ -82,12 +82,21 @@ export function stateToFailureClass(state: Exclude<VerificationState, 'VALID'>):
  *
  * @internal
  */
-function normalizeRelativePath(artifactPath: string, baseDir: string): string {
+export function normalizeRelativePath(artifactPath: string, baseDir: string): string {
   const absolute = path.isAbsolute(artifactPath)
     ? artifactPath
     : path.resolve(baseDir, artifactPath)
   const relative = path.relative(baseDir, absolute)
   return relative.split(path.sep).join('/')
+}
+
+/**
+ * Whether a gate seals each matched file independently (pattern gate) rather
+ * than as one combined fingerprint (the `single` default).
+ * @internal
+ */
+export function isPatternGate(gate: GateConfig): boolean {
+  return gate.kind === 'pattern'
 }
 
 /**

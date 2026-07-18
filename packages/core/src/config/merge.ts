@@ -72,13 +72,22 @@ function toGateConfig(gate: NonNullable<PolicyConfig['gates']>[string]): GateCon
     fingerprint.exclude = gate.fingerprint.exclude
   }
 
-  return {
+  const result: GateConfig = {
     name: gate.name,
     description: gate.description,
     authorizedSigners: gate.authorizedSigners,
     fingerprint,
-    maxAge: gate.maxAge,
   }
+  // `kind` and `maxAge` are optional (a pattern gate; an indefinite gate). Only
+  // carry them through when present so exactOptionalPropertyTypes stays happy and
+  // an omitted `maxAge` remains genuinely absent (never expires).
+  if (gate.kind !== undefined) {
+    result.kind = gate.kind
+  }
+  if (gate.maxAge !== undefined) {
+    result.maxAge = gate.maxAge
+  }
+  return result
 }
 
 /**

@@ -94,11 +94,17 @@ export const gateSchema = z
   .object({
     name: z.string().min(1, 'Gate name cannot be empty'),
     description: z.string().min(1, 'Gate description cannot be empty'),
+    // How the gate maps matched files to seals. Omitted = `single` (one combined
+    // fingerprint, one seal) for backward compatibility; `pattern` seals each
+    // matched file independently.
+    kind: z.enum(['single', 'pattern']).optional(),
     authorizedSigners: z
       .array(z.string().min(1, 'Authorized signer slug cannot be empty'))
       .min(1, 'At least one authorized signer is required'),
     fingerprint: fingerprintConfigSchema,
-    maxAge: durationSchema,
+    // Optional: when omitted the gate never expires (indefinite is the default —
+    // not a large-number sentinel). See GateConfig.maxAge.
+    maxAge: durationSchema.optional(),
   })
   .strict()
 
