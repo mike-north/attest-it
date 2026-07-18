@@ -12,6 +12,7 @@ export {
   ATTEST_IT_HOME_ENV,
   getLocalConfigPath,
   getIdentityConfigDir,
+  getVaultKeeperConfigDir,
   setAttestItHomeDir,
   getAttestItHomeDir,
   loadLocalConfig,

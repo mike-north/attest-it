@@ -14,6 +14,7 @@ import type { KeyProvider, KeyProviderConfig } from './types.js'
 import { BackendRegistry } from 'vaultkeeper'
 import { VaultKeyProvider } from './vault-key-provider.js'
 import { LegacyFilesystemKeyProvider } from './legacy-filesystem-provider.js'
+import { getVaultKeeperConfigDir } from '../identity/config.js'
 
 /**
  * Type for a key provider factory function.
@@ -70,9 +71,14 @@ export class KeyProviderRegistry {
   }
 }
 
-// Register the filesystem provider backed by VaultKeeper's file backend
+// Register the filesystem provider backed by VaultKeeper's file backend.
+// The config dir is resolved at *retrieval* time (per factory invocation, not
+// at module load) so it honors whatever attest-it home override is in effect
+// when a key is read/signed -- and must match the directory `storePrivateKey`
+// wrote the key under. `undefined` when no override is set, letting VaultKeeper
+// resolve its own default.
 KeyProviderRegistry.register('filesystem', (_config) => {
-  const backend = BackendRegistry.create('file')
+  const backend = BackendRegistry.create('file', undefined, getVaultKeeperConfigDir())
   return new VaultKeyProvider({ backend, displayName: 'Filesystem' })
 })
 

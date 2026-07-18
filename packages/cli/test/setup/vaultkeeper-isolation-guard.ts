@@ -11,11 +11,15 @@
  * This module contains the guard's pure, unit-testable logic: resolving
  * the real (non-test-overridden) VaultKeeper config directory the same way
  * VaultKeeper itself does, recursively snapshotting its contents, and
- * asserting that no new files appeared between two snapshots. The vitest
- * wiring (`beforeAll`/`afterEach`) that actually runs this against the real
- * directory during a test run lives in `vaultkeeper-isolation-guard.setup.ts`,
- * which is registered as a global `setupFiles` entry so it applies to every
- * test in this package without each test file needing to opt in.
+ * asserting that no new files appeared between two snapshots. The recursive
+ * snapshot covers the whole tree -- config files at the root AND the
+ * encrypted private-key `.enc` blobs under `file/` and signing keys under
+ * `signing-keys/` -- so a test that leaks *key* material (issue #129), not
+ * just config, fails the guard. The vitest wiring (`beforeAll`/`afterEach`)
+ * that actually runs this against the real directory during a test run lives
+ * in `vaultkeeper-isolation-guard.setup.ts`, which is registered as a global
+ * `setupFiles` entry so it applies to every test in this package without each
+ * test file needing to opt in.
  *
  * @see vaultkeeper-isolation-guard.setup.ts
  * @see vaultkeeper-isolation-guard.test.ts
@@ -87,11 +91,15 @@ export function assertNoNewEntries(
   const newEntries = after.filter((entry) => !beforeSet.has(entry))
   if (newEntries.length > 0) {
     throw new Error(
-      `VaultKeeper test-isolation guard (issue #114): a test wrote to the REAL ` +
+      `VaultKeeper test-isolation guard (issues #114/#129): a test wrote to the REAL ` +
         `VaultKeeper config directory (${dir}) instead of an isolated temp directory. ` +
-        `New file(s): ${newEntries.join(', ')}. Set process.env.VAULTKEEPER_CONFIG_DIR ` +
-        `(and pass it through to any spawned CLI subprocess's env) to a per-test temp ` +
-        `directory before invoking anything that stores or deletes keys via the ` +
+        `This includes encrypted private-key '.enc' blobs under file/ and signing-keys/, ` +
+        `not just config. New file(s): ${newEntries.join(', ')}. Isolate the test by ` +
+        `setting ATTEST_IT_HOME (or the programmatic home override / --home-dir flag) to a ` +
+        `per-test temp directory -- attest-it now propagates that into VaultKeeper's ` +
+        `config-dir resolution -- or, for tests that drive VaultKeeper directly, set ` +
+        `process.env.VAULTKEEPER_CONFIG_DIR (and pass it through to any spawned CLI ` +
+        `subprocess's env) before invoking anything that stores or deletes keys via the ` +
         `VaultKeeper file backend.`,
     )
   }

@@ -47863,6 +47863,30 @@ var LegacyFilesystemKeyProvider = class {
     return { type: this.type, options: {} };
   }
 };
+var ATTEST_IT_HOME_ENV = "ATTEST_IT_HOME";
+var homeDirOverride = null;
+function getAttestItHomeDir() {
+  const envOverride = process.env[ATTEST_IT_HOME_ENV];
+  if (envOverride) {
+    return envOverride;
+  }
+  return homeDirOverride;
+}
+var VAULTKEEPER_SUBDIR = "vaultkeeper";
+function getVaultKeeperConfigDir(homeDir) {
+  if (homeDir) {
+    return (0, import_path4.join)(homeDir, VAULTKEEPER_SUBDIR);
+  }
+  if (process.env.VAULTKEEPER_CONFIG_DIR) {
+    return void 0;
+  }
+  const override = getAttestItHomeDir();
+  if (override) {
+    return (0, import_path4.join)(override, VAULTKEEPER_SUBDIR);
+  }
+  return void 0;
+}
+var ED25519_SPKI_DER_PREFIX = Buffer.from("302a300506032b6570032100", "hex");
 var KeyProviderRegistry = class {
   static providers = /* @__PURE__ */ new Map();
   /**
@@ -47897,7 +47921,7 @@ var KeyProviderRegistry = class {
   }
 };
 KeyProviderRegistry.register("filesystem", (_config) => {
-  const backend = BackendRegistry.create("file");
+  const backend = BackendRegistry.create("file", void 0, getVaultKeeperConfigDir());
   return new VaultKeyProvider({ backend, displayName: "Filesystem" });
 });
 KeyProviderRegistry.register("1password", (_config) => {
