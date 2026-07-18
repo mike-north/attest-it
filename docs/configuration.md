@@ -528,6 +528,43 @@ is **no longer required** for this path. Authenticate the SDK with a 1Password
 [service account token](https://developer.1password.com/docs/service-accounts/)
 (`OP_SERVICE_ACCOUNT_TOKEN`) as documented by VaultKeeper.
 
+### Migrating Legacy Identities
+
+An identity whose `privateKey.type` is still the legacy `filesystem` shape (see
+[Path Resolution](#path-resolution)) reads its private key directly off disk instead of through
+VaultKeeper. Run `attest-it identity migrate` to import every legacy identity's key into
+VaultKeeper and rewrite its config record to the v2 `file`/`keychain`/`1password`/`yubikey` shape:
+
+```bash
+attest-it identity migrate            # migrate every legacy identity, prompting for confirmation
+attest-it identity migrate alice      # migrate only the "alice" identity
+attest-it identity migrate --yes      # non-interactive: skip the confirmation prompt
+attest-it identity migrate --storage keychain   # import into a backend other than the default `file`
+attest-it identity migrate --keep-files         # keep the original key file(s) after migrating
+```
+
+For each identity, `migrate`:
+
+1. Reads the legacy PEM file and, if it is passphrase-encrypted, resolves the passphrase the same
+   way `run`/`seal` do (`ATTEST_IT_KEY_PASSPHRASE` env var, or an interactive prompt when one flag
+   is missing and stdin is a TTY).
+2. Imports the exact PEM into the target VaultKeeper backend (default: `file`) — the identity's
+   public key never changes, since it's the same keypair, just relocated storage.
+3. **Verifies a real sign/verify round-trip** against the identity's already-recorded public key
+   using the newly-imported VaultKeeper-backed key.
+4. Only after that verification succeeds does it update `config.yaml`'s `privateKey` field and
+   delete the original legacy key file (unless `--keep-files` is passed).
+
+If verification fails for any reason, the just-imported VaultKeeper secret is rolled back, the
+legacy key file is left untouched, and `config.yaml` is not modified — migration is fail-closed. A
+second run with nothing left to migrate exits `0` and reports there is nothing to do.
+
+**Note:** the private key is imported via VaultKeeper's plain secret store (the same path
+`identity create` uses today), not VaultKeeper's delegated-signing key namespace — enrolling into
+that namespace (`generateSigningKey`) always mints a brand-new keypair, which would change the
+identity's public key. This does not affect signing: the imported key still signs through the
+same VaultKeeper-backed `getPrivateKey()` path used by every other non-delegated-signing key.
+
 ---
 
 ## Verification States
