@@ -226,9 +226,17 @@ npx attest-it run --suite desktop
 # Check status
 npx attest-it status
 
-# Verify in CI
+# Local pre-check (trusts the working-tree policy — NOT the CI trust gate)
 npx attest-it verify
+
+# CI trust gate off GitHub: anchor authorization to a trusted base ref
+git fetch origin main
+npx attest-it verify --base origin/main
 ```
+
+> On GitHub, use the [GitHub Action](../github-integration.md) as the CI gate — it
+> loads policy from the PR base branch. Plain `verify` trusts the working-tree
+> policy and is only a pre-check.
 
 ## Package.json Template
 
@@ -276,7 +284,11 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
       - run: npm ci
-      - run: npx attest-it verify
+      # Base-branch-anchored trust gate (not a bare `attest-it verify`, which would
+      # only pre-check the PR's own working-tree policy).
+      - uses: attest-it/github-action@v1
+        with:
+          fail-on-missing: 'true'
 ```
 
 ## Tips and Best Practices

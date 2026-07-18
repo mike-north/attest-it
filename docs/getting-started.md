@@ -355,7 +355,21 @@ The `.attest-it/` directory structure:
 
 ## Step 6: Set Up CI Verification
 
-Add verification to your CI pipeline:
+> [!IMPORTANT]
+> **Plain `attest-it verify` is a local pre-check, not the CI trust boundary.** It
+> trusts the working-tree `.attest-it/policy.yaml`, so a pull request that adds
+> itself to `team`/`rootGate` and re-seals will still pass a bare `verify`. To
+> enforce trust in CI you must anchor authorization to a **trusted base**:
+>
+> - **On GitHub:** use the GitHub Action below — it loads `policy.yaml` from the PR
+>   **base branch** automatically.
+> - **On other CI:** use `attest-it verify --base <ref>` — it loads
+>   `rootGate`/`team`/`gates` from `<ref>` (e.g. `origin/main`) while fingerprinting
+>   the working tree, so a self-added signer is rejected as `UNKNOWN_SIGNER`.
+>
+> See the [threat model](threat-model.md) for the full trust boundary.
+
+On GitHub, enforce seals with the GitHub Action (the canonical, base-branch-anchored gate):
 
 ```yaml
 # .github/workflows/ci.yml
@@ -372,16 +386,25 @@ jobs:
         with:
           node-version: '20'
       - run: npm ci
-      - run: npx attest-it verify
+      # Loads policy from the PR base branch — the trusted source.
+      - uses: attest-it/github-action@v1
+        with:
+          fail-on-missing: 'true'
 ```
 
-Or use the GitHub Action:
+On non-GitHub CI, use the CLI in trusted-ref mode. Fetch the base ref first (shallow
+clones may not have it), then verify against it:
 
 ```yaml
-- uses: attest-it/github-action@v1
-  with:
-    fail-on-missing: 'true'
+# Example (non-GitHub CI)
+- run: npm ci
+- run: git fetch origin main
+  # Anchors rootGate/team/gates to origin/main; a PR can't self-authorize.
+- run: npx attest-it verify --base origin/main
 ```
+
+A bare `npx attest-it verify` (no `--base`) is still useful as a fast **local**
+pre-check before pushing, but must not be relied on as the CI gate.
 
 See [GitHub Integration Guide](github-integration.md) for more options.
 
@@ -412,7 +435,8 @@ Overall: All gates valid
 **`status` is informational and exits `0` when it successfully reports gate results** --
 even when a gate is `MISSING`, `FINGERPRINT_MISMATCH`, or otherwise invalid, it reports what
 it finds rather than enforcing it. Don't wire `status` into CI expecting it to fail the build
-on a bad gate; use `attest-it verify` for that (see [Step 6](#step-6-set-up-ci-verification)).
+on a bad gate; use the trusted CI gate for that — the GitHub Action or
+`attest-it verify --base <ref>` (see [Step 6](#step-6-set-up-ci-verification)).
 `status` still fails closed on the configuration itself, though: it exits `CONFIG_ERROR` on a
 missing/unreadable config and `NO_WORK` when the config defines zero gates -- see
 [Exit Codes](configuration.md#exit-codes).

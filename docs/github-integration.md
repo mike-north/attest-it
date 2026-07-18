@@ -2,9 +2,27 @@
 
 Complete guide to integrating attest-it with GitHub Actions and workflows.
 
+> [!IMPORTANT]
+> **The CI trust gate is the GitHub Action, not bare `npx attest-it verify`.**
+> Plain `attest-it verify` is a fast **local pre-check**: it trusts whatever
+> `.attest-it/policy.yaml` is in the checked-out working tree. A pull request can
+> rewrite its own `rootGate`/`team`, re-seal, and pass a bare `verify` (see the
+> [threat model](threat-model.md)). Only a **base-anchored** check is a real trust
+> boundary:
+>
+> - **On GitHub, use `attest-it/github-action@v1`** (below). It loads `policy.yaml`
+>   from the PR **base branch**, so a PR cannot grant itself signers or gates.
+> - **On non-GitHub CI, use `attest-it verify --base <ref>`** — see
+>   [Non-GitHub CI](#non-github-ci-verify---base). It anchors `rootGate`/`team`/`gates`
+>   to `<ref>` while fingerprinting the working tree.
+>
+> The YAML examples in this guide use the Action for exactly this reason. Where a
+> snippet shows bare `npx attest-it verify`, treat it as a **local** pre-check only.
+
 ## Quick Start
 
-Add seal verification to your CI pipeline:
+Add seal verification to your CI pipeline with the GitHub Action (the trusted,
+base-branch-anchored gate):
 
 ```yaml
 # .github/workflows/ci.yml
@@ -25,9 +43,28 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      # The Action loads policy.yaml from the PR base branch — the trusted source.
       - name: Verify seals
-        run: npx attest-it verify
+        uses: attest-it/github-action@v1
+        with:
+          fail-on-missing: 'true'
 ```
+
+### Non-GitHub CI: `verify --base`
+
+Off GitHub (GitLab CI, CircleCI, Jenkins, …) there is no Action, so use the CLI in
+**trusted-ref mode**. Fetch the base ref, then anchor verification to it:
+
+```bash
+# The base ref must be present locally; shallow clones often need an explicit fetch.
+git fetch origin main
+# Loads rootGate/team/gates from origin/main (trusted) while fingerprinting the
+# working tree. A PR that self-adds a signer and re-seals is rejected as UNKNOWN_SIGNER.
+npx attest-it verify --base origin/main
+```
+
+Without `--base`, `verify` trusts the working-tree policy and is only a local
+pre-check — never rely on it to gate untrusted proposal branches.
 
 ## GitHub Action
 
@@ -107,12 +144,13 @@ jobs:
 
 ### Strategy 1: Block on Missing Seals
 
-Fail CI if seals are missing or invalid:
+Fail CI if seals are missing or invalid (the Action fails the job on a non-`valid` result):
 
 ```yaml
 - name: Verify seals
-  run: npx attest-it verify
-  # CI fails if exit code is non-zero
+  uses: attest-it/github-action@v1
+  with:
+    fail-on-missing: 'true'
 ```
 
 **Use when**:
@@ -123,16 +161,18 @@ Fail CI if seals are missing or invalid:
 
 ### Strategy 2: Warn on Missing Seals
 
-Allow CI to pass but report status:
+Allow CI to pass but report status. Use the Action with `continue-on-error` and read
+its `valid` output (a bare `npx attest-it verify` here would only pre-check the PR's
+own working-tree policy, not the trusted base):
 
 ```yaml
 - name: Verify seals
   id: verify
-  run: npx attest-it verify || echo "SEAL_FAILED=true" >> $GITHUB_OUTPUT
+  uses: attest-it/github-action@v1
   continue-on-error: true
 
 - name: Comment on PR
-  if: steps.verify.outputs.SEAL_FAILED == 'true'
+  if: steps.verify.outputs.valid == 'false'
   uses: actions/github-script@v7
   with:
     script: |
@@ -152,17 +192,22 @@ Allow CI to pass but report status:
 
 ### Strategy 3: Verify Specific Gates
 
-Only verify critical gates in PR checks:
+Only verify critical gates in PR checks (the Action's `suite` input scopes the
+base-anchored check to one gate):
 
 ```yaml
 # Verify desktop tests in PRs
 - name: Verify desktop tests
-  run: npx attest-it verify desktop-tests
+  uses: attest-it/github-action@v1
+  with:
+    suite: desktop-tests
 
 # Verify all gates before deploy
 - name: Verify all seals
-  run: npx attest-it verify
   if: github.ref == 'refs/heads/main'
+  uses: attest-it/github-action@v1
+  with:
+    fail-on-missing: 'true'
 ```
 
 **Use when**:
@@ -193,7 +238,9 @@ jobs:
         with:
           node-version: '20'
       - run: npm ci
-      - run: npx attest-it verify
+      - uses: attest-it/github-action@v1
+        with:
+          fail-on-missing: 'true'
 ```
 
 **Advantages**:
@@ -229,7 +276,9 @@ jobs:
 
       # Block deploy if seals invalid
       - name: Verify seals
-        run: npx attest-it verify
+        uses: attest-it/github-action@v1
+        with:
+          fail-on-missing: 'true'
 
       - name: Deploy
         run: npm run deploy
@@ -267,7 +316,7 @@ jobs:
 
       # Warn but don't fail
       - name: Verify seals
-        run: npx attest-it verify
+        uses: attest-it/github-action@v1
         continue-on-error: true
 ```
 
@@ -288,7 +337,9 @@ jobs:
 
       # Must pass to deploy
       - name: Verify seals
-        run: npx attest-it verify
+        uses: attest-it/github-action@v1
+        with:
+          fail-on-missing: 'true'
 
       - name: Deploy
         run: npm run deploy
@@ -303,11 +354,11 @@ If seals are missing, provide clear instructions:
 ```yaml
 - name: Verify seals
   id: verify
-  run: npx attest-it verify
+  uses: attest-it/github-action@v1
   continue-on-error: true
 
 - name: Report failure
-  if: steps.verify.outcome == 'failure'
+  if: steps.verify.outputs.valid == 'false'
   run: |
     echo "::error::Seals are invalid or missing"
     echo "To fix:"
@@ -324,10 +375,11 @@ Create an issue when seals fail on main:
 ```yaml
 - name: Verify seals
   id: verify
-  run: npx attest-it verify || echo "failed=true" >> $GITHUB_OUTPUT
+  uses: attest-it/github-action@v1
+  continue-on-error: true
 
 - name: Create issue on failure
-  if: steps.verify.outputs.failed == 'true' && github.ref == 'refs/heads/main'
+  if: steps.verify.outputs.valid == 'false' && github.ref == 'refs/heads/main'
   uses: actions/github-script@v7
   with:
     script: |
@@ -397,7 +449,9 @@ jobs:
       - run: npm ci
 
       - name: Verify all gates
-        run: npx attest-it verify
+        uses: attest-it/github-action@v1
+        with:
+          fail-on-missing: 'true'
 ```
 
 ### Verify Per Package
@@ -438,7 +492,9 @@ jobs:
       - run: npm ci
 
       - name: Verify ${{ matrix.package }}
-        run: npx attest-it verify ${{ matrix.package }}
+        uses: attest-it/github-action@v1
+        with:
+          suite: ${{ matrix.package }}
 ```
 
 ## Security Considerations
@@ -491,9 +547,11 @@ Forks can't access secrets. For public repos:
 
 ```yaml
 - name: Verify seals
-  # Skip on forks
+  # Skip on forks (the Action needs a token to read the base-branch policy)
   if: github.event.pull_request.head.repo.full_name == github.repository
-  run: npx attest-it verify
+  uses: attest-it/github-action@v1
+  with:
+    fail-on-missing: 'true'
 ```
 
 ### Stale Seals
