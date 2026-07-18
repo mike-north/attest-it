@@ -44,9 +44,26 @@ describe('resolveGateAuthorization', () => {
     )
   })
 
-  it('should return an empty array when no gates are configured', async () => {
-    const result = await resolveGateAuthorization(undefined, 'release')
+  it('should return an empty array when --gates is omitted and no gates are configured', async () => {
+    const result = await resolveGateAuthorization(undefined, undefined)
 
     expect(result).toEqual([])
+  })
+
+  // Regression test for issue #135: `--gates <name>` naming a gate that
+  // doesn't exist silently succeeded (returned `[]`) whenever `gates` was
+  // undefined or `{}`, because that case short-circuited *before* the flag
+  // was ever validated. A trust-critical authorization command must hard-fail
+  // naming the missing gate instead of silently doing nothing.
+  it('should throw naming the missing gate when --gates is supplied but no gates are configured at all', async () => {
+    await expect(resolveGateAuthorization(undefined, 'release')).rejects.toThrow(
+      '--gates references unknown gate(s): release',
+    )
+  })
+
+  it('should throw naming the missing gate when --gates is supplied but gates is an empty object', async () => {
+    await expect(resolveGateAuthorization({}, 'my-gate')).rejects.toThrow(
+      '--gates references unknown gate(s): my-gate',
+    )
   })
 })
