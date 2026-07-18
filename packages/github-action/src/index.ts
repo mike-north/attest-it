@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import {
   readSeals,
   verifyAllSeals,
+  CURRENT_SEALS_VERSION,
   computeFingerprint,
   computePolicyFingerprint,
   verifyRootGate,
@@ -162,14 +163,14 @@ export async function run(): Promise<void> {
     core.info('Verifying seals...')
 
     // Load seals file
-    const sealsPath = config.settings.sealsPath ?? '.attest-it/seals.json'
+    const sealsPath = config.settings.sealsPath ?? '.attest-it/seals/'
     let seals: SealsFile
     try {
       seals = await readSeals(process.cwd(), sealsPath)
     } catch (err) {
       if (isFileNotFoundError(err)) {
-        // No seals file means all gates need attestation
-        seals = { version: 1, seals: {} }
+        // No seals directory means all gates need attestation
+        seals = { version: CURRENT_SEALS_VERSION, seals: {} }
       } else {
         throw err
       }

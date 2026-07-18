@@ -84,7 +84,10 @@ const seal = createSeal({
   privateKey: privateKeyPem,
 })
 
-// Add it to the seals file and persist
+// Add it to the aggregate and persist. Seals are stored one file per
+// (gate, signer) under the seals directory (default `.attest-it/seals/`), so
+// parallel PRs adding disjoint gates never conflict; `readSeals`/`writeSeals`
+// present the file-per-seal layout as a single aggregate.
 const sealsFile = await readSeals(baseDir, config.settings.sealsPath)
 sealsFile.seals[seal.gateId] = seal
 await writeSeals(baseDir, sealsFile, config.settings.sealsPath)

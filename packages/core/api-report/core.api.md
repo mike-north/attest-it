@@ -163,6 +163,9 @@ export interface CryptoVerifyOptions {
 }
 
 // @public
+export const CURRENT_SEALS_VERSION = 2;
+
+// @public
 export function deletePrivateKey(backendType: PrivateKeyBackendType, secretId: string): Promise<void>;
 
 // @public
@@ -454,6 +457,9 @@ export function listOnePasswordVaults(accountUuid?: string): Promise<OnePassword
 
 // @public
 export function listPackageFiles(packages: string[], ignore?: string[], baseDir?: string): Promise<string[]>;
+
+// @public
+export function listStoredSealsSync(root: string): StoredSeal[];
 
 // @public
 export function listYubiKeyDevices(): Promise<YubiKeyInfo[]>;
@@ -901,6 +907,9 @@ export function readSeals(dir: string, sealsPathOverride?: string): Promise<Seal
 export function readSealsSync(dir: string, sealsPathOverride?: string): SealsFile;
 
 // @public
+export function resolveSealsRoot(dir: string, sealsPathOverride?: string): string;
+
+// @public
 export const ROOT_GATE_ID = "__root__";
 
 // @public
@@ -978,7 +987,7 @@ export interface SealResult extends ApiResultBase {
 // @public
 export interface SealsFile {
     seals: Record<string, Seal>;
-    version: 1;
+    version: 1 | 2;
 }
 
 // @public
@@ -1023,6 +1032,9 @@ export interface SignOptions {
 }
 
 // @public
+export function slugifySegment(input: string): string;
+
+// @public
 export class SplitConfigNotFoundError extends Error {
     constructor(message: string, configType: 'operational' | 'policy');
     // (undocumented)
@@ -1042,6 +1054,12 @@ export function status(paths?: string[], options?: ApiOptions): Promise<ApiFailu
 export interface StatusResult extends ApiResultBase {
     ok: true;
     results: ArtifactVerification[];
+}
+
+// @public
+export interface StoredSeal {
+    path: string;
+    seal: Seal;
 }
 
 // @public
@@ -1197,6 +1215,9 @@ export class VersionIncompatibleError extends Error {
     readonly currentVersion: string;
     readonly requiredVersion: string;
 }
+
+// @public
+export function writeSealFileSync(root: string, seal: Seal): string;
 
 // @public
 export function writeSeals(dir: string, sealsFile: SealsFile, sealsPathOverride?: string): Promise<void>;

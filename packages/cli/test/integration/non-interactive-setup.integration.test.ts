@@ -328,7 +328,8 @@ describe('non-interactive setup end-to-end (issue #80)', () => {
       expect(runResult.exitCode).toBe(0)
       expect(runResult.stdout).toContain('Tests passed')
       expect(runResult.stdout).toContain("Seal created for gate 'example-gate'")
-      expect(fs.existsSync(path.join(projectDir, '.attest-it', 'seals.json'))).toBe(true)
+      // Seals are stored one file per (gate, signer) under `.attest-it/seals/`.
+      expect(fs.existsSync(path.join(projectDir, '.attest-it', 'seals'))).toBe(true)
 
       // 4. verify: the freshly created seal must validate.
       const verifyResult = await runCliNonInteractive(

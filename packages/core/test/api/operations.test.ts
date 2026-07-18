@@ -121,7 +121,10 @@ describe('seal', () => {
     expect(result.gateId).toBe('tools')
     expect(result.sealedBy).toBe('alice')
     expect(result.fingerprint).toMatch(/^sha256:/)
-    expect(existsSync(join(project.baseDir, project.sealsPath))).toBe(true)
+    // Seals are stored one file per (gate, signer) under the seals directory.
+    // The configured `.attest-it/seals.json` (legacy value) normalizes to the
+    // `.attest-it/seals/` directory, which now holds the per-seal file.
+    expect(existsSync(join(project.baseDir, '.attest-it', 'seals'))).toBe(true)
   })
 
   it('returns unauthorized-signer and writes no seal for an unauthorized identity', async () => {
