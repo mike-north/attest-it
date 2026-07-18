@@ -22,7 +22,7 @@ import { relative } from 'node:path'
  * must fail **closed** on any such error (missing ref, missing file, no git),
  * never fall open to the untrusted working-tree policy — so callers treat this
  * as a configuration error with an actionable message.
- * @public
+ * @internal
  */
 export class GitRefPolicyError extends Error {
   constructor(message: string) {
@@ -34,7 +34,7 @@ export class GitRefPolicyError extends Error {
 /**
  * The policy content read from a git ref, plus the parse format inferred from
  * the policy file's extension.
- * @public
+ * @internal
  */
 export interface RefPolicy {
   /** Raw policy file content as committed at the ref. */
@@ -59,7 +59,7 @@ export interface RefPolicy {
  * @returns The policy content at the ref and its parse format.
  * @throws {@link GitRefPolicyError} If git is unavailable, the ref is missing, or
  *   the policy file does not exist at the ref.
- * @public
+ * @internal
  */
 export function readPolicyFromRef(
   ref: string,

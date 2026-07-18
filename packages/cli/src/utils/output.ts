@@ -85,9 +85,11 @@ export function info(message: string): void {
   log(getTheme().info('ℹ ' + message))
 }
 
-// Table formatting for status display
+// Table formatting for status/verify display. Rows carry gate-level (or, for a
+// pattern gate, per-file) data — the label column is 'Gate', not 'Suite'.
 export interface TableRow {
-  suite: string
+  /** Gate identifier, or `<gateId> › <artifactPath>` for a pattern gate's per-file row. */
+  gate: string
   status: string
   fingerprint: string
   age: string
@@ -95,15 +97,10 @@ export interface TableRow {
 
 export function formatTable(rows: TableRow[]): string {
   // Calculate column widths
-  const headers = ['Suite', 'Status', 'Fingerprint', 'Age']
+  const headers = ['Gate', 'Status', 'Fingerprint', 'Age']
 
   // Helper to get row values in consistent order
-  const getRowValues = (row: TableRow): string[] => [
-    row.suite,
-    row.status,
-    row.fingerprint,
-    row.age,
-  ]
+  const getRowValues = (row: TableRow): string[] => [row.gate, row.status, row.fingerprint, row.age]
 
   const widths = headers.map((h, i) => {
     const columnValues = rows.map((r) => {

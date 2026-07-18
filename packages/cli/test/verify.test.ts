@@ -41,7 +41,6 @@ const {
   loadSplitConfig,
   computeFingerprintSync,
   readSealsSync,
-  verifyAllSeals,
   verifyGateSeal,
 } = await import('@attest-it/core')
 
@@ -145,7 +144,7 @@ describe('verify command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([createMockVerificationResult({ state: 'VALID' })])
+      vi.mocked(verifyGateSeal).mockReturnValue(createMockVerificationResult({ state: 'VALID' }))
 
       await runVerify([], {})
 
@@ -161,13 +160,13 @@ describe('verify command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([
+      vi.mocked(verifyGateSeal).mockReturnValue(
         createMockVerificationResult({
           state: 'MISSING',
           seal: undefined,
           message: 'No seal found for gate',
         }),
-      ])
+      )
 
       await runVerify([], {})
 
@@ -183,12 +182,12 @@ describe('verify command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([
+      vi.mocked(verifyGateSeal).mockReturnValue(
         createMockVerificationResult({
           state: 'FINGERPRINT_MISMATCH',
           message: 'Fingerprint changed since seal was created',
         }),
-      ])
+      )
 
       await runVerify([], {})
 
@@ -204,12 +203,12 @@ describe('verify command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([
+      vi.mocked(verifyGateSeal).mockReturnValue(
         createMockVerificationResult({
           state: 'STALE',
           message: 'Seal is 45 days old, exceeds maxAge of 30 days',
         }),
-      ])
+      )
 
       await runVerify([], {})
 
@@ -277,7 +276,7 @@ describe('verify command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue(mockResults)
+      vi.mocked(verifyGateSeal).mockReturnValue(mockResults[0]!)
 
       await runVerify([], { json: true })
 
@@ -391,15 +390,16 @@ describe('verify command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([
-        createMockVerificationResult({ gateId: 'gate1', state: 'VALID' }),
-        createMockVerificationResult({
-          gateId: 'gate2',
-          state: 'MISSING',
-          seal: undefined,
-          message: 'No seal found',
-        }),
-      ])
+      vi.mocked(verifyGateSeal)
+        .mockReturnValueOnce(createMockVerificationResult({ gateId: 'gate1', state: 'VALID' }))
+        .mockReturnValueOnce(
+          createMockVerificationResult({
+            gateId: 'gate2',
+            state: 'MISSING',
+            seal: undefined,
+            message: 'No seal found',
+          }),
+        )
 
       await runVerify([], {})
 
@@ -457,7 +457,7 @@ describe('verify command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([createMockVerificationResult({ state: 'VALID' })])
+      vi.mocked(verifyGateSeal).mockReturnValue(createMockVerificationResult({ state: 'VALID' }))
 
       await runVerify([], {}, '/custom/policy.yaml')
 

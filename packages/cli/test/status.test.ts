@@ -36,7 +36,7 @@ const mockProcessExit = vi
   .mockImplementation(() => {})
 
 // Import mocked functions
-const { loadSplitConfig, computeFingerprintSync, readSealsSync, verifyAllSeals, verifyGateSeal } =
+const { loadSplitConfig, computeFingerprintSync, readSealsSync, verifyGateSeal } =
   await import('@attest-it/core')
 
 describe('status command', () => {
@@ -121,7 +121,7 @@ describe('status command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([createMockVerificationResult({ state: 'VALID' })])
+      vi.mocked(verifyGateSeal).mockReturnValue(createMockVerificationResult({ state: 'VALID' }))
 
       await runStatus([], {})
 
@@ -157,10 +157,13 @@ describe('status command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([
-        createMockVerificationResult({ gateId: 'gate1', state: 'MISSING', seal: undefined }),
-        createMockVerificationResult({ gateId: 'gate2', state: 'MISSING', seal: undefined }),
-      ])
+      vi.mocked(verifyGateSeal)
+        .mockReturnValueOnce(
+          createMockVerificationResult({ gateId: 'gate1', state: 'MISSING', seal: undefined }),
+        )
+        .mockReturnValueOnce(
+          createMockVerificationResult({ gateId: 'gate2', state: 'MISSING', seal: undefined }),
+        )
 
       await runStatus([], {})
 
@@ -177,7 +180,7 @@ describe('status command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([createMockVerificationResult({ state: 'VALID' })])
+      vi.mocked(verifyGateSeal).mockReturnValue(createMockVerificationResult({ state: 'VALID' }))
 
       await runStatus([], { json: true })
 
@@ -196,13 +199,13 @@ describe('status command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([
+      vi.mocked(verifyGateSeal).mockReturnValue(
         createMockVerificationResult({
           state: 'MISSING',
           seal: undefined,
           message: 'No seal found for gate',
         }),
-      ])
+      )
 
       await runStatus([], { json: true })
 
@@ -219,12 +222,12 @@ describe('status command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([
+      vi.mocked(verifyGateSeal).mockReturnValue(
         createMockVerificationResult({
           state: 'FINGERPRINT_MISMATCH',
           message: 'Fingerprint changed since seal was created',
         }),
-      ])
+      )
 
       await runStatus([], { json: true })
 
@@ -247,12 +250,12 @@ describe('status command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([
+      vi.mocked(verifyGateSeal).mockReturnValue(
         createMockVerificationResult({
           state: 'STALE',
           message: 'Seal is 45 days old, exceeds maxAge of 30 days',
         }),
-      ])
+      )
 
       await runStatus([], { json: true })
 
@@ -289,19 +292,22 @@ describe('status command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([
-        createMockVerificationResult({
-          gateId: 'gate1',
-          state: 'STALE',
-          message: 'Seal is 45 days old, exceeds maxAge of 30 days',
-        }),
-        createMockVerificationResult({
-          gateId: 'gate2',
-          state: 'MISSING',
-          seal: undefined,
-          message: 'No seal found',
-        }),
-      ])
+      vi.mocked(verifyGateSeal)
+        .mockReturnValueOnce(
+          createMockVerificationResult({
+            gateId: 'gate1',
+            state: 'STALE',
+            message: 'Seal is 45 days old, exceeds maxAge of 30 days',
+          }),
+        )
+        .mockReturnValueOnce(
+          createMockVerificationResult({
+            gateId: 'gate2',
+            state: 'MISSING',
+            seal: undefined,
+            message: 'No seal found',
+          }),
+        )
 
       await runStatus([], { json: true })
 
@@ -424,7 +430,7 @@ describe('status command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([createMockVerificationResult({ state: 'VALID' })])
+      vi.mocked(verifyGateSeal).mockReturnValue(createMockVerificationResult({ state: 'VALID' }))
 
       await runStatus([], {}, '/custom/policy.yaml')
 
@@ -471,12 +477,12 @@ describe('status command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([
+      vi.mocked(verifyGateSeal).mockReturnValue(
         createMockVerificationResult({
           state: 'INVALID_SIGNATURE',
           message: 'Signature verification failed',
         }),
-      ])
+      )
 
       await runStatus([], { json: true })
 
@@ -493,12 +499,12 @@ describe('status command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([
+      vi.mocked(verifyGateSeal).mockReturnValue(
         createMockVerificationResult({
           state: 'UNKNOWN_SIGNER',
           message: "Signer 'bob' not found in team",
         }),
-      ])
+      )
 
       await runStatus([], { json: true })
 
@@ -533,15 +539,16 @@ describe('status command', () => {
         fileCount: 10,
         files: [],
       })
-      vi.mocked(verifyAllSeals).mockReturnValue([
-        createMockVerificationResult({ gateId: 'gate1', state: 'VALID' }),
-        createMockVerificationResult({
-          gateId: 'gate2',
-          state: 'MISSING',
-          seal: undefined,
-          message: 'No seal found',
-        }),
-      ])
+      vi.mocked(verifyGateSeal)
+        .mockReturnValueOnce(createMockVerificationResult({ gateId: 'gate1', state: 'VALID' }))
+        .mockReturnValueOnce(
+          createMockVerificationResult({
+            gateId: 'gate2',
+            state: 'MISSING',
+            seal: undefined,
+            message: 'No seal found',
+          }),
+        )
 
       await runStatus([], {})
 

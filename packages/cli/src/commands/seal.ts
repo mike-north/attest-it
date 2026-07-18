@@ -16,16 +16,25 @@ import {
   createSealWithProvider,
   readSealsSync,
   writeSealsSync,
+  writeSealFileSync,
+  resolveSealsRoot,
   verifyGateSeal,
+  verifyPatternArtifactSeal,
   KeyProviderRegistry,
   ROOT_GATE_ID,
   API_SCHEMA_VERSION,
   type AttestItConfig,
   type FailureClass,
+  type GateConfig,
   type Identity,
   type Seal,
   type SealsFile,
 } from '@attest-it/core'
+import {
+  isPatternGate,
+  computePatternFingerprintsSync,
+  readPatternSealsByArtifactSync,
+} from '../utils/pattern-gate.js'
 import { log, success, error, warn, verbose, outputJson } from '../utils/output.js'
 import { ExitCode } from '../utils/exit-codes.js'
 import { resolveKeyPassphrase } from '../utils/passphrase.js'
@@ -54,14 +63,23 @@ interface SealOptions {
 }
 
 interface SealSummary {
-  sealed: { gate: string; fingerprint: string; sealedBy: string; sealedAt: string }[]
+  sealed: {
+    gate: string
+    /** Set for a pattern gate's per-file seal (the matched file it covers). */
+    artifactPath?: string
+    fingerprint: string
+    sealedBy: string
+    sealedAt: string
+  }[]
   skipped: {
     gate: string
+    artifactPath?: string
     reason: string
     failureClass?: FailureClass
   }[]
   failed: {
     gate: string
+    artifactPath?: string
     error: string
   }[]
 }
@@ -143,7 +161,33 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
     // Get the identity slug for sealedBy field
     const identitySlug = localConfig.activeIdentity
 
+    // Track whether any aggregate (single-gate) seal was added, so we only
+    // rewrite the aggregate seals when it actually changed. Pattern-gate per-file
+    // seals are written directly through the low-level writer and never enter the
+    // aggregate, so they must not force an aggregate rewrite.
+    let aggregateSealsAdded = false
+
     for (const gateId of gatesToSeal) {
+      // eslint-disable-next-line security/detect-object-injection -- gateId validated against config.gates above
+      const gateForKind = config.gates[gateId]
+      if (gateForKind && isPatternGate(gateForKind)) {
+        try {
+          await processPatternGate(
+            gateId,
+            gateForKind,
+            config,
+            identity,
+            identitySlug,
+            options,
+            summary,
+          )
+        } catch (err) {
+          const errorMsg = err instanceof Error ? err.message : 'Unknown error'
+          summary.failed.push({ gate: gateId, error: errorMsg })
+        }
+        continue
+      }
+
       try {
         const result = await processSingleGate(
           gateId,
@@ -155,6 +199,7 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
         )
 
         if (result.sealed && result.seal) {
+          aggregateSealsAdded = true
           summary.sealed.push({
             gate: gateId,
             fingerprint: result.seal.fingerprint,
@@ -182,8 +227,11 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
       }
     }
 
-    // Write seals file if not dry run and we sealed anything
-    if (!options.dryRun && summary.sealed.length > 0) {
+    // Persist the aggregate seals only when a single-gate seal actually changed
+    // it. Pattern-gate per-file seals were already written directly through the
+    // low-level per-file writer inside processPatternGate — routing them through
+    // the aggregate writeSeals would prune the sibling per-file seals.
+    if (!options.dryRun && aggregateSealsAdded) {
       writeSealsSync(projectRoot, sealsFile, config.settings.sealsPath)
     }
 
@@ -450,6 +498,140 @@ async function processSingleGate(
 }
 
 /**
+ * Seal a **pattern gate** (`kind: pattern`): fingerprint every matched file
+ * independently and produce **one seal per file**, each written as a standalone
+ * `.seal` at `<gate>/<artifact>/<signer>.seal` via the low-level
+ * {@link writeSealFileSync}. This is the per-file path the CLI previously never
+ * used — without it a `kind: pattern` gate silently degraded to single-gate
+ * behavior (issue #130).
+ *
+ * Per-file seals are written directly (never through the aggregate `writeSeals`,
+ * which is one-file-per-gate and would prune the siblings). A file that already
+ * has a valid per-file seal is skipped unless `--force`; a file whose seal is
+ * missing/invalid, or a brand-new matching file, is (re)sealed. Authorization is
+ * checked once for the gate (all its files share `authorizedSigners`).
+ *
+ * Results are recorded into the shared {@link SealSummary} keyed by gate +
+ * `artifactPath`.
+ */
+async function processPatternGate(
+  gateId: string,
+  gate: GateConfig,
+  config: AttestItConfig,
+  identity: Identity,
+  identitySlug: string,
+  options: SealOptions,
+  summary: SealSummary,
+): Promise<void> {
+  if (!options.json) {
+    verbose(`Processing pattern gate: ${gateId}`)
+  }
+
+  // Authorization is per gate: refuse the whole gate up front (nothing signed or
+  // written yet) exactly like the single-gate path. See #136.
+  if (!isAuthorizedSigner(config, gateId, identity.publicKey)) {
+    summary.skipped.push({
+      gate: gateId,
+      reason: `Not authorized to seal this gate (authorized signers: ${gate.authorizedSigners.join(', ')})`,
+      failureClass: 'unauthorized-signer',
+    })
+    return
+  }
+
+  const projectRoot = process.cwd()
+  const perFile = computePatternFingerprintsSync(gate, projectRoot)
+
+  if (perFile.length === 0) {
+    summary.skipped.push({
+      gate: gateId,
+      reason: 'Pattern gate matched no files',
+    })
+    return
+  }
+
+  const existingSeals = readPatternSealsByArtifactSync(
+    projectRoot,
+    config.settings.sealsPath,
+    gateId,
+  )
+  const sealsRoot = resolveSealsRoot(projectRoot, config.settings.sealsPath)
+
+  // Lazily create the signing provider only if at least one file needs sealing.
+  let keyProvider: ReturnType<typeof createKeyProviderFromIdentity> | undefined
+  let keyRef: string | undefined
+
+  for (const { path: filePath, fingerprint } of perFile) {
+    // Skip a file that already has a valid per-file seal, unless --force.
+    const existing = existingSeals.get(filePath)
+    if (existing && !options.force) {
+      const verification = verifyPatternArtifactSeal(
+        config,
+        gateId,
+        filePath,
+        existing,
+        fingerprint,
+        gate.maxAge,
+      )
+      if (verification.state === 'VALID') {
+        summary.skipped.push({
+          gate: gateId,
+          artifactPath: filePath,
+          reason: 'File already has a valid seal (use --force to override)',
+        })
+        continue
+      }
+    }
+
+    if (options.dryRun) {
+      if (!options.json) {
+        log(`  Would seal ${gateId} file: ${filePath}`)
+      }
+      summary.sealed.push({
+        gate: gateId,
+        artifactPath: filePath,
+        fingerprint: '',
+        sealedBy: identitySlug,
+        sealedAt: '',
+      })
+      continue
+    }
+
+    if (!keyProvider) {
+      keyProvider = createKeyProviderFromIdentity(identity)
+      keyRef = getKeyRefFromIdentity(identity)
+    }
+
+    const seal = await createSealWithProvider({
+      gateId,
+      fingerprint,
+      sealedBy: identitySlug,
+      keyProvider,
+      keyRef: keyRef ?? '',
+      resolvePassphrase: resolveKeyPassphrase,
+    })
+
+    // artifactPath is a storage/linkage field; the signed fingerprint already
+    // binds the file's path. Write it as a standalone per-file seal.
+    const perFileSeal: Seal = { ...seal, artifactPath: filePath }
+    writeSealFileSync(sealsRoot, perFileSeal)
+
+    if (!options.json) {
+      log(`  Sealed ${gateId} file: ${filePath}`)
+      verbose(`    Sealed by: ${identitySlug} (${identity.name})`)
+      verbose(`    Timestamp: ${seal.timestamp}`)
+    }
+
+    summary.sealed.push({
+      gate: gateId,
+      artifactPath: filePath,
+      fingerprint: perFileSeal.fingerprint,
+      sealedBy: perFileSeal.sealedBy,
+      sealedAt: perFileSeal.timestamp,
+    })
+  }
+}
+
+/**
  * Get all gate IDs from configuration.
  *
  * @param config - The attest-it configuration
@@ -471,8 +653,13 @@ function displaySummary(summary: SealSummary, dryRun?: boolean): void {
   const prefix = dryRun ? 'Would seal' : 'Sealed'
 
   if (summary.sealed.length > 0) {
-    const gateNames = summary.sealed.map((s) => s.gate).join(', ')
-    success(`${prefix} ${String(summary.sealed.length)} gate(s): ${gateNames}`)
+    // A pattern gate contributes one entry per matched file; label a per-file
+    // entry as `<gate> › <artifact>` and dedupe repeated gate ids so the banner
+    // reads cleanly whether the seals were single-gate or per-file.
+    const labels = summary.sealed.map((s) =>
+      s.artifactPath !== undefined ? `${s.gate} › ${s.artifactPath}` : s.gate,
+    )
+    success(`${prefix} ${String(summary.sealed.length)} seal(s): ${labels.join(', ')}`)
   }
 
   // An unauthorized-signer skip is a hard failure (nothing was sealed for
@@ -486,9 +673,9 @@ function displaySummary(summary: SealSummary, dryRun?: boolean): void {
 
   if (benignSkips.length > 0) {
     log('')
-    warn(`Skipped ${String(benignSkips.length)} gate(s):`)
+    warn(`Skipped ${String(benignSkips.length)}:`)
     for (const skip of benignSkips) {
-      log(`  ${skip.gate}: ${skip.reason}`)
+      log(`  ${summaryLabel(skip)}: ${skip.reason}`)
     }
   }
 
@@ -496,21 +683,26 @@ function displaySummary(summary: SealSummary, dryRun?: boolean): void {
     log('')
     error(`Refused to seal ${String(unauthorizedSkips.length)} gate(s) (unauthorized signer):`)
     for (const skip of unauthorizedSkips) {
-      log(`  ${skip.gate}: ${skip.reason}`)
+      log(`  ${summaryLabel(skip)}: ${skip.reason}`)
     }
   }
 
   if (summary.failed.length > 0) {
     log('')
-    error(`Failed to seal ${String(summary.failed.length)} gate(s):`)
+    error(`Failed to seal ${String(summary.failed.length)}:`)
     for (const fail of summary.failed) {
-      log(`  ${fail.gate}: ${fail.error}`)
+      log(`  ${summaryLabel(fail)}: ${fail.error}`)
     }
   }
 
   if (summary.sealed.length === 0 && summary.skipped.length === 0 && summary.failed.length === 0) {
     log('No gates to seal')
   }
+}
+
+/** Label a summary entry as the gate id, or `<gate> › <artifact>` for a per-file entry. */
+function summaryLabel(entry: { gate: string; artifactPath?: string }): string {
+  return entry.artifactPath !== undefined ? `${entry.gate} › ${entry.artifactPath}` : entry.gate
 }
 
 /**
