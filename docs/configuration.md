@@ -592,6 +592,9 @@ second run with nothing left to migrate exits `0` and reports there is nothing t
 that namespace (`generateSigningKey`) always mints a brand-new keypair, which would change the
 identity's public key. This does not affect signing: the imported key still signs through the
 same VaultKeeper-backed `getPrivateKey()` path used by every other non-delegated-signing key.
+Migrated keys therefore do not yet get delegated signing's no-disk-write benefit; re-enrolling
+them once VaultKeeper offers a public-key-preserving external-key import is tracked in
+[#122](https://github.com/mike-north/attest-it/issues/122).
 
 ---
 
