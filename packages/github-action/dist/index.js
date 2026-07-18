@@ -46361,23 +46361,18 @@ var rootGateSchemaV1 = external_exports.object({
   maxAge: durationSchema.default("365d"),
   description: external_exports.string().min(1, "Root gate description cannot be empty").optional()
 }).strict();
+var ordinaryGateSlugSchemaV1 = external_exports.string().refine((slug) => slug !== ROOT_GATE_ID, {
+  message: `'${ROOT_GATE_ID}' is a reserved gate id for the root gate and cannot be used as an ordinary gate. Use the top-level 'rootGate' section instead.`
+});
 var policyObjectSchemaV1 = external_exports.object({
   version: versionSchema2(1),
   minVersion: semverSchema.optional(),
   settings: policySettingsSchemaV1.default({}),
   rootGate: rootGateSchemaV1.optional(),
   team: external_exports.record(external_exports.string(), teamMemberSchema).optional(),
-  gates: external_exports.record(external_exports.string(), gateSchema).optional()
+  gates: external_exports.record(ordinaryGateSlugSchemaV1, gateSchema).optional()
 }).strict();
-var policySchemaV1 = policyObjectSchemaV1.superRefine((policy, ctx) => {
-  if (policy.gates && Object.prototype.hasOwnProperty.call(policy.gates, ROOT_GATE_ID)) {
-    ctx.addIssue({
-      code: external_exports.ZodIssueCode.custom,
-      path: ["gates", ROOT_GATE_ID],
-      message: `'${ROOT_GATE_ID}' is a reserved gate id for the root gate and cannot be used as an ordinary gate. Use the top-level 'rootGate' section instead.`
-    });
-  }
-});
+var policySchemaV1 = policyObjectSchemaV1;
 var schemaV13 = fromZod("1", policyObjectSchemaV1);
 createMigrationGraph({
   id: "attest-it-policy",

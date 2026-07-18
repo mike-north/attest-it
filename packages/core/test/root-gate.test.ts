@@ -26,6 +26,7 @@ import {
   isBlockingRootGateState,
 } from '../src/config/root-gate.js'
 import { parsePolicyContent, PolicyValidationError } from '../src/config/policy-schema.js'
+import { policyMigrationGraph } from '../src/config/migrations/policy-graph.js'
 
 interface Signer {
   slug: string
@@ -436,7 +437,7 @@ team: {}
     expect(() => parsePolicyContent(bad, 'yaml')).toThrow(PolicyValidationError)
   })
 
-  it('rejects an ordinary gate that reuses the reserved __root__ slug', () => {
+  it('rejects an ordinary gate that reuses the reserved __root__ slug (refined-schema load path)', () => {
     const bad = `version: 1
 team:
   owner:
@@ -454,5 +455,50 @@ gates:
     maxAge: 30d
 `
     expect(() => parsePolicyContent(bad, 'yaml')).toThrow(/reserved gate id/)
+  })
+
+  it('rejects the reserved __root__ slug via the migration-graph validation path too (defense-in-depth)', () => {
+    // The reserved-slug guard lives on the gates record KEY in the object schema
+    // that is registered in the migrex migration graph — not only on the refined
+    // load-path schema — so a future validation routed through the graph cannot
+    // silently drop the reservation.
+    const raw = {
+      version: 1,
+      team: { owner: { name: 'Owner', publicKey: 'AAAA' } },
+      gates: {
+        __root__: {
+          name: 'Fake Root',
+          description: 'Attempt to redefine the root gate',
+          authorizedSigners: ['owner'],
+          fingerprint: { paths: ['src'] },
+          maxAge: '30d',
+        },
+      },
+    }
+
+    const versions = policyMigrationGraph.getVersions()
+    const latest = versions[versions.length - 1]
+    if (latest === undefined) throw new Error('policy migration graph has no versions')
+    const versioned = policyMigrationGraph.getSchema(latest)
+    if (!versioned) throw new Error(`no schema registered for version ${latest}`)
+
+    const result = versioned.schema(raw)
+    expect(result.success).toBe(false)
+
+    // A well-formed policy with an ordinary gate slug still validates through the graph.
+    const ok = versioned.schema({
+      version: 1,
+      team: { owner: { name: 'Owner', publicKey: 'AAAA' } },
+      gates: {
+        unit: {
+          name: 'Unit',
+          description: 'Unit tests',
+          authorizedSigners: ['owner'],
+          fingerprint: { paths: ['src'] },
+          maxAge: '30d',
+        },
+      },
+    })
+    expect(ok.success).toBe(true)
   })
 })

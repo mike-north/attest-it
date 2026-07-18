@@ -70,11 +70,29 @@ const rootGateSchemaV1 = z
   .strict()
 
 /**
+ * Key schema for the `gates` record: an ordinary gate slug may never be the
+ * reserved root-gate id.
+ *
+ * The reservation is enforced here — on the record KEY within the object schema
+ * itself — rather than only via a wrapping `superRefine`. This is what keeps the
+ * guard from silently dropping on any validation path: both the refined
+ * {@link policySchemaV1} used by the live loader AND the bare object schema
+ * registered in the migrex migration graph share this exact key constraint, so a
+ * future validation through the graph cannot bypass it. A branch therefore cannot
+ * define an ordinary gate named `__root__` and have it treated as the trust anchor.
+ * @internal
+ */
+const ordinaryGateSlugSchemaV1 = z.string().refine((slug) => slug !== ROOT_GATE_ID, {
+  message: `'${ROOT_GATE_ID}' is a reserved gate id for the root gate and cannot be used as an ordinary gate. Use the top-level 'rootGate' section instead.`,
+})
+
+/**
  * Base object schema for the policy configuration file (v1).
  *
  * Kept as a bare `ZodObject` (no wrapping effects) so the migrex `fromZod`
  * adapter, which expects an object schema, can consume it. The reserved-slug
- * cross-field check is layered on top in {@link policySchemaV1}.
+ * guard lives on the `gates` record key ({@link ordinaryGateSlugSchemaV1}), so it
+ * holds identically here and in {@link policySchemaV1}.
  * @internal
  */
 const policyObjectSchemaV1 = z
@@ -84,29 +102,25 @@ const policyObjectSchemaV1 = z
     settings: policySettingsSchemaV1.default({}),
     rootGate: rootGateSchemaV1.optional(),
     team: z.record(z.string(), teamMemberSchema).optional(),
-    gates: z.record(z.string(), gateSchema).optional(),
+    gates: z.record(ordinaryGateSlugSchemaV1, gateSchema).optional(),
   })
   .strict()
 
 /**
  * Zod schema for the policy configuration file (v1).
+ *
+ * Identical validation to {@link policyObjectSchemaV1} — the reserved-slug guard
+ * is enforced on the record key in the object schema itself, so no additional
+ * refinement is required. Exported separately to preserve the historical name.
  * @internal
  */
-const policySchemaV1 = policyObjectSchemaV1.superRefine((policy, ctx) => {
-  // The reserved root-gate slug may never appear as an ordinary gate: that is
-  // what prevents a PR from redefining "which gate is root" via the
-  // user-editable `gates` map.
-  if (policy.gates && Object.prototype.hasOwnProperty.call(policy.gates, ROOT_GATE_ID)) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ['gates', ROOT_GATE_ID],
-      message: `'${ROOT_GATE_ID}' is a reserved gate id for the root gate and cannot be used as an ordinary gate. Use the top-level 'rootGate' section instead.`,
-    })
-  }
-})
+const policySchemaV1 = policyObjectSchemaV1
 
 /**
  * Migrex versioned schema for policy config v1.
+ *
+ * Uses the same object schema the live loader validates against, so the
+ * reserved-slug reservation cannot diverge between the two paths.
  * @internal
  */
 const schemaV1 = fromZod('1', policyObjectSchemaV1)

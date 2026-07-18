@@ -637,8 +637,8 @@ export function parsePolicyContent(content: string, format: 'json' | 'yaml'): Po
 export type PolicyConfig = z.infer<typeof policySchema>;
 
 // @public
-export const policySchema: z.ZodEffects<z.ZodObject<{
-    gates: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodObject<{
+export const policySchema: z.ZodObject<{
+    gates: z.ZodOptional<z.ZodRecord<z.ZodEffects<z.ZodString, string, string>, z.ZodObject<{
         authorizedSigners: z.ZodArray<z.ZodString, "many">;
         description: z.ZodString;
         fingerprint: z.ZodObject<{
@@ -723,68 +723,6 @@ export const policySchema: z.ZodEffects<z.ZodObject<{
     }>>>;
     version: z.ZodEffects<z.ZodUnion<[z.ZodLiteral<1>, z.ZodLiteral<string>]>, 1, 1 | string>;
 }, "strict", z.ZodTypeAny, {
-    gates?: Record<string, {
-        authorizedSigners: string[];
-        description: string;
-        fingerprint: {
-            exclude?: string[] | undefined;
-            paths: string[];
-        };
-        maxAge: string;
-        name: string;
-    }> | undefined;
-    minVersion?: string | undefined;
-    rootGate?: {
-        authorizedSigners: string[];
-        description?: string | undefined;
-        maxAge: string;
-    } | undefined;
-    settings: {
-        attestationsPath: string;
-        maxAgeDays: number;
-        publicKeyPath: string;
-        sealsPath: string;
-    };
-    team?: Record<string, {
-        email?: string | undefined;
-        github?: string | undefined;
-        name: string;
-        publicKey: string;
-        publicKeyAlgorithm?: "ed25519" | undefined;
-    }> | undefined;
-    version: 1;
-}, {
-    gates?: Record<string, {
-        authorizedSigners: string[];
-        description: string;
-        fingerprint: {
-            exclude?: string[] | undefined;
-            paths: string[];
-        };
-        maxAge: string;
-        name: string;
-    }> | undefined;
-    minVersion?: string | undefined;
-    rootGate?: {
-        authorizedSigners: string[];
-        description?: string | undefined;
-        maxAge?: string | undefined;
-    } | undefined;
-    settings?: {
-        attestationsPath?: string | undefined;
-        maxAgeDays?: number | undefined;
-        publicKeyPath?: string | undefined;
-        sealsPath?: string | undefined;
-    } | undefined;
-    team?: Record<string, {
-        email?: string | undefined;
-        github?: string | undefined;
-        name: string;
-        publicKey: string;
-        publicKeyAlgorithm?: "ed25519" | undefined;
-    }> | undefined;
-    version: 1 | string;
-}>, {
     gates?: Record<string, {
         authorizedSigners: string[];
         description: string;
