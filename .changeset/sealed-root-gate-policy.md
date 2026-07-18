@@ -1,7 +1,7 @@
 ---
-'@attest-it/core': major
-'@attest-it/cli': major
-'attest-it': major
+'@attest-it/core': minor
+'@attest-it/cli': minor
+'attest-it': minor
 ---
 
 Add a sealed **root gate** that trust-anchors `.attest-it/policy.yaml`.
