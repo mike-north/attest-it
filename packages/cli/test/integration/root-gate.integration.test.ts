@@ -27,6 +27,7 @@ import {
   verifyRootGate,
   ROOT_GATE_ID,
   type AttestItConfig,
+  type Seal,
   type SealsFile,
 } from '@attest-it/core'
 
@@ -334,6 +335,142 @@ describe('root gate — CLI verify against tampered/valid policy.yaml (#72)', ()
       seals: { version: 1, seals: { [ROOT_GATE_ID]: rootSeal } },
     })
     expect(baseResult.state).toBe('UNKNOWN_SIGNER')
+  })
+})
+
+describe('verify --base <ref> — CLI trusted-ref mode is a genuine CI trust boundary (#115)', () => {
+  let dir: string
+  let ownerPrivateKey: string
+  let ownerPublicKey: string
+
+  // Seal the current on-disk policy under the root gate with the given signer/key.
+  function sealRootWith(signer: string, privateKey: string): Seal {
+    const policyPath = path.join(dir, '.attest-it', 'policy.yaml')
+    return createRootSeal({
+      policyFingerprint: computePolicyFingerprintSync(dir, policyPath),
+      sealedBy: signer,
+      privateKey,
+    })
+  }
+
+  async function gateFingerprint(gate: string): Promise<string> {
+    const statusJson = await runCli(['status', gate, '--json'], dir)
+    return (JSON.parse(statusJson.stdout) as { currentFingerprint: string }[])[0]!
+      .currentFingerprint
+  }
+
+  beforeEach(async () => {
+    dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'attest-verify-base-'))
+    await copyDir(FIXTURE_PATH, dir)
+
+    const kp = generateEd25519KeyPair()
+    ownerPrivateKey = kp.privateKey
+    ownerPublicKey = kp.publicKey
+
+    // Trusted base state: test-user (alice) is the SOLE root signer and team member.
+    editPolicy(dir, (policy) => {
+      policy.rootGate = { authorizedSigners: ['test-user'] }
+      const team = policy.team as Record<string, { publicKey: string }>
+      team['test-user'].publicKey = ownerPublicKey
+    })
+
+    await runGit(['init'], dir)
+    await runGit(['config', 'user.email', 'test@example.com'], dir)
+    await runGit(['config', 'user.name', 'Test User'], dir)
+    await runGit(['add', '.'], dir)
+    // This commit (HEAD) is the TRUSTED base ref: policy lists only test-user.
+    await runGit(['commit', '-m', 'anchor trusted policy on base'], dir)
+  })
+
+  afterEach(async () => {
+    await fs.promises.rm(dir, { recursive: true, force: true })
+  })
+
+  it('ADVERSARIAL (Scenario B): a self-rewritten + self-resealed rootGate FAILS `verify --base HEAD`, while plain `verify` (local pre-check) still passes', async () => {
+    // Attacker "eve" is NOT a signer on the trusted base (HEAD). In the WORKING
+    // TREE she rewrites the policy: adds herself to team + rootGate.authorizedSigners,
+    // authorizes herself on the example gate, then re-seals BOTH the root gate and
+    // the example gate with her own key over the tampered working-tree policy.
+    const eve = generateEd25519KeyPair()
+    editPolicy(dir, (policy) => {
+      policy.rootGate = { authorizedSigners: ['eve'] }
+      const team = policy.team as Record<string, unknown>
+      team.eve = { name: 'Eve', publicKey: eve.publicKey }
+      const gates = policy.gates as Record<string, { authorizedSigners: string[] }>
+      gates['example-gate'].authorizedSigners = ['eve']
+    })
+
+    const rootSeal = sealRootWith('eve', eve.privateKey)
+    const gateSeal = createSeal({
+      gateId: 'example-gate',
+      fingerprint: await gateFingerprint('example-gate'),
+      sealedBy: 'eve',
+      privateKey: eve.privateKey,
+    })
+    writeSeals(dir, { version: 1, seals: { [ROOT_GATE_ID]: rootSeal, 'example-gate': gateSeal } })
+    // The tamper stays in the WORKING TREE (uncommitted): HEAD remains the trusted
+    // base that `--base HEAD` reads authorization from.
+
+    // BY DESIGN: plain local verify trusts the working-tree anchor -> PASSES.
+    const local = await runCli(['verify', 'example-gate'], dir)
+    expect(local.exitCode).toBe(0)
+    expect(local.stdout).toContain('VALID')
+
+    // TRUST BOUNDARY: `--base HEAD` sources rootGate/team from the trusted base
+    // (only test-user), so eve's self-seal is rejected as UNKNOWN_SIGNER. The
+    // failure NAMES the untrusted policy change rather than emitting a generic error.
+    const gated = await runCli(['verify', 'example-gate', '--base', 'HEAD'], dir)
+    expect(gated.exitCode).toBe(1)
+    const combined = gated.stdout + gated.stderr
+    expect(combined).toContain('.attest-it/policy.yaml')
+    expect(combined.toLowerCase()).toContain('root signer')
+
+    // Machine-readable proof of the exact state for JSON consumers.
+    const gatedJson = await runCli(['verify', 'example-gate', '--base', 'HEAD', '--json'], dir)
+    expect(gatedJson.exitCode).toBe(1)
+    const parsed = JSON.parse(gatedJson.stdout) as { gateId: string; state: string }[]
+    expect(parsed[0]?.state).toBe('UNKNOWN_SIGNER')
+  })
+
+  it('POSITIVE: a working-tree policy change re-sealed by a genuine base-branch root signer verifies under `--base HEAD`', async () => {
+    // A legitimate change: the base root signer (test-user) adds a new dev to the
+    // team in the WORKING TREE and RE-SEALS the root gate with their OWN key. Because
+    // test-user IS a root signer on the trusted base, `--base HEAD` accepts it.
+    const dev = generateEd25519KeyPair()
+    editPolicy(dir, (policy) => {
+      const team = policy.team as Record<string, unknown>
+      team.dev = { name: 'Dev', publicKey: dev.publicKey }
+    })
+
+    const rootSeal = sealRootWith('test-user', ownerPrivateKey)
+    const gateSeal = createSeal({
+      gateId: 'example-gate',
+      fingerprint: await gateFingerprint('example-gate'),
+      sealedBy: 'test-user',
+      privateKey: ownerPrivateKey,
+    })
+    writeSeals(dir, { version: 1, seals: { [ROOT_GATE_ID]: rootSeal, 'example-gate': gateSeal } })
+
+    const result = await runCli(['verify', 'example-gate', '--base', 'HEAD'], dir)
+    expect(result.exitCode).toBe(0)
+    expect(result.stdout).toContain('VALID')
+    expect(result.stdout + result.stderr).not.toContain('Untrusted')
+  })
+
+  it('FAIL-CLOSED: `--base` against a nonexistent ref errors with actionable guidance, never a silent pass', async () => {
+    // Even with a perfectly valid working tree, an unreadable base ref is an
+    // indeterminate trust state and must fail closed (CONFIG_ERROR = 3), not exit 0.
+    const rootSeal = sealRootWith('test-user', ownerPrivateKey)
+    writeSeals(dir, { version: 1, seals: { [ROOT_GATE_ID]: rootSeal } })
+
+    const result = await runCli(
+      ['verify', 'example-gate', '--base', 'refs/heads/does-not-exist'],
+      dir,
+    )
+    expect(result.exitCode).toBe(3)
+    expect(result.stdout + result.stderr).toContain('does-not-exist')
+    // Actionable: points the user at fetching the ref.
+    expect((result.stdout + result.stderr).toLowerCase()).toContain('fetch')
   })
 })
 

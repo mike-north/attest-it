@@ -10,6 +10,7 @@ import {
   verifyRootGate,
   isBlockingRootGateState,
   SplitConfigNotFoundError,
+  type AttestItConfig,
   type VerificationState,
   type SealVerificationResult,
   type RootGateVerificationResult,
@@ -25,13 +26,26 @@ import {
   type TableRow,
 } from '../utils/output.js'
 import { ExitCode } from '../utils/exit-codes.js'
+import { readPolicyFromRef, GitRefPolicyError } from '../utils/git-policy.js'
 
 export const verifyCommand = new Command('verify')
   .description(
-    'Verify gate seals against the local policy (fast local pre-check, not a CI trust gate)',
+    'Verify gate seals. Without --base this is a fast LOCAL pre-check (trusts the ' +
+      'working-tree policy), NOT a CI trust gate. Pass --base <ref> to make it the ' +
+      'CI-safe trust boundary: authorization (rootGate/team/gates) is loaded from ' +
+      '<ref>, mirroring the GitHub Action.',
   )
   .argument('[gates...]', 'Verify specific gates only')
   .option('--json', 'Output JSON for machine parsing')
+  .option(
+    '--base <ref>',
+    'Load trust-critical policy (rootGate, team, gates) from this git ref instead ' +
+      'of the working tree, while fingerprinting and reading seals from the working ' +
+      'tree. This is the CI-safe trust boundary for non-GitHub CI — a PR that ' +
+      'self-adds a signer and re-seals cannot pass, because authorization comes from ' +
+      '<ref>. Mirrors the GitHub Action, which loads policy from the PR base branch. ' +
+      'The ref must already be present locally (fetch it first in a shallow clone).',
+  )
   .action(async (gates: string[], options: VerifyOptions, command: Command) => {
     const configPath = command.parent?.opts<{ config?: string }>().config
     await runVerify(gates, options, configPath)
@@ -39,6 +53,7 @@ export const verifyCommand = new Command('verify')
 
 interface VerifyOptions {
   json?: boolean
+  base?: string
 }
 
 /**
@@ -48,21 +63,24 @@ interface VerifyOptions {
  * gates, and (when the policy is trust-anchored) checks the root-gate seal over
  * `policy.yaml` first.
  *
- * ## This is a local pre-check, NOT the CI trust boundary
+ * ## Plain `verify` is a local pre-check; `--base` is the CI trust boundary
  *
- * Local `verify` evaluates everything against the **working tree's** policy:
- * `rootGate`, `team`, and `gates` are read from the local `policy.yaml`. That is
- * correct for a developer checking their own tree, but it is **not** safe as a
- * pull-request gate. A branch can rewrite its own `rootGate.authorizedSigners` to
- * a key it controls and re-seal the policy; local `verify` trusts that local
+ * Without `--base`, `verify` evaluates everything against the **working tree's**
+ * policy: `rootGate`, `team`, and `gates` are read from the local `policy.yaml`.
+ * That is correct for a developer checking their own tree, but it is **not** safe
+ * as a pull-request gate. A branch can rewrite its own `rootGate.authorizedSigners`
+ * to a key it controls and re-seal the policy; plain `verify` trusts that local
  * anchor and reports VALID by design (see the "Scenario B" regression test in
  * `packages/cli/test/integration/root-gate.integration.test.ts`).
  *
- * The trust boundary is the **GitHub Action** (`@attest-it/github-action`), which
- * sources `rootGate`/`team`/`gates` from the **base branch**, so a self-added root
- * signer is rejected as `UNKNOWN_SIGNER`. For CI, use the Action. A CLI-native
- * base-vs-worktree mode (`verify --base <ref>`) is planned in #115; until it
- * lands, do not rely on plain local `verify` to gate untrusted proposal branches.
+ * `verify --base <ref>` closes that gap: it sources `rootGate`/`team`/`gates` from
+ * `<ref>`'s copy of `policy.yaml` (the trusted base) while computing fingerprints
+ * and reading seals from the working tree — the SAME base-vs-worktree check the
+ * **GitHub Action** (`@attest-it/github-action`) performs. A self-added root signer
+ * is then rejected as `UNKNOWN_SIGNER`, because the base ref does not list it. Use
+ * the Action on GitHub, or `verify --base <ref>` for non-GitHub CI. `--base` fails
+ * **closed**: an unreadable/missing ref or policy is a `CONFIG_ERROR`, never a
+ * silent pass on the working-tree policy.
  *
  * Exits {@link ExitCode.CONFIG_ERROR} — never {@link ExitCode.SUCCESS} — when no
  * configuration can be found at all (no `.attest-it/policy.yaml` discoverable, or an
@@ -80,15 +98,44 @@ async function runVerify(
   options: VerifyOptions,
   configPath?: string,
 ): Promise<void> {
+  const projectRoot = process.cwd()
+
   try {
-    // Load split config (policy + operational, merged). An explicit --config path
-    // overrides policy auto-detection; otherwise policy/operational are auto-detected.
-    const config = await loadSplitConfig(
-      configPath ? { policySource: { type: 'filesystem', path: configPath } } : {},
-    )
+    // Resolve the working-tree policy path up front: even in --base mode we
+    // fingerprint and read seals from the working tree, and we need this path to
+    // locate the same file at the base ref.
+    const workingTreePolicyPath = configPath ?? findPolicyPath(projectRoot)
+
+    // Load split config (policy + operational, merged). The trust-critical policy
+    // (rootGate/team/gates) comes from either:
+    //   --base <ref>: <ref>'s committed policy.yaml — the trusted source, mirroring
+    //     the GitHub Action's base-branch load. This makes verify a genuine CI trust
+    //     boundary: a working-tree edit that self-adds a signer cannot pass.
+    //   default: the working-tree policy.yaml (fast local pre-check).
+    // The operational config (suites) is always read from the working tree in both
+    // modes — suites carry no authorization, matching the Action.
+    let config: AttestItConfig
+    if (options.base !== undefined) {
+      if (!workingTreePolicyPath) {
+        // --base requires a working-tree policy to fingerprint against. Fail closed
+        // rather than silently skipping the trust check.
+        error(
+          'No policy file found to verify. --base loads authorization from the ref ' +
+            'but still fingerprints the working-tree .attest-it/policy.yaml, which is missing.',
+        )
+        process.exit(ExitCode.CONFIG_ERROR)
+      }
+      const refPolicy = readPolicyFromRef(options.base, workingTreePolicyPath, projectRoot)
+      config = await loadSplitConfig({
+        policySource: { type: 'content', content: refPolicy.content, format: refPolicy.format },
+      })
+    } else {
+      config = await loadSplitConfig(
+        configPath ? { policySource: { type: 'filesystem', path: configPath } } : {},
+      )
+    }
 
     // Read seals (needed for both the root-gate pre-step and gate evaluation).
-    const projectRoot = process.cwd()
     const sealsFile = readSealsSync(projectRoot, config.settings.sealsPath)
 
     // MANDATORY PRE-STEP: verify the config's OWN seal chain against the root
@@ -96,11 +143,22 @@ async function runVerify(
     // against a policy whose own root-gate seal did not verify. Repositories that
     // have not run the bootstrap ceremony define no rootGate; there is no trust
     // anchor to check, so evaluation proceeds unchanged (backward compatibility).
+    //
+    // In --base mode the authorized signer set comes from the trusted ref, so a
+    // working-tree policy that self-adds a root signer and re-seals is rejected as
+    // UNKNOWN_SIGNER (the ref does not list it) — the same rejection the Action makes.
     if (config.rootGate) {
-      const policyPath = configPath ?? findPolicyPath(projectRoot)
+      const policyPath = workingTreePolicyPath
       if (policyPath) {
         const policyFingerprint = computePolicyFingerprintSync(projectRoot, policyPath)
-        const rootResult = verifyRootGate({ config, policyFingerprint, seals: sealsFile })
+        const rootResult = verifyRootGate({
+          config,
+          policyFingerprint,
+          seals: sealsFile,
+          ...(options.base !== undefined && {
+            trustedSourceLabel: `root signers from ${options.base}`,
+          }),
+        })
 
         if (isBlockingRootGateState(rootResult.state)) {
           if (options.json) {
@@ -193,7 +251,11 @@ async function runVerify(
       process.exit(ExitCode.SUCCESS)
     }
   } catch (err) {
-    if (err instanceof SplitConfigNotFoundError) {
+    if (err instanceof GitRefPolicyError) {
+      // --base could not read the trusted policy from the ref. Fail CLOSED: an
+      // unreadable base ref is an indeterminate trust state, never a silent pass.
+      error(err.message)
+    } else if (err instanceof SplitConfigNotFoundError) {
       // No discoverable config (or an unreadable --config path): fail closed with
       // a legible, actionable message rather than exiting 0 on an indeterminate state.
       error(err.message)
