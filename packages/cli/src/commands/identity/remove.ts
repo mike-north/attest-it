@@ -93,18 +93,15 @@ export async function runRemove(slug: string, options: RemoveOptions = {}): Prom
     log(`  Private key: ${keyLocation}`)
     log('')
 
-    const keepKey = options.keepKey ?? false
-
-    if (keepKey) {
-      log(`  Keeping private key (--keep-key): ${keyLocation}`)
-    } else {
-      await deleteKeyMaterial(identity.privateKey)
-    }
-
-    // Remove from config
+    // Remove from config -- but do NOT persist or delete anything yet. All
+    // guards must pass first so a refused removal never leaves the private
+    // key deleted while the config still references it. See issue #133.
     const { [slug]: _removed, ...remainingIdentities } = config.identities
 
-    // Check if this was the last identity
+    // Check if this was the last identity. This guard (and any future
+    // precondition) must run before the destructive `deleteKeyMaterial`
+    // call below -- otherwise a refused removal leaves an orphaned config
+    // entry pointing at key material that no longer exists. See issue #133.
     if (Object.keys(remainingIdentities).length === 0) {
       error('Cannot remove last identity')
       log('')
@@ -129,6 +126,14 @@ export async function runRemove(slug: string, options: RemoveOptions = {}): Prom
       version: 2 as const,
       activeIdentity: newActiveIdentity,
       identities: remainingIdentities,
+    }
+
+    const keepKey = options.keepKey ?? false
+
+    if (keepKey) {
+      log(`  Keeping private key (--keep-key): ${keyLocation}`)
+    } else {
+      await deleteKeyMaterial(identity.privateKey)
     }
 
     await saveLocalConfig(newConfig)

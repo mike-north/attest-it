@@ -192,6 +192,47 @@ describe('identity remove — non-interactive (--yes) (issue #94)', () => {
   )
 })
 
+// Regression coverage for issue #133: removing the *last* identity deleted
+// the private key from storage first, then failed the "cannot remove last
+// identity" guard -- leaving an orphaned config entry pointing at key
+// material that no longer existed. The guard must run, and refuse, before
+// any destructive delete. Against the pre-fix implementation this test
+// fails: `unlink` (the legacy-filesystem deletion path) is called even
+// though the removal is ultimately refused.
+describe('identity remove — refuses the last identity before deleting its key (issue #133)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    Object.defineProperty(process.stdin, 'isTTY', { value: undefined, configurable: true })
+  })
+  afterEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('does not delete the private key when the removal is refused as the last identity', async () => {
+    vi.mocked(loadLocalConfig).mockResolvedValue(
+      mockLocalConfig({
+        activeIdentity: 'alice',
+        identities: {
+          alice: {
+            name: 'Alice',
+            publicKey: 'pk-alice',
+            privateKey: { type: 'filesystem', path: '/tmp/alice.pem' },
+          },
+        },
+      }),
+    )
+
+    await runRemove('alice', { yes: true })
+
+    expect(unlink).not.toHaveBeenCalled()
+    expect(saveLocalConfig).not.toHaveBeenCalled()
+    expect(mockConsoleError).toHaveBeenCalledWith(
+      expect.stringContaining('Cannot remove last identity'),
+    )
+    expect(mockProcessExit).toHaveBeenCalledWith(ExitCode.CONFIG_ERROR)
+  })
+})
+
 // Regression coverage for issue #95: exit code 3 (CONFIG_ERROR) was
 // overloaded to also cover a force-closed/interrupted prompt, surfacing
 // @inquirer/core's raw "User force closed the prompt with 0 null" message.
