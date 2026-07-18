@@ -2,12 +2,17 @@ import { Command } from 'commander'
 import {
   loadSplitConfig,
   computeFingerprintSync,
+  computePolicyFingerprintSync,
+  findPolicyPath,
   readSealsSync,
   verifyAllSeals,
   verifyGateSeal,
+  verifyRootGate,
+  isBlockingRootGateState,
   SplitConfigNotFoundError,
   type VerificationState,
   type SealVerificationResult,
+  type RootGateVerificationResult,
 } from '@attest-it/core'
 import {
   log,
@@ -63,6 +68,37 @@ async function runVerify(
       configPath ? { policySource: { type: 'filesystem', path: configPath } } : {},
     )
 
+    // Read seals (needed for both the root-gate pre-step and gate evaluation).
+    const projectRoot = process.cwd()
+    const sealsFile = readSealsSync(projectRoot, config.settings.sealsPath)
+
+    // MANDATORY PRE-STEP: verify the config's OWN seal chain against the root
+    // gate BEFORE evaluating any other gate. Gate evaluation must never proceed
+    // against a policy whose own root-gate seal did not verify. Repositories that
+    // have not run the bootstrap ceremony define no rootGate; there is no trust
+    // anchor to check, so evaluation proceeds unchanged (backward compatibility).
+    if (config.rootGate) {
+      const policyPath = configPath ?? findPolicyPath(projectRoot)
+      if (policyPath) {
+        const policyFingerprint = computePolicyFingerprintSync(projectRoot, policyPath)
+        const rootResult = verifyRootGate({ config, policyFingerprint, seals: sealsFile })
+
+        if (isBlockingRootGateState(rootResult.state)) {
+          if (options.json) {
+            outputJson([rootGateResultToJson(rootResult)])
+          } else {
+            log('')
+            error(rootResult.message)
+          }
+          process.exit(ExitCode.FAILURE)
+        }
+
+        if (rootResult.state === 'STALE' && !options.json) {
+          warn(rootResult.message)
+        }
+      }
+    }
+
     // Config loaded successfully but defines zero gates: there is nothing to verify.
     // This is distinct from a missing/unreadable config (CONFIG_ERROR) — the config
     // is valid, so treat it as NO_WORK rather than an error or a silent success.
@@ -74,10 +110,6 @@ async function runVerify(
       }
       process.exit(ExitCode.NO_WORK)
     }
-
-    // Read seals
-    const projectRoot = process.cwd()
-    const sealsFile = readSealsSync(projectRoot, config.settings.sealsPath)
 
     // Determine which gates to verify
     const gatesToVerify = gates.length > 0 ? gates : Object.keys(config.gates)
@@ -153,6 +185,19 @@ async function runVerify(
       error('Unknown error occurred')
     }
     process.exit(ExitCode.CONFIG_ERROR)
+  }
+}
+
+/**
+ * Shape a root-gate verification result into the same JSON envelope as ordinary
+ * gate results so `verify --json` consumers see a single, uniform array.
+ */
+function rootGateResultToJson(result: RootGateVerificationResult): SealVerificationResult {
+  return {
+    gateId: result.gateId,
+    state: result.state === 'NOT_ANCHORED' ? 'MISSING' : result.state,
+    ...(result.seal && { seal: result.seal }),
+    message: result.message,
   }
 }
 

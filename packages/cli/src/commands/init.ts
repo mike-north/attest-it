@@ -3,19 +3,36 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
-import { stringify as stringifyYaml } from 'yaml'
-import { migrateUnifiedContent } from '@attest-it/core'
-import { log, success, error } from '../utils/output.js'
+import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
+import {
+  migrateUnifiedContent,
+  loadLocalConfigSync,
+  getActiveIdentity,
+  computePolicyFingerprintSync,
+  createRootSeal,
+  findPolicyPath,
+  readSealsSync,
+  writeSealsSync,
+  ROOT_GATE_ID,
+  type Identity,
+} from '@attest-it/core'
+import { log, success, error, warn } from '../utils/output.js'
 import { confirmAction, isInteractiveTTY, handlePromptableError } from '../utils/prompts.js'
 import { ExitCode } from '../utils/exit-codes.js'
 import { offerCompletionInstall } from '../utils/completion-offer.js'
 import { getPackageVersion } from '../utils/version.js'
+import { loadIdentitySigningKey } from '../utils/identity-key.js'
 
 export const initCommand = new Command('init')
   .description('Initialize attest-it split configuration (policy.yaml + config.yaml)')
   .option('-d, --dir <dir>', 'Config directory', '.attest-it')
   .option('-f, --force', 'Overwrite existing config')
   .option('--migrate', 'Migrate an existing unified config.yaml into split policy + config')
+  .option(
+    '--root-signer <slug>',
+    'Bootstrap the trust anchor: establish this identity as the root signer and seal ' +
+      '.attest-it/policy.yaml. Must be your active local identity.',
+  )
   .action(async (options: InitOptions) => {
     await runInit(options)
   })
@@ -24,6 +41,7 @@ interface InitOptions {
   dir: string
   force?: boolean
   migrate?: boolean
+  rootSigner?: string
 }
 
 /**
@@ -293,18 +311,158 @@ async function runInit(options: InitOptions): Promise<void> {
     success(`Configuration created:`)
     log(`  - ${policyPath} (team, gates, security settings)`)
     log(`  - ${operationalPath} (suites, command settings)`)
+
+    // Bootstrap ceremony: establish the root gate's authorized signer over
+    // policy.yaml. This is the explicit, human-run trust anchor — never silently
+    // defaulted. It runs when --root-signer is passed, or interactively when a
+    // TTY and an active identity are available.
+    const bootstrapped = await maybeBootstrapRootGate(options, policyPath)
+
     log('')
     log('Next steps:')
     log(`  1. Run: ${packageManager} install`)
-    log("  2. Run: attest-it identity create  (if you haven't already)")
-    log('  3. Run: attest-it team join')
-    log(`  4. Edit ${policyPath} to define your gates, and ${operationalPath} to define suites`)
+    if (bootstrapped) {
+      log(`  2. Edit ${policyPath} to define your gates, and ${operationalPath} to define suites`)
+      log('  3. After editing trust-critical policy, re-seal the root gate: attest-it seal --root')
+    } else {
+      log("  2. Run: attest-it identity create  (if you haven't already)")
+      log('  3. Run: attest-it team join')
+      log('  4. Bootstrap the trust anchor: attest-it init --root-signer <your-identity-slug>')
+      log(`  5. Edit ${policyPath} to define your gates, and ${operationalPath} to define suites`)
+    }
 
     // Offer to install shell completions
     await offerCompletionInstall()
   } catch (err) {
     handlePromptableError(err, ExitCode.CONFIG_ERROR)
   }
+}
+
+/**
+ * Run the bootstrap ceremony that establishes the root gate over policy.yaml.
+ *
+ * Decides whether to bootstrap based on explicit signals only (never a silent
+ * default): the `--root-signer` flag, or an interactive confirmation when a TTY
+ * and an active identity are present. On confirmation it establishes the active
+ * identity as the sole root signer, records it in `rootGate`, and creates the
+ * anchoring seal over the policy file — all in this single command invocation.
+ *
+ * @returns True if the repository was bootstrapped to a trust-anchored state.
+ */
+async function maybeBootstrapRootGate(options: InitOptions, policyPath: string): Promise<boolean> {
+  const localConfig = loadLocalConfigSync()
+  const identity = localConfig ? getActiveIdentity(localConfig) : undefined
+  const identitySlug = localConfig?.activeIdentity
+
+  // Explicit flag path.
+  if (options.rootSigner !== undefined) {
+    if (!identity || !identitySlug) {
+      throw new Error(
+        'Cannot bootstrap the root gate: no active local identity found. ' +
+          'Run "attest-it identity create" first.',
+      )
+    }
+    if (options.rootSigner !== identitySlug) {
+      throw new Error(
+        `--root-signer '${options.rootSigner}' does not match your active identity ` +
+          `'${identitySlug}'. The bootstrapping signer must be an identity you hold the ` +
+          'private key for, so that it can create the anchoring seal.',
+      )
+    }
+    await bootstrapRootGate(identity, identitySlug, policyPath)
+    return true
+  }
+
+  // Interactive path: only prompt when we actually can bootstrap.
+  if (identity && identitySlug && isInteractiveTTY()) {
+    const confirmed = await confirmAction({
+      message:
+        `Establish '${identitySlug}' as this repository's root signer (the trust anchor ` +
+        'over policy.yaml)? This can only be changed later by an existing root signer.',
+      default: false,
+    })
+    if (confirmed) {
+      await bootstrapRootGate(identity, identitySlug, policyPath)
+      return true
+    }
+    return false
+  }
+
+  return false
+}
+
+/**
+ * Establish the root gate and create its anchoring seal over the policy file.
+ *
+ * Adds the identity to `team`, sets `rootGate.authorizedSigners`, then seals the
+ * resulting policy content with the identity's private key. After this returns,
+ * `attest-it verify` treats the policy as trust-anchored.
+ */
+async function bootstrapRootGate(
+  identity: Identity,
+  identitySlug: string,
+  policyPath: string,
+): Promise<void> {
+  // Read and mutate the scaffolded policy to add the root signer + rootGate.
+  const rawPolicy = await fs.promises.readFile(policyPath, 'utf8')
+  const parsed: unknown = parseYaml(rawPolicy)
+  const policy: Record<string, unknown> = isPlainRecord(parsed) ? { ...parsed } : {}
+
+  policy.version ??= 1
+
+  const team: Record<string, unknown> = isPlainRecord(policy.team) ? { ...policy.team } : {}
+  // eslint-disable-next-line security/detect-object-injection -- identitySlug is the operator's own local identity slug, not attacker-controlled
+  team[identitySlug] = {
+    name: identity.name,
+    publicKey: identity.publicKey,
+    publicKeyAlgorithm: 'ed25519',
+  }
+  policy.team = team
+
+  policy.rootGate = {
+    authorizedSigners: [identitySlug],
+    description: 'Trust anchor over .attest-it/policy.yaml',
+  }
+
+  // Resolve the seals path the verifier will read from, so the anchoring seal
+  // lands where `attest-it verify` looks (config.settings.sealsPath). Defaults
+  // to the policy schema default when unspecified.
+  const settings = isPlainRecord(policy.settings) ? policy.settings : {}
+  const sealsPath =
+    typeof settings.sealsPath === 'string' ? settings.sealsPath : '.attest-it/seals.json'
+
+  const policyHeader =
+    '# yaml-language-server: $schema=https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/policy.schema.json\n' +
+    '# attest-it policy configuration (trust-critical) — bootstrapped root gate\n\n'
+  await fs.promises.writeFile(policyPath, policyHeader + stringifyYaml(policy), 'utf8')
+
+  // Seal the policy file as the root gate, using the same primitives as any
+  // other gate seal.
+  const projectRoot = process.cwd()
+  const resolvedPolicyPath = findPolicyPath(projectRoot) ?? policyPath
+  const policyFingerprint = computePolicyFingerprintSync(projectRoot, resolvedPolicyPath)
+
+  const { privateKeyPem, passphrase } = await loadIdentitySigningKey(identity)
+  const seal = createRootSeal({
+    policyFingerprint,
+    sealedBy: identitySlug,
+    privateKey: privateKeyPem,
+    ...(passphrase !== undefined && { passphrase }),
+  })
+
+  const sealsFile = readSealsSync(projectRoot, sealsPath)
+  // eslint-disable-next-line security/detect-object-injection -- ROOT_GATE_ID is a fixed reserved constant
+  sealsFile.seals[ROOT_GATE_ID] = seal
+  writeSealsSync(projectRoot, sealsFile, sealsPath)
+
+  log('')
+  success(`Trust anchor established: '${identitySlug}' is the root signer`)
+  log(`  Root gate sealed over ${resolvedPolicyPath}`)
+  log(`  Fingerprint: ${seal.fingerprint}`)
+  warn(
+    '  Changing the root signers later requires a seal from an existing root signer — ' +
+      'a branch cannot bootstrap a new root of trust for itself.',
+  )
 }
 
 export { runInit }
