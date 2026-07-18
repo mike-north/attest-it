@@ -218,10 +218,26 @@ same thing**: `verify` uses them to report gate validity; `status` uses only `SU
 
 **A cancelled prompt is always `CANCELLED` (4), never `CONFIG_ERROR`.** This applies to every
 interactive confirmation in the CLI (`identity create`/`remove`, `init`, `team add`/`join`/`remove`,
-`run`) — whether the user explicitly declines, or the prompt is interrupted/force-closed (e.g.
-Ctrl-C, or a piped stdin that closes mid-prompt). Prior to issue #95, a force-closed prompt fell
-through to `CONFIG_ERROR` with `@inquirer/core`'s raw, unpolished message; it's now reported as a
-clean `Cancelled` line under the documented `CANCELLED` code.
+`run`) — whether the user explicitly declines (e.g. types `n` at "Create seal for gate 'x'?"), or
+the prompt is interrupted/force-closed (e.g. `@inquirer/core`'s own force-close detection, or a
+piped stdin that closes mid-prompt). Prior to issue #95, a force-closed prompt fell through to
+`CONFIG_ERROR` with `@inquirer/core`'s raw, unpolished message; prior to issue #100, a _declined_
+prompt fell through to `SUCCESS` (0) instead of `CANCELLED`. Both are now reported as a clean
+`Cancelled` line under the documented `CANCELLED` code.
+
+**Ctrl-C (`SIGINT`) is always `CANCELLED` (4), everywhere in the CLI, not the shell's
+conventional 130.** The CLI installs a process-wide `SIGINT` handler for its entire lifetime (see
+`registerSigintHandler` in `packages/cli/src/index.ts`) precisely so this holds during a prompt
+and not just when `@inquirer/core`'s own force-close detection happens to catch it. Do not tell a
+user that pressing Ctrl-C exits 130 — it doesn't.
+
+**Missing a required flag with no interactive terminal available is `CONFIG_ERROR` (3), not
+`CANCELLED`.** For example, `run --suite x` (no `--yes`) or `identity remove x` (no `--yes`) with
+stdin piped from `/dev/null`: the CLI detects there is no TTY to prompt on _before_ any prompt
+starts, and fails fast with an error naming the missing flag. No prompt ever ran, so there is
+nothing to "cancel" — this is a usage error, the same class as any other invalid invocation, so it
+gets `CONFIG_ERROR` like other configuration/usage problems. Do not suggest this case should be
+`CANCELLED`; point the user at the named flag instead.
 
 **A dirty working tree is `DIRTY_WORKING_TREE` (6), never `CONFIG_ERROR`.** `run` refuses to
 execute a suite (and create its seal) when `git status --porcelain` reports uncommitted changes,

@@ -39,6 +39,7 @@
     },
     "onlyBuiltDependencies": [
       "esbuild",
+      "node-pty",
       "nx"
     ]
   },
