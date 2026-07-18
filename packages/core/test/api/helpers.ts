@@ -63,6 +63,13 @@ export interface CreateTestProjectOptions {
    * of repo-relative path → content. Used to populate a pattern gate's matches.
    */
   files?: Record<string, string>
+  /**
+   * Scaffold the operational config with an empty `suites: {}` map (the shape
+   * `init` writes). Exercises the gate-only / read-only flows that must load
+   * cleanly without any suite defined (issue #137). Defaults to `false` (a
+   * single `build` suite referencing the gate).
+   */
+  emptySuites?: boolean
 }
 
 /**
@@ -117,7 +124,7 @@ export function createTestProject(options: CreateTestProjectOptions = {}): TestP
   }
   const operational = {
     version: 1,
-    suites: { build: { gate: gateId } },
+    suites: options.emptySuites ? {} : { build: { gate: gateId } },
   }
   mkdirSync(join(baseDir, '.attest-it'), { recursive: true })
   writeFileSync(join(baseDir, '.attest-it', 'policy.yaml'), stringifyYaml(policy), 'utf8')

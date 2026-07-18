@@ -121,13 +121,13 @@ recommended repository posture.
 
 ### Root Fields
 
-| Field        | Type   | Required | Default | Description                                       |
-| ------------ | ------ | -------- | ------- | ------------------------------------------------- |
-| `version`    | `1`    | Yes      | -       | Schema version (must be `1`)                      |
-| `minVersion` | string | No       | -       | Minimum attest-it version required (e.g. "0.9.0") |
-| `settings`   | object | No       | `{}`    | Operational settings                              |
-| `suites`     | object | Yes      | -       | Suite definitions (min 1 suite)                   |
-| `groups`     | object | No       | -       | Named groups of suites                            |
+| Field        | Type   | Required | Default | Description                                                      |
+| ------------ | ------ | -------- | ------- | ---------------------------------------------------------------- |
+| `version`    | `1`    | Yes      | -       | Schema version (must be `1`)                                     |
+| `minVersion` | string | No       | -       | Minimum attest-it version required (e.g. "0.9.0")                |
+| `settings`   | object | No       | `{}`    | Operational settings                                             |
+| `suites`     | object | No       | `{}`    | Suite definitions (may be empty for gate-only / read-only flows) |
+| `groups`     | object | No       | -       | Named groups of suites                                           |
 
 ---
 

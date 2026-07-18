@@ -324,3 +324,64 @@ describe('failure taxonomy', () => {
     expect(one.schemaVersion).toBe(API_SCHEMA_VERSION)
   })
 })
+
+/**
+ * Issue #137: suites are OPTIONAL for gate-only / read-only flows.
+ *
+ * A config with `suites: {}` (exactly what `init` scaffolds) supplies all the
+ * policy/gate data these operations need. Pre-fix, loading such a config failed
+ * with `malformed` + "At least one suite must be defined", so every one of these
+ * calls returned that failure instead of operating on the perfectly-valid gate.
+ * Each assertion below FAILS against pre-fix code.
+ */
+describe('suites optional for gate-only / read-only flows (#137)', () => {
+  it('listGates succeeds against a config with an empty suites map', async () => {
+    project = createTestProject({ emptySuites: true })
+    const result = await listGates({ baseDir: project.baseDir })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    // The gate is enumerated purely from policy data — no suite required.
+    expect(result.gates.map((g) => g.gateId)).toEqual(['tools'])
+  })
+
+  it('seal succeeds against a config with an empty suites map', async () => {
+    project = createTestProject({ emptySuites: true })
+    const result = await seal(
+      project.gatedFile,
+      { identity: 'alice' },
+      { baseDir: project.baseDir },
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.gateId).toBe('tools')
+    expect(result.sealedBy).toBe('alice')
+  })
+
+  it('verifyOne succeeds against a config with an empty suites map after sealing', async () => {
+    project = createTestProject({ emptySuites: true })
+    const sealed = await seal(
+      project.gatedFile,
+      { identity: 'alice' },
+      { baseDir: project.baseDir },
+    )
+    expect(sealed.ok).toBe(true)
+    const result = await verifyOne(project.gatedFile, { baseDir: project.baseDir })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.gateId).toBe('tools')
+    expect(result.path).toBe(project.gatedFile)
+  })
+
+  it('status and verifyAll succeed against a config with an empty suites map', async () => {
+    project = createTestProject({ emptySuites: true })
+    await seal(project.gatedFile, { identity: 'alice' }, { baseDir: project.baseDir })
+
+    const statusResult = await status(undefined, { baseDir: project.baseDir })
+    expect(statusResult.ok).toBe(true)
+
+    const allResult = await verifyAll({}, { baseDir: project.baseDir })
+    expect(allResult.ok).toBe(true)
+    if (!allResult.ok) return
+    expect(allResult.results[0]?.ok).toBe(true)
+  })
+})

@@ -617,7 +617,7 @@ export const operationalSchema: z.ZodObject<{
             type: string;
         } | undefined;
     }>>;
-    suites: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodObject<{
+    suites: z.ZodDefault<z.ZodRecord<z.ZodString, z.ZodObject<{
         command: z.ZodOptional<z.ZodString>;
         depends_on: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
         description: z.ZodOptional<z.ZodString>;
@@ -641,23 +641,7 @@ export const operationalSchema: z.ZodObject<{
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
         timeout?: string | undefined;
-    }>>, Record<string, {
-        command?: string | undefined;
-        depends_on?: string[] | undefined;
-        description?: string | undefined;
-        gate: string;
-        interactive?: boolean | undefined;
-        invalidates?: string[] | undefined;
-        timeout?: string | undefined;
-    }>, Record<string, {
-        command?: string | undefined;
-        depends_on?: string[] | undefined;
-        description?: string | undefined;
-        gate: string;
-        interactive?: boolean | undefined;
-        invalidates?: string[] | undefined;
-        timeout?: string | undefined;
-    }>>;
+    }>>>;
     version: z.ZodEffects<z.ZodUnion<[z.ZodLiteral<1>, z.ZodLiteral<string>]>, 1, 1 | string>;
 }, "strict", z.ZodTypeAny, {
     groups?: Record<string, string[]> | undefined;
@@ -699,7 +683,7 @@ export const operationalSchema: z.ZodObject<{
             type: string;
         } | undefined;
     } | undefined;
-    suites: Record<string, {
+    suites?: Record<string, {
         command?: string | undefined;
         depends_on?: string[] | undefined;
         description?: string | undefined;
@@ -707,7 +691,7 @@ export const operationalSchema: z.ZodObject<{
         interactive?: boolean | undefined;
         invalidates?: string[] | undefined;
         timeout?: string | undefined;
-    }>;
+    }> | undefined;
     version: 1 | string;
 }>;
 

@@ -77,15 +77,26 @@ afterEach(() => {
 /**
  * Scaffold a project on disk with the given policy, operational config, and
  * seals, and return the base directory the embeddable API is pointed at.
+ *
+ * `emptySuites` writes `suites: {}` (the gate-only shape `init` scaffolds) to
+ * prove that relaxing the suite precondition (issue #137) does not bypass
+ * root-gate enforcement for gate-only configs.
  */
-function scaffold(policy: Record<string, unknown>, seals: SealsFile): Fixture {
+function scaffold(
+  policy: Record<string, unknown>,
+  seals: SealsFile,
+  options: { emptySuites?: boolean } = {},
+): Fixture {
   const baseDir = mkdtempSync(join(tmpdir(), 'attest-embedder-rootgate-'))
   dirsToClean.push(baseDir)
   mkdirSync(join(baseDir, '.attest-it'), { recursive: true })
   mkdirSync(join(baseDir, 'src', 'lib'), { recursive: true })
   writeFileSync(join(baseDir, 'src', 'lib', 'tool.ts'), 'export const tool = () => 42\n', 'utf8')
 
-  const operational = { version: 1, suites: { build: { gate: GATE_ID } } }
+  const operational = {
+    version: 1,
+    suites: options.emptySuites ? {} : { build: { gate: GATE_ID } },
+  }
   writeFileSync(join(baseDir, POLICY_REL), stringifyYaml(policy), 'utf8')
   writeFileSync(join(baseDir, '.attest-it', 'config.yaml'), stringifyYaml(operational), 'utf8')
   writeFileSync(join(baseDir, SEALS_REL), JSON.stringify(seals, null, 2), 'utf8')
@@ -365,6 +376,72 @@ describe('embeddable API root-gate enforcement (#131)', () => {
     // No rootGate → no trust anchor to check → verifies unchanged, and never
     // reports untrusted-config.
     const result = await verifyAll({}, { baseDir })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.results[0]?.ok).toBe(true)
+  })
+
+  /**
+   * Interaction guard between #137 (suites optional) and #131/#139 (root-gate
+   * enforcement): a gate-only config (`suites: {}`) can still be root-anchored,
+   * and relaxing the suite precondition must NOT let such a config skip the
+   * root-gate pre-step. A tampered, self-sealed gate-only policy must still be
+   * REJECTED, and a legitimately-anchored gate-only policy must still verify.
+   */
+  it('(#137) still ENFORCES the root gate for a gate-only (empty-suites) config: tampered anchor is rejected', async () => {
+    const alice = generateEd25519KeyPair()
+    const mallory = generateEd25519KeyPair()
+
+    // Working tree: mallory self-added to team + root signers, self-sealed —
+    // exactly the (a) attack, but on a config with NO suites at all.
+    const policy = anchoredPolicy(
+      {
+        alice: { name: 'Alice Developer', publicKey: alice.publicKey },
+        mallory: { name: 'Mallory', publicKey: mallory.publicKey },
+      },
+      ['alice', 'mallory'],
+    )
+    const { baseDir } = scaffold(policy, { version: 1, seals: {} }, { emptySuites: true })
+    const seals: SealsFile = {
+      version: 1,
+      seals: {
+        [ROOT_GATE_ID]: rootSealOver(baseDir, 'mallory', mallory),
+        [GATE_ID]: gateSealOver(baseDir, 'alice', alice),
+      },
+    }
+    writeFileSync(join(baseDir, SEALS_REL), JSON.stringify(seals, null, 2), 'utf8')
+
+    const trustedConfig = trustedBaseConfig(alice)
+
+    const all = await verifyAll({}, { baseDir, trustedConfig })
+    expect(all.ok).toBe(false)
+    if (all.ok) return
+    expect(all.failureClass).toBe('untrusted-config')
+
+    const one = await verifyOne('src/lib/tool.ts', { baseDir, trustedConfig })
+    expect(one.ok).toBe(false)
+    if (one.ok) return
+    expect(one.failureClass).toBe('untrusted-config')
+  })
+
+  it('(#137) VERIFIES a legitimately-anchored gate-only (empty-suites) config against the trusted root', async () => {
+    const alice = generateEd25519KeyPair()
+    const policy = anchoredPolicy(
+      { alice: { name: 'Alice Developer', publicKey: alice.publicKey } },
+      ['alice'],
+    )
+    const { baseDir } = scaffold(policy, { version: 1, seals: {} }, { emptySuites: true })
+    const seals: SealsFile = {
+      version: 1,
+      seals: {
+        [ROOT_GATE_ID]: rootSealOver(baseDir, 'alice', alice),
+        [GATE_ID]: gateSealOver(baseDir, 'alice', alice),
+      },
+    }
+    writeFileSync(join(baseDir, SEALS_REL), JSON.stringify(seals, null, 2), 'utf8')
+
+    const trustedConfig = trustedBaseConfig(alice)
+    const result = await verifyAll({}, { baseDir, trustedConfig })
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.results[0]?.ok).toBe(true)

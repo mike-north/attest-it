@@ -74,27 +74,6 @@
               "description": {
                 "type": "string"
               },
-              "packages": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "files": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
-              "ignore": {
-                "type": "array",
-                "items": {
-                  "type": "string",
-                  "minLength": 1
-                }
-              },
               "command": {
                 "type": "string"
               },
@@ -119,8 +98,10 @@
                 }
               }
             },
+            "required": ["gate"],
             "additionalProperties": false
-          }
+          },
+          "default": {}
         },
         "groups": {
           "type": "object",
@@ -133,7 +114,7 @@
           }
         }
       },
-      "required": ["version", "suites"],
+      "required": ["version"],
       "additionalProperties": false
     }
   }

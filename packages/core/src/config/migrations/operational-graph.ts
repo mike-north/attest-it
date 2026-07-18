@@ -70,11 +70,15 @@ const operationalSchemaV1 = z
     version: versionSchema(1),
     minVersion: semverSchema.optional(),
     settings: operationalSettingsSchemaV1.default({}),
-    suites: z
-      .record(z.string(), suiteSchemaV1)
-      .refine((suites) => Object.keys(suites).length >= 1, {
-        message: 'At least one suite must be defined',
-      }),
+    // Suites are OPERATIONAL data, not a global precondition. An empty (or
+    // omitted) `suites` map is a valid operational config: gate-only "Direct
+    // Sealing" and read-only flows (listGates/fingerprint/verifyOne/verifyAll/
+    // seal/status/verify) need only policy/gate data and must load cleanly
+    // against `suites: {}` — exactly what `init` scaffolds. Suite-DEPENDENT
+    // operations (`run --suite <name>`) still validate that the named suite
+    // exists at resolution time, so the global ">=1 suite" precondition that
+    // used to be enforced here was the wrong layer (issue #137).
+    suites: z.record(z.string(), suiteSchemaV1).default({}),
     groups: z
       .record(z.string(), z.array(z.string().min(1, 'Suite name in group cannot be empty')))
       .optional(),

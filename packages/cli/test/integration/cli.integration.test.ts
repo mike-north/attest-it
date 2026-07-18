@@ -68,12 +68,13 @@ async function runCli(
   args: string[],
   cwd: string = FIXTURE_PATH,
   stdin?: string,
+  env?: Record<string, string>,
 ): Promise<RunResult> {
   return new Promise((resolve) => {
     // Run the built CLI
     const child = spawn('node', [CLI_PATH, ...args], {
       cwd,
-      env: { ...process.env, NO_COLOR: '1' }, // Disable colors for testing
+      env: { ...process.env, NO_COLOR: '1', ...env }, // Disable colors for testing
     })
 
     let stdout = ''
@@ -551,14 +552,13 @@ describe('CLI Integration Tests', () => {
      * "verified nothing"). See `verify.test.ts`/`status.test.ts` for the direct
      * unit-level exercise of that branch.
      *
-     * This scenario cannot be produced end-to-end through real config files: the
-     * operational schema requires at least one suite (`operational-graph.ts`), and
-     * every suite must reference an existing gate (cross-config validation), so a
-     * schema-valid config with suites always has at least one gate too. Emptying
-     * `suites` to force `gates: {}` instead hits that schema error first — which
-     * this test documents as the actual, correct behavior for that input.
+     * Since #137 made suites genuinely optional (an empty `suites: {}` is a valid
+     * operational config), this scenario IS now producible end-to-end: a config
+     * with `suites: {}` and `gates: {}` loads cleanly and reaches the zero-gates
+     * branch, exiting NO_WORK (2) — not CONFIG_ERROR — which is the correct
+     * verdict for a valid-but-empty configuration.
      */
-    it('an operational config with zero suites is rejected before the zero-gates check is reached', async () => {
+    it('a config with zero suites and zero gates reaches the zero-gates NO_WORK verdict', async () => {
       const policyPath = path.join(tempDir, '.attest-it', 'policy.yaml')
       const policyContent = await fs.promises.readFile(policyPath, 'utf8')
       const policy = yaml.parse(policyContent) as Record<string, unknown>
@@ -574,8 +574,87 @@ describe('CLI Integration Tests', () => {
       await runCommand('git add . && git commit -m "clear gates and suites"', tempDir)
 
       const result = await runCli(['verify'], tempDir)
-      expect(result.exitCode).toBe(3) // CONFIG_ERROR: operational schema rejects zero suites
-      expect(result.stderr).toContain('At least one suite must be defined')
+      expect(result.exitCode).toBe(2) // NO_WORK: valid config, but zero gates to verify
+      expect(result.stderr).toContain('No gates defined in configuration')
+    })
+  })
+
+  /**
+   * Issue #137: gate-only / read-only commands must succeed against an
+   * operational config with `suites: {}` — exactly what `init` scaffolds. The
+   * repo has a valid gate (`example-gate`) but no suites; pre-fix, loading such a
+   * config threw "At least one suite must be defined" and every command exited 3
+   * (CONFIG_ERROR). These tests drive the REAL built CLI binary and assert exit 0.
+   */
+  describe('suites optional for gate-only / read-only CLI flows (#137)', () => {
+    /** Rewrite the operational config to the empty-suites shape `init` scaffolds. */
+    async function writeEmptySuitesConfig(): Promise<void> {
+      const configPath = path.join(tempDir, '.attest-it', 'config.yaml')
+      const configContent = await fs.promises.readFile(configPath, 'utf8')
+      const config = yaml.parse(configContent) as Record<string, unknown>
+      config.suites = {}
+      await fs.promises.writeFile(configPath, yaml.stringify(config), 'utf8')
+      await runCommand('git add . && git commit -m "empty suites"', tempDir)
+    }
+
+    /**
+     * Point the CLI subprocess at a temp attest-it home holding a local identity
+     * (`test-user`) whose keypair matches the gate's authorized signer, so the
+     * real `seal` command can sign end-to-end.
+     */
+    async function setupLocalIdentity(): Promise<string> {
+      const home = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'attest-it-home-'))
+      const keyPath = path.join(home, 'test-user.pem')
+      await fs.promises.writeFile(keyPath, privateKeyPem, 'utf8')
+      const localConfig = {
+        version: 2,
+        activeIdentity: 'test-user',
+        identities: {
+          'test-user': {
+            name: 'Test User',
+            publicKey: publicKeyBase64,
+            privateKey: { type: 'filesystem', path: keyPath },
+          },
+        },
+      }
+      await fs.promises.writeFile(
+        path.join(home, 'config.yaml'),
+        yaml.stringify(localConfig),
+        'utf8',
+      )
+      return home
+    }
+
+    it('status exits 0 on a config with an empty suites map', async () => {
+      await writeEmptySuitesConfig()
+      const result = await runCli(['status'], tempDir)
+      expect(result.exitCode).toBe(0)
+      expect(result.stderr).not.toContain('At least one suite')
+    })
+
+    it('seal <gate> exits 0 on a config with an empty suites map', async () => {
+      await writeEmptySuitesConfig()
+      const home = await setupLocalIdentity()
+      try {
+        const result = await runCli(['seal', 'example-gate'], tempDir, undefined, {
+          ATTEST_IT_HOME: home,
+        })
+        expect(result.exitCode).toBe(0)
+        expect(result.stderr).not.toContain('At least one suite')
+      } finally {
+        await fs.promises.rm(home, { recursive: true, force: true })
+      }
+    })
+
+    it('run --suite <name> still fails cleanly for an undefined suite (per-operation resolution intact)', async () => {
+      // Relaxing the GLOBAL suite precondition must NOT relax per-operation suite
+      // resolution: a suite-dependent command still validates the named suite
+      // exists. With `suites: {}`, `run --suite example` must fail — cleanly, with
+      // a "not found" message — not silently succeed.
+      await writeEmptySuitesConfig()
+      const result = await runCli(['run', '--suite', 'example'], tempDir)
+      expect(result.exitCode).not.toBe(0)
+      expect(result.stderr).toContain('not found in config')
     })
   })
 
