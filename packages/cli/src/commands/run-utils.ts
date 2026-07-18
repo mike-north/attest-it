@@ -7,8 +7,15 @@
  * @packageDocumentation
  */
 
-import type { AttestItConfig, VerificationState, SealsFile } from '@attest-it/core'
+import type {
+  AttestItConfig,
+  VerificationState,
+  SealsFile,
+  SealVerificationResult,
+  GateConfig,
+} from '@attest-it/core'
 import { computeFingerprint, readSealsSync, verifyGateSeal } from '@attest-it/core'
+import { isPatternGate, verifyPatternGateSync } from '../utils/pattern-gate.js'
 
 /**
  * Information about a suite's current status.
@@ -71,6 +78,15 @@ export async function getAllSuiteStatuses(config: AttestItConfig): Promise<Suite
       continue
     }
 
+    // A pattern gate is evaluated per matched file; roll the per-file results up
+    // into a single suite status (VALID only when every matched file is valid) so
+    // `run --all`/interactive reflect real per-file state rather than the old
+    // single-combined-fingerprint verdict (issue #130).
+    if (isPatternGate(gateConfig)) {
+      results.push(rollUpPatternSuite(suiteName, config, suiteConfig.gate, gateConfig))
+      continue
+    }
+
     // Compute current fingerprint
     const fingerprintResult = await computeFingerprint({
       paths,
@@ -104,6 +120,52 @@ export async function getAllSuiteStatuses(config: AttestItConfig): Promise<Suite
   }
 
   return results
+}
+
+/**
+ * Roll a pattern gate's independent per-file verification results into one
+ * {@link SuiteStatus}. The suite is `VALID` only when it matched at least one
+ * file and every matched file verifies `VALID`; otherwise the first non-valid
+ * file drives the reported state/reason (e.g. a newly-added unsealed file
+ * surfaces as `MISSING`, a modified sealed file as `FINGERPRINT_MISMATCH`).
+ */
+function rollUpPatternSuite(
+  suiteName: string,
+  config: AttestItConfig,
+  gateId: string,
+  gateConfig: GateConfig,
+): SuiteStatus {
+  const perFile = verifyPatternGateSync(config, gateId, gateConfig, process.cwd())
+
+  const [first] = perFile
+  if (!first) {
+    return {
+      name: suiteName,
+      status: 'MISSING',
+      reason: 'Pattern gate matched no files',
+      currentFingerprint: '',
+    }
+  }
+
+  const firstInvalid = perFile.find((f) => f.result.state !== 'VALID')
+  const representative: SealVerificationResult = (firstInvalid ?? first).result
+  const fileCount = perFile.length
+
+  if (!firstInvalid) {
+    return {
+      name: suiteName,
+      status: 'VALID',
+      reason: `All ${String(fileCount)} matched file(s) sealed`,
+      currentFingerprint: first.fingerprint,
+    }
+  }
+
+  return {
+    name: suiteName,
+    status: representative.state,
+    reason: `${representative.artifactPath ?? ''}: ${representative.message ?? formatStatusReason(representative.state)}`,
+    currentFingerprint: first.fingerprint,
+  }
 }
 
 /**

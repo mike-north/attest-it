@@ -181,13 +181,13 @@ describe('output utilities', () => {
     it('should format table with correct columns and alignment', () => {
       const rows: TableRow[] = [
         {
-          suite: 'auth',
+          gate: 'auth',
           status: 'VALID',
           fingerprint: 'abc123',
           age: '2 days',
         },
         {
-          suite: 'payments',
+          gate: 'payments',
           status: 'EXPIRED',
           fingerprint: 'def456',
           age: '10 days',
@@ -196,8 +196,8 @@ describe('output utilities', () => {
 
       const result = formatTable(rows)
 
-      // Check header
-      expect(result).toContain('Suite')
+      // Check header — the label column reflects gate-level data, not suites.
+      expect(result).toContain('Gate')
       expect(result).toContain('Status')
       expect(result).toContain('Fingerprint')
       expect(result).toContain('Age')
@@ -222,7 +222,7 @@ describe('output utilities', () => {
       const result = formatTable(rows)
 
       // Should still have headers and separator
-      expect(result).toContain('Suite')
+      expect(result).toContain('Gate')
       expect(result).toContain('Status')
       expect(result).toContain('─')
     })
@@ -230,13 +230,13 @@ describe('output utilities', () => {
     it('should align columns correctly with varying lengths', () => {
       const rows: TableRow[] = [
         {
-          suite: 'a',
+          gate: 'a',
           status: 'VALID',
           fingerprint: 'x',
           age: '1d',
         },
         {
-          suite: 'very-long-suite-name',
+          gate: 'very-long-gate-name',
           status: 'SIGNATURE_INVALID',
           fingerprint: 'very-long-fingerprint',
           age: '30 days',

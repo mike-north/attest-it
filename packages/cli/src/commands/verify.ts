@@ -5,9 +5,9 @@ import {
   computePolicyFingerprintSync,
   findPolicyPath,
   readSealsSync,
-  verifyAllSeals,
   verifyGateSeal,
   verifyRootGate,
+  getGate,
   isBlockingRootGateState,
   SplitConfigNotFoundError,
   type AttestItConfig,
@@ -15,6 +15,7 @@ import {
   type SealVerificationResult,
   type RootGateVerificationResult,
 } from '@attest-it/core'
+import { isPatternGate, verifyPatternGateSync } from '../utils/pattern-gate.js'
 import {
   log,
   success,
@@ -200,29 +201,27 @@ async function runVerify(
       }
     }
 
-    // Compute fingerprints for all gates
-    const fingerprints: Record<string, string> = {}
+    // Verify each gate. A pattern gate (`kind: pattern`) fans out into one
+    // independent per-file result (each matched file fingerprinted and sealed on
+    // its own); a single gate keeps its one combined-fingerprint result.
+    const results: SealVerificationResult[] = []
     for (const gateId of gatesToVerify) {
-      // eslint-disable-next-line security/detect-object-injection
-      const gate = config.gates[gateId]
-      if (!gate) continue
+      const gate = getGate(config, gateId)
+      if (gate && isPatternGate(gate)) {
+        for (const { result } of verifyPatternGateSync(config, gateId, gate, projectRoot)) {
+          results.push(result)
+        }
+        continue
+      }
 
-      const result = computeFingerprintSync({
-        paths: gate.fingerprint.paths,
-        ...(gate.fingerprint.exclude && { exclude: gate.fingerprint.exclude }),
-      })
-      // eslint-disable-next-line security/detect-object-injection
-      fingerprints[gateId] = result.fingerprint
+      const fingerprint = gate
+        ? computeFingerprintSync({
+            paths: gate.fingerprint.paths,
+            ...(gate.fingerprint.exclude && { exclude: gate.fingerprint.exclude }),
+          }).fingerprint
+        : ''
+      results.push(verifyGateSeal(config, gateId, sealsFile, fingerprint))
     }
-
-    // Verify seals
-    const results =
-      gates.length > 0
-        ? gatesToVerify.map((gateId) =>
-            // eslint-disable-next-line security/detect-object-injection
-            verifyGateSeal(config, gateId, sealsFile, fingerprints[gateId] ?? ''),
-          )
-        : verifyAllSeals(config, sealsFile, fingerprints)
 
     // Output results
     if (options.json) {
@@ -293,9 +292,10 @@ function rootGateResultToJson(result: RootGateVerificationResult): SealVerificat
 function displayResults(results: SealVerificationResult[]): void {
   log('')
 
-  // Build table rows
+  // Build table rows. A pattern gate's per-file result is labelled
+  // `<gateId> › <artifactPath>` so each matched file is individually identifiable.
   const tableRows: TableRow[] = results.map((r) => ({
-    suite: r.gateId,
+    gate: verificationRowLabel(r),
     status: colorizeState(r.state),
     fingerprint: formatFingerprint(r),
     age: formatAge(r),
@@ -315,7 +315,7 @@ function displayResults(results: SealVerificationResult[]): void {
   if (withIssues.length > 0) {
     for (const result of withIssues) {
       if (result.message) {
-        log(`${result.gateId}: ${result.message}`)
+        log(`${verificationRowLabel(result)}: ${result.message}`)
       }
     }
     log('')
@@ -338,6 +338,16 @@ function displayResults(results: SealVerificationResult[]): void {
       log('Run `attest-it seal --force <gate>` to update stale seals')
     }
   }
+}
+
+/**
+ * Human-readable label for a result row: the gate id, or `<gateId> › <artifact>`
+ * for a pattern gate's per-file result.
+ */
+function verificationRowLabel(result: SealVerificationResult): string {
+  return result.artifactPath !== undefined
+    ? `${result.gateId} › ${result.artifactPath}`
+    : result.gateId
 }
 
 /**

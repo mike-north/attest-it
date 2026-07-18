@@ -16,9 +16,19 @@ import {
   createSealWithProvider,
   readSealsSync,
   writeSealsSync,
+  writeSealFileSync,
+  resolveSealsRoot,
+  verifyPatternArtifactSeal,
   type AttestItConfig,
+  type GateConfig,
   type Identity,
+  type Seal,
 } from '@attest-it/core'
+import {
+  isPatternGate,
+  computePatternFingerprintsSync,
+  readPatternSealsByArtifactSync,
+} from '../utils/pattern-gate.js'
 import { log, success, error, warn, verbose } from '../utils/output.js'
 import { confirmAction, isInteractiveTTY, handlePromptableError } from '../utils/prompts.js'
 import { resolveKeyPassphrase } from '../utils/passphrase.js'
@@ -534,6 +544,15 @@ async function promptForSeal(
 
     // eslint-disable-next-line security/detect-object-injection
     const gate = config.gates[gateId]
+    const identitySlug = localConfig.activeIdentity
+
+    // A pattern gate seals each matched file independently (one per-file seal
+    // via the low-level writer), consistent with `attest-it seal`. Without this
+    // branch a suite over a `kind: pattern` gate silently produced a single
+    // combined seal (issue #130).
+    if (isPatternGate(gate)) {
+      return await sealPatternGateForRun(gateId, gate, config, identity, identitySlug)
+    }
 
     // Compute fingerprint for the gate
     const gateFingerprint = computeFingerprintSync({
@@ -550,7 +569,6 @@ async function promptForSeal(
     // it is passphrase-encrypted (e.g. `identity create --passphrase-stdin`),
     // resolves the passphrase from the environment, a prompt, or fails fast
     // (see issue #80).
-    const identitySlug = localConfig.activeIdentity
     const seal = await createSealWithProvider({
       gateId,
       fingerprint: gateFingerprint.fingerprint,
@@ -583,6 +601,78 @@ async function promptForSeal(
     }
     return 'not-attempted'
   }
+}
+
+/**
+ * Seal every matched file of a **pattern gate** (`kind: pattern`) independently,
+ * mirroring `attest-it seal`'s per-file path: each file is fingerprinted on its
+ * own and written as a standalone `.seal` via the low-level
+ * {@link writeSealFileSync} (never the aggregate writer, which would prune the
+ * siblings). Files that already carry a valid per-file seal are left untouched.
+ *
+ * @returns `'sealed'` when at least one file was (re)sealed or all files were
+ *   already valid, `'not-attempted'` when the gate matched no files.
+ */
+async function sealPatternGateForRun(
+  gateId: string,
+  gate: GateConfig,
+  config: AttestItConfig,
+  identity: Identity,
+  identitySlug: string,
+): Promise<SealAttemptOutcome> {
+  const projectRoot = process.cwd()
+  const perFile = computePatternFingerprintsSync(gate, projectRoot)
+  if (perFile.length === 0) {
+    warn(`Pattern gate '${gateId}' matched no files - no seal created`)
+    return 'not-attempted'
+  }
+
+  const existingSeals = readPatternSealsByArtifactSync(
+    projectRoot,
+    config.settings.sealsPath,
+    gateId,
+  )
+  const sealsRoot = resolveSealsRoot(projectRoot, config.settings.sealsPath)
+
+  const keyProvider = createKeyProviderFromIdentity(identity)
+  const keyRef = getKeyRefFromIdentity(identity)
+
+  let sealedCount = 0
+  for (const { path: filePath, fingerprint } of perFile) {
+    const existing = existingSeals.get(filePath)
+    if (existing) {
+      const verification = verifyPatternArtifactSeal(
+        config,
+        gateId,
+        filePath,
+        existing,
+        fingerprint,
+        gate.maxAge,
+      )
+      if (verification.state === 'VALID') {
+        continue
+      }
+    }
+
+    const seal = await createSealWithProvider({
+      gateId,
+      fingerprint,
+      sealedBy: identitySlug,
+      keyProvider,
+      keyRef,
+      resolvePassphrase: resolveKeyPassphrase,
+    })
+    const perFileSeal: Seal = { ...seal, artifactPath: filePath }
+    writeSealFileSync(sealsRoot, perFileSeal)
+    sealedCount++
+    log(`  Sealed ${gateId} file: ${filePath}`)
+  }
+
+  success(
+    `Seal(s) created for pattern gate '${gateId}' (${String(sealedCount)} of ${String(perFile.length)} file(s) resealed)`,
+  )
+  log(`  Sealed by: ${identitySlug} (${identity.name})`)
+  return 'sealed'
 }
 
 /**

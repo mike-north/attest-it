@@ -4,11 +4,12 @@ import {
   computeFingerprintSync,
   readSealsSync,
   verifyGateSeal,
-  verifyAllSeals,
+  getGate,
   SplitConfigNotFoundError,
   type VerificationState,
   type SealVerificationResult,
 } from '@attest-it/core'
+import { isPatternGate, verifyPatternGateSync } from '../utils/pattern-gate.js'
 import {
   log,
   success,
@@ -36,6 +37,11 @@ interface StatusOptions {
 
 interface GateStatus {
   gateId: string
+  /**
+   * For a pattern gate's per-file row, the specific matched file this row
+   * covers (repo-relative, forward-slash). Absent for a single-gate row.
+   */
+  artifactPath?: string
   state: VerificationState
   currentFingerprint: string
   sealedFingerprint?: string
@@ -104,53 +110,33 @@ async function runStatus(
       }
     }
 
-    // Compute fingerprints for all gates
-    const fingerprints: Record<string, string> = {}
+    // Build status results. A pattern gate (`kind: pattern`) expands into one
+    // row per matched file (each fingerprinted and sealed independently); a
+    // single gate keeps its one combined-fingerprint row exactly as before.
+    const results: GateStatus[] = []
     for (const gateId of gatesToCheck) {
-      // eslint-disable-next-line security/detect-object-injection
-      const gate = config.gates[gateId]
-      if (!gate) continue
+      const gate = getGate(config, gateId)
+      if (gate && isPatternGate(gate)) {
+        for (const { path: filePath, fingerprint, result } of verifyPatternGateSync(
+          config,
+          gateId,
+          gate,
+          projectRoot,
+        )) {
+          results.push(toGateStatus(result, fingerprint, filePath))
+        }
+        continue
+      }
 
-      const result = computeFingerprintSync({
-        paths: gate.fingerprint.paths,
-        ...(gate.fingerprint.exclude && { exclude: gate.fingerprint.exclude }),
-      })
-      // eslint-disable-next-line security/detect-object-injection
-      fingerprints[gateId] = result.fingerprint
+      const fingerprint = gate
+        ? computeFingerprintSync({
+            paths: gate.fingerprint.paths,
+            ...(gate.fingerprint.exclude && { exclude: gate.fingerprint.exclude }),
+          }).fingerprint
+        : ''
+      const result = verifyGateSeal(config, gateId, sealsFile, fingerprint)
+      results.push(toGateStatus(result, fingerprint))
     }
-
-    // Verify seals
-    const verificationResults =
-      gates.length > 0
-        ? gatesToCheck.map((gateId) =>
-            // eslint-disable-next-line security/detect-object-injection
-            verifyGateSeal(config, gateId, sealsFile, fingerprints[gateId] ?? ''),
-          )
-        : verifyAllSeals(config, sealsFile, fingerprints)
-
-    // Build status results
-    const results: GateStatus[] = verificationResults.map((result: SealVerificationResult) => {
-      const status: GateStatus = {
-        gateId: result.gateId,
-        state: result.state,
-        currentFingerprint: fingerprints[result.gateId] ?? '',
-        message: result.message,
-      }
-
-      if (result.seal) {
-        status.sealedFingerprint = result.seal.fingerprint
-        status.sealedBy = result.seal.sealedBy
-        status.sealedAt = result.seal.timestamp
-
-        // Calculate age
-        const timestamp = new Date(result.seal.timestamp)
-        const now = Date.now()
-        const ageMs = now - timestamp.getTime()
-        status.age = Math.floor(ageMs / (1000 * 60 * 60 * 24))
-      }
-
-      return status
-    })
 
     // Output results
     if (options.json) {
@@ -180,13 +166,48 @@ async function runStatus(
 }
 
 /**
+ * Build a {@link GateStatus} row from a verification result and the current
+ * fingerprint, carrying `artifactPath` for a pattern gate's per-file row.
+ */
+function toGateStatus(
+  result: SealVerificationResult,
+  currentFingerprint: string,
+  artifactPath?: string,
+): GateStatus {
+  const status: GateStatus = {
+    gateId: result.gateId,
+    ...(artifactPath !== undefined && { artifactPath }),
+    state: result.state,
+    currentFingerprint,
+    message: result.message,
+  }
+
+  if (result.seal) {
+    status.sealedFingerprint = result.seal.fingerprint
+    status.sealedBy = result.seal.sealedBy
+    status.sealedAt = result.seal.timestamp
+
+    const timestamp = new Date(result.seal.timestamp)
+    const ageMs = Date.now() - timestamp.getTime()
+    status.age = Math.floor(ageMs / (1000 * 60 * 60 * 24))
+  }
+
+  return status
+}
+
+/** Human-readable label for a row: the gate id, or `<gateId> › <artifact>` per file. */
+function rowLabel(r: { gateId: string; artifactPath?: string }): string {
+  return r.artifactPath !== undefined ? `${r.gateId} › ${r.artifactPath}` : r.gateId
+}
+
+/**
  * Display status results in a formatted table.
  *
  * @param results - Status results for gates
  */
 function displayStatusTable(results: GateStatus[]): void {
   const tableRows: TableRow[] = results.map((r) => ({
-    suite: r.gateId,
+    gate: rowLabel(r),
     status: colorizeState(r.state),
     fingerprint: r.currentFingerprint.slice(0, 16) + '...',
     age: formatAge(r),
@@ -201,7 +222,7 @@ function displayStatusTable(results: GateStatus[]): void {
   if (sealed.length > 0) {
     log('Seal metadata:')
     for (const result of sealed) {
-      log(`  ${result.gateId}:`)
+      log(`  ${rowLabel(result)}:`)
       log(`    Sealed by: ${result.sealedBy ?? 'unknown'}`)
       if (result.sealedAt) {
         const date = new Date(result.sealedAt)
@@ -216,7 +237,7 @@ function displayStatusTable(results: GateStatus[]): void {
   if (withIssues.length > 0) {
     log('Issues:')
     for (const result of withIssues) {
-      log(`  ${result.gateId}: ${result.message ?? 'Unknown issue'}`)
+      log(`  ${rowLabel(result)}: ${result.message ?? 'Unknown issue'}`)
     }
     log('')
   }
