@@ -267,7 +267,17 @@ async function runDirectMode(options: RunOptions): Promise<void> {
   }
 
   // Run the suite
-  await runSingleSuite(options.suite, config, options)
+  const outcome = await runSingleSuite(options.suite, config, options)
+
+  // An unauthorized signer never created a seal -- reporting "Suite
+  // completed!" (and a "To commit" hint for a seal that was never written)
+  // would tell a human or CI script that attestation succeeded when it did
+  // not. See issue #136.
+  if (outcome === 'unauthorized') {
+    log('')
+    error(`Suite '${options.suite}' failed: no seal was created (unauthorized signer)`)
+    process.exit(ExitCode.FAILURE)
+  }
 
   log('')
   success('Suite completed!')
@@ -322,7 +332,15 @@ async function runAllPending(options: RunOptions): Promise<void> {
 
   // Run each suite using existing direct mode logic
   for (const suite of suitesToRun) {
-    await runSingleSuite(suite.name, config, options)
+    const outcome = await runSingleSuite(suite.name, config, options)
+
+    // Same reasoning as runDirectMode: an unauthorized signer wrote no seal,
+    // so the run must not be reported as complete/successful. See issue #136.
+    if (outcome === 'unauthorized') {
+      log('')
+      error(`Suite '${suite.name}' failed: no seal was created (unauthorized signer)`)
+      process.exit(ExitCode.FAILURE)
+    }
   }
 
   log('')
@@ -331,18 +349,36 @@ async function runAllPending(options: RunOptions): Promise<void> {
 }
 
 /**
+ * Outcome of {@link runSingleSuite}'s seal-creation step, used by its callers
+ * to decide whether the overall command may report success.
+ *
+ * Only `'unauthorized'` suppresses the "Suite completed!" success banner and
+ * forces a nonzero exit -- an unauthorized signer's attempt writes no seal at
+ * all, so reporting success would tell the caller (human or CI script) a seal
+ * exists when it does not. See issue #136.
+ *
+ * The other skip reasons inside `promptForSeal` (no local identity
+ * configured, active identity not found, or the seal-creation call itself
+ * throwing) intentionally keep their pre-existing "warn and continue"
+ * behavior -- they are a distinct, non-security reporting gap tracked
+ * separately and are out of scope for this fix.
+ */
+type SealAttemptOutcome = 'sealed' | 'unauthorized' | 'not-attempted'
+
+/**
  * Run a single suite's tests and optionally create an attestation.
  *
  * @param suiteName - Name of the suite to run
  * @param config - Configuration object
  * @param options - Run options
+ * @returns The outcome of the suite's seal-creation attempt
  * @public
  */
 async function runSingleSuite(
   suiteName: string,
   config: AttestItConfig,
   options: RunOptions,
-): Promise<void> {
+): Promise<SealAttemptOutcome> {
   // eslint-disable-next-line security/detect-object-injection -- suiteName is from validated config keys
   const suiteConfig = config.suites[suiteName]
   if (!suiteConfig) {
@@ -388,13 +424,13 @@ async function runSingleSuite(
   // Skip sealing if --no-attest
   if (options.attest === false) {
     log('Skipping seal creation (--no-attest)')
-    return
+    return 'not-attempted'
   }
 
   // A successful run authorizes creating a seal for the suite's gate. The seal
   // is the single cryptographic record of the passing run (the legacy
   // attestations file has been retired).
-  await promptForSeal(suiteName, suiteConfig.gate, config, options.yes)
+  return await promptForSeal(suiteName, suiteConfig.gate, config, options.yes)
 }
 
 /**
@@ -412,17 +448,23 @@ async function runSingleSuite(
  * and a CI script must be able to tell a declined seal apart from
  * `SUCCESS` (0). See issue #100.
  *
+ * An unauthorized signer is reported the same way: it returns `'unauthorized'`
+ * (never writes a seal) so the caller can turn the whole command into a hard
+ * failure instead of the previous "warn and report success" behavior. See
+ * issue #136.
+ *
  * @param suiteName - Name of the suite that was executed
  * @param gateId - ID of the gate linked to the suite
  * @param config - Configuration object
  * @param autoConfirm - Skip the confirmation prompt and seal automatically (from `--yes`)
+ * @returns The outcome of the seal-creation attempt
  */
 async function promptForSeal(
   suiteName: string,
   gateId: string,
   config: AttestItConfig,
   autoConfirm?: boolean,
-): Promise<void> {
+): Promise<SealAttemptOutcome> {
   log('')
   log(`Suite '${suiteName}' is linked to gate '${gateId}'`)
 
@@ -431,21 +473,30 @@ async function promptForSeal(
   if (!localConfig) {
     warn('No local identity configuration found - cannot create seal')
     warn('Run "attest-it identity create" to set up your identity')
-    return
+    return 'not-attempted'
   }
 
   // Get active identity
   const identity = getActiveIdentity(localConfig)
   if (!identity) {
     warn(`Active identity '${localConfig.activeIdentity}' not found in local config`)
-    return
+    return 'not-attempted'
   }
 
-  // Check if user is authorized to seal this gate
+  // Check if user is authorized to seal this gate. Nothing has been signed or
+  // written yet, so refusing here is purely a reporting decision -- but it is
+  // the one that matters: reporting success (or even a soft warning) for an
+  // unauthorized attempt would tell the caller a seal exists when none was
+  // ever created. See issue #136.
   const authorized = isAuthorizedSigner(config, gateId, identity.publicKey)
   if (!authorized) {
-    warn(`You are not authorized to seal gate '${gateId}'`)
-    return
+    // eslint-disable-next-line security/detect-object-injection -- gateId is from validated config
+    const authorizedSigners = config.gates?.[gateId]?.authorizedSigners ?? []
+    error(
+      `Not authorized to seal gate '${gateId}' ` +
+        `(authorized signers: ${authorizedSigners.join(', ') || 'none'}). No seal was created.`,
+    )
+    return 'unauthorized'
   }
 
   // Resolve seal confirmation: --yes skips the prompt; interactively without
@@ -478,7 +529,7 @@ async function promptForSeal(
     // Get gate config
     if (!config.gates?.[gateId]) {
       error(`Gate '${gateId}' not found in configuration`)
-      return
+      return 'not-attempted'
     }
 
     // eslint-disable-next-line security/detect-object-injection
@@ -523,12 +574,14 @@ async function promptForSeal(
     success(`Seal created for gate '${gateId}'`)
     log(`  Sealed by: ${identitySlug} (${identity.name})`)
     log(`  Timestamp: ${seal.timestamp}`)
+    return 'sealed'
   } catch (err) {
     if (err instanceof Error) {
       error(`Failed to create seal: ${err.message}`)
     } else {
       error('Failed to create seal: Unknown error')
     }
+    return 'not-attempted'
   }
 }
 
