@@ -4,6 +4,9 @@ import {
   readSeals,
   verifyAllSeals,
   computeFingerprint,
+  computePolicyFingerprint,
+  verifyRootGate,
+  isBlockingRootGateState,
   type SealVerificationResult,
   type AttestItConfig,
   type SealsFile,
@@ -170,6 +173,37 @@ export async function run(): Promise<void> {
       } else {
         throw err
       }
+    }
+
+    // MANDATORY PRE-STEP: verify the config's OWN seal chain against the root
+    // gate BEFORE evaluating any other gate. In a PR context `config` (and thus
+    // the root gate's authorized signers) is loaded from the BASE branch — the
+    // trusted source — while the policy fingerprint and seals come from the PR
+    // working tree. A branch that modifies the trust-critical policy without a
+    // fresh root seal from a base-branch-authorized root signer therefore fails
+    // here, before any gate is trusted. A branch that adds itself as a root
+    // signer and self-seals is rejected as UNKNOWN_SIGNER (the base branch does
+    // not list it) — a branch cannot bootstrap a new root of trust for itself.
+    if (config.rootGate) {
+      const workingTreePolicyPath = resolve(process.cwd(), policyPath)
+      const policyFingerprint = await computePolicyFingerprint(process.cwd(), workingTreePolicyPath)
+      const rootResult = verifyRootGate({
+        config,
+        policyFingerprint,
+        seals,
+        trustedSourceLabel: effectivePolicyRef
+          ? `root signers from ${effectivePolicyRef}`
+          : undefined,
+      })
+
+      if (isBlockingRootGateState(rootResult.state)) {
+        core.setFailed(rootResult.message)
+        return
+      }
+      if (rootResult.state === 'STALE') {
+        core.warning(rootResult.message)
+      }
+      core.info('✓ Root gate verified: policy.yaml is sealed by an authorized root signer')
     }
 
     // Compute fingerprints for all gates
