@@ -126,7 +126,7 @@ Error: Gate 'yubikey-integration' verification failed
   Actual: def456...
 
   Files changed since last seal:
-    - packages/core/src/key-provider/yubikey-provider.ts
+    - packages/core/src/key-provider/vault-key-provider.ts
 ```
 
 ## Troubleshooting
