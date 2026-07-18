@@ -198,7 +198,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs2 = __importStar(require("fs"));
+    var fs = __importStar(require("fs"));
     var os3 = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -206,10 +206,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs2.existsSync(filePath)) {
+      if (!fs.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs2.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os3.EOL}`, {
+      fs.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os3.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -18636,12 +18636,12 @@ var require_io_util = __commonJS({
     var _a;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs2 = __importStar(require("fs"));
+    var fs = __importStar(require("fs"));
     var path3 = __importStar(require("path"));
-    _a = fs2.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
+    _a = fs.promises, exports2.chmod = _a.chmod, exports2.copyFile = _a.copyFile, exports2.lstat = _a.lstat, exports2.mkdir = _a.mkdir, exports2.open = _a.open, exports2.readdir = _a.readdir, exports2.readlink = _a.readlink, exports2.rename = _a.rename, exports2.rm = _a.rm, exports2.rmdir = _a.rmdir, exports2.stat = _a.stat, exports2.symlink = _a.symlink, exports2.unlink = _a.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs2.constants.O_RDONLY;
+    exports2.READONLY = fs.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter(this, void 0, void 0, function* () {
         try {
@@ -28829,14 +28829,14 @@ var require_parser = __commonJS({
             case "scalar":
             case "single-quoted-scalar":
             case "double-quoted-scalar": {
-              const fs2 = this.flowScalar(this.type);
+              const fs = this.flowScalar(this.type);
               if (atNextItem || it.value) {
-                map.items.push({ start, key: fs2, sep: [] });
+                map.items.push({ start, key: fs, sep: [] });
                 this.onKeyLine = true;
               } else if (it.sep) {
-                this.stack.push(fs2);
+                this.stack.push(fs);
               } else {
-                Object.assign(it, { key: fs2, sep: [] });
+                Object.assign(it, { key: fs, sep: [] });
                 this.onKeyLine = true;
               }
               return;
@@ -28964,13 +28964,13 @@ var require_parser = __commonJS({
             case "scalar":
             case "single-quoted-scalar":
             case "double-quoted-scalar": {
-              const fs2 = this.flowScalar(this.type);
+              const fs = this.flowScalar(this.type);
               if (!it || it.value)
-                fc.items.push({ start: [], key: fs2, sep: [] });
+                fc.items.push({ start: [], key: fs, sep: [] });
               else if (it.sep)
-                this.stack.push(fs2);
+                this.stack.push(fs);
               else
-                Object.assign(it, { key: fs2, sep: [] });
+                Object.assign(it, { key: fs, sep: [] });
               return;
             }
             case "flow-map-end":
@@ -33069,7 +33069,7 @@ var require_shared_lib_core = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.SharedLibCore = void 0;
-    var fs2 = __importStar(require("fs"));
+    var fs = __importStar(require("fs"));
     var os3 = __importStar(require("os"));
     var path3 = __importStar(require("path"));
     var errors_1 = require_errors3();
@@ -33103,7 +33103,7 @@ var require_shared_lib_core = __commonJS({
           throw new Error(`Unsupported platform: ${platform}`);
       }
       for (const addonPath of searchPaths) {
-        if (fs2.existsSync(addonPath)) {
+        if (fs.existsSync(addonPath)) {
           return addonPath;
         }
       }
@@ -38279,7 +38279,7 @@ var import_node_path = require("path");
 
 // ../core/dist/index.js
 init_cjs_shims();
-var fs = __toESM(require("fs"), 1);
+var fs2 = __toESM(require("fs"), 1);
 var import_fs3 = require("fs");
 var path4 = __toESM(require("path"), 1);
 var import_path4 = require("path");
@@ -43363,6 +43363,7 @@ function fromZod(version2, zodSchema, options) {
 var fs32 = __toESM(require("fs/promises"), 1);
 var import_promises = require("fs/promises");
 var crypto22 = __toESM(require("crypto"), 1);
+var import_crypto = require("crypto");
 
 // ../../node_modules/.pnpm/tinyglobby@0.2.15/node_modules/tinyglobby/dist/index.mjs
 init_cjs_shims();
@@ -43487,11 +43488,11 @@ function build$3(options) {
   return options.group ? groupFiles : empty;
 }
 var resolveSymlinksAsync = function(path3, state, callback$1) {
-  const { queue, fs: fs2, options: { suppressErrors } } = state;
+  const { queue, fs, options: { suppressErrors } } = state;
   queue.enqueue();
-  fs2.realpath(path3, (error2, resolvedPath) => {
+  fs.realpath(path3, (error2, resolvedPath) => {
     if (error2) return queue.dequeue(suppressErrors ? null : error2, state);
-    fs2.stat(resolvedPath, (error$1, stat3) => {
+    fs.stat(resolvedPath, (error$1, stat3) => {
       if (error$1) return queue.dequeue(suppressErrors ? null : error$1, state);
       if (stat3.isDirectory() && isRecursive(path3, resolvedPath, state)) return queue.dequeue(null, state);
       callback$1(stat3, resolvedPath);
@@ -43500,11 +43501,11 @@ var resolveSymlinksAsync = function(path3, state, callback$1) {
   });
 };
 var resolveSymlinks = function(path3, state, callback$1) {
-  const { queue, fs: fs2, options: { suppressErrors } } = state;
+  const { queue, fs, options: { suppressErrors } } = state;
   queue.enqueue();
   try {
-    const resolvedPath = fs2.realpathSync(path3);
-    const stat3 = fs2.statSync(resolvedPath);
+    const resolvedPath = fs.realpathSync(path3);
+    const stat3 = fs.statSync(resolvedPath);
     if (stat3.isDirectory() && isRecursive(path3, resolvedPath, state)) return;
     callback$1(stat3, resolvedPath);
   } catch (e) {
@@ -43574,22 +43575,22 @@ var readdirOpts = { withFileTypes: true };
 var walkAsync = (state, crawlPath, directoryPath, currentDepth, callback$1) => {
   state.queue.enqueue();
   if (currentDepth < 0) return state.queue.dequeue(null, state);
-  const { fs: fs2 } = state;
+  const { fs } = state;
   state.visited.push(crawlPath);
   state.counts.directories++;
-  fs2.readdir(crawlPath || ".", readdirOpts, (error2, entries = []) => {
+  fs.readdir(crawlPath || ".", readdirOpts, (error2, entries = []) => {
     callback$1(entries, directoryPath, currentDepth);
     state.queue.dequeue(state.options.suppressErrors ? null : error2, state);
   });
 };
 var walkSync = (state, crawlPath, directoryPath, currentDepth, callback$1) => {
-  const { fs: fs2 } = state;
+  const { fs } = state;
   if (currentDepth < 0) return;
   state.visited.push(crawlPath);
   state.counts.directories++;
   let entries = [];
   try {
-    entries = fs2.readdirSync(crawlPath || ".", readdirOpts);
+    entries = fs.readdirSync(crawlPath || ".", readdirOpts);
   } catch (e) {
     if (!state.options.suppressErrors) throw e;
   }
@@ -46349,13 +46350,49 @@ var sealsFileSchemaV1 = external_exports.object({
   version: versionSchema(1),
   seals: external_exports.record(external_exports.string(), sealSchemaV1)
 });
+var sealsFileSchemaV2 = external_exports.object({
+  version: versionSchema(2),
+  seals: external_exports.record(external_exports.string(), sealSchemaV1)
+});
 var schemaV12 = fromZod("1", sealsFileSchemaV1);
+var schemaV22 = fromZod("2", sealsFileSchemaV2);
 createMigrationGraph({
   id: "attest-it-seals",
   versionStrategy: integerStrategy,
-  schemas: [schemaV12],
-  migrations: []
+  schemas: [schemaV12, schemaV22],
+  migrations: [
+    {
+      fromVersion: "1",
+      toVersion: "2",
+      irreversibleReason: "The monolithic single-file seals format (v1) is intentionally retired: once migrated to the file-per-seal layout (v2) the monolith is deleted and never rewritten, so there is no supported path back to v1.",
+      up: (v1Data) => ({
+        version: 2,
+        // Seals bind artifact content, not storage location; relocating them
+        // from a monolith to per-seal files carries every seal through verbatim.
+        seals: v1Data.seals
+      })
+    }
+  ]
 });
+function migrateSealsDocumentToCurrent(raw, source) {
+  if (typeof raw === "object" && raw !== null && "version" in raw) {
+    const withVersion = raw;
+    const version2 = withVersion.version;
+    if (version2 !== 1 && version2 !== "1" && version2 !== 2 && version2 !== "2") {
+      throw new Error(`Unsupported seals file version: ${String(version2)}`);
+    }
+  }
+  const asV2 = sealsFileSchemaV2.safeParse(raw);
+  if (asV2.success) {
+    return asV2.data;
+  }
+  const asV1 = sealsFileSchemaV1.safeParse(raw);
+  if (!asV1.success) {
+    const errors = asV1.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join(", ");
+    throw new Error(`Failed to read seals file '${source}': Validation failed: ${errors}`);
+  }
+  return { version: 2, seals: asV1.data.seals };
+}
 var ROOT_GATE_ID = "__root__";
 function versionSchema2(version2) {
   return external_exports.union([external_exports.literal(version2), external_exports.literal(String(version2))]).transform(() => version2);
@@ -46364,7 +46401,7 @@ var policySettingsSchemaV1 = external_exports.object({
   maxAgeDays: external_exports.number().int().positive().default(30),
   publicKeyPath: external_exports.string().default(".attest-it/pubkey.pem"),
   attestationsPath: external_exports.string().default(".attest-it/attestations.json"),
-  sealsPath: external_exports.string().default(".attest-it/seals.json")
+  sealsPath: external_exports.string().default(".attest-it/seals/")
 }).strict();
 var rootGateSchemaV1 = external_exports.object({
   authorizedSigners: external_exports.array(external_exports.string().min(1, "Root-gate signer slug cannot be empty")).min(1, "The root gate requires at least one authorized signer"),
@@ -46438,7 +46475,7 @@ var unifiedSettingsSchema = external_exports.object({
   maxAgeDays: external_exports.number().int().positive().default(30),
   publicKeyPath: external_exports.string().default(".attest-it/pubkey.pem"),
   attestationsPath: external_exports.string().default(".attest-it/attestations.json"),
-  sealsPath: external_exports.string().default(".attest-it/seals.json"),
+  sealsPath: external_exports.string().default(".attest-it/seals/"),
   defaultCommand: external_exports.string().optional(),
   keyProvider: keyProviderSchema.optional()
 }).passthrough();
@@ -46858,7 +46895,7 @@ async function hashFileAsync(realPath, normalizedPath, stats) {
       const hash2 = crypto22.createHash("sha256");
       hash2.update(normalizedPath);
       hash2.update(":");
-      const stream = fs.createReadStream(realPath);
+      const stream = fs2.createReadStream(realPath);
       stream.on("data", (chunk) => {
         hash2.update(chunk);
       });
@@ -46868,7 +46905,7 @@ async function hashFileAsync(realPath, normalizedPath, stats) {
       stream.on("error", reject);
     });
   }
-  const content = await fs.promises.readFile(realPath);
+  const content = await fs2.promises.readFile(realPath);
   const hash = crypto22.createHash("sha256");
   hash.update(normalizedPath);
   hash.update(":");
@@ -46886,7 +46923,7 @@ function validateOptions(options) {
   for (const p of options.paths) {
     if (!isGlobPattern(p)) {
       const resolvedPath = path4.resolve(baseDir, p);
-      if (!fs.existsSync(resolvedPath)) {
+      if (!fs2.existsSync(resolvedPath)) {
         throw new Error(`Path does not exist: ${resolvedPath}`);
       }
     }
@@ -46902,15 +46939,15 @@ async function computeFingerprint(options) {
   for (const file of sortedFiles) {
     const filePath = path4.resolve(baseDir, file);
     let realPath = filePath;
-    let stats = await fs.promises.lstat(filePath);
+    let stats = await fs2.promises.lstat(filePath);
     if (stats.isSymbolicLink()) {
       try {
-        realPath = await fs.promises.realpath(filePath);
+        realPath = await fs2.promises.realpath(filePath);
       } catch {
         continue;
       }
       try {
-        stats = await fs.promises.stat(realPath);
+        stats = await fs2.promises.stat(realPath);
       } catch {
         continue;
       }
@@ -46942,7 +46979,7 @@ function resolvePackagePattern(pkg, baseDir) {
   }
   const fullPath = path4.resolve(baseDir, pkg);
   try {
-    const stats = fs.statSync(fullPath);
+    const stats = fs2.statSync(fullPath);
     return stats.isFile() ? pkg : `${pkg}/**/*`;
   } catch {
     return pkg;
@@ -47066,12 +47103,183 @@ function verify2(data, signature, publicKeyBase64) {
     );
   }
 }
+var CURRENT_SEALS_VERSION = 2;
+var SEAL_FILE_EXT = ".seal";
+var SEAL_FILE_HEADER = "# yaml-language-server: $schema=https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/seal.schema.json\n";
+var SLUG_READABLE_MAX = 48;
+function slugifySegment(input) {
+  const hash = (0, import_crypto.createHash)("sha256").update(input, "utf8").digest("hex").slice(0, 32);
+  const readable = input.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/^[-.]+/, "").replace(/-+$/, "").slice(0, SLUG_READABLE_MAX);
+  const prefix = readable.length > 0 ? readable : "seg";
+  return `${prefix}-${hash}`;
+}
+function sealRelPath(gateId, sealedBy) {
+  return path4.join(slugifySegment(gateId), slugifySegment(sealedBy) + SEAL_FILE_EXT);
+}
+function resolveSealsRoot(dir, sealsPathOverride) {
+  if (sealsPathOverride === void 0) {
+    return path4.join(dir, ".attest-it", "seals");
+  }
+  const resolved = path4.resolve(dir, sealsPathOverride);
+  return resolved.replace(/\.(json|ya?ml)$/i, "");
+}
+function legacyMonolithCandidates(root) {
+  return [`${root}.yaml`, `${root}.yml`, `${root}.json`];
+}
+function serializeSeal(seal2) {
+  const ordered = {
+    gateId: seal2.gateId,
+    fingerprint: seal2.fingerprint,
+    timestamp: seal2.timestamp,
+    sealedBy: seal2.sealedBy,
+    signature: seal2.signature
+  };
+  return SEAL_FILE_HEADER + (0, import_yaml.stringify)(ordered);
+}
+function parseSeal(content, source) {
+  let data;
+  try {
+    data = (0, import_yaml.parse)(content);
+  } catch (error2) {
+    throw new Error(
+      `Failed to read seal file '${source}': ${error2 instanceof Error ? error2.message : String(error2)}`
+    );
+  }
+  const result = sealSchemaV1.safeParse(data);
+  if (!result.success) {
+    const errors = result.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join(", ");
+    throw new Error(`Failed to read seal file '${source}': Validation failed: ${errors}`);
+  }
+  return result.data;
+}
+function isPreferredOver(candidate, current) {
+  if (candidate.timestamp !== current.timestamp) {
+    return candidate.timestamp > current.timestamp;
+  }
+  return candidate.sealedBy > current.sealedBy;
+}
+function pruneEmptyDirsSync(root) {
+  let entries;
+  try {
+    entries = fs2.readdirSync(root, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      const child = path4.join(root, entry.name);
+      pruneEmptyDirsSync(child);
+      try {
+        if (fs2.readdirSync(child).length === 0) {
+          fs2.rmdirSync(child);
+        }
+      } catch {
+      }
+    }
+  }
+}
+function parseMonolith(content, source) {
+  let raw;
+  try {
+    raw = (0, import_yaml.parse)(content);
+  } catch (error2) {
+    if (error2 instanceof SyntaxError || error2 instanceof Error && error2.name === "YAMLParseError") {
+      throw new Error(`Failed to read seals file: Invalid seals document`);
+    }
+    throw error2;
+  }
+  return migrateSealsDocumentToCurrent(raw, source);
+}
 function isFileNotFoundError(error2) {
   if (error2 && typeof error2 === "object" && "code" in error2) {
     const errorWithCode = error2;
     return errorWithCode.code === "ENOENT" || errorWithCode.code === "ENOTDIR";
   }
   return false;
+}
+async function listSealFilePaths(root) {
+  const out = [];
+  const walk = async (dir) => {
+    let entries;
+    try {
+      entries = await fs2.promises.readdir(dir, { withFileTypes: true });
+    } catch (error2) {
+      if (isFileNotFoundError(error2)) return;
+      throw error2;
+    }
+    for (const entry of entries) {
+      const full = path4.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(full);
+      } else if (entry.isFile() && entry.name.endsWith(SEAL_FILE_EXT)) {
+        out.push(full);
+      }
+    }
+  };
+  await walk(root);
+  return out.sort();
+}
+async function readSealsFromDir(root) {
+  const paths = await listSealFilePaths(root);
+  const seals = {};
+  for (const p of paths) {
+    const seal2 = parseSeal(await fs2.promises.readFile(p, "utf8"), p);
+    const current = seals[seal2.gateId];
+    if (!current || isPreferredOver(seal2, current)) {
+      seals[seal2.gateId] = seal2;
+    }
+  }
+  return { version: CURRENT_SEALS_VERSION, seals };
+}
+async function writeSealsToDir(root, sealsFile) {
+  const desired = /* @__PURE__ */ new Map();
+  for (const seal2 of Object.values(sealsFile.seals)) {
+    desired.set(path4.join(root, sealRelPath(seal2.gateId, seal2.sealedBy)), seal2);
+  }
+  const existing = await listSealFilePaths(root);
+  for (const [target, seal2] of desired) {
+    const content = serializeSeal(seal2);
+    let prior;
+    try {
+      prior = await fs2.promises.readFile(target, "utf8");
+    } catch {
+      prior = void 0;
+    }
+    if (prior !== content) {
+      await fs2.promises.mkdir(path4.dirname(target), { recursive: true });
+      await fs2.promises.writeFile(target, content, "utf8");
+    }
+  }
+  for (const p of existing) {
+    if (!desired.has(p)) {
+      await fs2.promises.rm(p, { force: true });
+    }
+  }
+  pruneEmptyDirsSync(root);
+}
+async function migrateMonoliths(dir, root) {
+  const candidates = legacyMonolithCandidates(root);
+  let migrated;
+  const present = [];
+  for (const candidate of candidates) {
+    let content;
+    try {
+      content = await fs2.promises.readFile(candidate, "utf8");
+    } catch (error2) {
+      if (isFileNotFoundError(error2)) continue;
+      throw new Error(
+        `Failed to read seals file: ${error2 instanceof Error ? error2.message : String(error2)}`
+      );
+    }
+    present.push(candidate);
+    migrated ??= parseMonolith(content, candidate);
+  }
+  if (!migrated) return false;
+  await writeSealsToDir(root, migrated);
+  for (const candidate of present) {
+    await fs2.promises.rm(candidate, { force: true });
+  }
+  return true;
 }
 function verifySeal(seal2, config) {
   const { gateId, fingerprint: fingerprint2, timestamp, sealedBy, signature } = seal2;
@@ -47105,80 +47313,10 @@ function verifySeal(seal2, config) {
     };
   }
 }
-function createEmptySealsFile() {
-  return {
-    version: 1,
-    seals: {}
-  };
-}
-function detectFormat2(filepath) {
-  const ext = filepath.split(".").pop()?.toLowerCase();
-  if (ext === "json") return "json";
-  return "yaml";
-}
-function parseSealsContent(content, format) {
-  let data;
-  try {
-    data = format === "yaml" ? (0, import_yaml.parse)(content) : JSON.parse(content);
-  } catch (error2) {
-    if (error2 instanceof SyntaxError || error2 instanceof Error && error2.name === "YAMLParseError") {
-      throw new Error(`Failed to read seals file: Invalid ${format.toUpperCase()}`);
-    }
-    throw error2;
-  }
-  if (typeof data === "object" && data !== null && "version" in data) {
-    const dataObj = data;
-    const version2 = dataObj.version;
-    if (version2 !== 1 && version2 !== "1") {
-      throw new Error(`Unsupported seals file version: ${String(version2)}`);
-    }
-  }
-  const result = sealsFileSchemaV1.safeParse(data);
-  if (!result.success) {
-    const errors = result.error.issues.map((issue) => `${issue.path.join(".")}: ${issue.message}`).join(", ");
-    throw new Error(`Failed to read seals file: Validation failed: ${errors}`);
-  }
-  return result.data;
-}
 async function readSeals(dir, sealsPathOverride) {
-  if (sealsPathOverride) {
-    const sealsPath = path4.resolve(dir, sealsPathOverride);
-    let content;
-    try {
-      content = await fs.promises.readFile(sealsPath, "utf8");
-    } catch (error2) {
-      if (isFileNotFoundError(error2)) {
-        return createEmptySealsFile();
-      }
-      throw new Error(
-        `Failed to read seals file: ${error2 instanceof Error ? error2.message : String(error2)}`
-      );
-    }
-    return parseSealsContent(content, detectFormat2(sealsPath));
-  }
-  const yamlPath = path4.join(dir, ".attest-it", "seals.yaml");
-  const jsonPath = path4.join(dir, ".attest-it", "seals.json");
-  try {
-    const content = await fs.promises.readFile(yamlPath, "utf8");
-    return parseSealsContent(content, "yaml");
-  } catch (error2) {
-    if (!isFileNotFoundError(error2)) {
-      throw new Error(
-        `Failed to read seals file: ${error2 instanceof Error ? error2.message : String(error2)}`
-      );
-    }
-  }
-  try {
-    const content = await fs.promises.readFile(jsonPath, "utf8");
-    return parseSealsContent(content, "json");
-  } catch (error2) {
-    if (isFileNotFoundError(error2)) {
-      return createEmptySealsFile();
-    }
-    throw new Error(
-      `Failed to read seals file: ${error2 instanceof Error ? error2.message : String(error2)}`
-    );
-  }
+  const root = resolveSealsRoot(dir, sealsPathOverride);
+  await migrateMonoliths(dir, root);
+  return readSealsFromDir(root);
 }
 function isAuthorizedSigner(config, gateId, publicKey) {
   const gate = config.gates?.[gateId];
@@ -47898,13 +48036,13 @@ async function run() {
       config = { ...config, suites: { [suite]: suiteConfig } };
     }
     core.info("Verifying seals...");
-    const sealsPath = config.settings.sealsPath ?? ".attest-it/seals.json";
+    const sealsPath = config.settings.sealsPath ?? ".attest-it/seals/";
     let seals;
     try {
       seals = await readSeals(process.cwd(), sealsPath);
     } catch (err) {
       if (isFileNotFoundError2(err)) {
-        seals = { version: 1, seals: {} };
+        seals = { version: CURRENT_SEALS_VERSION, seals: {} };
       } else {
         throw err;
       }

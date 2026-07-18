@@ -55,7 +55,7 @@ const unifiedSettingsSchema = z
     maxAgeDays: z.number().int().positive().default(30),
     publicKeyPath: z.string().default('.attest-it/pubkey.pem'),
     attestationsPath: z.string().default('.attest-it/attestations.json'),
-    sealsPath: z.string().default('.attest-it/seals.json'),
+    sealsPath: z.string().default('.attest-it/seals/'),
     defaultCommand: z.string().optional(),
     keyProvider: keyProviderSchema.optional(),
   })

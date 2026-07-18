@@ -428,7 +428,7 @@ async function bootstrapRootGate(
   // to the policy schema default when unspecified.
   const settings = isPlainRecord(policy.settings) ? policy.settings : {}
   const sealsPath =
-    typeof settings.sealsPath === 'string' ? settings.sealsPath : '.attest-it/seals.json'
+    typeof settings.sealsPath === 'string' ? settings.sealsPath : '.attest-it/seals/'
 
   const policyHeader =
     '# yaml-language-server: $schema=https://raw.githubusercontent.com/mike-north/attest-it/main/schemas/v1/policy.schema.json\n' +

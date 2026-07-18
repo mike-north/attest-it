@@ -139,21 +139,49 @@ settings:
   maxAgeDays: 30
   publicKeyPath: .attest-it/pubkey.pem
   attestationsPath: .attest-it/attestations.json
-  sealsPath: .attest-it/seals.json
+  sealsPath: .attest-it/seals/
 ```
 
-| Field              | Type    | Required | Default                        | Description                                                                                                              |
-| ------------------ | ------- | -------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
-| `maxAgeDays`       | integer | No       | `30`                           | Default maximum seal age in days                                                                                         |
-| `publicKeyPath`    | string  | No       | `.attest-it/pubkey.pem`        | Accepted but not currently read                                                                                          |
-| `attestationsPath` | string  | No       | `.attest-it/attestations.json` | Accepted but not currently read                                                                                          |
-| `sealsPath`        | string  | No       | `.attest-it/seals.json`        | Path to the seals file -- the only one of these four settings that actually governs where seals are read from/written to |
+| Field              | Type    | Required | Default                        | Description                                                                                                                  |
+| ------------------ | ------- | -------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| `maxAgeDays`       | integer | No       | `30`                           | Default maximum seal age in days                                                                                             |
+| `publicKeyPath`    | string  | No       | `.attest-it/pubkey.pem`        | Accepted but not currently read                                                                                              |
+| `attestationsPath` | string  | No       | `.attest-it/attestations.json` | Accepted but not currently read                                                                                              |
+| `sealsPath`        | string  | No       | `.attest-it/seals/`            | Seal storage **directory** -- the only one of these four settings that actually governs where seals are read from/written to |
 
 Only `sealsPath` currently has an effect: every command that reads or writes
 seals (`seal`, `run`, `verify`, `status`, `prune`, `team remove`) resolves the
-seals file location from `settings.sealsPath`. `publicKeyPath` and
+seal storage directory from `settings.sealsPath`. `publicKeyPath` and
 `attestationsPath` are accepted by the schema (with defaults) but nothing in
 the codebase reads them back -- setting either has no observable effect.
+
+#### Seal storage layout (file-per-seal)
+
+Seals are stored **one file per (gate, signer)** under the `sealsPath`
+directory, using a deterministic, collision-safe path:
+
+```text
+.attest-it/seals/<gate-slug>/<signer-slug>.seal
+```
+
+Each `.seal` file holds a single seal. Because disjoint gates (and disjoint
+signers of the same gate) live in separate files, two parallel proposal PRs that
+each add one tool and one seal never touch a shared file and therefore **merge
+without seal-storage conflicts**. The slug for each path segment is
+`<readable>-<sha256-prefix>`, so two distinct identifiers can never collide on
+disk (even on case-insensitive filesystems). The slug is purely organizational:
+a seal's cryptographic content is bound to its artifact fingerprint, not to its
+storage path. The root gate's seal is stored under the reserved `__root__` gate
+directory alongside ordinary gate seals.
+
+> **Migration from the monolithic format.** Earlier versions stored all seals in
+> a single monolithic `.attest-it/seals.json` (or `seals.yaml`) file. On the
+> first seal read/write, a repository still carrying such a file is migrated
+> automatically to the file-per-seal layout and the old monolith is deleted — no
+> manual step is required. A legacy `sealsPath` still pointing at
+> `.attest-it/seals.json` is transparently treated as the `.attest-it/seals/`
+> directory, so an existing (root-gate-sealed) `policy.yaml` never needs
+> rewriting.
 
 ### Operational Settings (`config.yaml`)
 
@@ -646,8 +674,8 @@ also shared by both `verify` and `status`.
 ```yaml
 # .attest-it/policy.yaml
 settings:
-  sealsPath: .attest-it/seals.json
-  # Resolves to: /path/to/repo/.attest-it/seals.json
+  sealsPath: .attest-it/seals/
+  # Resolves to: /path/to/repo/.attest-it/seals/
 ```
 
 **Home directory paths** (`~`):
@@ -703,7 +731,7 @@ version: 1
 
 settings:
   maxAgeDays: 30
-  sealsPath: .attest-it/seals.json
+  sealsPath: .attest-it/seals/
 
 team:
   alice:

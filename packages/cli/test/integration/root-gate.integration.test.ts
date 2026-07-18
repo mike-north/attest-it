@@ -23,6 +23,7 @@ import {
   createRootSeal,
   computePolicyFingerprintSync,
   generateEd25519KeyPair,
+  readSealsSync,
   verifyRootGate,
   ROOT_GATE_ID,
   type AttestItConfig,
@@ -382,9 +383,9 @@ describe('root gate — bootstrap ceremony reaches trusted state in one human-ru
     ) as { rootGate?: { authorizedSigners: string[] } }
     expect(policy.rootGate?.authorizedSigners).toEqual(['test-user'])
 
-    const seals = JSON.parse(
-      fs.readFileSync(path.join(projectDir, '.attest-it', 'seals.json'), 'utf8'),
-    ) as SealsFile
+    // The root seal is hosted in the file-per-seal layout under a reserved
+    // `__root__` gate directory; read it back through the public aggregate API.
+    const seals = readSealsSync(projectDir)
     expect(seals.seals[ROOT_GATE_ID]).toBeDefined()
 
     // Add a gate + suite so there is real work to verify, then re-anchor the
