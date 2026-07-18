@@ -23,7 +23,9 @@ import {
   createRootSeal,
   computePolicyFingerprintSync,
   generateEd25519KeyPair,
+  verifyRootGate,
   ROOT_GATE_ID,
+  type AttestItConfig,
   type SealsFile,
 } from '@attest-it/core'
 
@@ -250,6 +252,82 @@ describe('root gate — CLI verify against tampered/valid policy.yaml (#72)', ()
     const result = await runCli(['verify', 'example-gate'], dir)
     expect(result.exitCode).toBe(0)
     expect(result.stdout).toContain('VALID')
+  })
+
+  it('SCENARIO B — BY DESIGN: a self-rewritten + self-resealed rootGate PASSES plain local verify, while the base-branch trust model (the Action) rejects it', async () => {
+    // This test documents a DELIBERATE design boundary, not a vulnerability.
+    //
+    // Local `attest-it verify` evaluates against the WORKING TREE's policy. If a
+    // branch rewrites `rootGate.authorizedSigners` to a key it controls and
+    // re-seals the policy with that key, local verify trusts that local anchor and
+    // reports VALID — by design. Local verify is a fast pre-check, not the trust
+    // boundary (see the command docblock and docs/threat-model.md).
+    //
+    // The trust boundary is the merge gate: the GitHub Action sources
+    // `rootGate`/`team`/`gates` from the BASE branch, so the same self-rewritten
+    // anchor is rejected as UNKNOWN_SIGNER. We assert BOTH halves so the
+    // intended/observed split is explicit and regression-guarded.
+    const mallory = generateEd25519KeyPair()
+
+    // Attacker rewrites the local policy: root signer -> mallory, and authorizes
+    // mallory on the example gate too.
+    editPolicy(dir, (policy) => {
+      policy.rootGate = { authorizedSigners: ['mallory'] }
+      const team = policy.team as Record<string, unknown>
+      team.mallory = { name: 'Mallory', publicKey: mallory.publicKey }
+      const gates = policy.gates as Record<string, { authorizedSigners: string[] }>
+      gates['example-gate'].authorizedSigners = ['mallory']
+    })
+
+    // Re-seal BOTH the root gate and the example gate with mallory's own key over
+    // the new local policy content.
+    const policyPath = path.join(dir, '.attest-it', 'policy.yaml')
+    const policyFingerprint = computePolicyFingerprintSync(dir, policyPath)
+    const rootSeal = createRootSeal({
+      policyFingerprint,
+      sealedBy: 'mallory',
+      privateKey: mallory.privateKey,
+    })
+    const statusJson = await runCli(['status', 'example-gate', '--json'], dir)
+    const gateFp = (JSON.parse(statusJson.stdout) as { currentFingerprint: string }[])[0]!
+      .currentFingerprint
+    const gateSeal = createSeal({
+      gateId: 'example-gate',
+      fingerprint: gateFp,
+      sealedBy: 'mallory',
+      privateKey: mallory.privateKey,
+    })
+    writeSeals(dir, { version: 1, seals: { [ROOT_GATE_ID]: rootSeal, 'example-gate': gateSeal } })
+    await runGit(['add', '.'], dir)
+    await runGit(['commit', '-m', 'self-rewrite + self-reseal root of trust'], dir)
+
+    // OBSERVED, BY DESIGN: local verify trusts the local anchor -> PASSES.
+    const local = await runCli(['verify', 'example-gate'], dir)
+    expect(local.exitCode).toBe(0)
+    expect(local.stdout).toContain('VALID')
+
+    // INTENDED BOUNDARY: the merge gate (the Action) verifies the SAME working-tree
+    // root seal against the TRUSTED base-branch config, whose rootGate/team still
+    // list only the original owner ('test-user'). Mallory is not a base-branch root
+    // signer, so it is rejected as UNKNOWN_SIGNER.
+    const baseConfig: AttestItConfig = {
+      version: 1,
+      settings: {
+        maxAgeDays: 30,
+        publicKeyPath: '.attest-it/pubkey.pem',
+        attestationsPath: '.attest-it/attestations.json',
+        sealsPath: '.attest-it/seals.json',
+      },
+      rootGate: { authorizedSigners: ['test-user'], maxAge: '365d' },
+      team: { 'test-user': { name: 'Test User', publicKey: ownerPublicKey } },
+      suites: {},
+    }
+    const baseResult = verifyRootGate({
+      config: baseConfig,
+      policyFingerprint,
+      seals: { version: 1, seals: { [ROOT_GATE_ID]: rootSeal } },
+    })
+    expect(baseResult.state).toBe('UNKNOWN_SIGNER')
   })
 })
 
