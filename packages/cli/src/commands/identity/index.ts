@@ -5,6 +5,7 @@ import { useCommand } from './use.js'
 import { showCommand } from './show.js'
 import { removeCommand } from './remove.js'
 import { exportCommand } from './export.js'
+import { migrateCommand } from './migrate.js'
 
 export const identityCommand = new Command('identity')
   .description('Manage local identities and keypairs')
@@ -14,3 +15,4 @@ export const identityCommand = new Command('identity')
   .addCommand(showCommand)
   .addCommand(removeCommand)
   .addCommand(exportCommand)
+  .addCommand(migrateCommand)
