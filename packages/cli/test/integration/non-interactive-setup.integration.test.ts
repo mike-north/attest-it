@@ -256,7 +256,10 @@ describe('non-interactive setup end-to-end (issue #80)', () => {
   it(
     'runs identity create -> init -> run (seal) -> verify with zero TTY prompts and stdin closed throughout',
     async () => {
-      const env = { ATTEST_IT_HOME: homeDir }
+      // Issue #114: also redirect VaultKeeper's `file` backend to this same
+      // isolated temp home, so `identity create --storage file` never
+      // touches the real `~/.config/vaultkeeper/file/`.
+      const env = { ATTEST_IT_HOME: homeDir, VAULTKEEPER_CONFIG_DIR: homeDir }
 
       // 1. identity create: the very first onboarding step. This is the
       // exact hang this issue reports -- it must complete with no prompt.
@@ -347,7 +350,10 @@ describe('non-interactive setup end-to-end (issue #80)', () => {
   it(
     'fails fast (never hangs) when identity create is missing required flags with no TTY',
     async () => {
-      const env = { ATTEST_IT_HOME: homeDir }
+      // Issue #114: also redirect VaultKeeper's `file` backend to this same
+      // isolated temp home, so `identity create --storage file` never
+      // touches the real `~/.config/vaultkeeper/file/`.
+      const env = { ATTEST_IT_HOME: homeDir, VAULTKEEPER_CONFIG_DIR: homeDir }
 
       const result = await runCliNonInteractive(['identity', 'create'], projectDir, env)
 
@@ -360,7 +366,10 @@ describe('non-interactive setup end-to-end (issue #80)', () => {
   it(
     'fails fast (never hangs) when init would overwrite existing config without --force, with no TTY',
     async () => {
-      const env = { ATTEST_IT_HOME: homeDir }
+      // Issue #114: also redirect VaultKeeper's `file` backend to this same
+      // isolated temp home, so `identity create --storage file` never
+      // touches the real `~/.config/vaultkeeper/file/`.
+      const env = { ATTEST_IT_HOME: homeDir, VAULTKEEPER_CONFIG_DIR: homeDir }
 
       const first = await runCliNonInteractive(['init'], projectDir, env)
       expect(first.exitCode).toBe(0)
@@ -375,7 +384,10 @@ describe('non-interactive setup end-to-end (issue #80)', () => {
   it(
     'fails fast (never hangs) when run has pending suites but neither --suite nor --all is given, with no TTY',
     async () => {
-      const env = { ATTEST_IT_HOME: homeDir }
+      // Issue #114: also redirect VaultKeeper's `file` backend to this same
+      // isolated temp home, so `identity create --storage file` never
+      // touches the real `~/.config/vaultkeeper/file/`.
+      const env = { ATTEST_IT_HOME: homeDir, VAULTKEEPER_CONFIG_DIR: homeDir }
 
       const initResult = await runCliNonInteractive(['init'], projectDir, env)
       expect(initResult.exitCode).toBe(0)
