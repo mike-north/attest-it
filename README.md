@@ -76,6 +76,7 @@ The primary threat is an AI assistant creating a fake attestation. attest-it pre
 - **Secure storage**: Keys stored in 1Password, macOS Keychain, YubiKey, or encrypted files
 - **Team authorization**: Each gate specifies who can sign
 - **Fingerprinting**: Code changes invalidate seals
+- **Sealed root gate**: `policy.yaml` (the trust data itself) is a sealed artifact — a pull request can't add itself to `team`/`gates` and pass verification. See [threat model](docs/threat-model.md).
 
 ## Configuration
 
@@ -91,6 +92,11 @@ minVersion: '0.9.0' # Optional: minimum attest-it version required
 
 settings:
   maxAgeDays: 30
+
+# Trust anchor: only these signers may authorize changes to policy.yaml itself.
+# Establish it once with `attest-it init --root-signer <slug>`.
+rootGate:
+  authorizedSigners: [alice]
 
 # Team members authorized to create seals
 team:
@@ -128,6 +134,7 @@ suites:
 **Key concepts:**
 
 - **Team** - People authorized to create seals, identified by their public key (in `policy.yaml`)
+- **Root gate** - The trust anchor over `policy.yaml` itself; only `rootGate.authorizedSigners` may authorize changes to the trust data. Established via the `attest-it init --root-signer` bootstrap ceremony (in `policy.yaml`)
 - **Gates** - Define which files require attestation and who can sign, including the fingerprint config (in `policy.yaml`)
 - **Fingerprint** - Files to hash; any change invalidates the seal (lives on the gate)
 - **Suites** - Test commands that reference a gate; every suite must specify `gate` (in `config.yaml`)
