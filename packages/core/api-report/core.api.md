@@ -4,6 +4,7 @@
 
 ```ts
 
+import { Buffer as Buffer_2 } from 'node:buffer';
 import { Document } from 'yaml';
 import { SecretBackend } from 'vaultkeeper';
 import { z } from 'zod';
@@ -63,6 +64,9 @@ export interface AttestItSettings {
 }
 
 // @public
+export type CanonicalSigner = (canonicalString: string) => Promise<string>;
+
+// @public
 export function checkOpenSSL(): Promise<string>;
 
 // @public
@@ -94,6 +98,15 @@ export function createRootSeal(params: {
 }): Seal;
 
 // @public
+export function createRootSealWithProvider(params: {
+    keyProvider: KeyProvider;
+    keyRef: string;
+    policyFingerprint: string;
+    resolvePassphrase?: () => Promise<string | undefined>;
+    sealedBy: string;
+}): Promise<Seal>;
+
+// @public
 export function createSeal(options: CreateSealOptions): Seal;
 
 // @public
@@ -103,6 +116,30 @@ export interface CreateSealOptions {
     passphrase?: string;
     privateKey: string;
     sealedBy: string;
+}
+
+// @public
+export function createSealWithProvider(options: CreateSealWithProviderOptions): Promise<Seal>;
+
+// @public
+export interface CreateSealWithProviderOptions {
+    fingerprint: string;
+    gateId: string;
+    keyProvider: KeyProvider;
+    keyRef: string;
+    resolvePassphrase?: () => Promise<string | undefined>;
+    sealedBy: string;
+}
+
+// @public
+export function createSealWithSigner(options: CreateSealWithSignerOptions): Promise<Seal>;
+
+// @public
+export interface CreateSealWithSignerOptions {
+    fingerprint: string;
+    gateId: string;
+    sealedBy: string;
+    sign: CanonicalSigner;
 }
 
 // @public
@@ -249,6 +286,9 @@ export function getHomePublicKeysDir(homeDir?: string): string;
 export function getIdentityConfigDir(homeDir?: string): string;
 
 // @public
+export function getIdentityPresenceCapability(identity: Identity): Promise<KeyPresenceCapability>;
+
+// @public
 export function getLocalConfigPath(homeDir?: string): string;
 
 // @public
@@ -333,13 +373,25 @@ export interface KeyPaths {
 }
 
 // @public
+export interface KeyPresenceCapability {
+    presenceEnforcedOperations?: readonly KeyPresenceOperation[];
+    presencePerUse: boolean;
+}
+
+// @public
+export type KeyPresenceOperation = 'delete' | 'read' | 'sign' | 'store';
+
+// @public
 export interface KeyProvider {
     readonly displayName: string;
     generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult>;
     getConfig(): KeyProviderConfig;
+    getPresenceCapability?(): Promise<KeyPresenceCapability>;
     getPrivateKey(keyRef: string): Promise<KeyRetrievalResult>;
     isAvailable(): Promise<boolean>;
     keyExists(keyRef: string): Promise<boolean>;
+    signDirectly?(keyRef: string, data: Buffer | string): Promise<string>;
+    supportsDelegatedSigning?(keyRef: string): Promise<boolean>;
     readonly type: string;
 }
 
@@ -1067,9 +1119,12 @@ export class VaultKeyProvider implements KeyProvider {
     readonly displayName: string;
     generateKeyPair(options: KeygenProviderOptions): Promise<KeyGenerationResult>;
     getConfig(): KeyProviderConfig;
+    getPresenceCapability(): Promise<KeyPresenceCapability>;
     getPrivateKey(keyRef: string): Promise<KeyRetrievalResult>;
     isAvailable(): Promise<boolean>;
     keyExists(keyRef: string): Promise<boolean>;
+    readonly signDirectly?: (keyRef: string, data: Buffer_2 | string) => Promise<string>;
+    supportsDelegatedSigning(keyRef: string): Promise<boolean>;
     // (undocumented)
     readonly type: string;
 }

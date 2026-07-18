@@ -4,6 +4,7 @@
   "version": "0.10.1",
   "author": "Mike North <michael.l.north@gmail.com>",
   "dependencies": {
+    "@1password/sdk": "^0.4.0",
     "@migrex/core": "0.2.0-alpha.1",
     "@migrex/zod": "1.0.0-alpha.1",
     "ms": "^2.1.3",

@@ -290,7 +290,7 @@ Keys are stored in your login keychain, protected by your system password. Avail
 
 ### 1Password
 
-Keys are stored as secure documents in your 1Password vault. Requires the 1Password CLI (`op`) to be installed and signed in.
+Keys are stored as secure documents in your 1Password vault via VaultKeeper's 1Password backend, which uses the 1Password SDK (`@1password/sdk`, installed as a dependency of attest-it) — the legacy 1Password CLI (`op`) is no longer required. Authenticate the SDK with a 1Password service account token (`OP_SERVICE_ACCOUNT_TOKEN`). See [configuration](docs/configuration.md#1password) for details.
 
 ### YubiKey (Hardware Security)
 
@@ -323,7 +323,7 @@ Keys are stored as secure documents in your 1Password vault. Requires the 1Passw
 
 **Optional** (for key storage):
 
-- 1Password CLI (`op`) for 1Password key storage
+- A 1Password service account token (`OP_SERVICE_ACCOUNT_TOKEN`) for 1Password key storage — the 1Password SDK (`@1password/sdk`) ships with attest-it, so the `op` CLI is not required
 - macOS for Keychain key storage
 - YubiKey with `ykman` CLI for hardware-protected key storage
 

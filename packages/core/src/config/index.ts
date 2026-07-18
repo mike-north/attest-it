@@ -69,6 +69,7 @@ export {
   RootGateVerificationError,
   verifyRootGate,
   createRootSeal,
+  createRootSealWithProvider,
   synthesizeRootGate,
   computePolicyFingerprint,
   computePolicyFingerprintSync,

@@ -520,7 +520,13 @@ privateKey:
 | `id`    | string      | Yes      | Opaque VaultKeeper secret ID for the key |
 | `vault` | string      | No       | 1Password vault name, for display/lookup |
 
-**Requirements:** 1Password CLI (`op`) must be installed
+**Requirements:** The VaultKeeper-backed 1Password backend uses the 1Password
+SDK ([`@1password/sdk`](https://www.npmjs.com/package/@1password/sdk)) — a
+`vaultkeeper` optional peer dependency that attest-it installs on your behalf
+(it ships as a dependency of `@attest-it/core`). The legacy 1Password CLI (`op`)
+is **no longer required** for this path. Authenticate the SDK with a 1Password
+[service account token](https://developer.1password.com/docs/service-accounts/)
+(`OP_SERVICE_ACCOUNT_TOKEN`) as documented by VaultKeeper.
 
 ---
 

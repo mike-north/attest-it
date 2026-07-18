@@ -24,7 +24,7 @@ import {
   getActiveIdentity,
   getIdentityConfigDir,
   isAuthorizedSigner,
-  createSeal,
+  createSealWithProvider,
   readSealsSync,
   writeSealsSync,
   type AttestItConfig,
@@ -291,23 +291,15 @@ async function createSealForGate(
   const keyProvider = createKeyProviderFromIdentity(identity)
   const keyRef = getKeyRefFromIdentity(identity)
 
-  // Get private key from provider
-  const keyResult = await keyProvider.getPrivateKey(keyRef)
-
-  // Read the key file content
-  const fs = await import('node:fs/promises')
-  const privateKeyPem = await fs.readFile(keyResult.keyPath, 'utf8')
-
-  // Clean up after reading
-  await keyResult.cleanup()
-
-  // Create seal using identity slug (not display name) for verification lookup
+  // Sign the seal via the identity's backend. Delegated-signing backends sign
+  // without ever exposing the raw key; other backends fall back to a temp PEM.
   const identitySlug = localConfig.activeIdentity
-  const seal = createSeal({
+  const seal = await createSealWithProvider({
     gateId,
     fingerprint: fingerprintResult.fingerprint,
     sealedBy: identitySlug,
-    privateKey: privateKeyPem,
+    keyProvider,
+    keyRef,
   })
 
   // Read existing seals

@@ -13,10 +13,9 @@ import {
   loadLocalConfigSync,
   getActiveIdentity,
   isAuthorizedSigner,
-  createSeal,
+  createSealWithProvider,
   readSealsSync,
   writeSealsSync,
-  isEncryptedPrivateKeyPem,
   type AttestItConfig,
   type Identity,
 } from '@attest-it/core'
@@ -495,31 +494,19 @@ async function promptForSeal(
     const keyProvider = createKeyProviderFromIdentity(identity)
     const keyRef = getKeyRefFromIdentity(identity)
 
-    // Get private key from provider
-    const keyResult = await keyProvider.getPrivateKey(keyRef)
-
-    // Read the key file content
-    const fs = await import('node:fs/promises')
-    const privateKeyPem = await fs.readFile(keyResult.keyPath, 'utf8')
-
-    // Clean up after reading
-    await keyResult.cleanup()
-
-    // A file-backed key created with `identity create --passphrase-stdin` is
-    // encrypted; resolve the passphrase needed to sign with it from the
-    // environment, an interactive prompt, or fail fast. See issue #80.
-    const passphrase = isEncryptedPrivateKeyPem(privateKeyPem)
-      ? await resolveKeyPassphrase()
-      : undefined
-
-    // Create seal using identity slug (not display name) for verification lookup
+    // Sign the seal via the identity's backend. Delegated-signing backends sign
+    // without ever exposing the raw key; the fallback retrieves the PEM and, when
+    // it is passphrase-encrypted (e.g. `identity create --passphrase-stdin`),
+    // resolves the passphrase from the environment, a prompt, or fails fast
+    // (see issue #80).
     const identitySlug = localConfig.activeIdentity
-    const seal = createSeal({
+    const seal = await createSealWithProvider({
       gateId,
       fingerprint: gateFingerprint.fingerprint,
       sealedBy: identitySlug,
-      privateKey: privateKeyPem,
-      ...(passphrase !== undefined && { passphrase }),
+      keyProvider,
+      keyRef,
+      resolvePassphrase: resolveKeyPassphrase,
     })
 
     // Read existing seals

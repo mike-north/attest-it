@@ -16,6 +16,8 @@ export type {
   KeyGenerationResult,
   KeygenProviderOptions,
   KeyProvider,
+  KeyPresenceCapability,
+  KeyPresenceOperation,
 } from './types.js'
 
 // VaultKeeper provider
