@@ -353,7 +353,10 @@ describe('root gate — bootstrap ceremony reaches trusted state in one human-ru
   })
 
   it('identity create -> init --root-signer establishes the trust anchor; tampering it then fails verify', async () => {
-    const env = { ATTEST_IT_HOME: homeDir }
+    // VAULTKEEPER_CONFIG_DIR is redirected to the isolated per-test home so the
+    // `identity create --storage file` step below never writes to the real
+    // VaultKeeper config dir (issue #114 test-isolation guard).
+    const env = { ATTEST_IT_HOME: homeDir, VAULTKEEPER_CONFIG_DIR: homeDir }
 
     const create = await runCli(
       ['identity', 'create', '--name', 'Test User', '--slug', 'test-user', '--storage', 'file'],
