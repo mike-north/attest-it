@@ -109,7 +109,12 @@ describe('seal --json', () => {
   beforeEach(() => vi.clearAllMocks())
   afterEach(() => vi.clearAllMocks())
 
-  it('reports an unauthorized identity as unauthorized-signer and writes no seal', async () => {
+  it('reports an unauthorized identity as unauthorized-signer, writes no seal, and exits non-zero with ok:false (regression for #136)', async () => {
+    // Regression test for #136: an unauthorized signer used to be reported as
+    // a benign "skip" with exit 0 and `ok: true`, which told a CI script that
+    // sealing succeeded when no seal was ever written. Pre-fix, this test
+    // asserted `mockProcessExit` was called with `0` and made no assertion on
+    // `ok` -- it now asserts the corrected hard-failure behavior.
     const config = mockConfig()
     vi.mocked(loadSplitConfig).mockResolvedValue(config)
     vi.mocked(loadLocalConfigSync).mockReturnValue(mockLocalConfig('mallory'))
@@ -130,10 +135,11 @@ describe('seal --json', () => {
     const printed = mockConsoleLog.mock.calls.map((c) => String(c[0])).join('\n')
     expect(printed).toContain('"schemaVersion"')
     expect(printed).toContain('unauthorized-signer')
+    expect(printed).toContain('"ok": false')
     // No seal file was written.
     expect(writeSealsSync).not.toHaveBeenCalled()
-    // Skips (but no failures) exit successfully.
-    expect(mockProcessExit).toHaveBeenCalledWith(0)
+    // An unauthorized-signer attempt is a hard failure, not a benign skip.
+    expect(mockProcessExit).toHaveBeenCalledWith(1)
   })
 
   // Regression: `seal` used to skip resealing whenever *any* seal existed for

@@ -187,11 +187,19 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
       writeSealsSync(projectRoot, sealsFile, config.settings.sealsPath)
     }
 
+    // An unauthorized-signer attempt must never be reported as success: no seal
+    // was written for that gate, so `ok`/the exit code must reflect a hard
+    // failure rather than the generic "skipped" bucket (which also holds
+    // benign, non-failing skips like "already has a valid seal"). See #136.
+    const hasUnauthorizedSkip = summary.skipped.some(
+      (skip) => skip.failureClass === 'unauthorized-signer',
+    )
+
     // Output summary
     if (json) {
       outputJson({
         schemaVersion: API_SCHEMA_VERSION,
-        ok: summary.failed.length === 0,
+        ok: summary.failed.length === 0 && !hasUnauthorizedSkip,
         dryRun: options.dryRun ?? false,
         ...summary,
       })
@@ -200,7 +208,7 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
     }
 
     // Exit with appropriate code
-    if (summary.failed.length > 0) {
+    if (summary.failed.length > 0 || hasUnauthorizedSkip) {
       process.exit(ExitCode.FAILURE)
     } else if (summary.sealed.length === 0 && summary.skipped.length === 0) {
       process.exit(ExitCode.NO_WORK)
@@ -467,10 +475,27 @@ function displaySummary(summary: SealSummary, dryRun?: boolean): void {
     success(`${prefix} ${String(summary.sealed.length)} gate(s): ${gateNames}`)
   }
 
-  if (summary.skipped.length > 0) {
+  // An unauthorized-signer skip is a hard failure (nothing was sealed for
+  // that gate) and is rendered distinctly from benign skips (e.g. "already
+  // has a valid seal") so the banner is unambiguous -- no reader should be
+  // able to mistake "unauthorized" for an informational skip. See #136.
+  const unauthorizedSkips = summary.skipped.filter(
+    (skip) => skip.failureClass === 'unauthorized-signer',
+  )
+  const benignSkips = summary.skipped.filter((skip) => skip.failureClass !== 'unauthorized-signer')
+
+  if (benignSkips.length > 0) {
     log('')
-    warn(`Skipped ${String(summary.skipped.length)} gate(s):`)
-    for (const skip of summary.skipped) {
+    warn(`Skipped ${String(benignSkips.length)} gate(s):`)
+    for (const skip of benignSkips) {
+      log(`  ${skip.gate}: ${skip.reason}`)
+    }
+  }
+
+  if (unauthorizedSkips.length > 0) {
+    log('')
+    error(`Refused to seal ${String(unauthorizedSkips.length)} gate(s) (unauthorized signer):`)
+    for (const skip of unauthorizedSkips) {
       log(`  ${skip.gate}: ${skip.reason}`)
     }
   }
