@@ -114,8 +114,11 @@ function anchoredPolicy(
   }
 }
 
-/** Build an un-anchored policy (no `rootGate`). */
-function unanchoredPolicy(team: Record<string, TeamEntry>): Record<string, unknown> {
+/** Build an un-anchored policy (no `rootGate`) with the given gate signers. */
+function unanchoredPolicy(
+  team: Record<string, TeamEntry>,
+  gateSigners: string[] = ['alice'],
+): Record<string, unknown> {
   return {
     version: 1,
     team,
@@ -123,7 +126,7 @@ function unanchoredPolicy(team: Record<string, TeamEntry>): Record<string, unkno
       [GATE_ID]: {
         name: 'Tools',
         description: 'Forged tool scripts',
-        authorizedSigners: ['alice'],
+        authorizedSigners: gateSigners,
         fingerprint: { paths: GATE_PATHS },
         maxAge: '365d',
       },
@@ -214,6 +217,52 @@ describe('embeddable API root-gate enforcement (#131)', () => {
     if (one.ok) return
     expect(one.failureClass).toBe('untrusted-config')
     expect(one.path).toBe('src/lib/tool.ts')
+  })
+
+  it('(a2) REJECTS a working-tree that DELETES rootGate and self-authorizes a gate, when a trusted anchored base config is supplied', async () => {
+    // Trust-bypass regression (#131 adversarial review): an attacker cannot
+    // escape enforcement by simply removing `rootGate` from their branch's
+    // policy. The enforcement decision is gated on the TRUSTED anchor, not on the
+    // untrusted working-tree config, so a deleted rootGate → no matching root
+    // seal over the tampered policy → MISSING → untrusted-config.
+    const alice = generateEd25519KeyPair()
+    const mallory = generateEd25519KeyPair()
+
+    // Working tree: NO rootGate at all, and mallory has added herself to the team
+    // and authorized herself on the `tools` gate, then self-sealed that gate.
+    const policy = unanchoredPolicy(
+      {
+        alice: { name: 'Alice Developer', publicKey: alice.publicKey },
+        mallory: { name: 'Mallory', publicKey: mallory.publicKey },
+      },
+      ['alice', 'mallory'],
+    )
+    const { baseDir } = scaffold(policy, { version: 1, seals: {} })
+
+    // A genuine, valid gate seal by mallory (self-authorized). No root seal
+    // exists — the attacker removed the root gate entirely. Pre-fix code skipped
+    // the root gate whenever the WORKING-TREE policy had none, so it would report
+    // this gate VALID (ok:true) — the exact bypass.
+    const seals: SealsFile = {
+      version: 1,
+      seals: { [GATE_ID]: gateSealOver(baseDir, 'mallory', mallory) },
+    }
+    writeFileSync(join(baseDir, SEALS_REL), JSON.stringify(seals, null, 2), 'utf8')
+
+    // The trusted base is still anchored to alice: its rootGate decides that
+    // enforcement MUST run, regardless of the working tree deleting its own.
+    const trustedConfig = trustedBaseConfig(alice)
+
+    const all = await verifyAll({}, { baseDir, trustedConfig })
+    expect(all.ok).toBe(false)
+    if (all.ok) return
+    expect(all.failureClass).toBe('untrusted-config')
+    expect(all.message).toContain('.attest-it/policy.yaml')
+
+    const one = await verifyOne('src/lib/tool.ts', { baseDir, trustedConfig })
+    expect(one.ok).toBe(false)
+    if (one.ok) return
+    expect(one.failureClass).toBe('untrusted-config')
   })
 
   it('fails closed: a policy with a rootGate but NO trusted source supplied is rejected (never a silent pass)', async () => {

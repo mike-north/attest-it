@@ -102,11 +102,18 @@ it); a policy changed without a fresh root seal is rejected `untrusted-config`
 (`FINGERPRINT_MISMATCH`). Once the root seal verifies, gates evaluate against the
 now-trusted working-tree config.
 
+**The trusted anchor — not the working tree — decides whether the root gate is
+enforced.** If the supplied trusted policy defines a `rootGate`, the pre-step runs
+regardless of what the working-tree policy declares. A branch cannot escape
+enforcement by **deleting** `rootGate` from its own `policy.yaml` and
+self-authorizing a gate: with no matching root seal over the tampered policy, the
+pre-step rejects it `untrusted-config` (`MISSING`/`FINGERPRINT_MISMATCH`).
+
 **Fail closed:** if the working-tree policy defines a `rootGate` and **neither**
 `trustedConfig` nor `trustedPolicyPath` is supplied, verification returns an
 `untrusted-config` failure — it never silently trusts the working-tree anchor. A
-repository with **no** `rootGate` (not yet bootstrapped) needs no trusted source
-and verifies unchanged (backward compatible).
+repository with **no** `rootGate` and no trusted source (not yet bootstrapped)
+needs no anchor and verifies unchanged (backward compatible).
 
 ```ts
 import { verifyAll, loadSplitConfig } from '@attest-it/core'

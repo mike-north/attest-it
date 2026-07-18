@@ -130,41 +130,68 @@ async function resolveTrustedConfig(
  * may proceed, or an {@link ApiFailure} (`untrusted-config`, or `malformed` for
  * an unreadable seal/policy state) that the caller must surface as the verdict.
  *
+ * The enforcement decision is gated on the **trusted** anchor, never on the
+ * untrusted working-tree config. If we short-circuited on the working tree's own
+ * `rootGate`, an attacker could simply **delete** `rootGate` from their branch's
+ * `policy.yaml`, self-authorize a gate, and skip enforcement entirely — a trust
+ * bypass. So we resolve the trusted source first and let *its* `rootGate` decide
+ * whether the pre-step runs, regardless of what the working tree still declares.
+ *
  * Fail-closed semantics:
- * - Working-tree policy defines **no** `rootGate` → the repository predates the
- *   bootstrap ceremony; there is no trust anchor to check, so evaluation
- *   proceeds unchanged (backward compatible), exactly as the CLI/Action treat
- *   an un-anchored repo (`NOT_ANCHORED`, non-blocking).
- * - Working-tree policy defines a `rootGate` but no trusted source was supplied
- *   → `untrusted-config` (never a silent pass).
- * - The working-tree policy's root seal does not verify against the trusted
- *   anchor (e.g. a branch self-added a root signer and self-sealed → the trusted
- *   anchor does not list it → `UNKNOWN_SIGNER`; or the policy changed without a
- *   fresh root seal → `FINGERPRINT_MISMATCH`) → `untrusted-config`, carrying the
- *   precise, non-generic root-gate message that NAMES the untrusted change.
- * - The root seal verifies (`VALID`/`STALE`) → proceed; gates then evaluate
- *   against the now-trusted working-tree config.
+ * - No trusted source supplied **and** the working-tree policy has no `rootGate`
+ *   → a genuinely un-anchored repo (predates the bootstrap ceremony); there is
+ *   nothing to verify, so evaluation proceeds unchanged (backward compatible),
+ *   exactly as the CLI/Action treat an un-anchored repo (`NOT_ANCHORED`,
+ *   non-blocking). This is the ONLY skip path when no trusted source is given.
+ * - No trusted source supplied **but** the working-tree policy declares a
+ *   `rootGate` → we cannot verify that claim against a trusted root →
+ *   `untrusted-config` (never a silent pass).
+ * - Trusted source supplied and its policy defines a `rootGate` → verify the
+ *   working-tree policy's root seal against the trusted anchor REGARDLESS of
+ *   whether the working tree still declares a `rootGate`. A working tree that
+ *   deleted `rootGate` (or changed the policy) has no matching root seal →
+ *   `MISSING`/`FINGERPRINT_MISMATCH`; a self-added signer → `UNKNOWN_SIGNER` —
+ *   all `untrusted-config`, carrying the precise root-gate message.
+ * - Trusted source supplied but its policy has no `rootGate` → the trusted
+ *   anchor itself is not anchored; there is nothing to protect, so evaluation
+ *   proceeds (mirrors the Action skipping the pre-step when the base branch has
+ *   no `rootGate`).
+ * - The working-tree root seal verifies (`VALID`/`STALE`) → proceed; gates then
+ *   evaluate against the now-trusted working-tree config.
  */
 async function enforceRootGate(
   config: AttestItConfig,
   baseDir: string,
   options: VerifyOptions,
 ): Promise<ApiFailure | null> {
-  // Un-anchored repo: nothing to anchor against. Proceed (backward compatible).
-  if (!config.rootGate) {
+  const trustedSourceSupplied =
+    options.trustedConfig !== undefined || options.trustedPolicyPath !== undefined
+
+  // The ONLY skip path: no trusted source AND a working tree that never claimed
+  // to be anchored. Everything else must resolve the trusted anchor first — the
+  // untrusted working-tree config never gets to decide whether enforcement runs.
+  if (!trustedSourceSupplied && !config.rootGate) {
     return null
   }
 
-  // A rootGate is present: enforcement requires a trusted policy source.
+  // Resolve the trusted anchor. With no trusted source this returns the
+  // fail-closed `untrusted-config` failure (the working tree declares a
+  // `rootGate` we cannot verify).
   const trusted = await resolveTrustedConfig(baseDir, options)
   if (isApiFailure(trusted)) {
     return trusted
   }
 
+  // The TRUSTED anchor decides enforcement. If it defines no `rootGate`, it is
+  // not itself anchored — nothing to protect — so evaluation proceeds.
+  if (!trusted.rootGate) {
+    return null
+  }
+
   // The root seal and the policy fingerprint come from the WORKING TREE; the
   // authorized root signers come from the TRUSTED config — so a self-added
-  // signer or an unsealed policy change is rejected here, before any gate is
-  // trusted.
+  // signer, an unsealed policy change, or a deleted `rootGate` (no matching root
+  // seal) is rejected here, before any gate is trusted.
   let seals: SealsFile
   try {
     seals = await readSeals(baseDir, config.settings.sealsPath)
