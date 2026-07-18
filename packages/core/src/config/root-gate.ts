@@ -24,7 +24,8 @@
 import { relative, resolve } from 'node:path'
 import { computeFingerprint, computeFingerprintSync } from '../fingerprint.js'
 import type { AttestItConfig, GateConfig, RootGateConfig } from '../types.js'
-import { createSeal } from '../seal/operations.js'
+import { createSeal, createSealWithProvider } from '../seal/operations.js'
+import type { KeyProvider } from '../key-provider/types.js'
 import { verifyGateSeal, type SealVerificationResult } from '../seal/verification.js'
 import type { Seal, SealsFile } from '../seal/types.js'
 import { ROOT_GATE_ID } from './migrations/policy-graph.js'
@@ -168,6 +169,43 @@ export function createRootSeal(params: {
     sealedBy: params.sealedBy,
     privateKey: params.privateKey,
     ...(params.passphrase !== undefined && { passphrase: params.passphrase }),
+  })
+}
+
+/**
+ * Create a root-gate seal over the policy file using a {@link KeyProvider},
+ * preferring delegated signing.
+ *
+ * @remarks
+ * The root seal is byte-for-byte the same shape as any other gate seal, so this
+ * delegates to {@link createSealWithProvider} with the reserved
+ * {@link ROOT_GATE_ID}. That means a delegated-signing backend (whose key lives
+ * in the signing namespace and is not retrievable as a PEM) can anchor the root
+ * gate too — the raw key never leaves the backend. Backends without delegated
+ * signing fall back to the temp-file PEM path, resolving a passphrase via
+ * `resolvePassphrase` when the key is encrypted.
+ *
+ * @public
+ */
+export async function createRootSealWithProvider(params: {
+  /** Fingerprint of the policy file (from {@link computePolicyFingerprintSync}). */
+  policyFingerprint: string
+  /** Team member slug creating the root seal. */
+  sealedBy: string
+  /** The key provider that holds (or can delegate signing for) the root key. */
+  keyProvider: KeyProvider
+  /** Provider-specific key reference. */
+  keyRef: string
+  /** Resolve a passphrase for the fallback PEM path when the key is encrypted. */
+  resolvePassphrase?: () => Promise<string | undefined>
+}): Promise<Seal> {
+  return createSealWithProvider({
+    gateId: ROOT_GATE_ID,
+    fingerprint: params.policyFingerprint,
+    sealedBy: params.sealedBy,
+    keyProvider: params.keyProvider,
+    keyRef: params.keyRef,
+    ...(params.resolvePassphrase && { resolvePassphrase: params.resolvePassphrase }),
   })
 }
 

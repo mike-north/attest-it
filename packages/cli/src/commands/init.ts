@@ -9,7 +9,6 @@ import {
   loadLocalConfigSync,
   getActiveIdentity,
   computePolicyFingerprintSync,
-  createRootSeal,
   findPolicyPath,
   readSealsSync,
   writeSealsSync,
@@ -21,7 +20,7 @@ import { confirmAction, isInteractiveTTY, handlePromptableError } from '../utils
 import { ExitCode } from '../utils/exit-codes.js'
 import { offerCompletionInstall } from '../utils/completion-offer.js'
 import { getPackageVersion } from '../utils/version.js'
-import { loadIdentitySigningKey } from '../utils/identity-key.js'
+import { createRootSealForIdentity } from '../utils/identity-key.js'
 
 export const initCommand = new Command('init')
   .description('Initialize attest-it split configuration (policy.yaml + config.yaml)')
@@ -442,13 +441,7 @@ async function bootstrapRootGate(
   const resolvedPolicyPath = findPolicyPath(projectRoot) ?? policyPath
   const policyFingerprint = computePolicyFingerprintSync(projectRoot, resolvedPolicyPath)
 
-  const { privateKeyPem, passphrase } = await loadIdentitySigningKey(identity)
-  const seal = createRootSeal({
-    policyFingerprint,
-    sealedBy: identitySlug,
-    privateKey: privateKeyPem,
-    ...(passphrase !== undefined && { passphrase }),
-  })
+  const seal = await createRootSealForIdentity(identity, policyFingerprint, identitySlug)
 
   const sealsFile = readSealsSync(projectRoot, sealsPath)
   // eslint-disable-next-line security/detect-object-injection -- ROOT_GATE_ID is a fixed reserved constant

@@ -179,6 +179,9 @@ importers:
 
   packages/core:
     dependencies:
+      '@1password/sdk':
+        specifier: ^0.4.0
+        version: 0.4.0
       '@migrex/core':
         specifier: 0.2.0-alpha.1
         version: 0.2.0-alpha.1
@@ -4631,13 +4634,11 @@ packages:
 
 snapshots:
 
-  '@1password/sdk-core@0.4.0':
-    optional: true
+  '@1password/sdk-core@0.4.0': {}
 
   '@1password/sdk@0.4.0':
     dependencies:
       '@1password/sdk-core': 0.4.0
-    optional: true
 
   '@actions/core@1.11.1':
     dependencies:

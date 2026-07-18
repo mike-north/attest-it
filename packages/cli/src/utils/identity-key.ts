@@ -9,8 +9,12 @@
  * @module
  */
 
-import { readFile } from 'node:fs/promises'
-import { KeyProviderRegistry, isEncryptedPrivateKeyPem, type Identity } from '@attest-it/core'
+import {
+  KeyProviderRegistry,
+  createRootSealWithProvider,
+  type Identity,
+  type Seal,
+} from '@attest-it/core'
 import { resolveKeyPassphrase } from './passphrase.js'
 
 /**
@@ -64,38 +68,33 @@ function getKeyRefFromIdentity(identity: Identity): string {
 }
 
 /**
- * The material needed to sign with an identity: the PEM private key and, when it
- * is passphrase-encrypted, the resolved passphrase.
- */
-export interface IdentitySigningKey {
-  /** PEM-encoded private key. */
-  privateKeyPem: string
-  /** Passphrase for the key, if it is encrypted. */
-  passphrase?: string
-}
-
-/**
- * Load the PEM private key behind an identity through its key-provider backend
- * and resolve a passphrase if the key is encrypted.
+ * Create the root-gate seal over the policy file for an identity, through its
+ * key-provider backend.
+ *
+ * @remarks
+ * Prefers delegated signing (the raw key never leaves the backend) and falls
+ * back to the temp-file PEM path for non-signing backends, resolving a
+ * passphrase when the key is encrypted. This is the single audited signing path
+ * shared by `seal --root` and `init`'s bootstrap ceremony.
  *
  * @param identity - The active identity to sign with.
- * @returns The signing key material.
+ * @param policyFingerprint - Fingerprint of the policy file being anchored.
+ * @param sealedBy - Team member slug creating the root seal.
+ * @returns The created root seal.
  */
-export async function loadIdentitySigningKey(identity: Identity): Promise<IdentitySigningKey> {
+export async function createRootSealForIdentity(
+  identity: Identity,
+  policyFingerprint: string,
+  sealedBy: string,
+): Promise<Seal> {
   const keyProvider = createKeyProviderFromIdentity(identity)
   const keyRef = getKeyRefFromIdentity(identity)
 
-  const keyResult = await keyProvider.getPrivateKey(keyRef)
-  let privateKeyPem: string
-  try {
-    privateKeyPem = await readFile(keyResult.keyPath, 'utf8')
-  } finally {
-    await keyResult.cleanup()
-  }
-
-  if (isEncryptedPrivateKeyPem(privateKeyPem)) {
-    const passphrase = await resolveKeyPassphrase()
-    return { privateKeyPem, passphrase }
-  }
-  return { privateKeyPem }
+  return createRootSealWithProvider({
+    policyFingerprint,
+    sealedBy,
+    keyProvider,
+    keyRef,
+    resolvePassphrase: resolveKeyPassphrase,
+  })
 }

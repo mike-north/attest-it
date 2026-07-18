@@ -77,6 +77,7 @@ export {
   RootGateVerificationError,
   verifyRootGate,
   createRootSeal,
+  createRootSealWithProvider,
   synthesizeRootGate,
   computePolicyFingerprint,
   computePolicyFingerprintSync,
@@ -139,6 +140,8 @@ export {
   type KeyRetrievalResult,
   type KeyGenerationResult,
   type KeygenProviderOptions,
+  type KeyPresenceCapability,
+  type KeyPresenceOperation,
   type OnePasswordAccount,
   type OnePasswordVault,
   type InaccessibleAccount,
@@ -223,9 +226,14 @@ export {
   type VerifyAllParams,
 } from './api/index.js'
 
+// Identity backend capability reporting
+export { getIdentityPresenceCapability } from './api/internal.js'
+
 // Seal System
 export {
   createSeal,
+  createSealWithSigner,
+  createSealWithProvider,
   verifySeal,
   readSeals,
   readSealsSync,
@@ -236,6 +244,9 @@ export {
   type Seal,
   type SealsFile,
   type CreateSealOptions,
+  type CreateSealWithSignerOptions,
+  type CreateSealWithProviderOptions,
+  type CanonicalSigner,
   type SignatureVerificationResult,
   type VerificationState,
   type SealVerificationResult,

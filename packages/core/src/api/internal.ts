@@ -12,6 +12,7 @@ import type { AttestItConfig } from '../types.js'
 import type { Identity } from '../identity/index.js'
 import { listPackageFiles } from '../fingerprint.js'
 import { KeyProviderRegistry } from '../key-provider/index.js'
+import type { KeyPresenceCapability } from '../key-provider/index.js'
 import type { VerificationState } from '../seal/verification.js'
 import type { ApiFailure, FailureClass } from './types.js'
 import { API_SCHEMA_VERSION } from './types.js'
@@ -232,5 +233,41 @@ export function keyRefForIdentity(identity: Identity): string {
       const _exhaustive: never = privateKey
       throw new Error(`Unsupported private key type: ${String(_exhaustive)}`)
     }
+  }
+}
+
+/**
+ * Report whether an {@link Identity}'s signing backend enforces a fresh per-use
+ * human presence check (e.g. a hardware touch or per-use biometric approval).
+ *
+ * @remarks
+ * Fail-closed: any provider that does not implement capability reporting — or a
+ * backend that cannot be constructed or probed — is reported as
+ * `{ presencePerUse: false }`. Capability probing never triggers a presence
+ * prompt (per VaultKeeper's contract), so this is safe to call from read-only
+ * commands like `attest-it identity show`.
+ *
+ * @param identity - The identity whose backend capabilities to report.
+ * @returns The identity backend's presence capability, defaulting safely.
+ * @public
+ */
+export async function getIdentityPresenceCapability(
+  identity: Identity,
+): Promise<KeyPresenceCapability> {
+  let provider
+  try {
+    provider = keyProviderForIdentity(identity)
+  } catch {
+    return { presencePerUse: false }
+  }
+
+  if (!provider.getPresenceCapability) {
+    return { presencePerUse: false }
+  }
+
+  try {
+    return await provider.getPresenceCapability()
+  } catch {
+    return { presencePerUse: false }
   }
 }

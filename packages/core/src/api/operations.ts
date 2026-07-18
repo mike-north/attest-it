@@ -13,13 +13,19 @@
  * @packageDocumentation
  */
 
-import { readFile, stat } from 'node:fs/promises'
+import { stat } from 'node:fs/promises'
 import * as path from 'node:path'
 import type { AttestItConfig } from '../types.js'
 import { loadSplitConfig } from '../config/index.js'
 import { computeFingerprint, listPackageFiles } from '../fingerprint.js'
 import { loadLocalConfigSync } from '../identity/index.js'
-import { createSeal, readSeals, writeSeals, verifyGateSeal, type SealsFile } from '../seal/index.js'
+import {
+  createSealWithProvider,
+  readSeals,
+  writeSeals,
+  verifyGateSeal,
+  type SealsFile,
+} from '../seal/index.js'
 import {
   evaluateConfigTrust,
   fail,
@@ -368,21 +374,15 @@ export async function seal(
     baseDir,
   })
 
-  // Resolve the private key via the identity's backend. The unlock happens here.
+  // Sign the seal via the identity's backend. Delegated signing keeps the raw
+  // private key inside the backend; otherwise the key is unlocked to a temp PEM.
   const keyProvider = keyProviderForIdentity(identity)
-  const keyResult = await keyProvider.getPrivateKey(keyRefForIdentity(identity))
-  let privateKeyPem: string
-  try {
-    privateKeyPem = await readFile(keyResult.keyPath, 'utf8')
-  } finally {
-    await keyResult.cleanup()
-  }
-
-  const newSeal = createSeal({
+  const newSeal = await createSealWithProvider({
     gateId: gate,
     fingerprint: fingerprintResult.fingerprint,
     sealedBy: params.identity,
-    privateKey: privateKeyPem,
+    keyProvider,
+    keyRef: keyRefForIdentity(identity),
   })
 
   let existing: SealsFile

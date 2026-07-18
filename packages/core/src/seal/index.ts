@@ -9,12 +9,17 @@ export type { Seal, SealsFile } from './types.js'
 // Operations
 export {
   createSeal,
+  createSealWithSigner,
+  createSealWithProvider,
   verifySeal,
   readSeals,
   readSealsSync,
   writeSeals,
   writeSealsSync,
   type CreateSealOptions,
+  type CreateSealWithSignerOptions,
+  type CreateSealWithProviderOptions,
+  type CanonicalSigner,
   type SignatureVerificationResult,
 } from './operations.js'
 

@@ -21,12 +21,15 @@ import type { AttestItConfig, TeamMember } from '../src/types.js'
 import {
   ROOT_GATE_ID,
   createRootSeal,
+  createRootSealWithProvider,
   computePolicyFingerprintSync,
   verifyRootGate,
   isBlockingRootGateState,
 } from '../src/config/root-gate.js'
 import { parsePolicyContent, PolicyValidationError } from '../src/config/policy-schema.js'
 import { policyMigrationGraph } from '../src/config/migrations/policy-graph.js'
+import { VaultKeyProvider } from '../src/key-provider/vault-key-provider.js'
+import { createSigningMockBackend, spkiPemToRawBase64 } from './helpers/mock-backends.js'
 
 interface Signer {
   slug: string
@@ -500,5 +503,74 @@ gates:
       },
     })
     expect(ok.success).toBe(true)
+  })
+})
+
+// Integration between #110's root gate and delegated signing (#76): a root
+// signer whose key lives in a VaultKeeper SigningBackend must be able to anchor
+// the policy without the raw key ever being materialized, and the resulting root
+// seal must verify through the same verifyRootGate path as a PEM-signed one.
+describe('root gate — delegated signing (SigningBackend)', () => {
+  const POLICY_FINGERPRINT = 'sha256:' + 'a'.repeat(64)
+
+  /** A root signer whose Ed25519 key is held in a delegated signing backend. */
+  async function makeDelegatedRootSigner(slug: string, name: string) {
+    const signing = createSigningMockBackend()
+    const provider = new VaultKeyProvider({ backend: signing.backend, displayName: 'Signing' })
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'attest-it-root-delegated-'))
+    try {
+      const gen = await provider.generateKeyPair({ publicKeyPath: path.join(tmpDir, 'pub.pem') })
+      const { publicKeyPem } = await signing.getPublicKeyFn(gen.privateKeyRef)
+      const publicKey = spkiPemToRawBase64(publicKeyPem)
+      return {
+        slug,
+        member: { name, publicKey } satisfies TeamMember,
+        provider,
+        keyRef: gen.privateKeyRef,
+      }
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true })
+    }
+  }
+
+  it('anchors the root gate with a delegated key and verifies VALID', async () => {
+    const owner = await makeDelegatedRootSigner('owner', 'Owner')
+    const config = makeConfig({ rootSigners: ['owner'], team: { owner: owner.member } })
+
+    const rootSeal = await createRootSealWithProvider({
+      policyFingerprint: POLICY_FINGERPRINT,
+      sealedBy: owner.slug,
+      keyProvider: owner.provider,
+      keyRef: owner.keyRef,
+    })
+
+    const result = verifyRootGate({
+      config,
+      policyFingerprint: POLICY_FINGERPRINT,
+      seals: sealsWith(rootSeal),
+    })
+    expect(result.state).toBe('VALID')
+    expect(isBlockingRootGateState(result.state)).toBe(false)
+  })
+
+  it('rejects a delegated root seal against a different policy fingerprint', async () => {
+    const owner = await makeDelegatedRootSigner('owner', 'Owner')
+    const config = makeConfig({ rootSigners: ['owner'], team: { owner: owner.member } })
+
+    const rootSeal = await createRootSealWithProvider({
+      policyFingerprint: POLICY_FINGERPRINT,
+      sealedBy: owner.slug,
+      keyProvider: owner.provider,
+      keyRef: owner.keyRef,
+    })
+
+    const tampered = 'sha256:' + 'b'.repeat(64)
+    const result = verifyRootGate({
+      config,
+      policyFingerprint: tampered,
+      seals: sealsWith(rootSeal),
+    })
+    expect(result.state).toBe('FINGERPRINT_MISMATCH')
+    expect(isBlockingRootGateState(result.state)).toBe(true)
   })
 })

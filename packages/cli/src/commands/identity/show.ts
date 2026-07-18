@@ -1,5 +1,5 @@
 import { Command } from 'commander'
-import { loadLocalConfig } from '@attest-it/core'
+import { loadLocalConfig, getIdentityPresenceCapability } from '@attest-it/core'
 import { log, error } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
 import { getTheme } from '../../components/theme.js'
@@ -84,6 +84,21 @@ async function runShow(slug?: string): Promise<void> {
         log(`    Type: File (legacy — not managed by VaultKeeper)`)
         log(`    Path: ${identity.privateKey.path}`)
         break
+    }
+    log('')
+
+    // Report whether the backend enforces a fresh per-use human presence check
+    // (e.g. a hardware touch or per-use biometric). Fail-closed: a backend that
+    // cannot prove per-use presence is reported as not enforcing it.
+    const presence = await getIdentityPresenceCapability(identity)
+    log('  Per-Use Presence:')
+    if (presence.presencePerUse) {
+      const scope = presence.presenceEnforcedOperations
+        ? presence.presenceEnforcedOperations.join(', ')
+        : 'all operations'
+      log(`    ${theme.green('Enforced')} (${scope})`)
+    } else {
+      log(`    Not enforced`)
     }
     log('')
   } catch (err) {

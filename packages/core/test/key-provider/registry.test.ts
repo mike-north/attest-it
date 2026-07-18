@@ -40,6 +40,11 @@ vi.mock('vaultkeeper', () => {
         return makeMockBackend(type)
       },
     },
+    // These mock backends implement only the base SecretBackend contract, so
+    // the capability/signing guards report false.
+    isSigningBackend: () => false,
+    isPresenceCapableBackend: () => false,
+    getBackendCapabilities: () => Promise.resolve({ presencePerUse: false }),
   }
 })
 

@@ -4,11 +4,13 @@
  */
 
 import * as fs from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import * as path from 'node:path'
 
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import * as ed25519 from '../crypto/ed25519.js'
 import type { AttestItConfig } from '../types.js'
+import type { KeyProvider } from '../key-provider/types.js'
 import type { Seal, SealsFile } from './types.js'
 import { sealsFileSchemaV1 } from '../config/migrations/index.js'
 
@@ -93,6 +95,132 @@ export function createSeal(options: CreateSealOptions): Seal {
     timestamp,
     sealedBy,
     signature,
+  }
+}
+
+/**
+ * Signs the canonical seal string, returning a base64-encoded signature.
+ * @public
+ */
+export type CanonicalSigner = (canonicalString: string) => Promise<string>
+
+/**
+ * Options for creating a seal from an external signer.
+ * @public
+ */
+export interface CreateSealWithSignerOptions {
+  /** Gate identifier (slug) */
+  gateId: string
+  /** SHA-256 fingerprint of the gate's content */
+  fingerprint: string
+  /** Team member slug creating the seal */
+  sealedBy: string
+  /** Produces the base64 signature over the canonical string. */
+  sign: CanonicalSigner
+}
+
+/**
+ * Create a seal whose signature is produced by an external signer over the
+ * canonical string `gateId:fingerprint:timestamp`.
+ *
+ * @remarks
+ * This is the delegated-signing counterpart to {@link createSeal}: the caller
+ * supplies a {@link CanonicalSigner} (e.g. a VaultKeeper `SigningBackend`) that
+ * signs without exposing the raw private key. The timestamp is generated here so
+ * the signer signs the exact canonical string embedded in the seal.
+ *
+ * @param options - Seal creation options with an external signer
+ * @returns The created seal
+ * @public
+ */
+export async function createSealWithSigner(options: CreateSealWithSignerOptions): Promise<Seal> {
+  const { gateId, fingerprint, sealedBy, sign } = options
+
+  const timestamp = new Date().toISOString()
+  const canonicalString = `${gateId}:${fingerprint}:${timestamp}`
+  const signature = await sign(canonicalString)
+
+  return {
+    gateId,
+    fingerprint,
+    timestamp,
+    sealedBy,
+    signature,
+  }
+}
+
+/**
+ * Options for creating a seal via a {@link KeyProvider}.
+ * @public
+ */
+export interface CreateSealWithProviderOptions {
+  /** Gate identifier (slug) */
+  gateId: string
+  /** SHA-256 fingerprint of the gate's content */
+  fingerprint: string
+  /** Team member slug creating the seal */
+  sealedBy: string
+  /** The key provider that holds (or can delegate signing for) the private key */
+  keyProvider: KeyProvider
+  /** Provider-specific key reference */
+  keyRef: string
+  /**
+   * Resolve a passphrase for the fallback path when the retrieved PEM is
+   * encrypted. Only invoked on the {@link KeyProvider.getPrivateKey} fallback,
+   * never for delegated signing.
+   */
+  resolvePassphrase?: () => Promise<string | undefined>
+}
+
+/**
+ * Create a seal using a {@link KeyProvider}, preferring delegated signing.
+ *
+ * @remarks
+ * When the provider reports that `keyRef` is delegated-signable
+ * ({@link KeyProvider.supportsDelegatedSigning}), the seal is signed via
+ * {@link KeyProvider.signDirectly} and the raw private key never leaves the
+ * backend — no PEM is written to disk. Otherwise this falls back to
+ * {@link KeyProvider.getPrivateKey} + a temporary PEM file, preserving existing
+ * behavior for non-signing backends and legacy keys.
+ *
+ * @param options - Seal creation options
+ * @returns The created seal
+ * @public
+ */
+export async function createSealWithProvider(
+  options: CreateSealWithProviderOptions,
+): Promise<Seal> {
+  const { gateId, fingerprint, sealedBy, keyProvider, keyRef, resolvePassphrase } = options
+
+  if (
+    keyProvider.signDirectly &&
+    keyProvider.supportsDelegatedSigning &&
+    (await keyProvider.supportsDelegatedSigning(keyRef))
+  ) {
+    const signDirectly = keyProvider.signDirectly.bind(keyProvider)
+    return createSealWithSigner({
+      gateId,
+      fingerprint,
+      sealedBy,
+      sign: (canonicalString) => signDirectly(keyRef, canonicalString),
+    })
+  }
+
+  const keyResult = await keyProvider.getPrivateKey(keyRef)
+  try {
+    const privateKey = await readFile(keyResult.keyPath, 'utf8')
+    const passphrase = ed25519.isEncryptedPrivateKeyPem(privateKey)
+      ? await resolvePassphrase?.()
+      : undefined
+    return createSeal({
+      gateId,
+      fingerprint,
+      sealedBy,
+      privateKey,
+      ...(passphrase !== undefined && { passphrase }),
+    })
+  } finally {
+    await keyResult.cleanup()
   }
 }
 

@@ -10,15 +10,13 @@ import {
   getActiveIdentity,
   computeFingerprintSync,
   computePolicyFingerprintSync,
-  createRootSeal,
   findPolicyPath,
   isAuthorizedSigner,
   getGate,
-  createSeal,
+  createSealWithProvider,
   readSealsSync,
   writeSealsSync,
   verifyGateSeal,
-  isEncryptedPrivateKeyPem,
   KeyProviderRegistry,
   ROOT_GATE_ID,
   API_SCHEMA_VERSION,
@@ -31,7 +29,7 @@ import {
 import { log, success, error, warn, verbose, outputJson } from '../utils/output.js'
 import { ExitCode } from '../utils/exit-codes.js'
 import { resolveKeyPassphrase } from '../utils/passphrase.js'
-import { loadIdentitySigningKey } from '../utils/identity-key.js'
+import { createRootSealForIdentity } from '../utils/identity-key.js'
 
 export const sealCommand = new Command('seal')
   .description('Create seals for gates')
@@ -296,14 +294,7 @@ async function runSealRoot(options: SealOptions): Promise<void> {
       process.exit(ExitCode.SUCCESS)
     }
 
-    const { privateKeyPem, passphrase } = await loadIdentitySigningKey(identity)
-
-    const seal = createRootSeal({
-      policyFingerprint,
-      sealedBy: identitySlug,
-      privateKey: privateKeyPem,
-      ...(passphrase !== undefined && { passphrase }),
-    })
+    const seal = await createRootSealForIdentity(identity, policyFingerprint, identitySlug)
 
     const sealsFile = readSealsSync(projectRoot, config.settings.sealsPath)
     // eslint-disable-next-line security/detect-object-injection -- ROOT_GATE_ID is a fixed reserved constant
@@ -421,33 +412,20 @@ async function processSingleGate(
 
   // Create key provider from identity's private key reference
   const keyProvider = createKeyProviderFromIdentity(identity)
-
-  // Get private key from provider
   const keyRef = getKeyRefFromIdentity(identity)
-  const keyResult = await keyProvider.getPrivateKey(keyRef)
 
-  // Read the key file content
-  const fs = await import('node:fs/promises')
-  const privateKeyPem = await fs.readFile(keyResult.keyPath, 'utf8')
-
-  // Clean up after reading
-  await keyResult.cleanup()
-
-  // A file-backed key created with `identity create --passphrase-stdin` is
-  // encrypted; resolve the passphrase needed to sign with it from the
-  // environment, an interactive prompt, or fail fast. Shared with `run`'s
-  // seal-creation path -- see issue #94.
-  const passphrase = isEncryptedPrivateKeyPem(privateKeyPem)
-    ? await resolveKeyPassphrase()
-    : undefined
-
-  // Create seal using identity slug (not display name) for verification lookup
-  const seal = createSeal({
+  // Sign the seal via the identity's backend. Delegated-signing backends sign
+  // without ever exposing the raw key; the fallback retrieves the PEM and, when
+  // it is passphrase-encrypted (e.g. `identity create --passphrase-stdin`),
+  // resolves the passphrase from the environment, a prompt, or fails fast
+  // (shared with `run`'s seal-creation path -- see issue #94).
+  const seal = await createSealWithProvider({
     gateId,
     fingerprint: fingerprintResult.fingerprint,
     sealedBy: identitySlug,
-    privateKey: privateKeyPem,
-    ...(passphrase !== undefined && { passphrase }),
+    keyProvider,
+    keyRef,
+    resolvePassphrase: resolveKeyPassphrase,
   })
 
   // Add seal to seals file

@@ -44150,6 +44150,7 @@ async function glob(patternsOrOptions, options) {
 // ../core/dist/index.js
 var os2 = __toESM(require("os"), 1);
 var import_os = require("os");
+var import_buffer = require("buffer");
 
 // ../../node_modules/.pnpm/vaultkeeper@0.7.0_@1password+sdk@0.4.0_@types+node@22.19.3/node_modules/vaultkeeper/dist/index.js
 init_cjs_shims();
@@ -46091,6 +46092,18 @@ function registerBuiltinBackends() {
   );
 }
 registerBuiltinBackends();
+function isPresenceCapableBackend(backend) {
+  return "getCapabilities" in backend && typeof backend.getCapabilities === "function";
+}
+async function getBackendCapabilities(backend) {
+  if (isPresenceCapableBackend(backend)) {
+    return backend.getCapabilities();
+  }
+  return { presencePerUse: false };
+}
+function isSigningBackend(backend) {
+  return "generateSigningKey" in backend && typeof backend.generateSigningKey === "function" && "getPublicKey" in backend && typeof backend.getPublicKey === "function" && "signWithKey" in backend && typeof backend.signWithKey === "function";
+}
 var INSPECT_CUSTOM = /* @__PURE__ */ Symbol.for("nodejs.util.inspect.custom");
 var SecretAccessorTarget = class {
   read;
@@ -47406,10 +47419,28 @@ async function setKeyPermissions(keyPath) {
     await fs32.chmod(keyPath, 384);
   }
 }
+var DELEGATED_SIGNING_ALGORITHM = "EdDSA";
+function spkiPemToRawBase64(publicKeyPem) {
+  const der = crypto22.createPublicKey(publicKeyPem).export({ type: "spki", format: "der" });
+  return import_buffer.Buffer.from(der).subarray(12).toString("base64");
+}
 var VaultKeyProvider = class {
   type;
   displayName;
   backend;
+  /**
+   * Delegated signing entry point, present only when the underlying backend
+   * implements VaultKeeper's `SigningBackend` contract.
+   *
+   * @remarks
+   * Assigned in the constructor so `signDirectly` is absent for non-signing
+   * backends — callers detect delegated-signing support via its presence
+   * combined with {@link VaultKeyProvider.supportsDelegatedSigning}. When
+   * delegated signing is used the raw private key never leaves the backend, so
+   * no PEM is written to disk (resolves the former `getPrivateKey` temp-file
+   * TODO for signing-capable backends).
+   */
+  signDirectly;
   /**
    * Create a new VaultKeyProvider.
    * @param options - Provider options including the VaultKeeper backend
@@ -47418,6 +47449,14 @@ var VaultKeyProvider = class {
     this.backend = options.backend;
     this.type = options.backend.type;
     this.displayName = options.displayName;
+    if (isSigningBackend(this.backend)) {
+      const signingBackend = this.backend;
+      this.signDirectly = async (keyRef, data) => {
+        const dataBuffer = typeof data === "string" ? import_buffer.Buffer.from(data, "utf8") : data;
+        const signature = await signingBackend.signWithKey(keyRef, dataBuffer);
+        return signature.toString("base64");
+      };
+    }
   }
   /**
    * Check if the underlying VaultKeeper backend is available.
@@ -47427,10 +47466,71 @@ var VaultKeyProvider = class {
   }
   /**
    * Check if a key exists in the VaultKeeper backend.
+   *
+   * @remarks
+   * For a signing-capable backend a key may live in the delegated signing-key
+   * namespace rather than the plain secret store, so both are checked.
+   *
    * @param keyRef - Secret identifier in the backend
    */
   async keyExists(keyRef) {
+    if (isSigningBackend(this.backend) && await this.signingKeyExists(this.backend, keyRef)) {
+      return true;
+    }
     return this.backend.exists(keyRef);
+  }
+  /**
+   * Whether a delegated signing key is enrolled under `keyRef`.
+   *
+   * @remarks
+   * VaultKeeper exposes no direct existence check for signing keys, so this
+   * probes `getPublicKey` (which never triggers a presence prompt). A
+   * `SigningKeyNotFoundError` means "not enrolled" — the correct fail-closed
+   * result (`false`). Any other error (backend unavailable, a transient
+   * 1Password/network blip, a decrypt failure) is re-thrown so it surfaces as a
+   * backend failure rather than being silently misreported as "no delegated
+   * key" (which would then confusingly fall back and fail with "Secret not
+   * found").
+   */
+  async signingKeyExists(backend, keyRef) {
+    try {
+      await backend.getPublicKey(keyRef);
+      return true;
+    } catch (error2) {
+      if (error2 instanceof SigningKeyNotFoundError) {
+        return false;
+      }
+      throw error2;
+    }
+  }
+  /**
+   * Report whether `keyRef` can be signed via delegated backend signing, so
+   * callers can prefer {@link VaultKeyProvider.signDirectly} and avoid ever
+   * materializing the raw private key. Fail-closed: `false` when the backend is
+   * not signing-capable or no signing key is enrolled under `keyRef`.
+   *
+   * @param keyRef - Secret identifier in the backend
+   */
+  async supportsDelegatedSigning(keyRef) {
+    if (!isSigningBackend(this.backend)) {
+      return false;
+    }
+    return this.signingKeyExists(this.backend, keyRef);
+  }
+  /**
+   * Report whether the underlying backend enforces a fresh per-use human
+   * presence check. Fail-closed via VaultKeeper's `getBackendCapabilities`: a
+   * backend that does not implement the capability contract reports
+   * `{ presencePerUse: false }`.
+   */
+  async getPresenceCapability() {
+    const capabilities = await getBackendCapabilities(this.backend);
+    return {
+      presencePerUse: capabilities.presencePerUse,
+      ...capabilities.presenceEnforcedOperations && {
+        presenceEnforcedOperations: capabilities.presenceEnforcedOperations
+      }
+    };
   }
   /**
    * Retrieve the private key from VaultKeeper for signing.
@@ -47499,10 +47599,20 @@ var VaultKeyProvider = class {
         }
       }
     }
-    const keyPair = generateKeyPair();
-    await fs32.mkdir(path4.dirname(publicKeyPath), { recursive: true });
-    await fs32.writeFile(publicKeyPath, keyPair.publicKey, "utf-8");
     const secretId = `attest-it-${crypto22.randomUUID()}`;
+    await fs32.mkdir(path4.dirname(publicKeyPath), { recursive: true });
+    if (isSigningBackend(this.backend)) {
+      await this.backend.generateSigningKey(secretId, DELEGATED_SIGNING_ALGORITHM);
+      const { publicKeyPem } = await this.backend.getPublicKey(secretId);
+      await fs32.writeFile(publicKeyPath, spkiPemToRawBase64(publicKeyPem), "utf-8");
+      return {
+        privateKeyRef: secretId,
+        publicKeyPath,
+        storageDescription: `VaultKeeper (${this.backend.displayName}, delegated signing): ${secretId}`
+      };
+    }
+    const keyPair = generateKeyPair();
+    await fs32.writeFile(publicKeyPath, keyPair.publicKey, "utf-8");
     await this.backend.store(secretId, keyPair.privateKey);
     return {
       privateKeyRef: secretId,
