@@ -221,11 +221,17 @@ async function runCreate(options: CreateOptions): Promise<void> {
           : ''
 
     // Check provider availability
-    // Note: Checking 1Password/YubiKey may trigger authentication prompts
-    info('Checking available key storage providers...')
-    info(
-      'You may see authentication prompts from 1Password, macOS Keychain, or other security tools.',
-    )
+    // Note: Checking 1Password/YubiKey may trigger authentication prompts.
+    // The file backend touches no external security tool, so suppress the
+    // provider-prompt banner when `--storage file` is explicitly requested --
+    // it would otherwise falsely warn about 1Password/Keychain prompts that
+    // this run will never surface.
+    if (options.storage !== 'file') {
+      info('Checking available key storage providers...')
+      info(
+        'You may see authentication prompts from 1Password, macOS Keychain, or other security tools.',
+      )
+    }
 
     const opAvailable = await isOnePasswordInstalled()
     verbose(`  1Password CLI (op): ${opAvailable ? 'found' : 'not found'}`)

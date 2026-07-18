@@ -11,6 +11,7 @@
 
 import * as crypto from 'node:crypto'
 import { BackendRegistry, SecretNotFoundError } from 'vaultkeeper'
+import { getVaultKeeperConfigDir } from '../identity/config.js'
 
 /**
  * Result of storing a private key via a VaultKeeper backend.
@@ -49,7 +50,17 @@ export async function storePrivateKey(
 ): Promise<StorePrivateKeyResult> {
   const vaultKeeperBackendType = backendType === 'file' ? 'file' : backendType
 
-  const backend = BackendRegistry.create(vaultKeeperBackendType)
+  // Propagate attest-it's home override (ATTEST_IT_HOME / --home-dir /
+  // programmatic override) into VaultKeeper's config-dir resolution so the
+  // file backend writes the encrypted `.enc` key blob under the configured
+  // home instead of the real, non-sandboxed `~/.config/vaultkeeper/file/`.
+  // `undefined` when no override is in effect -- VaultKeeper then resolves its
+  // own default, preserving behavior for real installs.
+  const backend = BackendRegistry.create(
+    vaultKeeperBackendType,
+    undefined,
+    getVaultKeeperConfigDir(),
+  )
   const secretId = `attest-it-${identityName}-${crypto.randomUUID()}`
   await backend.store(secretId, privateKeyPem)
 
@@ -81,7 +92,13 @@ export async function deletePrivateKey(
 ): Promise<void> {
   const vaultKeeperBackendType = backendType === 'file' ? 'file' : backendType
 
-  const backend = BackendRegistry.create(vaultKeeperBackendType)
+  // Same home-override propagation as storePrivateKey, so deletes target the
+  // sandboxed key location rather than the real `~/.config/vaultkeeper/`.
+  const backend = BackendRegistry.create(
+    vaultKeeperBackendType,
+    undefined,
+    getVaultKeeperConfigDir(),
+  )
   try {
     await backend.delete(secretId)
   } catch (err) {

@@ -2,6 +2,7 @@
  * Tests for identity configuration loading, validation, and v1→v2 migration.
  */
 
+import * as crypto from 'node:crypto'
 import * as fs from 'node:fs'
 import { homedir } from 'node:os'
 import * as path from 'node:path'
@@ -15,6 +16,7 @@ import {
   saveLocalConfig,
   saveLocalConfigSync,
   getHomePublicKeysDir,
+  getVaultKeeperConfigDir,
   savePublicKey,
   savePublicKeySync,
   setAttestItHomeDir,
@@ -23,6 +25,14 @@ import {
 } from '../../src/identity/index.js'
 
 const FIXTURES_DIR = path.join(__dirname, '..', 'fixtures', 'identity-configs')
+
+/**
+ * A real, fixed base64-encoded raw (32-byte) Ed25519 public key -- the compact
+ * form attest-it stores in config.yaml. Generated once (deterministic constant,
+ * never `generateKeyPairSync` at test time) so the saved-PEM assertions below
+ * can compare against the RFC 8410 SPKI PEM this key must serialize to.
+ */
+const ED25519_RAW_PUBLIC_KEY_B64 = '27qLSoRz1uu6+KMGX6TAVae4eLuFv25/bg88Cm2tycM='
 
 describe('identity/config', () => {
   describe('getLocalConfigPath', () => {
@@ -815,35 +825,116 @@ identities:
       })
     })
 
+    describe('getVaultKeeperConfigDir (issue #129)', () => {
+      // These assert precedence, so control VAULTKEEPER_CONFIG_DIR explicitly
+      // rather than inheriting whatever the ambient test env happens to have.
+      let originalVkConfigDir: string | undefined
+
+      beforeEach(() => {
+        originalVkConfigDir = process.env.VAULTKEEPER_CONFIG_DIR
+        delete process.env.VAULTKEEPER_CONFIG_DIR
+      })
+
+      afterEach(() => {
+        if (originalVkConfigDir === undefined) {
+          delete process.env.VAULTKEEPER_CONFIG_DIR
+        } else {
+          process.env.VAULTKEEPER_CONFIG_DIR = originalVkConfigDir
+        }
+      })
+
+      it('should return undefined when no home override is set (defer to VaultKeeper default)', () => {
+        setAttestItHomeDir(null)
+        expect(getVaultKeeperConfigDir()).toBeUndefined()
+      })
+
+      it('should return a sandbox-relative vaultkeeper dir when the home override is set', () => {
+        setAttestItHomeDir(tempDir)
+        expect(getVaultKeeperConfigDir()).toBe(path.join(tempDir, 'vaultkeeper'))
+      })
+
+      it('should defer to an explicitly set VAULTKEEPER_CONFIG_DIR even when a home override is set', () => {
+        setAttestItHomeDir(tempDir)
+        process.env.VAULTKEEPER_CONFIG_DIR = '/deliberate/vk/dir'
+        // The user pointed VaultKeeper somewhere explicitly -- respect it
+        // (return undefined so the caller lets VaultKeeper resolve the env dir).
+        expect(getVaultKeeperConfigDir()).toBeUndefined()
+      })
+
+      it('should honor an explicit homeDir argument over ambient state', () => {
+        setAttestItHomeDir(null)
+        process.env.VAULTKEEPER_CONFIG_DIR = '/deliberate/vk/dir'
+        // The most explicit input (the argument) wins over both env and null override.
+        expect(getVaultKeeperConfigDir('/explicit/home')).toBe(
+          path.join('/explicit/home', 'vaultkeeper'),
+        )
+      })
+    })
+
     describe('savePublicKey', () => {
-      it('should save public key to home directory', async () => {
+      it('should save public key as a real PEM document with BEGIN/END markers (issue #129)', async () => {
         setAttestItHomeDir(tempDir)
 
-        const result = await savePublicKey('test-identity', 'dGVzdC1wdWJsaWMta2V5')
+        const result = await savePublicKey('test-identity', ED25519_RAW_PUBLIC_KEY_B64)
 
         expect(result.homePath).toBe(path.join(tempDir, 'public-keys', 'test-identity.pem'))
         expect(fs.existsSync(result.homePath)).toBe(true)
-        expect(fs.readFileSync(result.homePath, 'utf8')).toBe('dGVzdC1wdWJsaWMta2V5')
+
+        const contents = fs.readFileSync(result.homePath, 'utf8')
+        // RFC 7468: the document must carry real encapsulation boundaries --
+        // the old behavior wrote bare base64 with no markers at all.
+        expect(contents).toContain('-----BEGIN PUBLIC KEY-----')
+        expect(contents).toContain('-----END PUBLIC KEY-----')
+        // ...and it must be a loadable SPKI PEM that round-trips back to the
+        // exact raw key we stored (spec-correct, not merely "has markers").
+        const loaded = crypto.createPublicKey(contents)
+        const der = loaded.export({ type: 'spki', format: 'der' })
+        if (!Buffer.isBuffer(der)) {
+          throw new Error('Expected SPKI DER export to be a Buffer')
+        }
+        // Ed25519 SPKI: 12-byte header + 32-byte raw key.
+        const raw = der.subarray(12)
+        expect(raw.toString('base64')).toBe(ED25519_RAW_PUBLIC_KEY_B64)
       })
 
       it('should create directories if they do not exist', async () => {
         setAttestItHomeDir(tempDir)
 
-        const result = await savePublicKey('new-identity', 'bmV3LWlkZW50aXR5')
+        const result = await savePublicKey('new-identity', ED25519_RAW_PUBLIC_KEY_B64)
 
         expect(fs.existsSync(path.dirname(result.homePath))).toBe(true)
+      })
+
+      it('should reject a value that is not a 32-byte Ed25519 public key', async () => {
+        setAttestItHomeDir(tempDir)
+
+        // 'dGVzdC1wdWJsaWMta2V5' decodes to 15 bytes -- not a valid key.
+        await expect(savePublicKey('bad-identity', 'dGVzdC1wdWJsaWMta2V5')).rejects.toThrow(
+          /Ed25519 public key/,
+        )
       })
     })
 
     describe('savePublicKeySync', () => {
-      it('should save public key to home directory synchronously', () => {
+      it('should save public key as a real PEM document synchronously (issue #129)', () => {
         setAttestItHomeDir(tempDir)
 
-        const result = savePublicKeySync('sync-identity', 'c3luYy1pZGVudGl0eQ==')
+        const result = savePublicKeySync('sync-identity', ED25519_RAW_PUBLIC_KEY_B64)
 
         expect(result.homePath).toBe(path.join(tempDir, 'public-keys', 'sync-identity.pem'))
         expect(fs.existsSync(result.homePath)).toBe(true)
-        expect(fs.readFileSync(result.homePath, 'utf8')).toBe('c3luYy1pZGVudGl0eQ==')
+
+        const contents = fs.readFileSync(result.homePath, 'utf8')
+        expect(contents).toContain('-----BEGIN PUBLIC KEY-----')
+        expect(contents).toContain('-----END PUBLIC KEY-----')
+        const loaded = crypto.createPublicKey(contents)
+        const der = loaded.export({ type: 'spki', format: 'der' })
+        if (!Buffer.isBuffer(der)) {
+          throw new Error('Expected SPKI DER export to be a Buffer')
+        }
+        // Ed25519 SPKI: 12-byte header + 32-byte raw key.
+        const raw = der.subarray(12)
+        expect(raw.toString('base64')).toBe(ED25519_RAW_PUBLIC_KEY_B64)
       })
     })
   })

@@ -318,6 +318,9 @@ export function getPreferencesPath(): string;
 export function getPublicKeyFromPrivate(privateKeyPem: string): string;
 
 // @public
+export function getVaultKeeperConfigDir(homeDir?: string): string | undefined;
+
+// @public
 export interface Identity {
     email?: string;
     github?: string;

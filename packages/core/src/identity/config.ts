@@ -3,6 +3,7 @@
  * @packageDocumentation
  */
 
+import * as crypto from 'node:crypto'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { mkdir as mkdirAsync, readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
@@ -119,6 +120,71 @@ export function getIdentityConfigDir(homeDir?: string): string {
     return override
   }
   return join(homedir(), '.config', 'attest-it')
+}
+
+/**
+ * Subdirectory (under the attest-it home) that holds VaultKeeper's config
+ * directory when the home is redirected. Mirrors the real-world layout where
+ * `~/.config/vaultkeeper` sits beside `~/.config/attest-it`: under a sandboxed
+ * home, VaultKeeper gets its own namespaced subdirectory rather than
+ * intermixing its `file/`, `.key`, and `signing-keys/` entries with attest-it's
+ * `config.yaml` and `public-keys/`.
+ */
+const VAULTKEEPER_SUBDIR = 'vaultkeeper'
+
+/**
+ * Resolve the VaultKeeper config directory that private-key material should be
+ * stored under, honoring attest-it's home override.
+ *
+ * @remarks
+ * VaultKeeper's file backend stores encrypted `.enc` key blobs (and its wrap
+ * key + signing keys) under `<configDir>/file`, where `configDir` is the value
+ * passed to the backend factory or, absent one, VaultKeeper's own default
+ * (`~/.config/vaultkeeper`, itself overridable via `VAULTKEEPER_CONFIG_DIR`).
+ *
+ * attest-it's `ATTEST_IT_HOME` (and the `--home-dir` flag / programmatic
+ * override, which feed the same resolution) used to isolate only attest-it's
+ * own `config.yaml` and public keys -- the encrypted private key still leaked
+ * to the real, non-sandboxed `~/.config/vaultkeeper/file/`. Returning a
+ * sandbox-relative directory here, and threading it through every
+ * `BackendRegistry.create('file', ...)` call (see `key-provider/store.ts` and
+ * `key-provider/registry.ts`), propagates the home override into VaultKeeper so
+ * key material is actually isolated under the configured home.
+ *
+ * An explicitly set `VAULTKEEPER_CONFIG_DIR` is VaultKeeper's own override and
+ * takes precedence: this returns `undefined` in that case so callers defer to
+ * VaultKeeper's env-based resolution (store and retrieve then resolve
+ * identically). Deliberate VaultKeeper redirection is respected, and it is
+ * still isolated -- the user chose that directory. Only when
+ * `VAULTKEEPER_CONFIG_DIR` is unset does the attest-it home override derive a
+ * sandbox-relative directory.
+ *
+ * @param homeDir - Optional explicit home directory override. When provided,
+ *   returns `{homeDir}/vaultkeeper` unconditionally (most explicit wins).
+ *   Otherwise honors `VAULTKEEPER_CONFIG_DIR`, then `ATTEST_IT_HOME` /
+ *   programmatic override.
+ * @returns The VaultKeeper config directory under the attest-it home, or
+ *   `undefined` when no home override is in effect (or `VAULTKEEPER_CONFIG_DIR`
+ *   is explicitly set) -- in which case callers must let VaultKeeper resolve
+ *   its own directory (never force one, which would change behavior for real
+ *   installs).
+ * @public
+ */
+export function getVaultKeeperConfigDir(homeDir?: string): string | undefined {
+  if (homeDir) {
+    return join(homeDir, VAULTKEEPER_SUBDIR)
+  }
+  // A user-set VAULTKEEPER_CONFIG_DIR is VaultKeeper's own explicit override --
+  // defer to it (return undefined) so deliberate redirection is honored and
+  // both store and retrieve paths resolve the same directory.
+  if (process.env.VAULTKEEPER_CONFIG_DIR) {
+    return undefined
+  }
+  const override = getAttestItHomeDir()
+  if (override) {
+    return join(override, VAULTKEEPER_SUBDIR)
+  }
+  return undefined
 }
 
 /**
@@ -431,13 +497,60 @@ export interface SavePublicKeyResult {
 }
 
 /**
+ * DER prefix of an Ed25519 SubjectPublicKeyInfo (SPKI) structure, preceding the
+ * 32-byte raw public key. `attest-it` stores the compact raw key (base64 of
+ * these 32 bytes) in `config.yaml`; prepending this prefix reconstructs the
+ * full 44-byte SPKI DER that a PEM `PUBLIC KEY` document wraps.
+ *
+ * @see https://www.rfc-editor.org/rfc/rfc8410 (Ed25519 in SPKI)
+ * @see https://www.rfc-editor.org/rfc/rfc7468 (PEM textual encoding)
+ */
+const ED25519_SPKI_DER_PREFIX = Buffer.from('302a300506032b6570032100', 'hex')
+/** Byte length of a raw Ed25519 public key. */
+const ED25519_RAW_PUBLIC_KEY_LENGTH = 32
+
+/**
+ * Convert the compact base64 raw Ed25519 public key stored in `config.yaml`
+ * into a standards-compliant SPKI PEM document with real
+ * `-----BEGIN PUBLIC KEY-----` / `-----END PUBLIC KEY-----` markers.
+ *
+ * @remarks
+ * The saved `.pem` file used to contain only the bare base64 body with no PEM
+ * markers, so it was not a loadable PEM document. If `publicKey` already looks
+ * like a PEM document (defensive: some callers may pass one), it is returned
+ * unchanged.
+ *
+ * @param publicKey - Base64-encoded raw (32-byte) Ed25519 public key
+ * @returns A PEM `PUBLIC KEY` document
+ * @throws Error if `publicKey` does not decode to a 32-byte Ed25519 key
+ */
+function toPublicKeyPem(publicKey: string): string {
+  if (publicKey.includes('-----BEGIN')) {
+    return publicKey.endsWith('\n') ? publicKey : `${publicKey}\n`
+  }
+  const raw = Buffer.from(publicKey, 'base64')
+  if (raw.length !== ED25519_RAW_PUBLIC_KEY_LENGTH) {
+    throw new Error(
+      `Expected a base64-encoded ${String(ED25519_RAW_PUBLIC_KEY_LENGTH)}-byte Ed25519 public key, ` +
+        `got ${String(raw.length)} byte(s) after base64-decoding`,
+    )
+  }
+  const spkiDer = Buffer.concat([ED25519_SPKI_DER_PREFIX, raw])
+  const keyObject = crypto.createPublicKey({ key: spkiDer, format: 'der', type: 'spki' })
+  const pem = keyObject.export({ type: 'spki', format: 'pem' })
+  return typeof pem === 'string' ? pem : pem.toString('utf8')
+}
+
+/**
  * Save a public key to the user's home directory.
  *
- * This saves the public key as a base64-encoded string (matching the format in config.yaml)
- * to ~/.attest-it/public-keys/<slug>.pem for backup purposes.
+ * The key is written as a standards-compliant SPKI PEM document (with real
+ * `-----BEGIN PUBLIC KEY-----` markers) to ~/.attest-it/public-keys/<slug>.pem
+ * for backup purposes. The compact base64 form remains the source of truth in
+ * config.yaml.
  *
  * @param slug - The identity slug (used for the filename)
- * @param publicKey - The base64-encoded public key
+ * @param publicKey - The base64-encoded raw Ed25519 public key
  * @returns Path where the key was saved
  * @public
  */
@@ -446,18 +559,20 @@ export async function savePublicKey(slug: string, publicKey: string): Promise<Sa
   const homeDir = getHomePublicKeysDir()
   await mkdirAsync(homeDir, { recursive: true })
   const homePath = join(homeDir, `${slug}.pem`)
-  await writeFile(homePath, publicKey, 'utf8')
+  await writeFile(homePath, toPublicKeyPem(publicKey), 'utf8')
   return { homePath }
 }
 
 /**
  * Save a public key to the user's home directory (sync).
  *
- * This saves the public key as a base64-encoded string (matching the format in config.yaml)
- * to ~/.attest-it/public-keys/<slug>.pem for backup purposes.
+ * The key is written as a standards-compliant SPKI PEM document (with real
+ * `-----BEGIN PUBLIC KEY-----` markers) to ~/.attest-it/public-keys/<slug>.pem
+ * for backup purposes. The compact base64 form remains the source of truth in
+ * config.yaml.
  *
  * @param slug - The identity slug (used for the filename)
- * @param publicKey - The base64-encoded public key
+ * @param publicKey - The base64-encoded raw Ed25519 public key
  * @returns Path where the key was saved
  * @public
  */
@@ -466,6 +581,6 @@ export function savePublicKeySync(slug: string, publicKey: string): SavePublicKe
   const homeDir = getHomePublicKeysDir()
   mkdirSync(homeDir, { recursive: true })
   const homePath = join(homeDir, `${slug}.pem`)
-  writeFileSync(homePath, publicKey, 'utf8')
+  writeFileSync(homePath, toPublicKeyPem(publicKey), 'utf8')
   return { homePath }
 }

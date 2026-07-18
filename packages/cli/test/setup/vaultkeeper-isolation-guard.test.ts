@@ -108,6 +108,33 @@ describe('assertNoNewEntries', () => {
     }).toThrow(/VAULTKEEPER_CONFIG_DIR/)
   })
 
+  // Issue #129: the guard must catch leaked *key* material, not just config.
+  // An encrypted private-key `.enc` blob under `file/` (what `identity create
+  // --storage file` writes) leaking to the real dir must fail the guard, and
+  // the remediation must point at the ATTEST_IT_HOME propagation mechanism.
+  it('throws on a leaked encrypted private-key (.enc) blob and names ATTEST_IT_HOME remediation', () => {
+    const before = [`${os.homedir()}/.config/vaultkeeper/config.json`]
+    const after = [
+      `${os.homedir()}/.config/vaultkeeper/config.json`,
+      `${os.homedir()}/.config/vaultkeeper/file/6174746573742d69742d6b65792e656e63.enc`,
+    ]
+    expect(() => {
+      assertNoNewEntries(`${os.homedir()}/.config/vaultkeeper`, before, after)
+    }).toThrow(/\.enc/)
+    expect(() => {
+      assertNoNewEntries(`${os.homedir()}/.config/vaultkeeper`, before, after)
+    }).toThrow(/ATTEST_IT_HOME/)
+  })
+
+  // Signing keys live under `signing-keys/`; a leak there must also be caught.
+  it('throws on a leaked signing key under signing-keys/', () => {
+    const before: string[] = []
+    const after = ['/tmp/vk/file/signing-keys/my-key']
+    expect(() => {
+      assertNoNewEntries('/tmp/vk', before, after)
+    }).toThrow(/signing-keys/)
+  })
+
   it('names every new file when a leak writes more than one', () => {
     const before: string[] = []
     const after = ['/tmp/vk/file/one.enc', '/tmp/vk/file/two.enc']
