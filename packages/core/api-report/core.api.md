@@ -44,6 +44,7 @@ export interface AttestItConfig {
     gates?: Record<string, GateConfig>;
     groups?: Record<string, string[]>;
     minVersion?: string;
+    rootGate?: RootGateConfig;
     settings: AttestItSettings;
     suites: Record<string, SuiteConfig>;
     team?: Record<string, TeamMember>;
@@ -76,6 +77,20 @@ export function computeFingerprint(options: FingerprintOptions): Promise<Fingerp
 
 // @public
 export function computeFingerprintSync(options: FingerprintOptions): FingerprintResult;
+
+// @public
+export function computePolicyFingerprint(baseDir: string, policyPath: string): Promise<string>;
+
+// @public
+export function computePolicyFingerprintSync(baseDir: string, policyPath: string): string;
+
+// @public
+export function createRootSeal(params: {
+    passphrase?: string;
+    policyFingerprint: string;
+    privateKey: string;
+    sealedBy: string;
+}): Seal;
 
 // @public
 export function createSeal(options: CreateSealOptions): Seal;
@@ -250,6 +265,9 @@ export interface InaccessibleAccount {
 
 // @public
 export function isAuthorizedSigner(config: AttestItConfig, gateId: string, publicKey: string): boolean;
+
+// @public
+export function isBlockingRootGateState(state: RootGateState): boolean;
 
 // @public
 export function isEncryptedPrivateKeyPem(privateKeyPem: string): boolean;
@@ -619,7 +637,7 @@ export function parsePolicyContent(content: string, format: 'json' | 'yaml'): Po
 export type PolicyConfig = z.infer<typeof policySchema>;
 
 // @public
-export const policySchema: z.ZodObject<{
+export const policySchema: z.ZodEffects<z.ZodObject<{
     gates: z.ZodOptional<z.ZodRecord<z.ZodString, z.ZodObject<{
         authorizedSigners: z.ZodArray<z.ZodString, "many">;
         description: z.ZodString;
@@ -655,6 +673,19 @@ export const policySchema: z.ZodObject<{
         name: string;
     }>>>;
     minVersion: z.ZodOptional<z.ZodString>;
+    rootGate: z.ZodOptional<z.ZodObject<{
+        authorizedSigners: z.ZodArray<z.ZodString, "many">;
+        description: z.ZodOptional<z.ZodString>;
+        maxAge: z.ZodDefault<z.ZodEffects<z.ZodString, string, string>>;
+    }, "strict", z.ZodTypeAny, {
+        authorizedSigners: string[];
+        description?: string | undefined;
+        maxAge: string;
+    }, {
+        authorizedSigners: string[];
+        description?: string | undefined;
+        maxAge?: string | undefined;
+    }>>;
     settings: z.ZodDefault<z.ZodObject<{
         attestationsPath: z.ZodDefault<z.ZodString>;
         maxAgeDays: z.ZodDefault<z.ZodNumber>;
@@ -703,6 +734,11 @@ export const policySchema: z.ZodObject<{
         name: string;
     }> | undefined;
     minVersion?: string | undefined;
+    rootGate?: {
+        authorizedSigners: string[];
+        description?: string | undefined;
+        maxAge: string;
+    } | undefined;
     settings: {
         attestationsPath: string;
         maxAgeDays: number;
@@ -729,6 +765,73 @@ export const policySchema: z.ZodObject<{
         name: string;
     }> | undefined;
     minVersion?: string | undefined;
+    rootGate?: {
+        authorizedSigners: string[];
+        description?: string | undefined;
+        maxAge?: string | undefined;
+    } | undefined;
+    settings?: {
+        attestationsPath?: string | undefined;
+        maxAgeDays?: number | undefined;
+        publicKeyPath?: string | undefined;
+        sealsPath?: string | undefined;
+    } | undefined;
+    team?: Record<string, {
+        email?: string | undefined;
+        github?: string | undefined;
+        name: string;
+        publicKey: string;
+        publicKeyAlgorithm?: "ed25519" | undefined;
+    }> | undefined;
+    version: 1 | string;
+}>, {
+    gates?: Record<string, {
+        authorizedSigners: string[];
+        description: string;
+        fingerprint: {
+            exclude?: string[] | undefined;
+            paths: string[];
+        };
+        maxAge: string;
+        name: string;
+    }> | undefined;
+    minVersion?: string | undefined;
+    rootGate?: {
+        authorizedSigners: string[];
+        description?: string | undefined;
+        maxAge: string;
+    } | undefined;
+    settings: {
+        attestationsPath: string;
+        maxAgeDays: number;
+        publicKeyPath: string;
+        sealsPath: string;
+    };
+    team?: Record<string, {
+        email?: string | undefined;
+        github?: string | undefined;
+        name: string;
+        publicKey: string;
+        publicKeyAlgorithm?: "ed25519" | undefined;
+    }> | undefined;
+    version: 1;
+}, {
+    gates?: Record<string, {
+        authorizedSigners: string[];
+        description: string;
+        fingerprint: {
+            exclude?: string[] | undefined;
+            paths: string[];
+        };
+        maxAge: string;
+        name: string;
+    }> | undefined;
+    minVersion?: string | undefined;
+    rootGate?: {
+        authorizedSigners: string[];
+        description?: string | undefined;
+        maxAge?: string | undefined;
+    } | undefined;
     settings?: {
         attestationsPath?: string | undefined;
         maxAgeDays?: number | undefined;
@@ -787,6 +890,34 @@ export function readSeals(dir: string, sealsPathOverride?: string): Promise<Seal
 
 // @public
 export function readSealsSync(dir: string, sealsPathOverride?: string): SealsFile;
+
+// @public
+export const ROOT_GATE_ID = "__root__";
+
+// @public
+export interface RootGateConfig {
+    authorizedSigners: string[];
+    description?: string;
+    maxAge: string;
+}
+
+// @public
+export type RootGateState = 'NOT_ANCHORED' | SealVerificationResult['state'];
+
+// @public
+export class RootGateVerificationError extends Error {
+    constructor(result: RootGateVerificationResult);
+    // (undocumented)
+    readonly result: RootGateVerificationResult;
+}
+
+// @public
+export interface RootGateVerificationResult {
+    gateId: string;
+    message: string;
+    seal?: Seal;
+    state: RootGateState;
+}
 
 // @public
 export function saveLocalConfig(config: LocalConfig, configPath?: string): Promise<void>;
@@ -921,6 +1052,11 @@ export interface SuiteConfig {
     timeout?: string;
 }
 
+// Warning: (ae-internal-missing-underscore) The name "synthesizeRootGate" should be prefixed with an underscore because the declaration is marked as @internal
+//
+// @internal
+export function synthesizeRootGate(rootGate: RootGateConfig, policyRelPath: string): GateConfig;
+
 // @public
 export interface TeamMember {
     email?: string | undefined;
@@ -1025,6 +1161,14 @@ export function verifyGateSeal(config: AttestItConfig, gateId: string, seals: Se
 
 // @public
 export function verifyOne(artifactPath: string, options?: ApiOptions): Promise<ArtifactVerification>;
+
+// @public
+export function verifyRootGate(params: {
+    config: AttestItConfig;
+    policyFingerprint: string;
+    seals: SealsFile;
+    trustedSourceLabel?: string;
+}): RootGateVerificationResult;
 
 // @public
 export function verifySeal(seal: Seal, config: AttestItConfig): SignatureVerificationResult;

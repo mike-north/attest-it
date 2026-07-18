@@ -58,3 +58,17 @@ export {
   UnifiedMigrationError,
   type SplitConfigResult,
 } from './migrations/index.js'
+
+// Root-gate trust anchoring over policy.yaml
+export {
+  ROOT_GATE_ID,
+  RootGateVerificationError,
+  verifyRootGate,
+  createRootSeal,
+  synthesizeRootGate,
+  computePolicyFingerprint,
+  computePolicyFingerprintSync,
+  isBlockingRootGateState,
+  type RootGateState,
+  type RootGateVerificationResult,
+} from './root-gate.js'
