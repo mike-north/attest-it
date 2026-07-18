@@ -194,6 +194,41 @@ async function readCreatedPublicKey(homeDir: string, slug: string): Promise<stri
   return identity.publicKey
 }
 
+/**
+ * Read the VaultKeeper `privateKey.id` attest-it just wrote for `slug` under
+ * a temp ATTEST_IT_HOME (used to locate the corresponding `.enc` secret file
+ * on disk for issue #101's deletion assertion).
+ */
+async function readCreatedPrivateKeyId(homeDir: string, slug: string): Promise<string> {
+  const content = await fs.promises.readFile(path.join(homeDir, 'config.yaml'), 'utf8')
+  const parsed: unknown = parseYaml(content)
+  if (!isRecordOfUnknown(parsed) || !isRecordOfUnknown(parsed.identities)) {
+    throw new Error('Expected local config to contain an identities map')
+  }
+  const identity = parsed.identities[slug]
+  if (
+    !isRecordOfUnknown(identity) ||
+    !isRecordOfUnknown(identity.privateKey) ||
+    typeof identity.privateKey.id !== 'string'
+  ) {
+    throw new Error(`Expected identity "${slug}" to have a string privateKey.id`)
+  }
+  return identity.privateKey.id
+}
+
+/**
+ * Path to the VaultKeeper `file`-backend `.enc` secret for a given secret id
+ * under `vaultKeeperConfigDir` (mirrors `getEntryPath` in vaultkeeper's
+ * file-backend implementation: `<configDir>/file/<hex(id)>.enc`).
+ */
+function vaultKeeperFileSecretPath(vaultKeeperConfigDir: string, secretId: string): string {
+  return path.join(
+    vaultKeeperConfigDir,
+    'file',
+    `${Buffer.from(secretId, 'utf8').toString('hex')}.enc`,
+  )
+}
+
 describe('non-interactive setup end-to-end (issue #80)', () => {
   let projectDir: string
   let homeDir: string
@@ -393,9 +428,14 @@ describe('non-interactive setup end-to-end (issue #80)', () => {
 
   describe('identity remove headless operation (issue #94)', () => {
     it(
-      'removes an identity non-interactively with --yes and closed stdin',
+      'removes an identity non-interactively with --yes and closed stdin, ' +
+        'and deletes the underlying VaultKeeper secret (issue #101)',
       async () => {
-        const env = { ATTEST_IT_HOME: homeDir }
+        // VAULTKEEPER_CONFIG_DIR is redirected to the same isolated per-test
+        // homeDir used for ATTEST_IT_HOME, so the `file`-backend secret this
+        // test creates and deletes never touches the real machine's
+        // `~/.config/vaultkeeper`.
+        const env = { ATTEST_IT_HOME: homeDir, VAULTKEEPER_CONFIG_DIR: homeDir }
         await runCliNonInteractive(
           ['identity', 'create', '--name', 'A', '--slug', 'a', '--storage', 'file'],
           projectDir,
@@ -407,6 +447,10 @@ describe('non-interactive setup end-to-end (issue #80)', () => {
           env,
         )
 
+        const secretId = await readCreatedPrivateKeyId(homeDir, 'b')
+        const secretPath = vaultKeeperFileSecretPath(homeDir, secretId)
+        await expect(fs.promises.access(secretPath)).resolves.toBeUndefined()
+
         const result = await runCliNonInteractive(
           ['identity', 'remove', 'b', '--yes'],
           projectDir,
@@ -415,6 +459,11 @@ describe('non-interactive setup end-to-end (issue #80)', () => {
 
         expect(result.exitCode).toBe(0)
         expect(result.stdout).toContain('removed')
+
+        // The regression this guards against: pre-fix, `identity remove`
+        // only removed the config.yaml entry and left this `.enc` file on
+        // disk indefinitely.
+        await expect(fs.promises.access(secretPath)).rejects.toThrow()
       },
       CLI_CALL_TIMEOUT_MS * 3,
     )
@@ -422,7 +471,7 @@ describe('non-interactive setup end-to-end (issue #80)', () => {
     it(
       'fails fast (never hangs) when identity remove is given no --yes with no TTY',
       async () => {
-        const env = { ATTEST_IT_HOME: homeDir }
+        const env = { ATTEST_IT_HOME: homeDir, VAULTKEEPER_CONFIG_DIR: homeDir }
         await runCliNonInteractive(
           ['identity', 'create', '--name', 'A', '--slug', 'a', '--storage', 'file'],
           projectDir,
@@ -446,7 +495,7 @@ describe('non-interactive setup end-to-end (issue #80)', () => {
       'never enters the runaway prompt-render loop when stdin is piped from `yes`, ' +
         'and produces bounded output',
       async () => {
-        const env = { ATTEST_IT_HOME: homeDir }
+        const env = { ATTEST_IT_HOME: homeDir, VAULTKEEPER_CONFIG_DIR: homeDir }
         await runCliNonInteractive(
           ['identity', 'create', '--name', 'A', '--slug', 'a', '--storage', 'file'],
           projectDir,

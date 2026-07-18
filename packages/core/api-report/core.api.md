@@ -110,6 +110,9 @@ export interface CryptoVerifyOptions {
 }
 
 // @public
+export function deletePrivateKey(backendType: PrivateKeyBackendType, secretId: string): Promise<void>;
+
+// @public
 export interface Ed25519GenerateKeyPairOptions {
     passphrase?: string;
 }

@@ -132,6 +132,7 @@ export {
   type VaultKeyProviderOptions,
   type KeyProviderFactory,
   storePrivateKey,
+  deletePrivateKey,
   type StorePrivateKeyResult,
   type PrivateKeyBackendType,
 } from './key-provider/index.js'
