@@ -5,9 +5,7 @@ import { log, success, error, warn } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
 import { handlePromptableError, resolveConfirmation } from '../../utils/prompts.js'
 import { getTheme } from '../../components/theme.js'
-import { writeFile } from 'node:fs/promises'
-import { stringify as stringifyYaml } from 'yaml'
-import { loadPolicyForEdit } from './utils.js'
+import { loadPolicyForEdit, writePolicyEdit } from './utils.js'
 
 export const removeCommand = new Command('remove')
   .description('Remove a team member')
@@ -32,7 +30,8 @@ export async function runRemove(slug: string, options: { force?: boolean }): Pro
     const theme = getTheme()
 
     // Load existing policy (team + gates live in policy.yaml)
-    const { policy, path: policyPath } = loadPolicyForEdit()
+    const editablePolicy = loadPolicyForEdit()
+    const { policy } = editablePolicy
 
     // Check if member exists
     // eslint-disable-next-line security/detect-object-injection
@@ -120,22 +119,30 @@ export async function runRemove(slug: string, options: { force?: boolean }): Pro
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete, security/detect-object-injection
     delete updatedTeam[slug]
 
+    // Remove from all gate authorizations. Builds an entirely new `gates`
+    // object rather than mutating `policy.gates`/`gate.authorizedSigners` in
+    // place: `policy` is also the "before" snapshot the comment-preserving
+    // writer diffs against below, and `{ ...policy, team: updatedTeam }`
+    // keeps the same `gates` object reference, so mutating it in place would
+    // corrupt that snapshot and make every gate look unchanged. See issue #102.
+    const updatedGates = policy.gates
+      ? Object.fromEntries(
+          Object.entries(policy.gates).map(([gateId, gate]) => [
+            gateId,
+            { ...gate, authorizedSigners: gate.authorizedSigners.filter((s) => s !== slug) },
+          ]),
+        )
+      : policy.gates
+
     // Update policy
     const updatedPolicy: PolicyConfig = {
       ...policy,
       team: updatedTeam,
+      gates: updatedGates,
     }
 
-    // Remove from all gate authorizations
-    if (updatedPolicy.gates) {
-      for (const gate of Object.values(updatedPolicy.gates)) {
-        gate.authorizedSigners = gate.authorizedSigners.filter((s) => s !== slug)
-      }
-    }
-
-    // Write policy back to file
-    const yamlContent = stringifyYaml(updatedPolicy)
-    await writeFile(policyPath, yamlContent, 'utf8')
+    // Write policy back to file, preserving existing comments (issue #102)
+    await writePolicyEdit(editablePolicy, updatedPolicy)
 
     log('')
     success(`Team member "${slug}" removed successfully`)

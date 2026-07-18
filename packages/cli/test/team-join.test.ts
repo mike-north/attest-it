@@ -7,7 +7,7 @@ type PolicyGateConfig = NonNullable<PolicyConfig['gates']>[string]
 import * as fs from 'node:fs/promises'
 import * as fsSync from 'node:fs'
 import * as prompts from '@inquirer/prompts'
-import YAML from 'yaml'
+import YAML, { parseDocument, stringify as stringifyYaml } from 'yaml'
 
 // Mock the core module
 vi.mock('@attest-it/core', async () => {
@@ -17,7 +17,7 @@ vi.mock('@attest-it/core', async () => {
     loadLocalConfig: vi.fn(),
     getActiveIdentity: vi.fn(),
     findPolicyPath: vi.fn(),
-    parsePolicyContent: vi.fn(),
+    loadEditablePolicy: vi.fn(),
   }
 })
 
@@ -65,10 +65,22 @@ function makeGate(
 /**
  * Configure the mocks so that `loadPolicyForEdit()` resolves to the given
  * policy, as if it had been read from `/test/policy.yaml`.
+ *
+ * `loadEditablePolicy` is mocked directly (rather than the lower-level
+ * `parsePolicyContent`) because it now owns parsing *and* keeps a parsed YAML
+ * `Document` around for comment-preserving writes -- the real
+ * `serializeEditablePolicy` (unmocked) is exercised against that document, so
+ * the backing document is seeded from `stringifyYaml(policy)` to match what a
+ * real read of `path` would have produced.
  */
 function mockPolicy(policy: PolicyConfig, path = '/test/policy.yaml'): void {
   vi.mocked(core.findPolicyPath).mockReturnValue(path)
-  vi.mocked(core.parsePolicyContent).mockReturnValue(policy)
+  vi.mocked(core.loadEditablePolicy).mockReturnValue({
+    policy,
+    path,
+    format: 'yaml',
+    document: parseDocument(stringifyYaml(policy)),
+  })
 }
 
 const PUBLIC_KEY = 'dGVzdHB1YmxpY2tleXRlc3RwdWJsaWNrZXl0ZXN0cHVibGlja2V5'
