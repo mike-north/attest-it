@@ -26,6 +26,18 @@ program
 // Handle --version manually to avoid loading package.json on every invocation
 program.option('-V, --version', 'output the version number')
 
+program.addHelpText(
+  'after',
+  `
+Environment Variables:
+  ATTEST_IT_HOME  Override the local identity config directory (default:
+                  ~/.config/attest-it). Takes precedence over any
+                  programmatic override. Also redirects VaultKeeper's private
+                  key storage for the "file" backend, but not for
+                  macOS Keychain, 1Password, or YubiKey -- see
+                  docs/configuration.md for details.`,
+)
+
 // Register commands
 program.addCommand(initCommand)
 program.addCommand(statusCommand)

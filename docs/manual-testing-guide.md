@@ -92,8 +92,9 @@ pnpm exec attest-it run --suite 1password-integration
 pnpm exec attest-it seal 1password-integration
 ```
 
-The seal is a cryptographic signature proving you ran the test. It's stored in `.attest-it/seals.json`
-(configurable via the policy's `settings.sealsPath`).
+The seal is a cryptographic signature proving you ran the test. It's stored under
+`.attest-it/seals/` (one file per gate/signer; the directory is configurable via the policy's
+`settings.sealsPath`).
 
 ## When to Re-attest
 
@@ -291,7 +292,7 @@ pnpm --filter @attest-it/cli test:manual:my-integration
 pnpm exec attest-it seal my-integration
 ```
 
-Commit the seals file (`.attest-it/seals.json`) along with your changes.
+Commit the new seal file(s) under `.attest-it/seals/` along with your changes.
 
 ### Example: Full Flow
 

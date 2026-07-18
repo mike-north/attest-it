@@ -170,6 +170,29 @@ attestation states — a key backend failing or being cancelled, or a filesystem
 I/O error — are **thrown**, not returned as taxonomy failures; an embedder
 treats those as an inability to decide and fails closed.
 
+## Identity resolution and `ATTEST_IT_HOME`
+
+`seal(path, { identity }, options?)` resolves `identity` (a local identity slug) against the
+caller's **local identity configuration** -- the same `~/.config/attest-it/config.yaml` the CLI
+reads (see [Local Identity Configuration](configuration.md#local-identity-configuration)). An
+embedder running in an isolated process (tests, CI, a sandboxed worker) that must not read or
+write a real user's identity config should set the `ATTEST_IT_HOME` environment variable, or call
+`setAttestItHomeDir()` exported from `@attest-it/core`, before invoking `seal(...)`:
+
+```ts
+import { setAttestItHomeDir, seal } from '@attest-it/core'
+
+setAttestItHomeDir('/tmp/isolated-attest-it-home')
+await seal('src/tool.ts', { identity: 'ci-bot' }, { baseDir: '/path/to/repo' })
+```
+
+The environment variable takes precedence over the programmatic override -- see
+[`ATTEST_IT_HOME`](configuration.md#attest_it_home) for full precedence rules. As with the CLI,
+this also redirects where VaultKeeper stores the private key material for the **`file`**
+key-storage backend, but not for `keychain`/`1password`/`yubikey` -- so a fully isolated
+embedding test/CI environment today is only practical with the `file` backend. See the caveat in
+[`ATTEST_IT_HOME`](configuration.md#attest_it_home) for the current state.
+
 ## Schema versioning and breaking changes
 
 `API_SCHEMA_VERSION` (currently `1`) is stamped onto every result. **Changing

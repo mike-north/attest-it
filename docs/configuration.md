@@ -8,7 +8,8 @@ attest-it uses three types of configuration, split by trust level:
 
 1. **Policy configuration** (`.attest-it/policy.yaml`) - Trust-critical: team members and gates. Loaded from your repository's **default branch**, so pull requests cannot tamper with trust data.
 2. **Operational configuration** (`.attest-it/config.yaml`) - Non-security-critical: suites (test commands) and groups. Every suite must reference a gate defined in `policy.yaml`. Safe to load from PR branches.
-3. **Local identity configuration** (`~/.config/attest-it/config.yaml`) - Your personal signing identity.
+3. **Local identity configuration** (`~/.config/attest-it/config.yaml`, overridable via
+   [`ATTEST_IT_HOME`](#attest_it_home)) - Your personal signing identity.
 
 Run `attest-it init` to scaffold both `policy.yaml` and `config.yaml`. If you have an existing legacy unified `config.yaml` (a single file that held `team`, `gates`, and `suites` together), run `attest-it init --migrate` to split it into the pair automatically.
 
@@ -24,7 +25,7 @@ settings:
 team:
   alice:
     name: Alice Smith
-    publicKey: MCowBQYDK2VwAyEA...
+    publicKey: tatJ4K7XDrycr83Tp7XZg2JLKbZb8Ty322jCijuA+Rc=
 
 gates:
   desktop-tests:
@@ -281,11 +282,11 @@ team:
     name: Alice Smith
     email: alice@example.com
     github: alicedev
-    publicKey: MCowBQYDK2VwAyEAabc123...
+    publicKey: tatJ4K7XDrycr83Tp7XZg2JLKbZb8Ty322jCijuA+Rc=
 
   bob:
     name: Bob Jones
-    publicKey: MCowBQYDK2VwAyEAxyz789...
+    publicKey: ThmrTeY+vN6mT9ll6vtQoCnFXvP9iAH2js/VJywXGUQ=
 ```
 
 ### Team Member Fields
@@ -510,7 +511,7 @@ identities:
     name: Alice Smith
     email: alice@example.com
     github: alicedev
-    publicKey: MCowBQYDK2VwAyEAabc123...
+    publicKey: 3qdpoUtbULEkav5QsYUQ3yf1Wx5yJVtXFxHtsWJtRbw=
     privateKey:
       type: 1password
       id: attest-it-work-1a2b3c4d-5678-90ab-cdef-1234567890ab
@@ -519,7 +520,7 @@ identities:
   personal:
     name: Alice Smith
     email: alice@personal.com
-    publicKey: MCowBQYDK2VwAyEAdef456...
+    publicKey: OorDf+aGu8Hwnf5+kD44TfqnXi5qv7gvqIDH8ZOazKs=
     privateKey:
       type: keychain
       id: attest-it-personal-2b3c4d5e-6789-01bc-def2-234567890abc
@@ -635,6 +636,37 @@ Migrated keys therefore do not yet get delegated signing's no-disk-write benefit
 them once VaultKeeper offers a public-key-preserving external-key import is tracked in
 [#122](https://github.com/mike-north/attest-it/issues/122).
 
+### `ATTEST_IT_HOME`
+
+By default, local identity configuration lives at `~/.config/attest-it/config.yaml` (see
+[Local Identity Configuration](#local-identity-configuration) above). Set the `ATTEST_IT_HOME`
+environment variable to redirect that entire directory somewhere else -- useful for running
+multiple isolated identity sets on one machine, or for tests/CI that must not touch a real
+user's config.
+
+```bash
+export ATTEST_IT_HOME=/tmp/isolated-attest-it
+attest-it identity create --name "CI Bot" --storage file --slug ci-bot < /dev/null
+# writes to /tmp/isolated-attest-it/config.yaml instead of ~/.config/attest-it/config.yaml
+```
+
+**Precedence** (highest to lowest):
+
+1. `ATTEST_IT_HOME` environment variable
+2. A programmatic override via `@attest-it/core`'s `setAttestItHomeDir()` (embedders only)
+3. Default: `~/.config/attest-it`
+
+**Caveat -- only the `file` backend's VaultKeeper storage is covered.** Beyond redirecting
+`config.yaml` (the identity **metadata**: slug, name, public key, and a pointer to where the
+private key lives), `ATTEST_IT_HOME` also propagates into VaultKeeper's own config-dir
+resolution for the **`file`** key storage backend: the encrypted `.enc` private-key blob lands
+under `<ATTEST_IT_HOME>/vaultkeeper/`, not the real `~/.config/vaultkeeper/` (fixed in #129/#142
+-- previously it leaked to the real, non-sandboxed location even with `ATTEST_IT_HOME` set). The
+`keychain`, `1password`, and `yubikey` backends are **not** covered by this propagation -- the
+macOS Keychain item, 1Password vault entry, or YubiKey-encrypted file are still located exactly
+where they'd be without `ATTEST_IT_HOME` set, regardless of its value. A fully isolated test/CI
+environment today is only practical with the `file` backend.
+
 ---
 
 ## Verification States
@@ -654,6 +686,42 @@ including `MISSING`, `FINGERPRINT_MISMATCH`, `INVALID_SIGNATURE`, and `UNKNOWN_S
 | `FINGERPRINT_MISMATCH` | 1             | Code changed since seal was created     |
 | `INVALID_SIGNATURE`    | 1             | Signature verification failed           |
 | `UNKNOWN_SIGNER`       | 1             | Signer not in team configuration        |
+
+### `status --json` Output Schema
+
+`attest-it status --json` prints an array with one object per gate (or `[]` when the
+configuration defines zero gates, which still exits `NO_WORK`):
+
+```json
+[
+  {
+    "gateId": "desktop-tests",
+    "state": "VALID",
+    "currentFingerprint": "sha256:e05bdb2e8f005bac24d6266f5fe867c08d8440f1e80d65064c2b4c171327ee19",
+    "sealedFingerprint": "sha256:e05bdb2e8f005bac24d6266f5fe867c08d8440f1e80d65064c2b4c171327ee19",
+    "sealedBy": "alice",
+    "sealedAt": "2026-01-14T12:34:56.789Z",
+    "age": 0
+  }
+]
+```
+
+| Field                | Type                | Always present | Description                                                                            |
+| -------------------- | ------------------- | -------------- | -------------------------------------------------------------------------------------- |
+| `gateId`             | string              | Yes            | The gate's identifier (its key under `gates:` in `policy.yaml`)                        |
+| `state`              | `VerificationState` | Yes            | One of the states in the table above                                                   |
+| `currentFingerprint` | string              | Yes            | The fingerprint computed from the gate's current fingerprint paths, `sha256:`-prefixed |
+| `sealedFingerprint`  | string              | Only if sealed | The fingerprint recorded in the seal, if a seal exists for this gate                   |
+| `sealedBy`           | string              | Only if sealed | The signer's identity slug, if a seal exists                                           |
+| `sealedAt`           | string (ISO 8601)   | Only if sealed | The seal's timestamp, if a seal exists                                                 |
+| `age`                | number (days)       | Only if sealed | Days elapsed since `sealedAt`, floored                                                 |
+| `message`            | string \| undefined | No             | An optional human-readable explanation (e.g. why a state is not `VALID`)               |
+
+`attest-it verify --json` uses a **different** shape (`SealVerificationResult[]`): each entry is
+`{ gateId, state, seal?, message? }`, where `seal` -- when present -- nests
+`{ gateId, fingerprint, timestamp, sealedBy, signature }` rather than the flattened
+`sealedFingerprint`/`sealedBy`/`sealedAt`/`age` fields `status --json` uses. Neither shape is yet
+stabilized as a public API contract the way the [embeddable API](embedding.md) is.
 
 ### Exit Codes
 
@@ -780,12 +848,12 @@ team:
     name: Alice Smith
     email: alice@example.com
     github: alicedev
-    publicKey: MCowBQYDK2VwAyEAabc123...
+    publicKey: tatJ4K7XDrycr83Tp7XZg2JLKbZb8Ty322jCijuA+Rc=
 
   bob:
     name: Bob Jones
     email: bob@example.com
-    publicKey: MCowBQYDK2VwAyEAxyz789...
+    publicKey: ThmrTeY+vN6mT9ll6vtQoCnFXvP9iAH2js/VJywXGUQ=
 
 gates:
   desktop-vscode:

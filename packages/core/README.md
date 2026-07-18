@@ -118,7 +118,9 @@ backward compatibility with older, non-Ed25519 signing flows.
 
 ## API Documentation
 
-See the [API documentation](../../docs/api/core.md) for complete type definitions and function signatures.
+Full type definitions ship with the package (`dist/index.d.ts`) -- browse them via your editor's
+type hints, or see the [Embedding attest-it](https://github.com/mike-north/attest-it/blob/main/docs/embedding.md)
+guide for the stable, versioned embeddable API surface.
 
 ## Requirements
 
