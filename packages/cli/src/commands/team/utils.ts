@@ -1,6 +1,13 @@
 import { readFileSync } from 'node:fs'
+import { writeFile } from 'node:fs/promises'
 import { checkbox } from '@inquirer/prompts'
-import { findPolicyPath, parsePolicyContent, type PolicyConfig } from '@attest-it/core'
+import {
+  findPolicyPath,
+  loadEditablePolicy,
+  serializeEditablePolicy,
+  type EditablePolicy,
+  type PolicyConfig,
+} from '@attest-it/core'
 import { isInteractiveTTY } from '../../utils/prompts.js'
 
 /**
@@ -9,11 +16,18 @@ import { isInteractiveTTY } from '../../utils/prompts.js'
  * Team members and gates are trust-critical and live in `.attest-it/policy.yaml`.
  * Team commands read, mutate, and write this file directly.
  *
- * @returns The parsed policy config and the path it was loaded from.
+ * The returned {@link EditablePolicy} retains enough state (a parsed YAML
+ * document, for `.yaml`/`.yml` files) to write updates back via
+ * {@link writePolicyEdit} without losing comments -- including the
+ * `# yaml-language-server:` schema directive and any human-authored
+ * annotations. See issue #102.
+ *
+ * @returns The editable policy: parsed policy config, the path it was
+ * loaded from, and document state needed for a comment-preserving write.
  * @throws If no policy file is found.
  * @public
  */
-export function loadPolicyForEdit(): { policy: PolicyConfig; path: string } {
+export function loadPolicyForEdit(): EditablePolicy {
   const path = findPolicyPath()
   if (!path) {
     throw new Error(
@@ -21,9 +35,23 @@ export function loadPolicyForEdit(): { policy: PolicyConfig; path: string } {
     )
   }
   const content = readFileSync(path, 'utf8')
-  const format = path.endsWith('.json') ? 'json' : 'yaml'
-  const policy = parsePolicyContent(content, format)
-  return { policy, path }
+  return loadEditablePolicy(path, content)
+}
+
+/**
+ * Write an updated policy back to disk, preserving existing comments (and the
+ * `# yaml-language-server:` schema directive) wherever possible.
+ *
+ * @param editable - The policy as loaded by {@link loadPolicyForEdit}.
+ * @param updatedPolicy - The new policy value to persist.
+ * @public
+ */
+export async function writePolicyEdit(
+  editable: EditablePolicy,
+  updatedPolicy: PolicyConfig,
+): Promise<void> {
+  const content = serializeEditablePolicy(editable, updatedPolicy)
+  await writeFile(editable.path, content, 'utf8')
 }
 
 /**
@@ -101,6 +129,16 @@ export async function resolveGateAuthorization(
 /**
  * Add a team member to the policy and update gate authorizations.
  *
+ * @remarks
+ * Builds an entirely new `gates` object rather than mutating
+ * `policy.gates`/`gate.authorizedSigners` in place. The input `policy` is
+ * also the "before" snapshot {@link writePolicyEdit} diffs against to decide
+ * which sections of the on-disk YAML document need to change; mutating
+ * shared gate objects in place would corrupt that snapshot (since
+ * `{ ...policy, team: {...} }` keeps the same `gates` object reference) and
+ * make every gate look unchanged even when an `authorizedSigners` array was
+ * just pushed into. See issue #102.
+ *
  * @param policy - The existing policy config
  * @param memberSlug - The slug/identifier for the team member
  * @param memberData - The team member data to add
@@ -122,8 +160,18 @@ export function addTeamMemberToPolicy(
 ): PolicyConfig {
   const existingTeam = policy.team ?? {}
 
-  // Build the updated policy with the new team member
-  const updatedPolicy: PolicyConfig = {
+  const updatedGates = policy.gates
+    ? Object.fromEntries(
+        Object.entries(policy.gates).map(([gateId, gate]) => {
+          if (authorizedGates.includes(gateId) && !gate.authorizedSigners.includes(memberSlug)) {
+            return [gateId, { ...gate, authorizedSigners: [...gate.authorizedSigners, memberSlug] }]
+          }
+          return [gateId, gate]
+        }),
+      )
+    : policy.gates
+
+  return {
     ...policy,
     team: {
       ...existingTeam,
@@ -135,21 +183,6 @@ export function addTeamMemberToPolicy(
         ...(memberData.github ? { github: memberData.github } : {}),
       },
     },
+    gates: updatedGates,
   }
-
-  // Update gate authorizations
-  if (authorizedGates.length > 0 && updatedPolicy.gates) {
-    for (const gateId of authorizedGates) {
-      // eslint-disable-next-line security/detect-object-injection
-      const gate = updatedPolicy.gates[gateId]
-      if (gate) {
-        // Add to authorizedSigners if not already present
-        if (!gate.authorizedSigners.includes(memberSlug)) {
-          gate.authorizedSigners.push(memberSlug)
-        }
-      }
-    }
-  }
-
-  return updatedPolicy
 }

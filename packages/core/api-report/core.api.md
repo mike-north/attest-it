@@ -4,6 +4,7 @@
 
 ```ts
 
+import { Document } from 'yaml';
 import { SecretBackend } from 'vaultkeeper';
 import { z } from 'zod';
 
@@ -122,6 +123,18 @@ export interface Ed25519KeyPair {
     privateKey: string;
     publicKey: string;
 }
+
+// @public
+export type EditablePolicy = {
+    document: Document.Parsed;
+    format: 'yaml';
+    path: string;
+    policy: PolicyConfig;
+} | {
+    format: 'json';
+    path: string;
+    policy: PolicyConfig;
+};
 
 // @public
 export type FailureClass = 'expired' | 'fingerprint-mismatch' | 'malformed' | 'unauthorized-signer' | 'unsealed' | 'untrusted-config';
@@ -374,6 +387,9 @@ export function listPackageFiles(packages: string[], ignore?: string[], baseDir?
 
 // @public
 export function listYubiKeyDevices(): Promise<YubiKeyInfo[]>;
+
+// @public
+export function loadEditablePolicy(path: string, content: string): EditablePolicy;
 
 // @public
 export function loadLocalConfig(configPath?: string): Promise<LocalConfig | null>;
@@ -851,6 +867,9 @@ export interface SealVerificationResult {
     seal?: Seal;
     state: VerificationState;
 }
+
+// @public
+export function serializeEditablePolicy(editable: EditablePolicy, updatedPolicy: PolicyConfig): string;
 
 // @public
 export function setAttestItHomeDir(dir: null | string): void;

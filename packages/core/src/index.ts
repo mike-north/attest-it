@@ -42,6 +42,10 @@ export {
   policySchema,
   parsePolicyContent,
   PolicyValidationError,
+  // Comment-preserving policy read/write round-trip
+  type EditablePolicy,
+  loadEditablePolicy,
+  serializeEditablePolicy,
   // Operational config
   type OperationalConfig,
   operationalSchema,

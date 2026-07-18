@@ -4,10 +4,13 @@ import { loadLocalConfig, getActiveIdentity } from '@attest-it/core'
 import { log, success, error, info } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
 import { getTheme } from '../../components/theme.js'
-import { writeFile } from 'node:fs/promises'
-import { stringify as stringifyYaml } from 'yaml'
 import { resolveOrPrompt, handlePromptableError } from '../../utils/prompts.js'
-import { resolveGateAuthorization, addTeamMemberToPolicy, loadPolicyForEdit } from './utils.js'
+import {
+  resolveGateAuthorization,
+  addTeamMemberToPolicy,
+  loadPolicyForEdit,
+  writePolicyEdit,
+} from './utils.js'
 
 interface JoinOptions {
   slug?: string
@@ -62,7 +65,8 @@ export async function runJoin(options: JoinOptions = {}): Promise<void> {
     log('')
 
     // Load project policy (team + gates live in policy.yaml)
-    const { policy, path: policyPath } = loadPolicyForEdit()
+    const editablePolicy = loadPolicyForEdit()
+    const { policy } = editablePolicy
     const existingTeam = policy.team ?? {}
 
     // Check if public key already exists
@@ -119,9 +123,8 @@ export async function runJoin(options: JoinOptions = {}): Promise<void> {
     }
     const updatedPolicy = addTeamMemberToPolicy(policy, slug, memberData, authorizedGates)
 
-    // Write policy back to file
-    const yamlContent = stringifyYaml(updatedPolicy)
-    await writeFile(policyPath, yamlContent, 'utf8')
+    // Write policy back to file, preserving existing comments (issue #102)
+    await writePolicyEdit(editablePolicy, updatedPolicy)
 
     log('')
     success(`Team member "${slug}" added successfully`)
