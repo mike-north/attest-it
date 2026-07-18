@@ -73,11 +73,10 @@ const unifiedConfigSchema = z
     settings: unifiedSettingsSchema.default({}),
     team: z.record(z.string(), teamMemberSchema).optional(),
     gates: z.record(z.string(), gateSchema).optional(),
-    suites: z
-      .record(z.string(), unifiedSuiteSchema)
-      .refine((suites) => Object.keys(suites).length >= 1, {
-        message: 'At least one suite must be defined',
-      }),
+    // An empty (or omitted) `suites` map is valid: suites are operational data,
+    // not a global precondition (issue #137). A unified config that defines only
+    // gates migrates cleanly to a split pair with no suites.
+    suites: z.record(z.string(), unifiedSuiteSchema).default({}),
     groups: z.record(z.string(), z.array(z.string().min(1))).optional(),
   })
   .strict()

@@ -46460,9 +46460,15 @@ var operationalSchemaV1 = external_exports.object({
   version: versionSchema3(1),
   minVersion: semverSchema.optional(),
   settings: operationalSettingsSchemaV1.default({}),
-  suites: external_exports.record(external_exports.string(), suiteSchemaV1).refine((suites) => Object.keys(suites).length >= 1, {
-    message: "At least one suite must be defined"
-  }),
+  // Suites are OPERATIONAL data, not a global precondition. An empty (or
+  // omitted) `suites` map is a valid operational config: gate-only "Direct
+  // Sealing" and read-only flows (listGates/fingerprint/verifyOne/verifyAll/
+  // seal/status/verify) need only policy/gate data and must load cleanly
+  // against `suites: {}` — exactly what `init` scaffolds. Suite-DEPENDENT
+  // operations (`run --suite <name>`) still validate that the named suite
+  // exists at resolution time, so the global ">=1 suite" precondition that
+  // used to be enforced here was the wrong layer (issue #137).
+  suites: external_exports.record(external_exports.string(), suiteSchemaV1).default({}),
   groups: external_exports.record(external_exports.string(), external_exports.array(external_exports.string().min(1, "Suite name in group cannot be empty"))).optional()
 }).strict();
 var schemaV14 = fromZod("1", operationalSchemaV1);
@@ -46495,9 +46501,10 @@ var unifiedConfigSchema = external_exports.object({
   settings: unifiedSettingsSchema.default({}),
   team: external_exports.record(external_exports.string(), teamMemberSchema).optional(),
   gates: external_exports.record(external_exports.string(), gateSchema).optional(),
-  suites: external_exports.record(external_exports.string(), unifiedSuiteSchema).refine((suites) => Object.keys(suites).length >= 1, {
-    message: "At least one suite must be defined"
-  }),
+  // An empty (or omitted) `suites` map is valid: suites are operational data,
+  // not a global precondition (issue #137). A unified config that defines only
+  // gates migrates cleanly to a split pair with no suites.
+  suites: external_exports.record(external_exports.string(), unifiedSuiteSchema).default({}),
   groups: external_exports.record(external_exports.string(), external_exports.array(external_exports.string().min(1))).optional()
 }).strict();
 var policySchema = policySchemaV1;

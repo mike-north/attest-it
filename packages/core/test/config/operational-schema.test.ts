@@ -357,21 +357,26 @@ suites:
         expect(() => parseOperationalContent(yaml, 'yaml')).toThrow('version')
       })
 
-      it('should reject config with no suites', () => {
+      // Issue #137: suites are OPTIONAL operational data, not a global
+      // precondition. An empty `suites: {}` — exactly what `init` scaffolds — is
+      // a valid operational config so gate-only / read-only flows load cleanly.
+      it('should accept config with an empty suites map', () => {
         const yaml = `
 version: 1
 suites: {}
 `
-        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(OperationalValidationError)
-        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow('At least one suite')
+        const result = parseOperationalContent(yaml, 'yaml')
+        expect(result.suites).toEqual({})
       })
 
-      it('should reject config with missing suites', () => {
+      // Issue #137: an omitted `suites` key is equivalent to an empty map and
+      // must also be accepted (defaults to {}).
+      it('should accept config with missing suites (defaults to empty)', () => {
         const yaml = `
 version: 1
 `
-        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow(OperationalValidationError)
-        expect(() => parseOperationalContent(yaml, 'yaml')).toThrow('suites')
+        const result = parseOperationalContent(yaml, 'yaml')
+        expect(result.suites).toEqual({})
       })
 
       it('should reject suite without gate', () => {
@@ -699,9 +704,13 @@ suites:
 
   describe('OperationalValidationError', () => {
     it('should include Zod issues in the error', () => {
+      // A suite missing its required `gate` is an invalid operational config
+      // (empty `suites: {}` is now valid — issue #137).
       const yaml = `
 version: 1
-suites: {}
+suites:
+  unit:
+    command: pnpm test
 `
       try {
         parseOperationalContent(yaml, 'yaml')
