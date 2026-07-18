@@ -1200,7 +1200,7 @@ export interface VerificationSuccess extends ApiResultBase {
 export function verify(options: CryptoVerifyOptions): Promise<boolean>;
 
 // @public
-export function verifyAll(params?: VerifyAllParams, options?: ApiOptions): Promise<ApiFailure | VerifyAllResult>;
+export function verifyAll(params?: VerifyAllParams, options?: VerifyOptions): Promise<ApiFailure | VerifyAllResult>;
 
 // @public
 export interface VerifyAllParams {
@@ -1223,7 +1223,13 @@ export function verifyEd25519(data: Buffer | string, signature: string, publicKe
 export function verifyGateSeal(config: AttestItConfig, gateId: string, seals: SealsFile, currentFingerprint: string): SealVerificationResult;
 
 // @public
-export function verifyOne(artifactPath: string, options?: ApiOptions): Promise<ArtifactVerification>;
+export function verifyOne(artifactPath: string, options?: VerifyOptions): Promise<ArtifactVerification>;
+
+// @public
+export interface VerifyOptions extends ApiOptions {
+    trustedConfig?: AttestItConfig;
+    trustedPolicyPath?: string;
+}
 
 // @public
 export function verifyPatternArtifactSeal(config: AttestItConfig, gateId: string, artifactPath: string, seal: Seal | undefined, currentFingerprint: string, maxAge: string | undefined): SealVerificationResult;

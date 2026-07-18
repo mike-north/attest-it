@@ -19,6 +19,7 @@ export {
   type ApiResultBase,
   type ApiFailure,
   type ApiOptions,
+  type VerifyOptions,
   type GateDescriptor,
   type ListGatesResult,
   type FingerprintResultOk,

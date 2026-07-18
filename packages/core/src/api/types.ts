@@ -9,6 +9,7 @@
  * @packageDocumentation
  */
 
+import type { AttestItConfig } from '../types.js'
 import type { VerificationState } from '../seal/verification.js'
 
 /**
@@ -42,8 +43,12 @@ export type ApiSchemaVersion = typeof API_SCHEMA_VERSION
  * - `unauthorized-signer` — the seal's signer is not authorized for the gate, or
  *   the signature does not cryptographically verify against an authorized key.
  * - `untrusted-config` — the policy/config defining trust is not itself anchored
- *   to a trusted root. Reserved for the root-gate trust work; it is shipped as a
- *   documented stub and is not returned at runtime until that work lands.
+ *   to a trusted root. Returned by {@link verifyOne}/{@link verifyAll} when the
+ *   working-tree policy defines a `rootGate` but its own root seal does not
+ *   verify against the caller-supplied **trusted** policy source (e.g. a branch
+ *   that self-added a root signer and self-sealed), or when a `rootGate` is
+ *   present and **no** trusted source was supplied (fail closed — never a silent
+ *   pass). See {@link VerifyOptions}.
  * - `expired` — a valid seal exists but is older than the gate's `maxAge`.
  * - `malformed` — the input or on-disk state cannot be interpreted: an
  *   unparseable config, an unreadable/structurally-invalid seal, or a path that
@@ -247,6 +252,43 @@ export interface ApiOptions {
    * directory, so an embedder can point the API at a checked-out worktree.
    */
   baseDir?: string
+}
+
+/**
+ * Options for the trust-anchored verify operations ({@link verifyOne} and
+ * {@link verifyAll}).
+ *
+ * Extends {@link ApiOptions} with the **trusted policy source** the root gate is
+ * evaluated against. An in-process embedder — unlike the GitHub Action — has no
+ * implicit "base branch", so when the working-tree policy defines a `rootGate`
+ * the caller must name a trusted source for the root-gate pre-step. The trusted
+ * source supplies the authorized **root signers** and **team** the working-tree
+ * policy's own root seal is checked against, mirroring how the Action sources
+ * `rootGate`/`team` from the base branch (and aligning with the CLI's planned
+ * `--base <ref>`).
+ *
+ * Fail-closed contract: if the working-tree policy defines a `rootGate` and
+ * **neither** `trustedConfig` nor `trustedPolicyPath` is supplied, the verify
+ * operation returns an `untrusted-config` {@link ApiFailure} rather than
+ * silently trusting the working-tree anchor. A repository with no `rootGate`
+ * (not yet bootstrapped) needs no trusted source and verifies unchanged.
+ *
+ * @public
+ */
+export interface VerifyOptions extends ApiOptions {
+  /**
+   * A pre-loaded, trusted {@link AttestItConfig} (e.g. the base-branch policy
+   * the embedder loaded itself). Its `rootGate.authorizedSigners` and `team`
+   * are the trust anchor the working-tree policy's root seal is verified
+   * against. Takes precedence over {@link VerifyOptions.trustedPolicyPath}.
+   */
+  trustedConfig?: AttestItConfig
+  /**
+   * Filesystem path to a trusted policy file (e.g. a checkout of the base
+   * branch's `.attest-it/policy.yaml`). Loaded to supply the trusted
+   * `rootGate`/`team`. Ignored when {@link VerifyOptions.trustedConfig} is supplied.
+   */
+  trustedPolicyPath?: string
 }
 
 /**

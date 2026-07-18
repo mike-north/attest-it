@@ -18,27 +18,41 @@ contract**: see [Schema versioning](#schema-versioning-and-breaking-changes).
 All operations are asynchronous and accept an optional `{ baseDir }` (defaulting
 to `process.cwd()`) so an embedder can point them at a checked-out worktree.
 
-| Operation     | Signature                                | Returns                             |
-| ------------- | ---------------------------------------- | ----------------------------------- |
-| `listGates`   | `listGates(options?)`                    | `ListGatesResult \| ApiFailure`     |
-| `status`      | `status(paths?, options?)`               | `StatusResult \| ApiFailure`        |
-| `fingerprint` | `fingerprint(path, options?)`            | `FingerprintResultOk \| ApiFailure` |
-| `seal`        | `seal(path, { identity }, options?)`     | `SealResult \| ApiFailure`          |
-| `verifyOne`   | `verifyOne(path, options?)`              | `VerificationSuccess \| ApiFailure` |
-| `verifyAll`   | `verifyAll({ changedSince? }, options?)` | `VerifyAllResult \| ApiFailure`     |
+| Operation     | Signature                                      | Returns                             |
+| ------------- | ---------------------------------------------- | ----------------------------------- |
+| `listGates`   | `listGates(options?)`                          | `ListGatesResult \| ApiFailure`     |
+| `status`      | `status(paths?, options?)`                     | `StatusResult \| ApiFailure`        |
+| `fingerprint` | `fingerprint(path, options?)`                  | `FingerprintResultOk \| ApiFailure` |
+| `seal`        | `seal(path, { identity }, options?)`           | `SealResult \| ApiFailure`          |
+| `verifyOne`   | `verifyOne(path, verifyOptions?)`              | `VerificationSuccess \| ApiFailure` |
+| `verifyAll`   | `verifyAll({ changedSince? }, verifyOptions?)` | `VerifyAllResult \| ApiFailure`     |
+
+> `verifyOne`/`verifyAll` take a `VerifyOptions` (a superset of `ApiOptions`)
+> that also carries the **trusted policy source** for root-gate enforcement — see
+> [Root-gate trust anchoring](#root-gate-trust-anchoring-required-for-anchored-repos).
 
 ```ts
-import { listGates, seal, verifyOne } from '@attest-it/core'
+import { listGates, seal, verifyOne, loadSplitConfig } from '@attest-it/core'
 
 const opts = { baseDir: '/path/to/repo' }
 
 const gates = await listGates(opts)
 const sealed = await seal('src/tool.ts', { identity: 'alice' }, opts)
-const verdict = await verifyOne('src/tool.ts', opts)
+
+// Trust-anchored verify: supply the TRUSTED policy source (see below) so the
+// root gate is enforced. An embedder owns git, so it loads the base-branch
+// policy however it likes and passes it as `trustedConfig`.
+const trustedConfig = await loadSplitConfig({ baseDir: '/path/to/base-branch-checkout' })
+const verdict = await verifyOne('src/tool.ts', { ...opts, trustedConfig })
 if (verdict.ok) {
-  // validly attested
+  // validly attested against a trust-anchored policy
 } else {
   switch (verdict.failureClass) {
+    case 'untrusted-config':
+      // the working-tree policy's own root seal did not verify against the
+      // trusted anchor (e.g. a branch self-added a root signer), OR a rootGate
+      // is present but no trusted source was supplied. Fail closed.
+      break
     case 'unsealed':
       /* … */ break
     // …
@@ -61,6 +75,52 @@ A path governed by **no** gate, or by **more than one** gate, is reported as a
 `malformed` failure (the request cannot be unambiguously satisfied). In a
 well-formed configuration each governed artifact belongs to exactly one gate.
 
+## Root-gate trust anchoring (required for anchored repos)
+
+`verifyOne`/`verifyAll` enforce the **root gate** before evaluating any gate —
+the same trust-anchored authorization the GitHub Action enforces. A repository
+that has run the `attest-it init` bootstrap ceremony has a top-level `rootGate`
+that seals `.attest-it/policy.yaml` itself: the trust-critical policy (team and
+gate authorization) can only change under a seal from an existing **root
+signer**. This is what stops a branch (or an agent) from self-authorizing by
+rewriting `rootGate.authorizedSigners`/`team` to a key it controls and
+self-sealing.
+
+Unlike the Action, an in-process embedder has no implicit "base branch", so it
+must name the **trusted policy source** the root gate is evaluated against, via
+`VerifyOptions`:
+
+| Field               | Meaning                                                                                                     |
+| ------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `trustedConfig`     | A pre-loaded, trusted `AttestItConfig` (e.g. the base-branch policy the embedder loaded). Takes precedence. |
+| `trustedPolicyPath` | Filesystem path to a trusted policy file (e.g. a base-branch checkout's `.attest-it/policy.yaml`).          |
+
+The working-tree policy's root seal is verified against the trusted source's
+`rootGate.authorizedSigners`/`team`. A branch that self-added a root signer is
+rejected `untrusted-config` (`UNKNOWN_SIGNER` — the trusted anchor does not list
+it); a policy changed without a fresh root seal is rejected `untrusted-config`
+(`FINGERPRINT_MISMATCH`). Once the root seal verifies, gates evaluate against the
+now-trusted working-tree config.
+
+**Fail closed:** if the working-tree policy defines a `rootGate` and **neither**
+`trustedConfig` nor `trustedPolicyPath` is supplied, verification returns an
+`untrusted-config` failure — it never silently trusts the working-tree anchor. A
+repository with **no** `rootGate` (not yet bootstrapped) needs no trusted source
+and verifies unchanged (backward compatible).
+
+```ts
+import { verifyAll, loadSplitConfig } from '@attest-it/core'
+
+// The embedder loads the trusted base-branch policy however it likes (it owns
+// git); attest-it never shells out to git itself.
+const trustedConfig = await loadSplitConfig({ baseDir: '/checkout/of/base' })
+
+const result = await verifyAll({}, { baseDir: '/checkout/of/pr', trustedConfig })
+if (!result.ok && result.failureClass === 'untrusted-config') {
+  // The PR's policy is not authorized by a trusted root signer — reject.
+}
+```
+
 ## The result envelope
 
 Every result is a discriminated union on `ok`, and every result carries a
@@ -77,14 +137,14 @@ pattern-match rather than catch.
 
 ## Failure taxonomy
 
-| Class                  | Meaning                                                                                                                                           |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `unsealed`             | The artifact is governed by a gate, but no seal exists for it.                                                                                    |
-| `fingerprint-mismatch` | A seal exists, but the artifact's content changed since it was sealed.                                                                            |
-| `unauthorized-signer`  | The seal's signer is not authorized for the gate, or the signature does not verify against an authorized key.                                     |
-| `untrusted-config`     | The policy/config defining trust is not itself anchored to a trusted root. _(See the stub note below.)_                                           |
-| `expired`              | A valid seal exists but is older than the gate's `maxAge`.                                                                                        |
-| `malformed`            | The input or on-disk state cannot be interpreted: an unparseable config, a structurally-invalid seal, or a path governed by no gate (or several). |
+| Class                  | Meaning                                                                                                                                                                                                                                             |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unsealed`             | The artifact is governed by a gate, but no seal exists for it.                                                                                                                                                                                      |
+| `fingerprint-mismatch` | A seal exists, but the artifact's content changed since it was sealed.                                                                                                                                                                              |
+| `unauthorized-signer`  | The seal's signer is not authorized for the gate, or the signature does not verify against an authorized key.                                                                                                                                       |
+| `untrusted-config`     | The working-tree policy defines a `rootGate` but its own root seal does not verify against the supplied trusted anchor, or no trusted source was supplied. See [Root-gate trust anchoring](#root-gate-trust-anchoring-required-for-anchored-repos). |
+| `expired`              | A valid seal exists but is older than the gate's `maxAge`.                                                                                                                                                                                          |
+| `malformed`            | The input or on-disk state cannot be interpreted: an unparseable config, a structurally-invalid seal, or a path governed by no gate (or several).                                                                                                   |
 
 This reconciles the lower-level `VerificationState` enum
 (`VALID`/`MISSING`/`STALE`/`FINGERPRINT_MISMATCH`/`INVALID_SIGNATURE`/`UNKNOWN_SIGNER`)
@@ -93,15 +153,6 @@ into the taxonomy: `MISSING → unsealed`, `STALE → expired`,
 `UNKNOWN_SIGNER → unauthorized-signer` (a signature that does not verify cannot
 establish an authorized human signer). The original state is preserved on the
 failure as `underlyingState`.
-
-### `untrusted-config` is a documented stub
-
-Root-gate trust anchoring is not yet implemented. The `untrusted-config` class,
-its documented shape, and the wiring that would return it are in place now so
-the contract is stable, but the underlying check currently treats every
-successfully-loaded config as trusted, so the class is never returned at runtime
-yet. Completing the trust-anchoring work fills in the check **without changing
-this contract**.
 
 ## Non-interactive by construction
 
