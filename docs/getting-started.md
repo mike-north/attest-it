@@ -235,7 +235,9 @@ npx attest-it identity export
 
 Pass `--gates` (comma-separated gate IDs) to authorize gates without the
 checkbox prompt; omitting it authorizes no gates rather than prompting or
-failing. `team join` also accepts `--slug` for the rare case where your
+failing. Each named gate must already be defined in `policy.yaml` -- naming
+a gate that doesn't exist fails fast rather than silently authorizing
+nothing. `team join` also accepts `--slug` for the rare case where your
 identity slug is already taken by another member:
 
 ```bash

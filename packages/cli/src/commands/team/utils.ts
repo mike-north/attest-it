@@ -91,6 +91,14 @@ export async function promptForGateAuthorization(
  * authorized), so a missing `--gates` flag in a non-interactive context is
  * not an error -- it resolves to an empty array rather than failing fast.
  *
+ * A supplied `--gates` flag is always validated against the gates defined in
+ * `policy.yaml`, even when no gates (or an empty `gates: {}`) are defined --
+ * previously that case short-circuited to an empty array *before* the flag
+ * was ever inspected, so `--gates <typo>` silently authorized nothing with no
+ * indication the named gate doesn't exist. This is a trust-critical
+ * authorization command, so an undefined gate hard-fails naming it rather
+ * than warning. See issue #135.
+ *
  * @param gates - The gates configuration from the policy file
  * @param gatesFlag - Comma-separated gate IDs from a `--gates` flag, if supplied
  * @returns Array of gate IDs to authorize
@@ -101,22 +109,23 @@ export async function resolveGateAuthorization(
   gates: PolicyConfig['gates'] | undefined,
   gatesFlag?: string,
 ): Promise<string[]> {
-  if (!gates || Object.keys(gates).length === 0) {
-    return []
-  }
-
   if (gatesFlag !== undefined) {
+    const knownGates = gates ?? {}
     const requested = gatesFlag
       .split(',')
       .map((id) => id.trim())
       .filter((id) => id.length > 0)
-    const unknown = requested.filter((id) => !Object.hasOwn(gates, id))
+    const unknown = requested.filter((id) => !Object.hasOwn(knownGates, id))
     if (unknown.length > 0) {
       throw new Error(
-        `--gates references unknown gate(s): ${unknown.join(', ')}. Known gates: ${Object.keys(gates).join(', ')}`,
+        `--gates references unknown gate(s): ${unknown.join(', ')}. Known gates: ${Object.keys(knownGates).join(', ') || '(none defined)'}`,
       )
     }
     return requested
+  }
+
+  if (!gates || Object.keys(gates).length === 0) {
+    return []
   }
 
   if (!isInteractiveTTY()) {

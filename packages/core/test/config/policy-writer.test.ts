@@ -126,6 +126,35 @@ describe('serializeEditablePolicy (YAML)', () => {
     expect(output).toContain('alice:')
   })
 
+  // Regression test for issue #134: `team join` rewrote the `team:` section
+  // of the trust-critical, review-gated policy.yaml into flow-style,
+  // JSON-like YAML (`team: {alice: {...}}`) the moment a member was added to
+  // the scaffolded, empty `team: {}`, while every other section (including
+  // the untouched `gates:`) stayed block-style like the scaffold and every
+  // doc example. This fails pre-fix because `document.setIn` on a nested
+  // path reuses the existing (flow-style, since empty) `team` node in place.
+  it('emits block-style YAML for `team:` when a member is added to the scaffolded empty team, leaving `gates:` byte-unchanged (issue #134)', () => {
+    const editable = loadAnnotatedPolicy()
+    const updated: PolicyConfig = {
+      ...editable.policy,
+      team: {
+        alice: { name: 'Alice', publicKey: 'pk-alice', publicKeyAlgorithm: 'ed25519' },
+      },
+    }
+
+    const output = serializeEditablePolicy(editable, updated)
+
+    // No flow-style JSON-like mapping anywhere in the written `team:` section.
+    expect(output).not.toMatch(/team:\s*\{/)
+    expect(output).toMatch(/team:\n {2}alice:\n {4}name: Alice/)
+
+    // The untouched `gates:` section must be byte-for-byte identical to the
+    // source annotated policy.
+    const gatesSectionBefore = ANNOTATED_POLICY_YAML.slice(ANNOTATED_POLICY_YAML.indexOf('gates:'))
+    const gatesSectionAfter = output.slice(output.indexOf('gates:'))
+    expect(gatesSectionAfter).toBe(gatesSectionBefore)
+  })
+
   it('preserves comments nested inside an unrelated, unchanged section', () => {
     const editable = loadAnnotatedPolicy()
     const updated: PolicyConfig = {

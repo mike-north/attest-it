@@ -123,7 +123,29 @@ function applyPolicyDiff(
   }
 
   if (isPlainRecord(before) && isPlainRecord(after)) {
-    const keys = new Set([...Object.keys(before), ...Object.keys(after)])
+    const beforeKeys = Object.keys(before)
+    const afterKeys = Object.keys(after)
+
+    // A record transitioning from empty to populated (e.g. the scaffolded
+    // `team: {}` gaining its first member) must not be edited key-by-key.
+    // `document.setIn` on a *nested* path reuses the existing node in place
+    // (YAMLMap#set), which keeps whatever collection style that node already
+    // had -- and an empty mapping like `{}` is parsed as flow style. The
+    // result was a trust-critical file where `team:` silently became
+    // flow-style JSON-like YAML (`team: {alice: {...}}`) the moment someone
+    // ran `team join`, while every other block-style section (including the
+    // untouched `gates:`) stayed block-style. See issue #134.
+    //
+    // Replacing the node wholesale instead (the same path used for scalar/
+    // array changes below) makes `yaml` synthesize a brand-new node for
+    // `after`, which defaults to block style -- matching the scaffold and
+    // every doc example.
+    if (beforeKeys.length === 0 && afterKeys.length > 0) {
+      document.setIn(path, after)
+      return
+    }
+
+    const keys = new Set([...beforeKeys, ...afterKeys])
     for (const key of keys) {
       applyPolicyDiff(document, [...path, key], before[key], after[key])
     }
