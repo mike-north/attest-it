@@ -2,12 +2,17 @@ import { Command } from 'commander'
 import {
   loadSplitConfig,
   computeFingerprintSync,
+  computePolicyFingerprintSync,
+  findPolicyPath,
   readSealsSync,
   verifyAllSeals,
   verifyGateSeal,
+  verifyRootGate,
+  isBlockingRootGateState,
   SplitConfigNotFoundError,
   type VerificationState,
   type SealVerificationResult,
+  type RootGateVerificationResult,
 } from '@attest-it/core'
 import {
   log,
@@ -22,7 +27,9 @@ import {
 import { ExitCode } from '../utils/exit-codes.js'
 
 export const verifyCommand = new Command('verify')
-  .description('Verify all gate seals (for CI)')
+  .description(
+    'Verify gate seals against the local policy (fast local pre-check, not a CI trust gate)',
+  )
   .argument('[gates...]', 'Verify specific gates only')
   .option('--json', 'Output JSON for machine parsing')
   .action(async (gates: string[], options: VerifyOptions, command: Command) => {
@@ -35,10 +42,27 @@ interface VerifyOptions {
 }
 
 /**
- * Run the verify command to validate gate seals.
+ * Run the verify command to validate gate seals against the local policy.
  *
- * Verifies signature validity and checks seal status for all gates
- * or specific gates. Intended for CI/CD pipelines.
+ * Verifies signature validity and checks seal status for all gates or specific
+ * gates, and (when the policy is trust-anchored) checks the root-gate seal over
+ * `policy.yaml` first.
+ *
+ * ## This is a local pre-check, NOT the CI trust boundary
+ *
+ * Local `verify` evaluates everything against the **working tree's** policy:
+ * `rootGate`, `team`, and `gates` are read from the local `policy.yaml`. That is
+ * correct for a developer checking their own tree, but it is **not** safe as a
+ * pull-request gate. A branch can rewrite its own `rootGate.authorizedSigners` to
+ * a key it controls and re-seal the policy; local `verify` trusts that local
+ * anchor and reports VALID by design (see the "Scenario B" regression test in
+ * `packages/cli/test/integration/root-gate.integration.test.ts`).
+ *
+ * The trust boundary is the **GitHub Action** (`@attest-it/github-action`), which
+ * sources `rootGate`/`team`/`gates` from the **base branch**, so a self-added root
+ * signer is rejected as `UNKNOWN_SIGNER`. For CI, use the Action. A CLI-native
+ * base-vs-worktree mode (`verify --base <ref>`) is planned in #115; until it
+ * lands, do not rely on plain local `verify` to gate untrusted proposal branches.
  *
  * Exits {@link ExitCode.CONFIG_ERROR} — never {@link ExitCode.SUCCESS} — when no
  * configuration can be found at all (no `.attest-it/policy.yaml` discoverable, or an
@@ -63,6 +87,37 @@ async function runVerify(
       configPath ? { policySource: { type: 'filesystem', path: configPath } } : {},
     )
 
+    // Read seals (needed for both the root-gate pre-step and gate evaluation).
+    const projectRoot = process.cwd()
+    const sealsFile = readSealsSync(projectRoot, config.settings.sealsPath)
+
+    // MANDATORY PRE-STEP: verify the config's OWN seal chain against the root
+    // gate BEFORE evaluating any other gate. Gate evaluation must never proceed
+    // against a policy whose own root-gate seal did not verify. Repositories that
+    // have not run the bootstrap ceremony define no rootGate; there is no trust
+    // anchor to check, so evaluation proceeds unchanged (backward compatibility).
+    if (config.rootGate) {
+      const policyPath = configPath ?? findPolicyPath(projectRoot)
+      if (policyPath) {
+        const policyFingerprint = computePolicyFingerprintSync(projectRoot, policyPath)
+        const rootResult = verifyRootGate({ config, policyFingerprint, seals: sealsFile })
+
+        if (isBlockingRootGateState(rootResult.state)) {
+          if (options.json) {
+            outputJson([rootGateResultToJson(rootResult)])
+          } else {
+            log('')
+            error(rootResult.message)
+          }
+          process.exit(ExitCode.FAILURE)
+        }
+
+        if (rootResult.state === 'STALE' && !options.json) {
+          warn(rootResult.message)
+        }
+      }
+    }
+
     // Config loaded successfully but defines zero gates: there is nothing to verify.
     // This is distinct from a missing/unreadable config (CONFIG_ERROR) — the config
     // is valid, so treat it as NO_WORK rather than an error or a silent success.
@@ -74,10 +129,6 @@ async function runVerify(
       }
       process.exit(ExitCode.NO_WORK)
     }
-
-    // Read seals
-    const projectRoot = process.cwd()
-    const sealsFile = readSealsSync(projectRoot, config.settings.sealsPath)
 
     // Determine which gates to verify
     const gatesToVerify = gates.length > 0 ? gates : Object.keys(config.gates)
@@ -153,6 +204,19 @@ async function runVerify(
       error('Unknown error occurred')
     }
     process.exit(ExitCode.CONFIG_ERROR)
+  }
+}
+
+/**
+ * Shape a root-gate verification result into the same JSON envelope as ordinary
+ * gate results so `verify --json` consumers see a single, uniform array.
+ */
+function rootGateResultToJson(result: RootGateVerificationResult): SealVerificationResult {
+  return {
+    gateId: result.gateId,
+    state: result.state === 'NOT_ANCHORED' ? 'MISSING' : result.state,
+    ...(result.seal && { seal: result.seal }),
+    message: result.message,
   }
 }
 

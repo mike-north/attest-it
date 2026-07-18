@@ -12,6 +12,7 @@ export type {
   TeamMember,
   FingerprintConfig,
   GateConfig,
+  RootGateConfig,
   SuiteConfig,
   AttestItConfig,
 } from './types.js'
@@ -71,6 +72,17 @@ export {
   migrateUnifiedContent,
   UnifiedMigrationError,
   type SplitConfigResult,
+  // Root-gate trust anchoring over policy.yaml
+  ROOT_GATE_ID,
+  RootGateVerificationError,
+  verifyRootGate,
+  createRootSeal,
+  synthesizeRootGate,
+  computePolicyFingerprint,
+  computePolicyFingerprintSync,
+  isBlockingRootGateState,
+  type RootGateState,
+  type RootGateVerificationResult,
 } from './config/index.js'
 
 // Fingerprinting

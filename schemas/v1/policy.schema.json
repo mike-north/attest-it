@@ -40,6 +40,29 @@
           "additionalProperties": false,
           "default": {}
         },
+        "rootGate": {
+          "type": "object",
+          "properties": {
+            "authorizedSigners": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            },
+            "maxAge": {
+              "type": "string",
+              "default": "365d"
+            },
+            "description": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": ["authorizedSigners"],
+          "additionalProperties": false
+        },
         "team": {
           "type": "object",
           "additionalProperties": {

@@ -13,6 +13,7 @@ import type {
   AttestItConfig,
   GateConfig,
   KeyProviderSettings,
+  RootGateConfig,
   SuiteConfig,
   TeamMember,
 } from '../types.js'
@@ -172,6 +173,19 @@ export function mergeConfigs(policy: PolicyConfig, operational: OperationalConfi
     version: 1,
     settings,
     suites,
+  }
+
+  // Carry the reserved root gate through from policy (trust-critical). Like
+  // team/gates, it comes exclusively from the policy config.
+  if (policy.rootGate !== undefined) {
+    const rootGate: RootGateConfig = {
+      authorizedSigners: policy.rootGate.authorizedSigners,
+      maxAge: policy.rootGate.maxAge,
+    }
+    if (policy.rootGate.description !== undefined) {
+      rootGate.description = policy.rootGate.description
+    }
+    config.rootGate = rootGate
   }
 
   // Add team from policy if defined

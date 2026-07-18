@@ -9,6 +9,9 @@ import {
   loadLocalConfigSync,
   getActiveIdentity,
   computeFingerprintSync,
+  computePolicyFingerprintSync,
+  createRootSeal,
+  findPolicyPath,
   isAuthorizedSigner,
   getGate,
   createSeal,
@@ -17,6 +20,7 @@ import {
   verifyGateSeal,
   isEncryptedPrivateKeyPem,
   KeyProviderRegistry,
+  ROOT_GATE_ID,
   API_SCHEMA_VERSION,
   type AttestItConfig,
   type FailureClass,
@@ -27,19 +31,26 @@ import {
 import { log, success, error, warn, verbose, outputJson } from '../utils/output.js'
 import { ExitCode } from '../utils/exit-codes.js'
 import { resolveKeyPassphrase } from '../utils/passphrase.js'
+import { loadIdentitySigningKey } from '../utils/identity-key.js'
 
 export const sealCommand = new Command('seal')
   .description('Create seals for gates')
   .argument('[gates...]', 'Gate IDs to seal (defaults to all gates without valid seals)')
   .option('--force', 'Force seal creation even if gate already has a valid seal')
+  .option('--root', 'Seal the reserved root gate over .attest-it/policy.yaml (root signers only)')
   .option('--dry-run', 'Show what would be sealed without creating seals')
   .option('--json', 'Output JSON for machine parsing (non-interactive)')
   .action(async (gates: string[], options: SealOptions) => {
+    if (options.root) {
+      await runSealRoot(options)
+      return
+    }
     await runSeal(gates, options)
   })
 
 interface SealOptions {
   force?: boolean
+  root?: boolean
   dryRun?: boolean
   json?: boolean
 }
@@ -198,6 +209,125 @@ async function runSeal(gates: string[], options: SealOptions): Promise<void> {
     } else {
       process.exit(ExitCode.SUCCESS)
     }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error occurred'
+    failFast(message, ExitCode.CONFIG_ERROR, json)
+  }
+}
+
+/**
+ * Seal the reserved root gate over `.attest-it/policy.yaml`.
+ *
+ * The root seal anchors the trust chain: it authorizes the CURRENT content of
+ * the policy file (team & gate authorization data). Only a team member listed in
+ * `rootGate.authorizedSigners` may create it — which is exactly what prevents a
+ * branch from bootstrapping a new root of trust for itself (changing the root
+ * signers requires a seal from an existing root signer).
+ *
+ * @param options - Command options (only `--json` and `--dry-run` apply here).
+ * @public
+ */
+async function runSealRoot(options: SealOptions): Promise<void> {
+  const json = options.json
+  try {
+    const config = await loadSplitConfig()
+
+    if (!config.rootGate) {
+      failFast(
+        'No rootGate defined in .attest-it/policy.yaml. Run the "attest-it init" bootstrap ' +
+          'ceremony to establish a root signer before sealing the root gate.',
+        ExitCode.CONFIG_ERROR,
+        json,
+      )
+    }
+
+    const localConfig = loadLocalConfigSync()
+    if (!localConfig) {
+      failFast(
+        'No local identity configuration found. Run "attest-it identity create" first.',
+        ExitCode.CONFIG_ERROR,
+        json,
+      )
+    }
+
+    const identity = getActiveIdentity(localConfig)
+    if (!identity) {
+      failFast(
+        `Active identity '${localConfig.activeIdentity}' not found in local config`,
+        ExitCode.CONFIG_ERROR,
+        json,
+      )
+    }
+
+    const identitySlug = localConfig.activeIdentity
+
+    // Only an authorized root signer may seal the root gate.
+    if (!config.rootGate.authorizedSigners.includes(identitySlug)) {
+      failFast(
+        `Active identity '${identitySlug}' is not an authorized root signer ` +
+          `(authorized: ${config.rootGate.authorizedSigners.join(', ')}). ` +
+          'A branch cannot bootstrap a new root of trust for itself.',
+        ExitCode.FAILURE,
+        json,
+      )
+    }
+
+    const projectRoot = process.cwd()
+    const policyPath = findPolicyPath(projectRoot)
+    if (!policyPath) {
+      failFast('Policy file not found under .attest-it/', ExitCode.CONFIG_ERROR, json)
+    }
+
+    const policyFingerprint = computePolicyFingerprintSync(projectRoot, policyPath)
+
+    if (options.dryRun) {
+      if (json) {
+        outputJson({
+          schemaVersion: API_SCHEMA_VERSION,
+          ok: true,
+          dryRun: true,
+          root: { fingerprint: policyFingerprint, sealedBy: identitySlug },
+        })
+      } else {
+        log(`Would seal root gate over ${policyPath}`)
+        log(`  Fingerprint: ${policyFingerprint}`)
+        log(`  Sealed by: ${identitySlug}`)
+      }
+      process.exit(ExitCode.SUCCESS)
+    }
+
+    const { privateKeyPem, passphrase } = await loadIdentitySigningKey(identity)
+
+    const seal = createRootSeal({
+      policyFingerprint,
+      sealedBy: identitySlug,
+      privateKey: privateKeyPem,
+      ...(passphrase !== undefined && { passphrase }),
+    })
+
+    const sealsFile = readSealsSync(projectRoot, config.settings.sealsPath)
+    // eslint-disable-next-line security/detect-object-injection -- ROOT_GATE_ID is a fixed reserved constant
+    sealsFile.seals[ROOT_GATE_ID] = seal
+    writeSealsSync(projectRoot, sealsFile, config.settings.sealsPath)
+
+    if (json) {
+      outputJson({
+        schemaVersion: API_SCHEMA_VERSION,
+        ok: true,
+        dryRun: false,
+        root: {
+          fingerprint: seal.fingerprint,
+          sealedBy: seal.sealedBy,
+          sealedAt: seal.timestamp,
+        },
+      })
+    } else {
+      success('Root gate sealed over .attest-it/policy.yaml')
+      log(`  Sealed by: ${identitySlug} (${identity.name})`)
+      log(`  Fingerprint: ${seal.fingerprint}`)
+      log(`  Timestamp: ${seal.timestamp}`)
+    }
+    process.exit(ExitCode.SUCCESS)
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error occurred'
     failFast(message, ExitCode.CONFIG_ERROR, json)

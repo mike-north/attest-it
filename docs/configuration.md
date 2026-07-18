@@ -60,8 +60,61 @@ suites:
 | `version`    | `1`    | Yes      | -       | Schema version (must be `1`)                      |
 | `minVersion` | string | No       | -       | Minimum attest-it version required (e.g. "0.9.0") |
 | `settings`   | object | No       | `{}`    | Policy settings                                   |
+| `rootGate`   | object | No       | -       | Trust anchor over `policy.yaml` (see below)       |
 | `team`       | object | No       | -       | Team member definitions                           |
 | `gates`      | object | No       | -       | Gate definitions                                  |
+
+### Root Gate (`rootGate`)
+
+The `rootGate` section makes `policy.yaml` itself a sealed, gated artifact — the
+**trust anchor**. It names the **root signers**: the only identities allowed to
+authorize a change to the trust-critical policy. When present, `attest-it verify`
+(and the GitHub Action) verify the root seal over `policy.yaml` **before**
+evaluating any other gate; a gate is never evaluated against a policy whose own
+root-gate seal did not verify.
+
+```yaml
+rootGate:
+  authorizedSigners:
+    - alice
+  maxAge: 365d
+  description: Trust anchor over .attest-it/policy.yaml
+```
+
+| Field               | Type            | Required | Default | Description                                                |
+| ------------------- | --------------- | -------- | ------- | ---------------------------------------------------------- |
+| `authorizedSigners` | array of string | Yes      | -       | Team member slugs allowed to seal changes to `policy.yaml` |
+| `maxAge`            | duration        | No       | `365d`  | Maximum age before the root seal is considered stale       |
+| `description`       | string          | No       | -       | Optional human-readable description                        |
+
+Notes:
+
+- `rootGate` is a dedicated top-level section, **not** an entry in `gates`. The
+  gate id `__root__` is reserved and cannot be used as an ordinary gate, so a pull
+  request cannot redefine which gate is root.
+- The artifact the root gate covers is fixed to `policy.yaml` (there is no
+  `fingerprint` field), so a branch cannot repoint it at empty content.
+- Changing `authorizedSigners` changes the policy fingerprint and requires a fresh
+  root seal from an **existing** root signer — a branch cannot bootstrap a new root
+  of trust for itself.
+
+**Bootstrap ceremony** (one human-run step establishes the trust anchor):
+
+```bash
+attest-it identity create --name "Alice" --slug alice   # once, general onboarding
+attest-it init --root-signer alice                       # establishes + seals the root gate
+```
+
+After changing the trust-critical policy later, re-anchor it as a root signer:
+
+```bash
+attest-it seal --root
+```
+
+If a repository defines no `rootGate`, it is reported as "not trust-anchored" and
+verification proceeds as before (backward compatible). See
+[`threat-model.md`](./threat-model.md) for the full threat model and the
+recommended repository posture.
 
 ## Operational Configuration Schema (`config.yaml`)
 

@@ -90,6 +90,26 @@ export interface GateConfig {
 }
 
 /**
+ * Root-gate definition — the reserved trust anchor over `.attest-it/policy.yaml`.
+ *
+ * The root gate is deliberately NOT an entry in {@link AttestItConfig.gates}: it
+ * lives in its own top-level `rootGate` section so that a pull request cannot
+ * redefine *which* gate is root by editing an ordinary, user-definable gate.
+ * The file it covers (`.attest-it/policy.yaml`) is fixed and not user-configurable,
+ * so a branch cannot repoint the root gate at empty or unrelated content.
+ *
+ * @public
+ */
+export interface RootGateConfig {
+  /** Team member slugs authorized to seal changes to the policy file itself. */
+  authorizedSigners: string[]
+  /** Maximum age before the root seal is considered stale (duration string). */
+  maxAge: string
+  /** Optional human-readable description of the root gate. */
+  description?: string
+}
+
+/**
  * Suite definition from the configuration file.
  * Suites are CLI-layer extensions of gates with command execution capabilities.
  * @public
@@ -122,6 +142,12 @@ export interface AttestItConfig {
   minVersion?: string
   /** Global settings for attestation behavior */
   settings: AttestItSettings
+  /**
+   * Reserved trust anchor over `.attest-it/policy.yaml`. When present, its seal
+   * chain is verified before any other gate is evaluated. Absent on
+   * repositories that have not yet run the `attest-it init` bootstrap ceremony.
+   */
+  rootGate?: RootGateConfig
   /** Team members mapped by slug */
   team?: Record<string, TeamMember>
   /** Gates defining authorization and fingerprinting */
