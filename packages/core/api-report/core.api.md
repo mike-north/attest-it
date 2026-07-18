@@ -81,6 +81,12 @@ export interface CliExperiencePreferences {
 export function computeFingerprint(options: FingerprintOptions): Promise<FingerprintResult>;
 
 // @public
+export function computeFingerprintsPerFile(options: FingerprintOptions): Promise<PerFileFingerprint[]>;
+
+// @public
+export function computeFingerprintsPerFileSync(options: FingerprintOptions): PerFileFingerprint[];
+
+// @public
 export function computeFingerprintSync(options: FingerprintOptions): FingerprintResult;
 
 // @public
@@ -240,7 +246,8 @@ export interface GateConfig {
     authorizedSigners: string[];
     description: string;
     fingerprint: FingerprintConfig;
-    maxAge: string;
+    kind?: GateKind | undefined;
+    maxAge?: string | undefined;
     name: string;
 }
 
@@ -250,10 +257,14 @@ export interface GateDescriptor {
     description: string;
     exclude: string[];
     gateId: string;
-    maxAge: string;
+    kind?: 'pattern' | 'single';
+    maxAge?: string;
     name: string;
     paths: string[];
 }
+
+// @public
+export type GateKind = 'pattern' | 'single';
 
 // @public
 export function generateEd25519KeyPair(options?: Ed25519GenerateKeyPairOptions): Ed25519KeyPair;
@@ -457,6 +468,9 @@ export function listOnePasswordVaults(accountUuid?: string): Promise<OnePassword
 
 // @public
 export function listPackageFiles(packages: string[], ignore?: string[], baseDir?: string): Promise<string[]>;
+
+// @public
+export function listStoredSeals(root: string): Promise<StoredSeal[]>;
 
 // @public
 export function listStoredSealsSync(root: string): StoredSeal[];
@@ -711,6 +725,12 @@ export function parseOperationalContent(content: string, format: 'json' | 'yaml'
 export function parsePolicyContent(content: string, format: 'json' | 'yaml'): PolicyConfig;
 
 // @public
+export interface PerFileFingerprint {
+    fingerprint: string;
+    path: string;
+}
+
+// @public
 export type PolicyConfig = z.infer<typeof policySchema>;
 
 // @public
@@ -728,7 +748,8 @@ export const policySchema: z.ZodObject<{
             exclude?: string[] | undefined;
             paths: string[];
         }>;
-        maxAge: z.ZodEffects<z.ZodString, string, string>;
+        kind: z.ZodOptional<z.ZodEnum<["single", "pattern"]>>;
+        maxAge: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
         name: z.ZodString;
     }, "strict", z.ZodTypeAny, {
         authorizedSigners: string[];
@@ -737,7 +758,8 @@ export const policySchema: z.ZodObject<{
             exclude?: string[] | undefined;
             paths: string[];
         };
-        maxAge: string;
+        kind?: "pattern" | "single" | undefined;
+        maxAge?: string | undefined;
         name: string;
     }, {
         authorizedSigners: string[];
@@ -746,7 +768,8 @@ export const policySchema: z.ZodObject<{
             exclude?: string[] | undefined;
             paths: string[];
         };
-        maxAge: string;
+        kind?: "pattern" | "single" | undefined;
+        maxAge?: string | undefined;
         name: string;
     }>>>;
     minVersion: z.ZodOptional<z.ZodString>;
@@ -807,7 +830,8 @@ export const policySchema: z.ZodObject<{
             exclude?: string[] | undefined;
             paths: string[];
         };
-        maxAge: string;
+        kind?: "pattern" | "single" | undefined;
+        maxAge?: string | undefined;
         name: string;
     }> | undefined;
     minVersion?: string | undefined;
@@ -838,7 +862,8 @@ export const policySchema: z.ZodObject<{
             exclude?: string[] | undefined;
             paths: string[];
         };
-        maxAge: string;
+        kind?: "pattern" | "single" | undefined;
+        maxAge?: string | undefined;
         name: string;
     }> | undefined;
     minVersion?: string | undefined;
@@ -959,6 +984,7 @@ export function savePublicKeySync(slug: string, publicKey: string): SavePublicKe
 
 // @public
 export interface Seal {
+    artifactPath?: string | undefined;
     fingerprint: string;
     gateId: string;
     sealedBy: string;
@@ -992,6 +1018,7 @@ export interface SealsFile {
 
 // @public
 export interface SealVerificationResult {
+    artifactPath?: string;
     gateId: string;
     message?: string;
     seal?: Seal;
@@ -1196,6 +1223,9 @@ export function verifyGateSeal(config: AttestItConfig, gateId: string, seals: Se
 export function verifyOne(artifactPath: string, options?: ApiOptions): Promise<ArtifactVerification>;
 
 // @public
+export function verifyPatternArtifactSeal(config: AttestItConfig, gateId: string, artifactPath: string, seal: Seal | undefined, currentFingerprint: string, maxAge: string | undefined): SealVerificationResult;
+
+// @public
 export function verifyRootGate(params: {
     config: AttestItConfig;
     policyFingerprint: string;
@@ -1215,6 +1245,9 @@ export class VersionIncompatibleError extends Error {
     readonly currentVersion: string;
     readonly requiredVersion: string;
 }
+
+// @public
+export function writeSealFile(root: string, seal: Seal): Promise<string>;
 
 // @public
 export function writeSealFileSync(root: string, seal: Seal): string;

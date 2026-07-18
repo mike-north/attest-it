@@ -11,6 +11,21 @@
 export interface Seal {
   /** Gate identifier (slug) */
   gateId: string
+  /**
+   * The specific file within a **pattern gate** that this seal covers, as a
+   * forward-slash path relative to the repository root. Present only for
+   * per-file seals produced by a pattern gate; absent (`undefined`) for an
+   * ordinary single-gate seal that covers the gate's one combined fingerprint.
+   *
+   * @remarks
+   * This is a **storage/linkage** identifier, not the cryptographic binding: the
+   * signed `fingerprint` already binds the file's path (it hashes
+   * `normalizedPath + ":" + content`), so two files that differ only in path —
+   * even symlink aliases of the same bytes — produce distinct fingerprints and
+   * cannot borrow one another's seal. `artifactPath` disambiguates which per-file
+   * seal is which on disk and in the aggregate views.
+   */
+  artifactPath?: string | undefined
   /** SHA-256 fingerprint of the gate's content in format "sha256:..." */
   fingerprint: string
   /** ISO 8601 timestamp when the seal was created */

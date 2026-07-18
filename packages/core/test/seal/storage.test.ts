@@ -17,6 +17,8 @@ import {
   resolveSealsRoot,
   writeSealFileSync,
   listStoredSealsSync,
+  readSealsFromDirSync,
+  writeSealsToDirSync,
 } from '../../src/seal/storage.js'
 import { createSeal } from '../../src/seal/operations.js'
 import { generateKeyPair } from '../../src/crypto/ed25519.js'
@@ -25,6 +27,11 @@ import type { Seal } from '../../src/seal/types.js'
 function seal(gateId: string, sealedBy: string): Seal {
   const { privateKey } = generateKeyPair()
   return createSeal({ gateId, fingerprint: 'sha256:abc123', sealedBy, privateKey })
+}
+
+/** A per-file pattern-gate seal carrying an artifactPath. */
+function patternSeal(gateId: string, artifactPath: string, sealedBy: string): Seal {
+  return { ...seal(gateId, sealedBy), artifactPath }
 }
 
 describe('slugifySegment collision-safety', () => {
@@ -136,5 +143,77 @@ describe('m-of-n coexistence (PRD R12 not precluded)', () => {
     writeSealFileSync(root, seal('tools', 'bob'))
 
     expect(fs.readFileSync(aPath, 'utf8')).toBe(before)
+  })
+})
+
+describe('pattern-gate per-file seals (#69)', () => {
+  let root: string
+
+  beforeEach(() => {
+    root = fs.mkdtempSync(path.join(os.tmpdir(), 'attest-pattern-'))
+  })
+
+  afterEach(() => {
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  it('stores two artifacts of the SAME gate as two coexisting files (artifact segment)', () => {
+    const aPath = writeSealFileSync(root, patternSeal('tools', 'tools/a.sh', 'alice'))
+    const bPath = writeSealFileSync(root, patternSeal('tools', 'tools/b.sh', 'alice'))
+
+    expect(aPath).not.toBe(bPath)
+    expect(fs.existsSync(aPath)).toBe(true)
+    expect(fs.existsSync(bPath)).toBe(true)
+
+    const stored = listStoredSealsSync(root)
+    expect(stored).toHaveLength(2)
+    const artifacts = stored.map((s) => s.seal.artifactPath).sort()
+    expect(artifacts).toEqual(['tools/a.sh', 'tools/b.sh'])
+    // artifactPath round-trips through serialize/parse.
+    expect(stored.every((s) => s.seal.gateId === 'tools')).toBe(true)
+  })
+
+  it('CASE-INSENSITIVE FS: artifact paths differing ONLY in case get DISTINCT files', () => {
+    // On a case-insensitive filesystem (e.g. macOS default), a naive slug would
+    // collapse Foo.sh and foo.sh onto the same on-disk path and silently overwrite
+    // one seal with the other. The collision-safe artifact segment must keep them
+    // apart.
+    const upperPath = writeSealFileSync(root, patternSeal('tools', 'tools/Foo.sh', 'alice'))
+    const lowerPath = writeSealFileSync(root, patternSeal('tools', 'tools/foo.sh', 'alice'))
+
+    expect(upperPath).not.toBe(lowerPath)
+    // Both files must survive independently — writing the second did not clobber
+    // the first even on a case-insensitive FS.
+    const stored = listStoredSealsSync(root)
+    expect(stored).toHaveLength(2)
+    expect(stored.map((s) => s.seal.artifactPath).sort()).toEqual(['tools/Foo.sh', 'tools/foo.sh'])
+  })
+
+  it('aggregate read EXCLUDES per-file pattern seals (they are not one-per-gate)', () => {
+    writeSealFileSync(root, patternSeal('tools', 'tools/a.sh', 'alice'))
+    writeSealFileSync(root, patternSeal('tools', 'tools/b.sh', 'alice'))
+    // A plain single-gate seal for a different gate DOES belong to the aggregate.
+    writeSealFileSync(root, seal('single-gate', 'alice'))
+
+    const aggregate = readSealsFromDirSync(root)
+    expect(Object.keys(aggregate.seals)).toEqual(['single-gate'])
+  })
+
+  it('aggregate write does NOT prune per-file pattern seals (constraint: no silent loss)', () => {
+    // Pattern seals exist for gate `tools`.
+    const aPath = writeSealFileSync(root, patternSeal('tools', 'tools/a.sh', 'alice'))
+    const bPath = writeSealFileSync(root, patternSeal('tools', 'tools/b.sh', 'alice'))
+
+    // An aggregate write for an UNRELATED single gate must not delete them, even
+    // though they are outside its desired one-per-gate set.
+    writeSealsToDirSync(root, {
+      version: 2,
+      seals: { 'single-gate': seal('single-gate', 'alice') },
+    })
+
+    expect(fs.existsSync(aPath)).toBe(true)
+    expect(fs.existsSync(bPath)).toBe(true)
+    const stored = listStoredSealsSync(root)
+    expect(stored.filter((s) => s.seal.artifactPath !== undefined)).toHaveLength(2)
   })
 })

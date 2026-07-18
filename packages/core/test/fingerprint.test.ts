@@ -1,7 +1,13 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { computeFingerprint, computeFingerprintSync, listPackageFiles } from '../src/fingerprint.js'
+import {
+  computeFingerprint,
+  computeFingerprintSync,
+  computeFingerprintsPerFile,
+  computeFingerprintsPerFileSync,
+  listPackageFiles,
+} from '../src/fingerprint.js'
 
 const FIXTURES_DIR = path.join(__dirname, 'fixtures')
 const TEST_PROJECT_DIR = path.join(FIXTURES_DIR, 'fingerprint-test-project')
@@ -438,5 +444,85 @@ describe('fingerprint', () => {
         fs.rmSync(tempDir, { recursive: true })
       }
     })
+  })
+})
+
+describe('computeFingerprintsPerFile (pattern-gate mode, #69)', () => {
+  it('returns one independent fingerprint per matched file, sorted by path', async () => {
+    const tempDir = fs.mkdtempSync(path.join(__dirname, 'perfile-'))
+    try {
+      fs.mkdirSync(path.join(tempDir, 'tools'))
+      fs.writeFileSync(path.join(tempDir, 'tools', 'b.sh'), 'echo b\n')
+      fs.writeFileSync(path.join(tempDir, 'tools', 'a.sh'), 'echo a\n')
+
+      const results = await computeFingerprintsPerFile({ paths: ['tools/*.sh'], baseDir: tempDir })
+
+      // One result per file, lexicographically ordered (matches sortFiles).
+      expect(results.map((r) => r.path)).toEqual(['tools/a.sh', 'tools/b.sh'])
+      for (const r of results) {
+        expect(r.fingerprint).toMatch(/^sha256:[0-9a-f]{64}$/)
+      }
+      // Distinct files → distinct fingerprints.
+      expect(results[0]?.fingerprint).not.toBe(results[1]?.fingerprint)
+    } finally {
+      fs.rmSync(tempDir, { recursive: true })
+    }
+  })
+
+  it('sync and async modes agree', () => {
+    const tempDir = fs.mkdtempSync(path.join(__dirname, 'perfile-sync-'))
+    try {
+      fs.mkdirSync(path.join(tempDir, 'tools'))
+      fs.writeFileSync(path.join(tempDir, 'tools', 'a.sh'), 'echo a\n')
+      fs.writeFileSync(path.join(tempDir, 'tools', 'b.sh'), 'echo b\n')
+
+      const sync = computeFingerprintsPerFileSync({ paths: ['tools/*.sh'], baseDir: tempDir })
+      expect(sync.map((r) => r.path)).toEqual(['tools/a.sh', 'tools/b.sh'])
+    } finally {
+      fs.rmSync(tempDir, { recursive: true })
+    }
+  })
+
+  it('a per-file fingerprint equals the combined fingerprint of that file alone', async () => {
+    // The per-file mode must bind exactly what a single-file gate would seal, so
+    // a file that migrates between gate shapes keeps a stable fingerprint.
+    const tempDir = fs.mkdtempSync(path.join(__dirname, 'perfile-eq-'))
+    try {
+      fs.mkdirSync(path.join(tempDir, 'tools'))
+      fs.writeFileSync(path.join(tempDir, 'tools', 'a.sh'), 'echo a\n')
+      fs.writeFileSync(path.join(tempDir, 'tools', 'b.sh'), 'echo b\n')
+
+      const perFile = await computeFingerprintsPerFile({ paths: ['tools/*.sh'], baseDir: tempDir })
+      const combinedA = await computeFingerprint({ paths: ['tools/a.sh'], baseDir: tempDir })
+      const a = perFile.find((r) => r.path === 'tools/a.sh')
+      expect(a?.fingerprint).toBe(combinedA.fingerprint)
+    } finally {
+      fs.rmSync(tempDir, { recursive: true })
+    }
+  })
+
+  it('ADVERSARIAL: symlink aliases of the same content do NOT share a fingerprint', async () => {
+    // Per-file independence must not be gameable by aliasing two logical paths to
+    // the same bytes: the fingerprint binds the path (SHA256(path + ":" + bytes)),
+    // so a seal for one path can never authorize the other.
+    const tempDir = fs.mkdtempSync(path.join(__dirname, 'perfile-symlink-'))
+    try {
+      fs.mkdirSync(path.join(tempDir, 'tools'))
+      fs.writeFileSync(path.join(tempDir, 'tools', 'real.sh'), 'echo shared\n')
+      // alias.sh is a symlink to real.sh — identical bytes, different path.
+      fs.symlinkSync(
+        path.join(tempDir, 'tools', 'real.sh'),
+        path.join(tempDir, 'tools', 'alias.sh'),
+      )
+
+      const results = await computeFingerprintsPerFile({ paths: ['tools/*.sh'], baseDir: tempDir })
+      const real = results.find((r) => r.path === 'tools/real.sh')
+      const alias = results.find((r) => r.path === 'tools/alias.sh')
+      expect(real).toBeDefined()
+      expect(alias).toBeDefined()
+      expect(real?.fingerprint).not.toBe(alias?.fingerprint)
+    } finally {
+      fs.rmSync(tempDir, { recursive: true })
+    }
   })
 })

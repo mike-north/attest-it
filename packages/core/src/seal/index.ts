@@ -29,7 +29,9 @@ export {
   slugifySegment,
   resolveSealsRoot,
   writeSealFileSync,
+  writeSealFile,
   listStoredSealsSync,
+  listStoredSeals,
   type StoredSeal,
 } from './storage.js'
 
@@ -37,6 +39,7 @@ export {
 export {
   verifyGateSeal,
   verifyAllSeals,
+  verifyPatternArtifactSeal,
   type VerificationState,
   type SealVerificationResult,
 } from './verification.js'

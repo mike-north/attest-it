@@ -333,6 +333,132 @@ export function computeFingerprintSync(options: FingerprintOptions): Fingerprint
 }
 
 /**
+ * A single matched file's independent fingerprint, produced by the per-file
+ * (pattern-gate) fingerprinting mode.
+ *
+ * @remarks
+ * The `fingerprint` binds the file's path: it is computed over
+ * `normalizedPath + ":" + content`, exactly as the file contributes to a
+ * combined fingerprint, then finalized as if it were the gate's only file. Two
+ * files that differ only in path — including symlink aliases of the same bytes —
+ * therefore produce **distinct** fingerprints, so one file's seal can never
+ * authorize another.
+ *
+ * @public
+ */
+export interface PerFileFingerprint {
+  /** Repo-relative, forward-slash path of the matched file. */
+  path: string
+  /** The file's individual fingerprint, in `sha256:...` form. */
+  fingerprint: string
+}
+
+/**
+ * Compute one fingerprint **per matched file** (async) — the pattern-gate mode.
+ *
+ * Unlike {@link computeFingerprint}, which concatenates every matched file into a
+ * single combined digest, this returns an independent {@link PerFileFingerprint}
+ * for each file so each can be sealed and verified on its own. Results are sorted
+ * lexicographically by path (matching {@link computeFingerprint}'s file ordering)
+ * so downstream enumeration (e.g. `status --json`) is deterministic across runs.
+ *
+ * Broken symlinks and non-file matches are skipped. Because each file's hash
+ * embeds its own path, symlink aliases of the same content yield distinct
+ * fingerprints — the per-file independence cannot be gamed by aliasing.
+ *
+ * @param options - Configuration for fingerprint computation
+ * @returns One fingerprint per matched file, sorted by path
+ * @throws Error if paths array is empty or if non-glob paths don't exist
+ * @public
+ */
+export async function computeFingerprintsPerFile(
+  options: FingerprintOptions,
+): Promise<PerFileFingerprint[]> {
+  const baseDir = validateOptions(options)
+  const files = await listPackageFiles(options.paths, options.exclude, baseDir)
+  const sortedFiles = sortFiles(files)
+
+  const results: PerFileFingerprint[] = []
+  for (const file of sortedFiles) {
+    const filePath = path.resolve(baseDir, file)
+
+    let realPath = filePath
+    let stats = await fs.promises.lstat(filePath)
+    if (stats.isSymbolicLink()) {
+      try {
+        realPath = await fs.promises.realpath(filePath)
+      } catch {
+        continue // Skip broken symlinks
+      }
+      try {
+        stats = await fs.promises.stat(realPath)
+      } catch {
+        continue // Skip broken symlinks
+      }
+    }
+
+    if (!stats.isFile()) {
+      continue
+    }
+
+    const normalizedPath = normalizePath(file)
+    // The hash embeds normalizedPath, so distinct paths (incl. symlink aliases)
+    // produce distinct fingerprints — no cross-path hash reuse.
+    const hash = await hashFileAsync(realPath, normalizedPath, stats)
+    const fingerprint = computeFinalFingerprint([{ relativePath: normalizedPath, hash }])
+    results.push({ path: normalizedPath, fingerprint })
+  }
+
+  return results
+}
+
+/**
+ * Compute one fingerprint **per matched file** (sync). See
+ * {@link computeFingerprintsPerFile} for behavior.
+ *
+ * @param options - Configuration for fingerprint computation
+ * @returns One fingerprint per matched file, sorted by path
+ * @throws Error if paths array is empty or if non-glob paths don't exist
+ * @public
+ */
+export function computeFingerprintsPerFileSync(options: FingerprintOptions): PerFileFingerprint[] {
+  const baseDir = validateOptions(options)
+  const files = listPackageFilesSync(options.paths, options.exclude, baseDir)
+  const sortedFiles = sortFiles(files)
+
+  const results: PerFileFingerprint[] = []
+  for (const file of sortedFiles) {
+    const filePath = path.resolve(baseDir, file)
+
+    let realPath = filePath
+    let stats = fs.lstatSync(filePath)
+    if (stats.isSymbolicLink()) {
+      try {
+        realPath = fs.realpathSync(filePath)
+      } catch {
+        continue // Skip broken symlinks
+      }
+      try {
+        stats = fs.statSync(realPath)
+      } catch {
+        continue // Skip broken symlinks
+      }
+    }
+
+    if (!stats.isFile()) {
+      continue
+    }
+
+    const normalizedPath = normalizePath(file)
+    const hash = hashFileSync(realPath, normalizedPath)
+    const fingerprint = computeFinalFingerprint([{ relativePath: normalizedPath, hash }])
+    results.push({ path: normalizedPath, fingerprint })
+  }
+
+  return results
+}
+
+/**
  * Resolve a package path to a glob pattern.
  *
  * - If the path is a glob pattern, return it as-is

@@ -27,6 +27,12 @@ export type VerificationState =
 export interface SealVerificationResult {
   /** Gate identifier */
   gateId: string
+  /**
+   * For a pattern-gate per-file verification, the specific matched file this
+   * result covers (repo-relative, forward-slash). Absent for an ordinary
+   * single-gate result.
+   */
+  artifactPath?: string
   /** Verification state */
   state: VerificationState
   /** The seal, if one exists */
@@ -72,10 +78,69 @@ export function verifyGateSeal(
     }
   }
 
+  return evaluateSeal({ config, gateId, seal, currentFingerprint, maxAge: gate.maxAge })
+}
+
+/**
+ * Verify a single matched file within a **pattern gate**.
+ *
+ * The caller supplies the specific per-file seal (looked up by gate + artifact
+ * path, or `undefined` if none exists) and the file's individual current
+ * fingerprint. This mirrors {@link verifyGateSeal} but is keyed to one file, so a
+ * pattern gate's files verify independently.
+ *
+ * @param config - The attest-it configuration
+ * @param gateId - The pattern gate's identifier
+ * @param artifactPath - The matched file (repo-relative, forward-slash)
+ * @param seal - The per-file seal for this file, or `undefined` if none exists
+ * @param currentFingerprint - The file's current individual fingerprint
+ * @param maxAge - The gate's `maxAge`, or `undefined` for an indefinite gate
+ * @returns Verification result for this file, carrying `artifactPath`
+ * @public
+ */
+export function verifyPatternArtifactSeal(
+  config: AttestItConfig,
+  gateId: string,
+  artifactPath: string,
+  seal: Seal | undefined,
+  currentFingerprint: string,
+  maxAge: string | undefined,
+): SealVerificationResult {
+  if (!seal) {
+    return {
+      gateId,
+      artifactPath,
+      state: 'MISSING',
+      message: `No seal found for '${artifactPath}' in gate '${gateId}'`,
+    }
+  }
+  return evaluateSeal({ config, gateId, seal, currentFingerprint, maxAge, artifactPath })
+}
+
+/**
+ * Shared seal evaluation: fingerprint match, signer authorization, signature
+ * validity, then optional staleness. Used by both the single-gate and
+ * pattern-gate verification entry points so their rules never drift.
+ *
+ * When `maxAge` is `undefined` the gate is **indefinite**: the staleness check is
+ * skipped entirely and no `STALE` state is ever produced, regardless of seal age.
+ * @internal
+ */
+function evaluateSeal(params: {
+  config: AttestItConfig
+  gateId: string
+  seal: Seal
+  currentFingerprint: string
+  maxAge: string | undefined
+  artifactPath?: string
+}): SealVerificationResult {
+  const { config, gateId, seal, currentFingerprint, maxAge, artifactPath } = params
+  const base = artifactPath !== undefined ? { gateId, artifactPath } : { gateId }
+
   // Check if fingerprint matches
   if (seal.fingerprint !== currentFingerprint) {
     return {
-      gateId,
+      ...base,
       state: 'FINGERPRINT_MISMATCH',
       seal,
       message: `Fingerprint changed since seal was created`,
@@ -84,18 +149,13 @@ export function verifyGateSeal(
 
   // Check if signer is in team and authorized
   if (!config.team) {
-    return {
-      gateId,
-      state: 'UNKNOWN_SIGNER',
-      seal,
-      message: `No team configuration found`,
-    }
+    return { ...base, state: 'UNKNOWN_SIGNER', seal, message: `No team configuration found` }
   }
 
   const teamMember = config.team[seal.sealedBy]
   if (!teamMember) {
     return {
-      gateId,
+      ...base,
       state: 'UNKNOWN_SIGNER',
       seal,
       message: `Signer '${seal.sealedBy}' not found in team`,
@@ -106,7 +166,7 @@ export function verifyGateSeal(
   const authorized = isAuthorizedSigner(config, gateId, teamMember.publicKey)
   if (!authorized) {
     return {
-      gateId,
+      ...base,
       state: 'UNKNOWN_SIGNER',
       seal,
       message: `Signer '${seal.sealedBy}' is not authorized for gate '${gateId}'`,
@@ -117,47 +177,45 @@ export function verifyGateSeal(
   const verificationResult = verifySeal(seal, config)
   if (!verificationResult.valid) {
     return {
-      gateId,
+      ...base,
       state: 'INVALID_SIGNATURE',
       seal,
       message: verificationResult.error ?? 'Signature verification failed',
     }
   }
 
-  // Check if seal is stale (exceeds maxAge)
-  try {
-    const maxAgeMs = parseDuration(gate.maxAge)
-    const sealTimestamp = new Date(seal.timestamp).getTime()
-    const now = Date.now()
-    const ageMs = now - sealTimestamp
+  // Staleness — only when the gate declares a maxAge. An indefinite gate (no
+  // maxAge) never expires: skip the check so it can never be reported STALE.
+  if (maxAge !== undefined) {
+    try {
+      const maxAgeMs = parseDuration(maxAge)
+      const sealTimestamp = new Date(seal.timestamp).getTime()
+      const ageMs = Date.now() - sealTimestamp
 
-    if (ageMs > maxAgeMs) {
-      const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24))
-      const maxAgeDays = Math.floor(maxAgeMs / (1000 * 60 * 60 * 24))
+      if (ageMs > maxAgeMs) {
+        const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24))
+        const maxAgeDays = Math.floor(maxAgeMs / (1000 * 60 * 60 * 24))
+        return {
+          ...base,
+          state: 'STALE',
+          seal,
+          message: `Seal is ${ageDays.toString()} days old, exceeds maxAge of ${maxAgeDays.toString()} days`,
+        }
+      }
+    } catch (error) {
+      // If we can't parse maxAge, fail closed - treat as stale to enforce freshness
+      // This prevents bypassing staleness checks with invalid maxAge values
       return {
-        gateId,
+        ...base,
         state: 'STALE',
         seal,
-        message: `Seal is ${ageDays.toString()} days old, exceeds maxAge of ${maxAgeDays.toString()} days`,
+        message: `Cannot verify freshness: invalid maxAge format: ${error instanceof Error ? error.message : String(error)}`,
       }
-    }
-  } catch (error) {
-    // If we can't parse maxAge, fail closed - treat as stale to enforce freshness
-    // This prevents bypassing staleness checks with invalid maxAge values
-    return {
-      gateId,
-      state: 'STALE',
-      seal,
-      message: `Cannot verify freshness: invalid maxAge format: ${error instanceof Error ? error.message : String(error)}`,
     }
   }
 
   // All checks passed
-  return {
-    gateId,
-    state: 'VALID',
-    seal,
-  }
+  return { ...base, state: 'VALID', seal }
 }
 
 /**

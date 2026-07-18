@@ -135,7 +135,7 @@ suites:
 
 - **Team** - People authorized to create seals, identified by their public key (in `policy.yaml`)
 - **Root gate** - The trust anchor over `policy.yaml` itself; only `rootGate.authorizedSigners` may authorize changes to the trust data. Established via the `attest-it init --root-signer` bootstrap ceremony (in `policy.yaml`)
-- **Gates** - Define which files require attestation and who can sign, including the fingerprint config (in `policy.yaml`)
+- **Gates** - Define which files require attestation and who can sign, including the fingerprint config (in `policy.yaml`). A gate's `kind` is `single` by default (all matched files → one combined seal); set `kind: pattern` to seal each matched file independently, so adding a new matching file just shows as unsealed without a config edit. `maxAge` is optional — omit it for a gate whose seals never expire (valid until content changes).
 - **Fingerprint** - Files to hash; any change invalidates the seal (lives on the gate)
 - **Suites** - Test commands that reference a gate; every suite must specify `gate` (in `config.yaml`)
 - **minVersion** - Optional; minimum attest-it version required for this configuration

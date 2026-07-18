@@ -73,6 +73,20 @@ export interface FingerprintConfig {
 }
 
 /**
+ * Discriminates how a gate maps its matched files to seals.
+ *
+ * - `single` (default): the gate's matched files are combined into **one**
+ *   fingerprint and covered by **one** seal. Changing any matched file
+ *   invalidates the single seal. This is the historical gate behavior.
+ * - `pattern`: each matched file is fingerprinted and sealed **individually**.
+ *   Sealing one file says nothing about its siblings, and a new file matching
+ *   the gate's globs simply appears as unsealed — no config edit required.
+ *
+ * @public
+ */
+export type GateKind = 'single' | 'pattern'
+
+/**
  * Gate definition - defines what needs to be signed and who can sign it.
  * @public
  */
@@ -81,12 +95,23 @@ export interface GateConfig {
   name: string
   /** Description of what this gate protects */
   description: string
+  /**
+   * How this gate maps its matched files to seals. Omitted defaults to
+   * `single` (one combined fingerprint, one seal) for backward compatibility;
+   * `pattern` seals each matched file independently. See {@link GateKind}.
+   */
+  kind?: GateKind | undefined
   /** Team member slugs authorized to sign for this gate */
   authorizedSigners: string[]
   /** Fingerprint configuration */
   fingerprint: FingerprintConfig
-  /** Maximum age before attestation expires (duration string like "30d", "7d", "24h") */
-  maxAge: string
+  /**
+   * Maximum age before an attestation expires (duration string like `"30d"`,
+   * `"7d"`, `"24h"`). When omitted the gate **never expires**: `verify` and
+   * `status` never report an age-based failure for it, regardless of seal age.
+   * Indefinite is the default — there is no large-number sentinel.
+   */
+  maxAge?: string | undefined
 }
 
 /**

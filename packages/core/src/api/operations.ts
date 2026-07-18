@@ -15,23 +15,31 @@
 
 import { stat } from 'node:fs/promises'
 import * as path from 'node:path'
-import type { AttestItConfig } from '../types.js'
+import type { AttestItConfig, GateConfig } from '../types.js'
 import { loadSplitConfig } from '../config/index.js'
-import { computeFingerprint, listPackageFiles } from '../fingerprint.js'
+import { computeFingerprint, computeFingerprintsPerFile, listPackageFiles } from '../fingerprint.js'
 import { loadLocalConfigSync } from '../identity/index.js'
 import {
   createSealWithProvider,
   readSeals,
   writeSeals,
+  writeSealFile,
+  listStoredSeals,
+  resolveSealsRoot,
   verifyGateSeal,
+  verifyPatternArtifactSeal,
+  type Seal,
   type SealsFile,
+  type SealVerificationResult,
 } from '../seal/index.js'
 import {
   evaluateConfigTrust,
   fail,
   isApiFailure,
+  isPatternGate,
   keyProviderForIdentity,
   keyRefForIdentity,
+  normalizeRelativePath,
   resolveGatesForPath,
   stateToFailureClass,
 } from './internal.js'
@@ -46,7 +54,6 @@ import {
   type SealParams,
   type SealResult,
   type StatusResult,
-  type VerificationSuccess,
   type VerifyAllParams,
   type VerifyAllResult,
 } from './types.js'
@@ -139,25 +146,121 @@ async function verifyGate(
     })
   }
   const verdict = verifyGateSeal(config, gateId, seals, fingerprint)
+  return verdictToArtifactVerification(verdict, gateId, fingerprint, artifactPath)
+}
 
+/**
+ * Shape a core {@link SealVerificationResult} into a path-keyed
+ * {@link ArtifactVerification}, echoing `artifactPath` (as `path`) when present.
+ */
+function verdictToArtifactVerification(
+  verdict: SealVerificationResult,
+  gateId: string,
+  fingerprint: string,
+  artifactPath?: string,
+): ArtifactVerification {
+  const pathValue = artifactPath ?? verdict.artifactPath
   if (verdict.state === 'VALID') {
-    const success: VerificationSuccess = {
+    return {
       schemaVersion: API_SCHEMA_VERSION,
       ok: true,
       gateId,
       fingerprint,
       sealedBy: verdict.seal?.sealedBy ?? '',
       sealedAt: verdict.seal?.timestamp ?? '',
-      ...(artifactPath !== undefined && { path: artifactPath }),
+      ...(pathValue !== undefined && { path: pathValue }),
     }
-    return success
   }
-
   return fail(stateToFailureClass(verdict.state), verdict.message ?? verdict.state, {
     gateId,
     underlyingState: verdict.state,
-    ...(artifactPath !== undefined && { path: artifactPath }),
+    ...(pathValue !== undefined && { path: pathValue }),
   })
+}
+
+/**
+ * The latest per-file seal for each matched file of a pattern gate, keyed by
+ * artifact path. When several signers sealed the same file, the most recent wins
+ * (ties broken by signer slug) — the same deterministic collapse the aggregate
+ * storage uses for multiple signers.
+ */
+async function readPatternSealsByArtifact(
+  config: AttestItConfig,
+  gateId: string,
+  baseDir: string,
+): Promise<Map<string, Seal>> {
+  const root = resolveSealsRoot(baseDir, config.settings.sealsPath)
+  const byArtifact = new Map<string, Seal>()
+  for (const { seal } of await listStoredSeals(root)) {
+    if (seal.gateId !== gateId || seal.artifactPath === undefined) continue
+    const current = byArtifact.get(seal.artifactPath)
+    if (
+      !current ||
+      seal.timestamp > current.timestamp ||
+      (seal.timestamp === current.timestamp && seal.sealedBy > current.sealedBy)
+    ) {
+      byArtifact.set(seal.artifactPath, seal)
+    }
+  }
+  return byArtifact
+}
+
+/**
+ * Verify a pattern gate: one independent {@link ArtifactVerification} per matched
+ * file, sorted lexicographically by path (deterministic for `status --json`).
+ *
+ * When `filterPath` is given, only that file's result is returned (path-keyed
+ * verification of a single file within a pattern gate).
+ */
+async function verifyPatternGate(
+  config: AttestItConfig,
+  gateId: string,
+  gate: GateConfig,
+  baseDir: string,
+  filterPath?: string,
+): Promise<ArtifactVerification[]> {
+  let perFile
+  try {
+    perFile = await computeFingerprintsPerFile({
+      paths: gate.fingerprint.paths,
+      ...(gate.fingerprint.exclude && { exclude: gate.fingerprint.exclude }),
+      baseDir,
+    })
+  } catch (error) {
+    return [
+      fail('malformed', error instanceof Error ? error.message : String(error), {
+        gateId,
+        ...(filterPath !== undefined && { path: filterPath }),
+      }),
+    ]
+  }
+
+  let sealsByArtifact: Map<string, Seal>
+  try {
+    sealsByArtifact = await readPatternSealsByArtifact(config, gateId, baseDir)
+  } catch (error) {
+    return [
+      fail('malformed', error instanceof Error ? error.message : String(error), {
+        gateId,
+        ...(filterPath !== undefined && { path: filterPath }),
+      }),
+    ]
+  }
+
+  const results: ArtifactVerification[] = []
+  for (const { path: filePath, fingerprint } of perFile) {
+    if (filterPath !== undefined && filePath !== filterPath) continue
+    const verdict = verifyPatternArtifactSeal(
+      config,
+      gateId,
+      filePath,
+      sealsByArtifact.get(filePath),
+      fingerprint,
+      gate.maxAge,
+    )
+    results.push(verdictToArtifactVerification(verdict, gateId, fingerprint, filePath))
+  }
+  return results
 }
 
 /**
@@ -183,10 +286,11 @@ export async function listGates(options: ApiOptions = {}): Promise<ListGatesResu
     gateId,
     name: gate.name,
     description: gate.description,
+    ...(gate.kind !== undefined && { kind: gate.kind }),
     authorizedSigners: [...gate.authorizedSigners],
     paths: [...gate.fingerprint.paths],
     exclude: [...(gate.fingerprint.exclude ?? [])],
-    maxAge: gate.maxAge,
+    ...(gate.maxAge !== undefined && { maxAge: gate.maxAge }),
   }))
 
   return { schemaVersion: API_SCHEMA_VERSION, ok: true, gates }
@@ -224,20 +328,53 @@ export async function status(
 
   if (paths && paths.length > 0) {
     for (const artifactPath of paths) {
-      const gate = await resolveSingleGateOrFail(loaded, artifactPath, baseDir)
-      if (typeof gate !== 'string') {
-        results.push(gate)
+      const gateId = await resolveSingleGateOrFail(loaded, artifactPath, baseDir)
+      if (typeof gateId !== 'string') {
+        results.push(gateId)
         continue
       }
-      results.push(await verifyGate(loaded, gate, baseDir, artifactPath))
+      results.push(await verifyPathInGate(loaded, gateId, baseDir, artifactPath))
     }
   } else {
     for (const gateId of Object.keys(loaded.gates ?? {})) {
-      results.push(await verifyGate(loaded, gateId, baseDir))
+      // eslint-disable-next-line security/detect-object-injection
+      const gate = loaded.gates?.[gateId]
+      if (gate && isPatternGate(gate)) {
+        results.push(...(await verifyPatternGate(loaded, gateId, gate, baseDir)))
+      } else {
+        results.push(await verifyGate(loaded, gateId, baseDir))
+      }
     }
   }
 
   return { schemaVersion: API_SCHEMA_VERSION, ok: true, results }
+}
+
+/**
+ * Verify one artifact path against its governing gate, dispatching to the
+ * pattern-gate per-file path when the gate is a pattern gate (so only that file's
+ * seal is evaluated), or the whole-gate path otherwise.
+ */
+async function verifyPathInGate(
+  config: AttestItConfig,
+  gateId: string,
+  baseDir: string,
+  artifactPath: string,
+): Promise<ArtifactVerification> {
+  // eslint-disable-next-line security/detect-object-injection
+  const gate = config.gates?.[gateId]
+  if (gate && isPatternGate(gate)) {
+    const target = normalizeRelativePath(artifactPath, baseDir)
+    const [only] = await verifyPatternGate(config, gateId, gate, baseDir, target)
+    return (
+      only ??
+      fail('malformed', `Path '${artifactPath}' is not matched by pattern gate '${gateId}'`, {
+        gateId,
+        path: artifactPath,
+      })
+    )
+  }
+  return verifyGate(config, gateId, baseDir, artifactPath)
 }
 
 /**
@@ -277,6 +414,37 @@ export async function fingerprint(
   }
 
   try {
+    if (isPatternGate(gateConfig)) {
+      // A pattern gate fingerprints each file individually; return the requested
+      // file's own fingerprint (the one its per-file seal binds), not a combined
+      // hash over the whole gate.
+      const target = normalizeRelativePath(artifactPath, baseDir)
+      const perFile = await computeFingerprintsPerFile({
+        paths: gateConfig.fingerprint.paths,
+        ...(gateConfig.fingerprint.exclude && { exclude: gateConfig.fingerprint.exclude }),
+        baseDir,
+      })
+      const match = perFile.find((f) => f.path === target)
+      if (!match) {
+        return fail(
+          'malformed',
+          `Path '${artifactPath}' is not matched by pattern gate '${gate}'`,
+          {
+            gateId: gate,
+            path: artifactPath,
+          },
+        )
+      }
+      return {
+        schemaVersion: API_SCHEMA_VERSION,
+        ok: true,
+        gateId: gate,
+        path: artifactPath,
+        fingerprint: match.fingerprint,
+        fileCount: 1,
+      }
+    }
+
     const result = await computeFingerprint({
       paths: gateConfig.fingerprint.paths,
       ...(gateConfig.fingerprint.exclude && { exclude: gateConfig.fingerprint.exclude }),
@@ -367,6 +535,60 @@ export async function seal(
     )
   }
 
+  const keyProvider = keyProviderForIdentity(identity)
+  const keyRef = keyRefForIdentity(identity)
+
+  // Pattern gate: seal ONLY the requested file, using its individual fingerprint,
+  // and persist via the low-level per-file writer. It must NOT go through the
+  // aggregate writeSeals path, which is one-file-per-gate and would prune every
+  // sibling file's seal.
+  if (isPatternGate(gateConfig)) {
+    const target = normalizeRelativePath(artifactPath, baseDir)
+    let perFile
+    try {
+      perFile = await computeFingerprintsPerFile({
+        paths: gateConfig.fingerprint.paths,
+        ...(gateConfig.fingerprint.exclude && { exclude: gateConfig.fingerprint.exclude }),
+        baseDir,
+      })
+    } catch (error) {
+      return fail('malformed', error instanceof Error ? error.message : String(error), {
+        gateId: gate,
+        path: artifactPath,
+      })
+    }
+    const match = perFile.find((f) => f.path === target)
+    if (!match) {
+      return fail('malformed', `Path '${artifactPath}' is not matched by pattern gate '${gate}'`, {
+        gateId: gate,
+        path: artifactPath,
+      })
+    }
+
+    const signed = await createSealWithProvider({
+      gateId: gate,
+      fingerprint: match.fingerprint,
+      sealedBy: params.identity,
+      keyProvider,
+      keyRef,
+    })
+    // artifactPath is a storage/linkage field; the signature already binds the
+    // file's path via its fingerprint, so it is attached after signing.
+    const perFileSeal: Seal = { ...signed, artifactPath: target }
+    const root = resolveSealsRoot(baseDir, loaded.settings.sealsPath)
+    await writeSealFile(root, perFileSeal)
+
+    return {
+      schemaVersion: API_SCHEMA_VERSION,
+      ok: true,
+      gateId: gate,
+      path: artifactPath,
+      fingerprint: perFileSeal.fingerprint,
+      sealedBy: perFileSeal.sealedBy,
+      sealedAt: perFileSeal.timestamp,
+    }
+  }
+
   // Compute the fingerprint to sign.
   const fingerprintResult = await computeFingerprint({
     paths: gateConfig.fingerprint.paths,
@@ -376,13 +598,12 @@ export async function seal(
 
   // Sign the seal via the identity's backend. Delegated signing keeps the raw
   // private key inside the backend; otherwise the key is unlocked to a temp PEM.
-  const keyProvider = keyProviderForIdentity(identity)
   const newSeal = await createSealWithProvider({
     gateId: gate,
     fingerprint: fingerprintResult.fingerprint,
     sealedBy: params.identity,
     keyProvider,
-    keyRef: keyRefForIdentity(identity),
+    keyRef,
   })
 
   let existing: SealsFile
@@ -442,12 +663,12 @@ export async function verifyOne(
     })
   }
 
-  const gate = await resolveSingleGateOrFail(loaded, artifactPath, baseDir)
-  if (typeof gate !== 'string') {
-    return gate
+  const gateId = await resolveSingleGateOrFail(loaded, artifactPath, baseDir)
+  if (typeof gateId !== 'string') {
+    return gateId
   }
 
-  return verifyGate(loaded, gate, baseDir, artifactPath)
+  return verifyPathInGate(loaded, gateId, baseDir, artifactPath)
 }
 
 /**
@@ -528,7 +749,13 @@ export async function verifyAll(
     if (since && !(await gateChangedSince(loaded, gateId, baseDir, since))) {
       continue
     }
-    results.push(await verifyGate(loaded, gateId, baseDir))
+    // eslint-disable-next-line security/detect-object-injection
+    const gate = loaded.gates?.[gateId]
+    if (gate && isPatternGate(gate)) {
+      results.push(...(await verifyPatternGate(loaded, gateId, gate, baseDir)))
+    } else {
+      results.push(await verifyGate(loaded, gateId, baseDir))
+    }
   }
 
   return { schemaVersion: API_SCHEMA_VERSION, ok: true, results }
