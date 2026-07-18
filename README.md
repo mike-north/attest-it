@@ -20,9 +20,22 @@ npx attest-it init
 # Run tests and seal the gate
 npx attest-it run --suite my-suite
 
-# In CI: verify all seals
+# Locally: fast pre-check (trusts your working-tree policy — NOT a trust gate)
 npx attest-it verify
 ```
+
+> [!IMPORTANT]
+> **Plain `attest-it verify` is a local pre-check, not the CI trust boundary.** It
+> trusts whatever `.attest-it/policy.yaml` is in the working tree, so a pull request
+> can rewrite its own `rootGate`/`team` and re-seal, and plain `verify` still passes.
+> To actually gate CI, enforce trust against a **trusted base**:
+>
+> - **GitHub:** use the [GitHub Action](#github-action) (loads policy from the PR base branch).
+> - **Other CI:** use `attest-it verify --base <ref>` (loads `rootGate`/`team`/`gates`
+>   from `<ref>` while fingerprinting the working tree — a self-added signer is
+>   rejected as `UNKNOWN_SIGNER`).
+>
+> See the [threat model](docs/threat-model.md) for the full trust boundary.
 
 ### Non-interactive (CI, embedders, agents)
 
@@ -47,9 +60,16 @@ npx attest-it team join --gates my-gate < /dev/null
 # Run a suite and auto-confirm the seal
 npx attest-it run --suite my-suite --yes < /dev/null
 
-# In CI: verify all seals (already non-interactive)
+# Local pre-check (non-interactive), NOT a trust gate — trusts the working-tree policy
 npx attest-it verify
+
+# Non-GitHub CI trust gate: anchor authorization to a trusted base ref
+npx attest-it verify --base origin/main
 ```
+
+On GitHub, prefer the [GitHub Action](#github-action) as the CI gate — it loads
+policy from the PR base branch automatically. See the callout in
+[Quick Start](#quick-start) for why plain `verify` is not a trust boundary.
 
 To encrypt a file-backed private key, pipe a passphrase in via `--passphrase-stdin`:
 
@@ -76,7 +96,7 @@ The primary threat is an AI assistant creating a fake attestation. attest-it pre
 - **Secure storage**: Keys stored in 1Password, macOS Keychain, YubiKey, or encrypted files
 - **Team authorization**: Each gate specifies who can sign
 - **Fingerprinting**: Code changes invalidate seals
-- **Sealed root gate**: `policy.yaml` (the trust data itself) is a sealed artifact — a pull request can't add itself to `team`/`gates` and pass verification. See [threat model](docs/threat-model.md).
+- **Sealed root gate**: `policy.yaml` (the trust data itself) is a sealed artifact — at the trust boundary, a pull request can't add itself to `team`/`gates` and pass verification. That guarantee holds where authorization is anchored to a **trusted base**: the [GitHub Action](#github-action) (base branch) or `attest-it verify --base <ref>`. Plain local `verify` trusts the working-tree policy and is only a pre-check. See [threat model](docs/threat-model.md).
 
 ## Configuration
 
@@ -169,12 +189,12 @@ See [Configuration Reference](docs/configuration.md) for all options.
 
 ### Sealing and Verification
 
-| Command             | Description                                                                                             |
-| ------------------- | ------------------------------------------------------------------------------------------------------- |
-| `seal [gates...]`   | Create seals for specified gates                                                                        |
-| `verify [gates...]` | Verify seals -- **use this to gate CI**; exits non-zero on invalid gates                                |
-| `status`            | Show seal status for all gates -- informational; exits 0 on gate results, fails closed on config errors |
-| `run --suite`       | Run tests and optionally seal                                                                           |
+| Command             | Description                                                                                                                                                                                                                                                |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `seal [gates...]`   | Create seals for specified gates                                                                                                                                                                                                                           |
+| `verify [gates...]` | Verify seals. Plain `verify` is a fast **local pre-check** (trusts the working-tree policy), _not_ a CI trust gate. Add `--base <ref>` to gate CI against a trusted base ref (or use the [GitHub Action](#github-action)); exits non-zero on invalid gates |
+| `status`            | Show seal status for all gates -- informational; exits 0 on gate results, fails closed on config errors                                                                                                                                                    |
+| `run --suite`       | Run tests and optionally seal                                                                                                                                                                                                                              |
 
 ### Project Setup
 

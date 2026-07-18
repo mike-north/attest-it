@@ -117,6 +117,15 @@ policy load + CODEOWNERS + post-merge re-verify) covers the threat. If the PRD
 owner decides the Action should self-verify its own invocation, that is tracked
 as a follow-up.
 
+_CLI-native equivalent for non-GitHub CI:_ `attest-it verify --base <ref>` performs
+the same base-vs-worktree check off GitHub — authorization comes from `<ref>`, so a
+self-added root signer is rejected as `UNKNOWN_SIGNER`.
+
+_Adversarial tests (run in CI):_
+`packages/cli/test/integration/root-gate.integration.test.ts`
+("verify --base … ADVERSARIAL (Scenario B)", "POSITIVE", "FAIL-CLOSED") exercise the
+CLI trusted-ref boundary end-to-end against a self-rewritten, self-resealed policy.
+
 ### T3 — An agent replays a seal against different content
 
 _Threat:_ a proposal branch reuses a previously-valid seal for content that has
@@ -144,12 +153,22 @@ noted here so the boundary is explicit rather than assumed.
 
 ## Residual risks and boundaries
 
-- **Local `attest-it verify` trusts the local policy.** On a developer's own
-  machine there is no trusted base branch to compare against, so a locally-edited
-  `policy.yaml` that is re-anchored locally will verify locally. The enforcement
-  boundary that matters is the **merge gate** (the Action, which loads policy from
-  the base branch) plus branch protection / CODEOWNERS. Local verification is a
-  fast pre-check, not the trust boundary.
+- **Plain `attest-it verify` trusts the local policy.** With no `--base`, `verify`
+  evaluates against the working-tree `policy.yaml`, so a locally-edited policy that
+  is re-anchored locally will verify. That is a fast pre-check, **not** the trust
+  boundary. The enforcement boundaries that matter are:
+  - the **GitHub Action** (the merge gate — loads policy from the PR base branch),
+    plus branch protection / CODEOWNERS; and
+  - **`attest-it verify --base <ref>`** for non-GitHub CI, which sources
+    `rootGate`/`team`/`gates` from `<ref>` while fingerprinting and reading seals
+    from the working tree. A branch that self-adds a root signer and re-seals is
+    rejected as `UNKNOWN_SIGNER`, exactly as the Action rejects it — because the
+    authorized signer set comes from the trusted ref, not the working tree.
+
+  `--base` fails **closed**: if the ref or its `policy.yaml` cannot be read (e.g. a
+  shallow clone missing the ref), it errors rather than falling back to the
+  untrusted working-tree policy.
+
 - **attest-it proves existence of a valid seal, never permission.** Usage grants,
   session scoping, and human-presence enforcement are the key backend's / the
   toolsmith's responsibility; attest-it verifies the resulting signatures.
