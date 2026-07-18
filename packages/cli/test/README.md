@@ -305,6 +305,29 @@ console.log('Project at:', project.baseDir)
 // Don't call dispose() to keep it around
 ```
 
+## VaultKeeper Test Isolation
+
+Any test that exercises the VaultKeeper `file` backend (e.g. `identity create --storage file`,
+directly or via a spawned CLI subprocess) **must** redirect VaultKeeper's config directory to an
+isolated per-test temp directory by setting `VAULTKEEPER_CONFIG_DIR` (in `process.env` for
+in-process calls, or in the `env` passed to a spawned subprocess) -- never rely on the default
+`~/.config/vaultkeeper/`. A global test-setup guard
+(`test/setup/vaultkeeper-isolation-guard.setup.ts`, wired in via `vitest.config.ts`'s
+`setupFiles`) fails any test that writes to the real directory instead, so a missing override is
+caught immediately rather than silently polluting the developer's or CI runner's real keystore
+(issue #114).
+
+If you're setting up a fixture that already redirects `ATTEST_IT_HOME` to an isolated temp
+directory, set `VAULTKEEPER_CONFIG_DIR` to that same directory alongside it -- see
+`helpers/pty-fixture.ts` and `test/integration/non-interactive-setup.integration.test.ts` for the
+established pattern.
+
+**Note:** if your machine already has stray `.enc` files under `~/.config/vaultkeeper/file/` from
+before this guard existed (pre-#114 test runs leaked real secrets there), they are not cleaned up
+automatically -- the guard only prevents new leaks. It's safe to delete any `.enc` file there that
+doesn't correspond to a real identity you intentionally created with `attest-it identity create
+--storage file`.
+
 ## Contributing New Tests
 
 When adding new test scenarios:

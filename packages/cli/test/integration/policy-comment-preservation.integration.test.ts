@@ -114,7 +114,10 @@ describe('policy.yaml comment preservation across mutating commands (issue #102)
   it(
     'keeps the schema directive and header/example comments after `team join` mutates a freshly-scaffolded policy.yaml',
     async () => {
-      const env = { ATTEST_IT_HOME: homeDir }
+      // Issue #114: also redirect VaultKeeper's `file` backend (used by the
+      // `identity create --storage file` step below) to this same isolated
+      // temp home, so the real `~/.config/vaultkeeper/file/` is never touched.
+      const env = { ATTEST_IT_HOME: homeDir, VAULTKEEPER_CONFIG_DIR: homeDir }
       const policyPath = path.join(projectDir, '.attest-it', 'policy.yaml')
 
       // 1. init: scaffolds policy.yaml with the schema directive, trust-model
@@ -168,7 +171,10 @@ describe('policy.yaml comment preservation across mutating commands (issue #102)
   it(
     'keeps preserving comments across a second mutating command (`team add`) on the same file',
     async () => {
-      const env = { ATTEST_IT_HOME: homeDir }
+      // Issue #114: also redirect VaultKeeper's `file` backend (used by the
+      // `identity create --storage file` step below) to this same isolated
+      // temp home, so the real `~/.config/vaultkeeper/file/` is never touched.
+      const env = { ATTEST_IT_HOME: homeDir, VAULTKEEPER_CONFIG_DIR: homeDir }
       const policyPath = path.join(projectDir, '.attest-it', 'policy.yaml')
 
       await runCliNonInteractive(['init'], projectDir, env)

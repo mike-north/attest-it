@@ -129,7 +129,10 @@ describe('documented getting-started flow end-to-end (issue #84)', () => {
   it(
     'AC: init succeeds on the exact package.json npm install leaves behind (no name/version)',
     async () => {
-      const env = { ATTEST_IT_HOME: homeDir }
+      // Issue #114: also redirect VaultKeeper's `file` backend (used by the
+      // `identity create --storage file` step below) to this same isolated
+      // temp home, so the real `~/.config/vaultkeeper/file/` is never touched.
+      const env = { ATTEST_IT_HOME: homeDir, VAULTKEEPER_CONFIG_DIR: homeDir }
 
       // This is exactly what `npm install <pkg>` produces in a directory with
       // no prior package.json (README Quick Start step 1) -- verified by
@@ -160,7 +163,10 @@ describe('documented getting-started flow end-to-end (issue #84)', () => {
       'define a gate -> seal -> status -> verify) succeeds with no undocumented ' +
       'manual YAML editing beyond the documented gate/suite step, and no undocumented prompts',
     async () => {
-      const env = { ATTEST_IT_HOME: homeDir }
+      // Issue #114: also redirect VaultKeeper's `file` backend (used by the
+      // `identity create --storage file` step below) to this same isolated
+      // temp home, so the real `~/.config/vaultkeeper/file/` is never touched.
+      const env = { ATTEST_IT_HOME: homeDir, VAULTKEEPER_CONFIG_DIR: homeDir }
 
       // Mirror the README's own first command: a bare package.json with no
       // name/version, as `npm install attest-it` leaves behind.
@@ -310,7 +316,10 @@ describe('documented getting-started flow end-to-end (issue #84)', () => {
   it(
     'AC: identity export never guides users to the nonexistent team-config.yaml/members schema',
     async () => {
-      const env = { ATTEST_IT_HOME: homeDir }
+      // Issue #114: also redirect VaultKeeper's `file` backend (used by the
+      // `identity create --storage file` step below) to this same isolated
+      // temp home, so the real `~/.config/vaultkeeper/file/` is never touched.
+      const env = { ATTEST_IT_HOME: homeDir, VAULTKEEPER_CONFIG_DIR: homeDir }
 
       const createResult = await runCliNonInteractive(
         ['identity', 'create', '--name', 'Test User', '--slug', 'test-user', '--storage', 'file'],

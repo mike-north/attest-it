@@ -94,7 +94,10 @@ export interface SealPromptFixture {
   projectDir: string
   /** Directory used as this fixture's isolated `ATTEST_IT_HOME`. */
   homeDir: string
-  /** Env vars (`ATTEST_IT_HOME`) to pass to any CLI invocation against this fixture. */
+  /**
+   * Env vars (`ATTEST_IT_HOME`, `VAULTKEEPER_CONFIG_DIR`) to pass to any CLI
+   * invocation against this fixture.
+   */
   env: NodeJS.ProcessEnv
   /** Name of the suite/gate configured, authorized for the fixture's identity. */
   suiteName: string
@@ -110,7 +113,10 @@ export interface SealPromptFixture {
 export async function setupSealPromptFixture(): Promise<SealPromptFixture> {
   const projectDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'attest-it-pty-project-'))
   const homeDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'attest-it-pty-home-'))
-  const env = { ATTEST_IT_HOME: homeDir, NO_COLOR: '1' }
+  // Issue #114: also redirect VaultKeeper's `file` backend to this same
+  // isolated temp home, so `identity create --storage file` below never
+  // touches the real `~/.config/vaultkeeper/file/`.
+  const env = { ATTEST_IT_HOME: homeDir, VAULTKEEPER_CONFIG_DIR: homeDir, NO_COLOR: '1' }
   const suiteName = 'smoke'
   const gateId = 'smoke'
 
