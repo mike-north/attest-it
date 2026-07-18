@@ -364,7 +364,7 @@ If seals are missing, provide clear instructions:
     echo "To fix:"
     echo "  1. Run: npx attest-it status"
     echo "  2. Run: npx attest-it seal <gate-name>"
-    echo "  3. Commit: git add .attest-it/seals.json"
+    echo "  3. Commit: git add .attest-it/seals/"
     exit 1
 ```
 
@@ -426,7 +426,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .attest-it/seals.json
+          git add .attest-it/seals/
           git diff --staged --quiet || git commit -m "chore: prune stale seals"
           git push
 ```
@@ -505,7 +505,7 @@ Require reviews for seal changes:
 
 ```yaml
 # .github/CODEOWNERS
-.attest-it/seals.json @your-team/security-reviewers
+.attest-it/seals/ @your-team/security-reviewers
 ```
 
 ### Branch Protection
@@ -537,7 +537,7 @@ After rebasing, re-seal if files in fingerprint paths changed:
 git rebase main
 npx attest-it status  # Check what changed
 npx attest-it seal <gate-name>
-git add .attest-it/seals.json
+git add .attest-it/seals/
 git rebase --continue
 ```
 

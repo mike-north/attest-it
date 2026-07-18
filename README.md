@@ -9,6 +9,10 @@ Some tests require a human: desktop apps, OAuth flows, AI assistants, visual ver
 ## Quick Start
 
 ```bash
+# If this is a fresh project, ignore node_modules before doing anything else --
+# `attest-it run` refuses to seal against an uncommitted/dirty working tree.
+echo "node_modules/" >> .gitignore
+
 npm install attest-it
 
 # One-time setup: create your signing identity
@@ -16,6 +20,20 @@ npx attest-it identity create
 
 # Initialize project config
 npx attest-it init
+
+# Define a gate (what needs attestation, who can sign -- list your own identity
+# slug in authorizedSigners) in .attest-it/policy.yaml, and a suite (a runnable
+# command bound to that gate) in .attest-it/config.yaml -- see Configuration
+# below for the minimal shape, or copy the commented example already in each
+# scaffolded file.
+
+# Add yourself to the project team and authorize the gate you just defined
+npx attest-it team join --gates my-gate
+
+# Commit before the next step -- `run` refuses to seal a dirty tree. This
+# includes package.json/your lockfile (touched by `npm install` and `init`)
+# in addition to .attest-it/.
+git add -A && git commit -m "Configure attest-it"
 
 # Run tests and seal the gate
 npx attest-it run --suite my-suite
@@ -36,6 +54,9 @@ npx attest-it verify
 >   rejected as `UNKNOWN_SIGNER`).
 >
 > See the [threat model](docs/threat-model.md) for the full trust boundary.
+
+See [Getting Started](docs/getting-started.md) for the fully worked walkthrough,
+including the exact gate/suite YAML.
 
 ### Non-interactive (CI, embedders, agents)
 
@@ -122,7 +143,7 @@ rootGate:
 team:
   alice:
     name: Alice Smith
-    publicKey: MCowBQYDK2VwAyEA... # Ed25519 public key (base64)
+    publicKey: tatJ4K7XDrycr83Tp7XZg2JLKbZb8Ty322jCijuA+Rc= # Ed25519 public key (raw, base64)
 
 # Gates define what code requires human attestation
 gates:
@@ -298,11 +319,20 @@ Seals become invalid when:
 
 ## Key Storage Options
 
-When you run `attest-it identity create`, you can choose where to store your private key:
+When you run `attest-it identity create`, you can choose where to store your private key. All
+backends store the key through VaultKeeper, a dependency that manages the underlying secret
+storage; identity **metadata** (slug, name, public key, and a pointer to the private key) lives
+separately in `~/.config/attest-it/config.yaml` (or a directory of your choosing, via the
+[`ATTEST_IT_HOME`](docs/configuration.md#attest_it_home) environment variable -- for the `file`
+backend below, this also redirects VaultKeeper's own key storage; the `keychain`/`1password`/
+`yubikey` backends are not redirected by it. See the linked section for details).
 
 ### File System (Default)
 
-Keys are stored as PEM files in `~/.attest-it/keys/`. Simple but requires you to protect the file.
+The private key is stored via VaultKeeper's file backend, encrypted at rest. Under `ATTEST_IT_HOME`
+it's isolated alongside the rest of the sandboxed identity state (`<ATTEST_IT_HOME>/vaultkeeper/`);
+otherwise it uses VaultKeeper's real default location. Simple but requires you to protect that
+storage.
 
 ### macOS Keychain
 

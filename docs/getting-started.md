@@ -10,7 +10,8 @@ This guide walks you through setting up attest-it for your project.
 
 **Optional** (for secure key storage):
 
-- 1Password CLI (`op`) for 1Password storage
+- A 1Password service account token (`OP_SERVICE_ACCOUNT_TOKEN`) for 1Password storage -- the
+  1Password SDK ships with attest-it, so the legacy `op` CLI is not required
 - macOS for Keychain storage
 
 ## Installation
@@ -23,6 +24,16 @@ npm install attest-it
 pnpm add attest-it
 # or
 yarn add attest-it
+```
+
+If this is a fresh project (no `.gitignore` yet), add one before running any
+attest-it commands so `node_modules/` doesn't end up tracked or counted as an
+uncommitted change (`attest-it run` refuses to seal against a dirty working
+tree -- see [Working Tree Has Uncommitted
+Changes](configuration.md#working-tree-has-uncommitted-changes)):
+
+```bash
+echo "node_modules/" >> .gitignore
 ```
 
 ## Step 1: Create Your Identity
@@ -57,7 +68,7 @@ Generating Ed25519 keypair...
 ✓ Identity 'work' created successfully!
 
 Public key (share with team):
-  MCowBQYDK2VwAyEAabc123...
+  tatJ4K7XDrycr83Tp7XZg2JLKbZb8Ty3...
 
 Private key stored in: macOS Keychain (attest-it/work)
 
@@ -66,7 +77,11 @@ Next steps:
   2. Run: npx attest-it init (in your project)
 ```
 
-Your identity is stored locally at `~/.config/attest-it/config.yaml`.
+Your identity is stored locally at `~/.config/attest-it/config.yaml`. Set the
+`ATTEST_IT_HOME` environment variable to point this at a different directory
+(useful for testing or running multiple isolated setups on one machine) --
+see [`ATTEST_IT_HOME`](configuration.md#attest_it_home) for precedence and an
+important caveat about key storage.
 
 ### Non-interactive identity creation
 
@@ -140,9 +155,19 @@ Next steps:
   2. Run: attest-it identity create  (if you haven't already)
   3. Run: attest-it team join
   4. Edit .attest-it/policy.yaml to define your gates, and .attest-it/config.yaml to define suites
+  5. Bootstrap the trust anchor: attest-it init --root-signer <your-identity-slug>
+     (safe to run at any time — it merges in the root gate and leaves your
+     existing gates, suites, and seals untouched)
 
 Would you like to enable shell completions for zsh? (Y/n)
 ```
+
+Step 5 (bootstrapping the trust anchor) establishes `policy.yaml` itself as a
+sealed artifact so a pull request can't tamper with `team`/`gates`; it's
+optional but recommended, and -- as the output notes -- safe to run later once
+you already have gates/suites defined. See [Root Gate](configuration.md#root-gate-rootgate)
+for what it does and why. This walkthrough continues without it below for
+brevity.
 
 That last prompt is a one-time, optional offer to install shell completions
 for your detected shell (`bash`, `zsh`, or `fish`) -- unrelated to
@@ -166,7 +191,7 @@ resolves. For example:
 version: 1
 
 settings:
-  sealsPath: .attest-it/seals.json
+  maxAgeDays: 30
 
 team: {}
 
@@ -222,7 +247,7 @@ team:
   alice:
     name: Alice Smith
     email: alice@example.com
-    publicKey: MCowBQYDK2VwAyEAabc123... # From identity export
+    publicKey: tatJ4K7XDrycr83Tp7XZg2JLKbZb8Ty322jCijuA+Rc= # From identity export
 ```
 
 To get your public key for manual addition:
@@ -249,17 +274,18 @@ npx attest-it team join --gates desktop-tests < /dev/null
 
 ```bash
 npx attest-it team add --slug bob --name "Bob Jones" \
-  --public-key "MCowBQYDK2VwAyEA..." --gates desktop-tests < /dev/null
+  --public-key "ThmrTeY+vN6mT9ll6vtQoCnFXvP9iAH2js/VJywXGUQ=" --gates desktop-tests < /dev/null
 ```
 
 ## Step 3b: Commit Your Configuration
 
 Before running tests, commit everything you've changed so far -- the `package.json` update
-from `init`, and the `.attest-it/policy.yaml` / `.attest-it/config.yaml` edits from Steps 2b
-and 3:
+from `init`, a freshly created lockfile if `npm install`/`pnpm add`/`yarn add` in
+[Installation](#installation) hadn't already been committed, and the
+`.attest-it/policy.yaml` / `.attest-it/config.yaml` edits from Steps 2b and 3:
 
 ```bash
-git add package.json .attest-it/
+git add -A
 git commit -m "Configure attest-it: gate, suite, and team"
 ```
 
@@ -288,7 +314,7 @@ The workflow:
 2. **Execute**: Runs the test command
 3. **Confirm**: Asks if tests passed and you want to seal
 4. **Sign**: Creates Ed25519 signature with your private key
-5. **Save**: Updates `.attest-it/seals.json`
+5. **Save**: Writes a seal file under `.attest-it/seals/`
 
 Example output:
 
@@ -305,12 +331,14 @@ Test Files  1 passed (1)
 ✓ Tests passed!
 ? Create seal for gate 'desktop-tests'? Yes
 
-✓ Seal created for desktop-tests
-  Fingerprint: a3b8c9d2...
-  Sealed by: alice
-  Sealed at: 2026-01-14T12:34:56.789Z
+Suite 'desktop-tests' is linked to gate 'desktop-tests'
+✓ Seal created for gate 'desktop-tests'
+  Sealed by: alice (Alice Smith)
+  Timestamp: 2026-01-14T12:34:56.789Z
 
-Commit: git add .attest-it/seals.json && git commit -m "Seal desktop-tests"
+✓ Suite completed!
+
+To commit: git add .attest-it/seals/ && git commit -m "Update seals"
 ```
 
 ### Non-interactive sealing
@@ -339,7 +367,7 @@ npx attest-it seal desktop-tests
 produced is the seal itself. Add it to version control:
 
 ```bash
-git add .attest-it/seals.json
+git add .attest-it/seals/
 git commit -m "Add seal for desktop-tests"
 git push
 ```
@@ -348,9 +376,11 @@ The `.attest-it/` directory structure:
 
 ```
 .attest-it/
-├── policy.yaml  # Trust-critical config: team, gates (commit; merge to default branch)
-├── config.yaml  # Operational config: suites (commit)
-└── seals.json   # Seals (commit after creating)
+├── policy.yaml            # Trust-critical config: team, gates (commit; merge to default branch)
+├── config.yaml            # Operational config: suites (commit)
+└── seals/                 # Seals, one file per (gate, signer) (commit after creating)
+    └── desktop-tests-.../
+        └── alice-....seal
 ```
 
 ## Step 6: Set Up CI Verification
@@ -419,18 +449,21 @@ npx attest-it status
 Example output:
 
 ```
-Gate Status
-===========
+Suite         │ Status │ Fingerprint         │ Age
+──────────────┼────────┼─────────────────────┼───────
+desktop-tests │ VALID  │ sha256:e05bdb2e8... │ 0 days
 
-Gate: desktop-tests
-Status: ✓ VALID
-Fingerprint: a3b8c9d2...
-Sealed by: alice
-Sealed at: 2026-01-14T12:34:56.789Z
-Age: 2 days
+Seal metadata:
+  desktop-tests:
+    Sealed by: alice
+    Sealed at: 1/14/2026, 12:34:56 PM
 
-Overall: All gates valid
+✓ All gate seals valid
 ```
+
+(The table's leftmost column is labeled "Suite" even though its values are
+gate IDs; that mislabel is tracked separately at
+[#130](https://github.com/mike-north/attest-it/issues/130).)
 
 **`status` is informational and exits `0` when it successfully reports gate results** --
 even when a gate is `MISSING`, `FINGERPRINT_MISMATCH`, or otherwise invalid, it reports what
@@ -478,7 +511,7 @@ team:
   bob:
     name: Bob Jones
     email: bob@example.com
-    publicKey: MCowBQYDK2VwAyEAxyz789...
+    publicKey: ThmrTeY+vN6mT9ll6vtQoCnFXvP9iAH2js/VJywXGUQ=
 ```
 
 4. Add to gate's `authorizedSigners`:

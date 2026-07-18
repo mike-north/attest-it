@@ -18,7 +18,10 @@ This document is designed for AI assistants (including those using RAG systems) 
 
 ### 1. Local Identity (`~/.config/attest-it/config.yaml`)
 
-Your Ed25519 keypair and identity information:
+Your Ed25519 keypair and identity information. Override the directory with the `ATTEST_IT_HOME`
+environment variable -- for the `file` key-storage backend this also redirects where VaultKeeper
+stores the actual private key material, but **not** for `keychain`/`1password`/`yubikey` (see
+[`ATTEST_IT_HOME`](docs/configuration.md#attest_it_home)):
 
 ```yaml
 version: 2
@@ -27,7 +30,7 @@ identities:
   work:
     name: Alice Smith
     email: alice@example.com
-    publicKey: MCowBQYDK2VwAyEA...
+    publicKey: tatJ4K7XDrycr83Tp7XZg2JLKbZb8Ty322jCijuA+Rc=
     privateKey:
       type: keychain # or 'file' or '1password'
       id: attest-it-work-1a2b3c4d-5678-90ab-cdef-1234567890ab
@@ -46,7 +49,7 @@ Trust-critical data (team, gates) lives in `.attest-it/policy.yaml`, loaded from
 version: 1
 team:
   alice:
-    publicKey: MCowBQYDK2VwAyEA...
+    publicKey: tatJ4K7XDrycr83Tp7XZg2JLKbZb8Ty322jCijuA+Rc=
 gates:
   desktop-tests:
     authorizedSigners: [alice]
@@ -62,24 +65,24 @@ suites:
     gate: desktop-tests
 ```
 
-### 3. Seals File (`.attest-it/seals.json`)
+### 3. Seals (`.attest-it/seals/`)
 
-Contains cryptographically signed records:
+Each seal is a cryptographically signed record stored as its own YAML file, one per
+(gate, signer), under `.attest-it/seals/<gate-slug>/<signer-slug>.seal`:
 
-```json
-{
-  "version": 1,
-  "seals": {
-    "desktop-tests": {
-      "gateId": "desktop-tests",
-      "fingerprint": "a3b8c9...",
-      "timestamp": "2026-01-14T12:34:56.789Z",
-      "sealedBy": "alice",
-      "signature": "base64-ed25519-signature..."
-    }
-  }
-}
+```yaml
+# .attest-it/seals/desktop-tests-<hash>/alice-<hash>.seal
+gateId: desktop-tests
+fingerprint: sha256:a3b8c9...
+timestamp: 2026-01-14T12:34:56.789Z
+sealedBy: alice
+signature: base64-ed25519-signature...
 ```
+
+`readSeals`/`writeSeals` (from `@attest-it/core`) present this file-per-seal layout as a single
+in-memory aggregate, so most code never deals with individual `.seal` files directly. See
+[Configuration Reference: Seal storage layout](docs/configuration.md#seal-storage-layout-file-per-seal)
+for the full path scheme.
 
 ## Common Errors and Solutions
 
@@ -185,7 +188,6 @@ Note: STALE is a warning, not a failure. Verification still passes.
 
 - `Key provider 'keychain' is not available`
 - `Failed to retrieve private key`
-- `1Password CLI not found`
 
 **What this means:**
 The configured key storage backend isn't available.
@@ -193,7 +195,8 @@ The configured key storage backend isn't available.
 **Solutions by provider:**
 
 - **keychain**: Only available on macOS
-- **1password**: Install 1Password CLI (`op`)
+- **1password**: Requires a 1Password service account token (`OP_SERVICE_ACCOUNT_TOKEN`); the
+  1Password SDK ships with attest-it, so the legacy `op` CLI is not required
 - **file**: Check file path and permissions
 
 User can rotate keys to a new provider: `npx attest-it identity create` (create new identity with different provider)
@@ -265,7 +268,7 @@ This `CONFIG_ERROR` fail-closed behavior is the only thing `status`'s exit code 
 **DO NOT:**
 
 - Generate or guess Ed25519 keys
-- Modify `.attest-it/seals.json` directly
+- Modify files under `.attest-it/seals/` directly
 - Bypass signature verification
 - Edit identity configuration files directly
 - Suggest workarounds that bypass security
@@ -321,12 +324,12 @@ npx attest-it status
 
 ## Key Files Reference
 
-| File               | Location                          | Purpose                      |
-| ------------------ | --------------------------------- | ---------------------------- |
-| Local identity     | `~/.config/attest-it/config.yaml` | User's keypairs and settings |
-| Policy config      | `.attest-it/policy.yaml`          | Team, gates (trust-critical) |
-| Operational config | `.attest-it/config.yaml`          | Suites (reference gates)     |
-| Seals              | `.attest-it/seals.json`           | Cryptographic seals          |
+| File               | Location                                                           | Purpose                                       |
+| ------------------ | ------------------------------------------------------------------ | --------------------------------------------- |
+| Local identity     | `~/.config/attest-it/config.yaml` (override with `ATTEST_IT_HOME`) | User's keypairs and settings                  |
+| Policy config      | `.attest-it/policy.yaml`                                           | Team, gates (trust-critical)                  |
+| Operational config | `.attest-it/config.yaml`                                           | Suites (reference gates)                      |
+| Seals              | `.attest-it/seals/`                                                | Cryptographic seals, one file per gate/signer |
 
 ## Verification States
 

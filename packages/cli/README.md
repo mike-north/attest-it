@@ -82,6 +82,12 @@ All commands support these global options:
 | `--help`              | Show help           |
 | `--version`           | Show version        |
 
+### Environment Variables
+
+| Variable         | Description                                                                                                                                                                                                                                                                                                       |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ATTEST_IT_HOME` | Override the local identity config directory (default `~/.config/attest-it`). Also redirects VaultKeeper's own private-key storage for the `file` backend, but not `keychain`/`1password`/`yubikey`. See [Configuration](https://github.com/mike-north/attest-it/blob/main/docs/configuration.md#attest_it_home). |
+
 ## Exit Codes
 
 | Code | Constant     | Meaning                             |
@@ -105,9 +111,9 @@ program.parse(['node', 'attest-it', 'status', '--json'])
 
 ## Documentation
 
-- [Getting Started](../../docs/getting-started.md)
-- [Configuration](../../docs/configuration.md)
-- [GitHub Integration](../../docs/github-integration.md)
+- [Getting Started](https://github.com/mike-north/attest-it/blob/main/docs/getting-started.md)
+- [Configuration](https://github.com/mike-north/attest-it/blob/main/docs/configuration.md)
+- [GitHub Integration](https://github.com/mike-north/attest-it/blob/main/docs/github-integration.md)
 
 ## Requirements
 

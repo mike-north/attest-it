@@ -26,14 +26,25 @@ yarn add attest-it
 ## Quick Start
 
 ```bash
+# Fresh project? Ignore node_modules first -- `attest-it run` refuses to seal
+# against an uncommitted/dirty working tree.
+echo "node_modules/" >> .gitignore
+
 # Create your signing identity
 npx attest-it identity create
 
 # Initialize project configuration
 npx attest-it init
 
-# Add yourself to the project team
-npx attest-it team join
+# Define a gate and a suite that references it -- see Configuration below for
+# the minimal shape, or copy the commented example already in each scaffolded
+# file (.attest-it/policy.yaml and .attest-it/config.yaml).
+
+# Add yourself to the project team and authorize the gate you just defined
+npx attest-it team join --gates my-gate
+
+# Commit before sealing (config edits + any new lockfile from installing)
+git add -A && git commit -m "Configure attest-it"
 
 # Run tests and create seal
 npx attest-it run --suite my-suite
@@ -41,6 +52,9 @@ npx attest-it run --suite my-suite
 # Verify seals (in CI)
 npx attest-it verify
 ```
+
+See [Getting Started](https://github.com/mike-north/attest-it/blob/main/docs/getting-started.md)
+for the fully worked walkthrough.
 
 ## Package Contents
 
@@ -59,7 +73,28 @@ This umbrella package includes:
 | `verify` | Verify seals (for CI)     |
 | `prune`  | Remove stale seals        |
 
-For identity and team management commands, see the [main README](../../README.md#cli-commands).
+**Identity management:**
+
+| Command                  | Description                           |
+| ------------------------ | ------------------------------------- |
+| `identity create`        | Create a new identity with keypair    |
+| `identity list`          | List all local identities             |
+| `identity use <slug>`    | Switch active identity                |
+| `identity show [slug]`   | Show identity details                 |
+| `identity export [slug]` | Export public key for team onboarding |
+| `identity remove <slug>` | Delete identity and associated key    |
+| `whoami`                 | Show current active identity          |
+
+**Team management:**
+
+| Command              | Description                                           |
+| -------------------- | ----------------------------------------------------- |
+| `team list`          | List team members and gates                           |
+| `team add`           | Add a team member                                     |
+| `team join`          | Add yourself to the project team with active identity |
+| `team remove <slug>` | Remove team member                                    |
+
+Run `npx attest-it <command> --help` for detailed usage.
 
 ### Programmatic API
 
@@ -99,8 +134,7 @@ version: 1
 
 settings:
   maxAgeDays: 30
-  publicKeyPath: .attest-it/pubkey.pem
-  sealsPath: .attest-it/seals.json
+  sealsPath: .attest-it/seals/
 
 gates:
   desktop-tests:
@@ -124,12 +158,20 @@ suites:
     command: pnpm vitest --project desktop
 ```
 
+Local identity configuration (your personal signing identity, distinct from the project's
+`.attest-it/`) lives at `~/.config/attest-it/config.yaml` by default. Set `ATTEST_IT_HOME` to
+redirect that directory (e.g. for isolated test runs); for the `file` key-storage backend this
+also redirects where VaultKeeper stores the private key material, but **not** for `keychain`,
+`1password`, or `yubikey` -- see
+[`ATTEST_IT_HOME`](https://github.com/mike-north/attest-it/blob/main/docs/configuration.md#attest_it_home)
+for details.
+
 ## Documentation
 
-- [Getting Started](../../docs/getting-started.md) - Complete setup guide
-- [Configuration](../../docs/configuration.md) - All configuration options
-- [GitHub Integration](../../docs/github-integration.md) - CI setup
-- [API Documentation](../../docs/api/attest-it.md) - Full API reference
+- [Getting Started](https://github.com/mike-north/attest-it/blob/main/docs/getting-started.md) - Complete setup guide
+- [Configuration](https://github.com/mike-north/attest-it/blob/main/docs/configuration.md) - All configuration options
+- [GitHub Integration](https://github.com/mike-north/attest-it/blob/main/docs/github-integration.md) - CI setup
+- [Embedding attest-it](https://github.com/mike-north/attest-it/blob/main/docs/embedding.md) - The stable, versioned embeddable API
 
 ## Related Packages
 
