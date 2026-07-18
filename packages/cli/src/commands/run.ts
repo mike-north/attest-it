@@ -407,6 +407,12 @@ async function runSingleSuite(
  * `--yes`, this fails fast instead of hanging on a prompt that can never
  * resolve. See issue #80.
  *
+ * A user who explicitly declines the prompt exits {@link ExitCode.CANCELLED}
+ * rather than falling through to the caller's normal "Suite completed!"
+ * success path -- tests passing is not the same as attestation succeeding,
+ * and a CI script must be able to tell a declined seal apart from
+ * `SUCCESS` (0). See issue #100.
+ *
  * @param suiteName - Name of the suite that was executed
  * @param gateId - ID of the gate linked to the suite
  * @param config - Configuration object
@@ -462,8 +468,11 @@ async function promptForSeal(
   }
 
   if (!shouldSeal) {
-    log('Seal creation skipped')
-    return
+    // The user was explicitly asked and declined -- this is a cancellation,
+    // not a skip. Exiting SUCCESS here would let a CI script read a declined
+    // seal as a passing attestation. See issue #100.
+    log('Cancelled')
+    process.exit(ExitCode.CANCELLED)
   }
 
   try {

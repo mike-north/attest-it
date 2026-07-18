@@ -43,6 +43,10 @@ export {
   policySchema,
   parsePolicyContent,
   PolicyValidationError,
+  // Comment-preserving policy read/write round-trip
+  type EditablePolicy,
+  loadEditablePolicy,
+  serializeEditablePolicy,
   // Operational config
   type OperationalConfig,
   operationalSchema,
@@ -144,6 +148,7 @@ export {
   type VaultKeyProviderOptions,
   type KeyProviderFactory,
   storePrivateKey,
+  deletePrivateKey,
   type StorePrivateKeyResult,
   type PrivateKeyBackendType,
 } from './key-provider/index.js'

@@ -15,6 +15,7 @@ import * as core from '@attest-it/core'
 import type { PolicyConfig } from '@attest-it/core'
 import * as fs from 'node:fs/promises'
 import * as prompts from '@inquirer/prompts'
+import { parseDocument, stringify as stringifyYaml } from 'yaml'
 import { ExitCode } from '../src/utils/exit-codes.js'
 
 vi.mock('@attest-it/core', async () => {
@@ -22,7 +23,7 @@ vi.mock('@attest-it/core', async () => {
   return {
     ...actual,
     findPolicyPath: vi.fn(),
-    parsePolicyContent: vi.fn(),
+    loadEditablePolicy: vi.fn(),
     readSealsSync: vi.fn(),
   }
 })
@@ -45,9 +46,22 @@ const mockProcessExit = vi.spyOn(process, 'exit').mockImplementation(() => {
   throw new Error('process.exit called')
 })
 
+/**
+ * `loadEditablePolicy` is mocked directly (rather than the lower-level
+ * `parsePolicyContent`) because it now owns parsing *and* keeps a parsed YAML
+ * `Document` around for comment-preserving writes -- the real
+ * `serializeEditablePolicy` (unmocked) is exercised against that document, so
+ * the backing document is seeded from `stringifyYaml(policy)` to match what a
+ * real read of `path` would have produced.
+ */
 function mockPolicy(policy: PolicyConfig, path = '/test/policy.yaml'): void {
   vi.mocked(core.findPolicyPath).mockReturnValue(path)
-  vi.mocked(core.parsePolicyContent).mockReturnValue(policy)
+  vi.mocked(core.loadEditablePolicy).mockReturnValue({
+    policy,
+    path,
+    format: 'yaml',
+    document: parseDocument(stringifyYaml(policy)),
+  })
 }
 
 const BASE_POLICY: PolicyConfig = {

@@ -1,7 +1,8 @@
 import { Command } from 'commander'
 import { confirm } from '@inquirer/prompts'
-import { loadLocalConfig, saveLocalConfig } from '@attest-it/core'
-import { log, success, error, getTheme } from '../../utils/output.js'
+import { loadLocalConfig, saveLocalConfig, deletePrivateKey } from '@attest-it/core'
+import type { PrivateKeyRef } from '@attest-it/core'
+import { log, success, warn, error, getTheme } from '../../utils/output.js'
 import { ExitCode } from '../../utils/exit-codes.js'
 import { formatKeyLocation } from '../../utils/format-key-location.js'
 import { handlePromptableError, resolveConfirmation } from '../../utils/prompts.js'
@@ -10,12 +11,12 @@ import { homedir } from 'node:os'
 import * as path from 'node:path'
 
 export const removeCommand = new Command('remove')
-  .description('Delete identity and optionally delete private key')
+  .description('Delete identity and its private key')
   .argument('<slug>', 'Identity slug to remove')
   .option('-y, --yes', 'Skip the confirmation prompt(s) and remove non-interactively')
   .option(
-    '--delete-key',
-    'Also delete the private key from storage when used with --yes (interactively, this is still asked separately; default: false)',
+    '--keep-key',
+    'Do not delete the underlying private key material -- only remove the local identity entry (default: also delete the key)',
   )
   .action(async (slug: string, options: RemoveOptions) => {
     await runRemove(slug, options)
@@ -23,18 +24,26 @@ export const removeCommand = new Command('remove')
 
 interface RemoveOptions {
   yes?: boolean
-  deleteKey?: boolean
+  keepKey?: boolean
 }
 
 /**
  * Run the remove command to delete an identity.
  *
- * Non-interactive with `--yes`: both confirmations resolve without prompting
- * (identity removal proceeds; private-key deletion defaults to `false`
- * unless `--delete-key` is also given -- the more destructive of the two
- * actions is opt-in, not implied by `--yes` alone). Without `--yes`, a
- * closed/piped stdin fails fast naming `--yes` instead of hanging on (or
- * looping through) a prompt that can never resolve. See issue #94.
+ * @remarks
+ * Non-interactive with `--yes`: proceeds without prompting. Without
+ * `--yes`, a closed/piped stdin fails fast naming `--yes` instead of
+ * hanging on (or looping through) a prompt that can never resolve. See
+ * issue #94.
+ *
+ * By default, removing an identity also deletes its private key material
+ * for backends attest-it can safely clean up on its own (`file` --
+ * VaultKeeper-managed, and the legacy `filesystem` type). Pass `--keep-key`
+ * to leave the key material in place. For backends attest-it does not
+ * delete from unilaterally (`1password`, `keychain`, `yubikey`), the key
+ * always remains and the command prints an explicit, actionable message
+ * saying so -- it is never left behind silently under a success message.
+ * See issue #101.
  *
  * @public
  */
@@ -80,62 +89,16 @@ export async function runRemove(slug: string, options: RemoveOptions = {}): Prom
       process.exit(ExitCode.CANCELLED)
     }
 
-    // Ask about deleting private key, showing where it's stored
     const keyLocation = formatKeyLocation(identity.privateKey)
     log(`  Private key: ${keyLocation}`)
     log('')
 
-    // Reaching this point already proved --yes was supplied or stdin is an
-    // interactive TTY (resolveConfirmation above would have thrown
-    // otherwise), so no separate non-interactive guard is needed here --
-    // only which default to use.
-    const deletePrivateKey = options.yes
-      ? (options.deleteKey ?? false)
-      : await confirm({
-          message: 'Also delete the private key from storage?',
-          default: false,
-        })
+    const keepKey = options.keepKey ?? false
 
-    // Delete private key if requested
-    if (deletePrivateKey) {
-      switch (identity.privateKey.type) {
-        case 'file':
-        case 'keychain':
-        case '1password':
-        case 'yubikey': {
-          // VaultKeeper-managed keys: deletion is handled by VaultKeeper's backend.
-          // For now, log a note — full backend deletion will be wired when the
-          // VaultKeeper vault instance is available here.
-          log(
-            `  Note: To delete the key from VaultKeeper storage, use the VaultKeeper CLI with ID: ${identity.privateKey.id}`,
-          )
-          break
-        }
-        case 'filesystem': {
-          // Legacy filesystem key — delete the file directly. The stored path
-          // may contain a leading `~` (from a hand-edited v1 config); Node's
-          // fs APIs don't expand it, so resolve it explicitly before deleting.
-          // Mirrors `resolveLegacyPath` in
-          // `@attest-it/core`'s `key-provider/legacy-filesystem-provider.ts` —
-          // not shared via export because that module's internals are
-          // intentionally not part of the package's public API.
-          try {
-            const rawPath = identity.privateKey.path
-            const resolvedPath =
-              rawPath === '~' || rawPath.startsWith('~/')
-                ? path.join(homedir(), rawPath.slice(1))
-                : rawPath
-            await unlink(resolvedPath)
-            log(`  Deleted legacy private key file: ${rawPath}`)
-          } catch (err) {
-            // Ignore file not found errors
-            if (err && typeof err === 'object' && 'code' in err && err.code !== 'ENOENT') {
-              throw err
-            }
-          }
-          break
-        }
-      }
+    if (keepKey) {
+      log(`  Keeping private key (--keep-key): ${keyLocation}`)
+    } else {
+      await deleteKeyMaterial(identity.privateKey)
     }
 
     // Remove from config
@@ -175,5 +138,114 @@ export async function runRemove(slug: string, options: RemoveOptions = {}): Prom
     log('')
   } catch (err) {
     handlePromptableError(err, ExitCode.CONFIG_ERROR)
+  }
+}
+
+/**
+ * Delete (or explain how to delete) the private key material behind a
+ * `PrivateKeyRef`.
+ *
+ * @remarks
+ * For backends attest-it exclusively owns (`file`, `filesystem`), this
+ * actually deletes the secret and reports success. For backends attest-it
+ * cannot unilaterally clean up (`1password`, `keychain`, `yubikey`), this
+ * never attempts deletion -- it always prints an explicit warning that key
+ * material remains, along with how the user can remove it themselves. See
+ * issue #101.
+ */
+async function deleteKeyMaterial(privateKey: PrivateKeyRef): Promise<void> {
+  switch (privateKey.type) {
+    case 'file': {
+      await deletePrivateKey('file', privateKey.id)
+      log('  Deleted private key from storage')
+      break
+    }
+    case 'filesystem': {
+      // Legacy filesystem key — delete the file directly. The stored path
+      // may contain a leading `~` (from a hand-edited v1 config); Node's
+      // fs APIs don't expand it, so resolve it explicitly before deleting.
+      // Mirrors `resolveLegacyPath` in
+      // `@attest-it/core`'s `key-provider/legacy-filesystem-provider.ts` —
+      // not shared via export because that module's internals are
+      // intentionally not part of the package's public API.
+      try {
+        const rawPath = privateKey.path
+        const resolvedPath =
+          rawPath === '~' || rawPath.startsWith('~/')
+            ? path.join(homedir(), rawPath.slice(1))
+            : rawPath
+        await unlink(resolvedPath)
+        log(`  Deleted legacy private key file: ${rawPath}`)
+      } catch (err) {
+        // Ignore file not found errors
+        if (err && typeof err === 'object' && 'code' in err && err.code !== 'ENOENT') {
+          throw err
+        }
+      }
+      break
+    }
+    case 'keychain':
+    case '1password':
+    case 'yubikey': {
+      warnKeyMaterialRemains(privateKey)
+      break
+    }
+  }
+}
+
+/**
+ * Print an explicit, actionable warning that key material was left behind
+ * for a backend attest-it does not delete from unilaterally (`1password`,
+ * `keychain`, `yubikey`). See issue #101.
+ */
+function warnKeyMaterialRemains(
+  privateKey: Exclude<PrivateKeyRef, { type: 'file' | 'filesystem' }>,
+): void {
+  const location = formatKeyLocation(privateKey)
+
+  warn(`Private key material was NOT deleted. attest-it does not automatically remove keys`)
+  log(`    from ${backendDisplayName(privateKey.type)} — that store may be shared with other tools`)
+  log(`    or devices you manage outside attest-it.`)
+  log(`    Location: ${location}`)
+  log(`    Secret ID: ${privateKey.id}`)
+  log('')
+  log(`    To remove it yourself:`)
+  for (const line of manualRemovalInstructions(privateKey)) {
+    log(`      - ${line}`)
+  }
+}
+
+function backendDisplayName(type: 'keychain' | '1password' | 'yubikey'): string {
+  switch (type) {
+    case 'keychain':
+      return 'macOS Keychain'
+    case '1password':
+      return '1Password'
+    case 'yubikey':
+      return 'YubiKey'
+  }
+}
+
+function manualRemovalInstructions(
+  privateKey: Exclude<PrivateKeyRef, { type: 'file' | 'filesystem' }>,
+): string[] {
+  switch (privateKey.type) {
+    case 'keychain':
+      return [
+        'Open Keychain Access.app and locate the entry, or run',
+        `  \`security delete-generic-password -a "${privateKey.id}"\` (adjust for your keychain's exact service/account naming).`,
+      ]
+    case '1password': {
+      const vaultFlag = privateKey.vault ? ` --vault "${privateKey.vault}"` : ''
+      return [
+        'Open the 1Password app and delete the item, or run',
+        `  \`op item delete "${privateKey.id}"${vaultFlag}\` (if the id matches the item name/ID).`,
+      ]
+    }
+    case 'yubikey':
+      return [
+        'This key material lives on the physical YubiKey hardware, not on this machine.',
+        'Use `ykman` or the vendor management tooling for your device to manage or reset the associated credential.',
+      ]
   }
 }

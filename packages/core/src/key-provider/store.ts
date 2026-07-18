@@ -10,7 +10,7 @@
  */
 
 import * as crypto from 'node:crypto'
-import { BackendRegistry } from 'vaultkeeper'
+import { BackendRegistry, SecretNotFoundError } from 'vaultkeeper'
 
 /**
  * Result of storing a private key via a VaultKeeper backend.
@@ -57,5 +57,37 @@ export async function storePrivateKey(
   return {
     secretId,
     storageDescription: `${displayName}: ${secretId}`,
+  }
+}
+
+/**
+ * Delete a private key previously stored via {@link storePrivateKey} from its
+ * VaultKeeper backend.
+ *
+ * @remarks
+ * Idempotent: deleting a secret that no longer exists in the backend (e.g.
+ * already removed by a prior cleanup) is treated as success rather than an
+ * error, since the desired end state -- no secret with this id -- already
+ * holds.
+ *
+ * @param backendType - The VaultKeeper backend the key was stored in
+ * @param secretId - The VaultKeeper secret id to delete (as returned by
+ * {@link storePrivateKey} / recorded on the identity's `privateKey.id`)
+ * @public
+ */
+export async function deletePrivateKey(
+  backendType: PrivateKeyBackendType,
+  secretId: string,
+): Promise<void> {
+  const vaultKeeperBackendType = backendType === 'file' ? 'file' : backendType
+
+  const backend = BackendRegistry.create(vaultKeeperBackendType)
+  try {
+    await backend.delete(secretId)
+  } catch (err) {
+    if (err instanceof SecretNotFoundError) {
+      return
+    }
+    throw err
   }
 }

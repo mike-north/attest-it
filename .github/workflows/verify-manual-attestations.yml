@@ -18,11 +18,24 @@ name: Verify Manual Test Attestations
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Daily freshness check, independent of PR/push activity, so seal
+    # expiry (maxAge) is caught even during quiet periods.
+    - cron: '0 6 * * *'
 
 jobs:
   verify-attestations:
     name: Verify manual test attestations
     runs-on: ubuntu-latest
+    # Dogfood seals require the repo owner's physical hardware (YubiKey,
+    # 1Password, Keychain) to refresh — see issue #82. Until re-sealed, this
+    # job can legitimately fail. On pull_request it stays informational
+    # (non-blocking) so unrelated PRs aren't gated on an owner-only manual
+    # step; on push to main and on the schedule it stays blocking so the
+    # freshness signal itself is never silently ignored.
+    continue-on-error: ${{ github.event_name == 'pull_request' }}
     steps:
       - uses: actions/checkout@v4
 

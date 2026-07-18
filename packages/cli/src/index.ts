@@ -9,9 +9,10 @@ import { identityCommand } from './commands/identity/index.js'
 import { whoamiCommand } from './commands/whoami.js'
 import { teamCommand } from './commands/team/index.js'
 import { completionCommand, createCompletionServerCommand } from './commands/completion.js'
-import { setOutputOptions, initTheme } from './utils/output.js'
+import { setOutputOptions, initTheme, log } from './utils/output.js'
 import { setAttestItHomeDir } from '@attest-it/core'
 import { getPackageVersion } from './utils/version.js'
+import { ExitCode } from './utils/exit-codes.js'
 
 const program = new Command()
 
@@ -54,7 +55,43 @@ function processHomeDirOption(): void {
   }
 }
 
+/**
+ * Register a process-wide `SIGINT` (Ctrl-C) handler that exits
+ * {@link ExitCode.CANCELLED} with a clean message.
+ *
+ * @remarks
+ * Without an explicit `process.on('SIGINT', ...)` listener, Node's default
+ * action on a real SIGINT is to terminate the process immediately -- which a
+ * parent shell typically reports as exit code 130 (128 + signal 2), not a
+ * clean `process.exit()`. `@inquirer/core`'s prompts install their own
+ * `SIGINT` handling on the readline interface and convert it to
+ * `ExitPromptError` (already mapped to `CANCELLED` by `handlePromptableError`
+ * in `utils/prompts.ts`), but that only fires when the terminal is in the
+ * raw/keypress mode a prompt puts it in; a real SIGINT delivered by the
+ * kernel outside of that window (or before a prompt has attached its own
+ * listener) bypasses it entirely and falls through to Node's default,
+ * uncatchable-by-`try/catch` termination.
+ *
+ * Installing this listener for the whole CLI lifetime closes that gap: any
+ * Ctrl-C the process receives -- during a prompt or not -- is treated as the
+ * user cancelling the operation and reported the same way every other
+ * cancellation is: {@link ExitCode.CANCELLED} (4), documented in
+ * `AI_ASSISTANT_GUIDE.md` and `docs/configuration.md`. See issue #100.
+ *
+ * @public
+ */
+export function registerSigintHandler(): void {
+  process.on('SIGINT', () => {
+    log('\nCancelled')
+    process.exit(ExitCode.CANCELLED)
+  })
+}
+
 export async function run(): Promise<void> {
+  // Catch Ctrl-C for the whole process lifetime before doing anything else
+  // that could be interrupted (including a prompt). See issue #100.
+  registerSigintHandler()
+
   // Process --home-dir before anything else (hidden option for testing)
   processHomeDirOption()
 

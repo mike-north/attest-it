@@ -20,7 +20,10 @@ gates:
     fingerprint:
       paths:
         - packages/cli/test/manual/scripts/1password-integration.ts
-        - packages/core/src/key-provider/one-password-provider.ts
+        - packages/core/src/key-provider/discovery.ts
+        - packages/core/src/key-provider/vault-key-provider.ts
+        - packages/core/src/key-provider/registry.ts
+        - packages/core/src/key-provider/store.ts
         - packages/core/src/seal/**/*.ts
         - packages/core/src/crypto.ts
     maxAge: 90d
@@ -33,7 +36,10 @@ gates:
     fingerprint:
       paths:
         - packages/cli/test/manual/scripts/keychain-integration.ts
-        - packages/core/src/key-provider/macos-keychain-provider.ts
+        - packages/core/src/key-provider/discovery.ts
+        - packages/core/src/key-provider/vault-key-provider.ts
+        - packages/core/src/key-provider/registry.ts
+        - packages/core/src/key-provider/store.ts
         - packages/core/src/seal/**/*.ts
         - packages/core/src/crypto.ts
     maxAge: 90d
@@ -45,7 +51,10 @@ gates:
     fingerprint:
       paths:
         - packages/cli/test/manual/scripts/yubikey-integration.ts
-        - packages/core/src/key-provider/yubikey-provider.ts
+        - packages/core/src/key-provider/discovery.ts
+        - packages/core/src/key-provider/vault-key-provider.ts
+        - packages/core/src/key-provider/registry.ts
+        - packages/core/src/key-provider/store.ts
         - packages/core/src/seal/**/*.ts
         - packages/core/src/crypto.ts
     maxAge: 90d

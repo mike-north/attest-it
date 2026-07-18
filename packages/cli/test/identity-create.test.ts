@@ -128,12 +128,18 @@ function withFakeStdin<T>(content: string, fn: () => Promise<T>): Promise<T> {
 describe('runCreate (non-interactive)', () => {
   let tempHome: string
   const originalIsTTY = process.stdin.isTTY
+  // Issue #114: `--storage file` stores real key material via VaultKeeper's
+  // `file` backend, which -- unless redirected -- writes to the developer's/
+  // CI runner's real `~/.config/vaultkeeper/file/` directory. Redirect it to
+  // the same isolated temp dir used for ATTEST_IT_HOME.
+  const originalVaultKeeperConfigDir = process.env.VAULTKEEPER_CONFIG_DIR
   let mockProcessExit: ReturnType<typeof vi.spyOn>
   let mockConsoleError: ReturnType<typeof vi.spyOn>
 
   beforeEach(() => {
     tempHome = fs.mkdtempSync(path.join(os.tmpdir(), 'attest-it-identity-create-'))
     setAttestItHomeDir(tempHome)
+    process.env.VAULTKEEPER_CONFIG_DIR = tempHome
 
     // Simulate a bare CI machine: only the filesystem backend is usable.
     vi.mocked(isOnePasswordInstalled).mockResolvedValue(false)
@@ -152,6 +158,11 @@ describe('runCreate (non-interactive)', () => {
 
   afterEach(() => {
     setAttestItHomeDir(null)
+    if (originalVaultKeeperConfigDir === undefined) {
+      delete process.env.VAULTKEEPER_CONFIG_DIR
+    } else {
+      process.env.VAULTKEEPER_CONFIG_DIR = originalVaultKeeperConfigDir
+    }
     fs.rmSync(tempHome, { recursive: true, force: true })
     Object.defineProperty(process.stdin, 'isTTY', { value: originalIsTTY, configurable: true })
     vi.restoreAllMocks()

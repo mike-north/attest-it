@@ -11,6 +11,10 @@
 export type { PolicyConfig } from './policy-schema.js'
 export { PolicyValidationError, parsePolicyContent, policySchema } from './policy-schema.js'
 
+// Comment-preserving policy read/write round-trip
+export type { EditablePolicy } from './policy-writer.js'
+export { loadEditablePolicy, serializeEditablePolicy } from './policy-writer.js'
+
 // Operational configuration
 export type { OperationalConfig } from './operational-schema.js'
 export {

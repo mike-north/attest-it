@@ -15,7 +15,20 @@
  * way, and the row-count/enum-membership assertions below now require both
  * to be present and correctly mapped.
  *
+ * Extended for #100: #98 documented `CANCELLED` (4) as reachable by a
+ * declined prompt and by Ctrl-C, but neither path actually produced it (a
+ * declined prompt exited `SUCCESS`; a raw `SIGINT` fell through to Node's
+ * default, uncaught-signal termination, not a clean `process.exit`). Both
+ * docs also described "a piped stdin that closes mid-prompt" without
+ * distinguishing it from the separate "missing required flag, no TTY" path,
+ * which has always been (and remains) `CONFIG_ERROR`. These tests pin the
+ * prose to the decisions made for #100 so it can't silently drift from
+ * reachable behavior again: a declined prompt and Ctrl-C are both
+ * `CANCELLED`; a missing flag on non-interactive stdin is `CONFIG_ERROR`.
+ *
  * @see ../src/utils/exit-codes.ts
+ * @see ../src/commands/run.ts
+ * @see ../src/index.ts
  */
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
@@ -121,4 +134,41 @@ describe('exit-code documentation matches the ExitCode enum (#81)', () => {
     expect(ExitCode.DIRTY_WORKING_TREE).toBe(6)
     expect(ExitCode.DIRTY_WORKING_TREE).not.toBe(ExitCode.CONFIG_ERROR)
   })
+
+  it.each([
+    ['AI_ASSISTANT_GUIDE.md', join(REPO_ROOT, 'AI_ASSISTANT_GUIDE.md')],
+    ['docs/configuration.md', join(REPO_ROOT, 'docs/configuration.md')],
+  ])(
+    '%s documents a declined prompt and Ctrl-C as CANCELLED, and a missing flag on ' +
+      'non-interactive stdin as CONFIG_ERROR -- issue #100',
+    (_label, docPath) => {
+      const doc = readFileSync(docPath, 'utf8')
+
+      // Declining a confirmation must be documented as reachable CANCELLED,
+      // not folded silently into "force-closed" language that could be
+      // misread as excluding an explicit "n" answer.
+      expect(doc).toMatch(/declin(e|es|ed|ing)/i)
+
+      // Ctrl-C must be documented as CANCELLED (4). Some prose contrasts this
+      // with the shell's conventional 130 to make reachability unambiguous
+      // (e.g. "not the shell's conventional 130") -- that's fine as long as
+      // it's phrased as a rejection, not a claim that 130 is what happens.
+      expect(doc).toContain('Ctrl-C')
+      const ctrlCContext = doc.slice(
+        Math.max(0, doc.indexOf('Ctrl-C') - 200),
+        doc.indexOf('Ctrl-C') + 200,
+      )
+      expect(ctrlCContext).toMatch(/CANCELLED/)
+      if (/\b130\b/.test(ctrlCContext)) {
+        expect(ctrlCContext).toMatch(/not[\s\S]{0,40}?130/)
+      }
+
+      // The missing-flag/non-interactive case must be pinned to CONFIG_ERROR,
+      // not left implying CANCELLED.
+      expect(doc).toMatch(/missing (a )?required flag/i)
+      const missingFlagIndex = doc.search(/missing (a )?required flag/i)
+      const missingFlagContext = doc.slice(missingFlagIndex, missingFlagIndex + 400)
+      expect(missingFlagContext).toMatch(/CONFIG_ERROR/)
+    },
+  )
 })

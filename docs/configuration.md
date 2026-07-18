@@ -557,8 +557,17 @@ across commands, but `verify` and `status` use them differently:
 | 5    | MISSING_KEY        | Required private key file is missing                                                   |
 | 6    | DIRTY_WORKING_TREE | `run` refused because the git working tree has uncommitted changes                     |
 
-**A cancelled prompt is `CANCELLED` (4), never `CONFIG_ERROR`** — whether declined or
-force-closed/interrupted (e.g. Ctrl-C, or a piped stdin that closes mid-prompt).
+**A cancelled prompt is `CANCELLED` (4), never `CONFIG_ERROR`** — whether the user explicitly
+declines a confirmation (e.g. types `n` at "Create seal for gate 'x'?"), presses Ctrl-C, or the
+prompt is force-closed/interrupted another way (e.g. a piped stdin that closes mid-prompt).
+Ctrl-C is `CANCELLED` (4) everywhere in the CLI, not the shell's conventional 130 — a process-wide
+`SIGINT` handler (`registerSigintHandler` in `packages/cli/src/index.ts`) guarantees this for the
+whole process lifetime, not just while `@inquirer/core`'s own force-close detection is active.
+
+**A missing required flag with no interactive terminal available is `CONFIG_ERROR` (3), not
+`CANCELLED`.** For example, `attest-it run --suite x < /dev/null` without `--yes` fails fast with
+an error naming the missing flag _before_ any prompt starts — there's nothing to cancel, so it's
+a usage/configuration error like any other, not a cancellation.
 
 **A dirty working tree is `DIRTY_WORKING_TREE` (6), never `CONFIG_ERROR`.** `run` refuses to run
 a suite when the working tree has uncommitted changes (unless `ATTEST_IT_ALLOW_DIRTY` is set) —
