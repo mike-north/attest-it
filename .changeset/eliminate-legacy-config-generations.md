@@ -1,11 +1,13 @@
 ---
-'@attest-it/core': major
-'@attest-it/cli': major
+'@attest-it/core': minor
+'@attest-it/cli': minor
 ---
 
 Eliminate legacy config generations: enforce a single canonical split-config model.
 
-This is a breaking change that removes every remaining path around trust-anchored, split configuration:
+attest-it is still in the 0.x series, where breaking changes are expected and are shipped as
+`minor` — see CONTRIBUTING.md. This one removes every remaining path around trust-anchored,
+split configuration:
 
 - **Silent unified-config fallback removed.** `loadSplitConfig`/`loadSplitConfigSync` no longer transparently load a legacy unified `config.yaml` when `policy.yaml` is absent. A repo with only a unified config now fails to load with an explicit error pointing at the migration path, instead of silently behaving as if it had already migrated.
 - **`attest-it init --migrate` added.** A one-shot, migrex-driven migration converts an existing unified `config.yaml` into split `policy.yaml` + `config.yaml` (operational), reusing the existing migration graph infrastructure.
