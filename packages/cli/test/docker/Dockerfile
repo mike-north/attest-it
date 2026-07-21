@@ -1,7 +1,8 @@
 FROM node:20-alpine
 
-# Install git, bash, and pnpm for test scripts
-RUN apk add --no-cache git bash
+# Install git, bash, and pnpm for test scripts, plus the native build toolchain
+# node-gyp needs to compile node-pty (no musl/alpine prebuilds are published for it)
+RUN apk add --no-cache git bash python3 make g++
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
 # Create testuser with specific UID/GID for consistency
