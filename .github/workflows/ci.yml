@@ -60,15 +60,24 @@ jobs:
 
       - name: Install act
         run: |
-          curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+          curl -s https://raw.githubusercontent.com/nektos/act/v0.2.89/install.sh | sudo bash -s v0.2.89
           # The install script puts act in ./bin/act, move it to /usr/local/bin
           sudo mv ./bin/act /usr/local/bin/act
 
       - name: Run action tests with act
         run: |
+          # act runs every job in the workflow file concurrently by default. All three
+          # jobs here need actions/setup-node@v4 and pnpm/action-setup@v4, which act
+          # clones on first use into the shared ~/.cache/act directory. Running them
+          # concurrently races: one job can `docker cp` that cache into its container
+          # while another job is still cloning it, producing spurious
+          # "lstat ...: no such file or directory" failures. --concurrent-jobs 1
+          # serializes job execution so the cache is always fully populated before
+          # it's read.
           act -W packages/github-action/test/act-workflows push \
             -P ubuntu-latest=catthehacker/ubuntu:act-latest \
-            --container-architecture linux/amd64
+            --container-architecture linux/amd64 \
+            --concurrent-jobs 1
 
   # Test CLI in Docker containers
   test-docker:
