@@ -40,6 +40,12 @@ jobs:
       - name: Check no unsafe policy-ref overrides in workflows
         run: node scripts/check-policy-ref-guard.mjs
 
+      - name: Check major-bump guard self-test
+        run: node scripts/check-major-bump-guard.mjs --self-test
+
+      - name: Check no major/1.0 version bumps in changeset release plan
+        run: node scripts/check-major-bump-guard.mjs
+
   # Test the GitHub Action using act (runs action in simulated GitHub environment)
   test-action:
     runs-on: ubuntu-latest
