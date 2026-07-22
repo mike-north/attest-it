@@ -11,6 +11,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history: scripts/check-major-bump-guard.mjs shells out to
+          # `changeset status`, which needs to resolve the merge-base against
+          # `main` — a shallow (default depth-1) checkout has no local `main`
+          # ref/history for that, and the changeset CLI throws.
+          fetch-depth: 0
 
       - uses: pnpm/action-setup@v4
 
