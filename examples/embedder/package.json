@@ -1,6 +1,6 @@
 {
   "name": "@attest-it/example-embedder",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "Runnable sample embedder demonstrating the @attest-it/core embeddable API",
   "private": true,
   "type": "module",

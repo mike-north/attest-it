@@ -1,7 +1,7 @@
 {
   "name": "@attest-it/core",
   "description": "Core functionality for attest-it",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "author": "Mike North <michael.l.north@gmail.com>",
   "dependencies": {
     "@1password/sdk": "^0.4.0",
