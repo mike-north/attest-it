@@ -66,13 +66,14 @@ export function parseChangesetFrontMatter(content, fileName) {
 }
 
 /**
- * Parse `.changeset/config.json`'s `linked` groups (defaulting to `[]` when
- * absent, matching @changesets/config's own default).
+ * Parse `.changeset/config.json`'s `linked` groups and `ignore` list
+ * (defaulting both to `[]` when absent, matching @changesets/config's own
+ * defaults).
  *
  * @param {string} configJsonText
- * @returns {string[][]}
+ * @returns {{ linkedGroups: string[][], ignoredPackages: string[] }}
  */
-export function parseLinkedGroups(configJsonText) {
+export function parseChangesetConfig(configJsonText) {
   let parsed
   try {
     parsed = JSON.parse(configJsonText)
@@ -86,27 +87,45 @@ export function parseLinkedGroups(configJsonText) {
   }
 
   const linked = parsed.linked ?? []
-  const isValid =
+  const linkedIsValid =
     Array.isArray(linked) &&
     linked.every((group) => Array.isArray(group) && group.every((name) => typeof name === 'string'))
-  if (!isValid) {
+  if (!linkedIsValid) {
     throw new Error('.changeset/config.json `linked` is not an array of string arrays')
   }
-  return linked
+
+  const ignore = parsed.ignore ?? []
+  const ignoreIsValid = Array.isArray(ignore) && ignore.every((name) => typeof name === 'string')
+  if (!ignoreIsValid) {
+    throw new Error('.changeset/config.json `ignore` is not an array of strings')
+  }
+
+  return { linkedGroups: linked, ignoredPackages: ignore }
 }
 
 /**
- * Given every pending changeset's release entries and the `linked` groups,
- * return the sorted list of package names that would end up `major` — after
- * expanding through linked groups, since a `major` on any member propagates
- * to every member.
+ * Given every pending changeset's release entries, the `linked` groups, and
+ * the `ignore` list, return the sorted list of package names that would end
+ * up `major` — after expanding through linked groups (a `major` on any
+ * member propagates to every member) and excluding ignored packages, since
+ * changesets never versions or publishes an ignored package regardless of
+ * its own annotation or linked-group membership. A `major` changeset that
+ * targets only an ignored package can never actually produce a 1.0 release,
+ * so reporting it would be a false positive; conversely, an ignored package
+ * must not be allowed to suppress propagation to its non-ignored linked
+ * siblings.
  *
  * @param {Array<{ name: string, type: string }>} allReleases
  * @param {string[][]} linkedGroups
+ * @param {string[]} [ignoredPackages]
  * @returns {string[]}
  */
-export function computeMajorBumpPackages(allReleases, linkedGroups) {
+export function computeMajorBumpPackages(allReleases, linkedGroups, ignoredPackages = []) {
   const majors = new Set()
+  // Seed from every `major` release, including ignored packages: an ignored
+  // package that's (unusually) also linked must still be able to trigger
+  // propagation to its non-ignored siblings — only the final report filters
+  // ignored packages out, so that propagation isn't silently suppressed.
   for (const release of allReleases) {
     if (release.type === 'major') majors.add(release.name)
   }
@@ -115,6 +134,7 @@ export function computeMajorBumpPackages(allReleases, linkedGroups) {
       for (const pkg of group) majors.add(pkg)
     }
   }
+  for (const pkg of ignoredPackages) majors.delete(pkg)
   return [...majors].sort()
 }
 
@@ -126,7 +146,7 @@ export function computeMajorBumpPackages(allReleases, linkedGroups) {
  * problem can never be mistaken for "no changesets pending".
  *
  * @param {string} repoRoot
- * @returns {{ allReleases: Array<{ name: string, type: string }>, linkedGroups: string[][] }}
+ * @returns {{ allReleases: Array<{ name: string, type: string }>, linkedGroups: string[][], ignoredPackages: string[] }}
  */
 export function loadReleaseState(repoRoot) {
   const changesetDir = join(repoRoot, '.changeset')
@@ -167,7 +187,7 @@ export function loadReleaseState(repoRoot) {
     )
   }
 
-  return { allReleases, linkedGroups: parseLinkedGroups(configText) }
+  return { allReleases, ...parseChangesetConfig(configText) }
 }
 
 /**
@@ -214,18 +234,20 @@ function bumpMajorVersion(oldVersion) {
  * Resolve which packages would bump to `major`, enriched with an old -> new
  * version preview where the current version is known.
  *
- * @param {{ allReleases: Array<{ name: string, type: string }>, linkedGroups: string[][] }} releaseState
+ * @param {{ allReleases: Array<{ name: string, type: string }>, linkedGroups: string[][], ignoredPackages: string[] }} releaseState
  * @param {Map<string, string>} [versions]
  * @returns {Array<{ name: string, oldVersion?: string, newVersion?: string }>}
  */
 export function findMajorBumps(releaseState, versions = new Map()) {
-  return computeMajorBumpPackages(releaseState.allReleases, releaseState.linkedGroups).map(
-    (name) => {
-      const oldVersion = versions.get(name)
-      const newVersion = oldVersion ? bumpMajorVersion(oldVersion) : undefined
-      return { name, oldVersion, newVersion }
-    },
-  )
+  return computeMajorBumpPackages(
+    releaseState.allReleases,
+    releaseState.linkedGroups,
+    releaseState.ignoredPackages,
+  ).map((name) => {
+    const oldVersion = versions.get(name)
+    const newVersion = oldVersion ? bumpMajorVersion(oldVersion) : undefined
+    return { name, oldVersion, newVersion }
+  })
 }
 
 /**
@@ -328,14 +350,14 @@ function runRealCheck() {
  * files) under a fresh scratch repo root, for self-test cases to run the
  * real `loadReleaseState` against — not hand-built plan objects.
  *
- * @param {{ linked?: string[][], changesets: Record<string, string> }} fixture
+ * @param {{ linked?: string[][], ignore?: string[], changesets: Record<string, string> }} fixture
  * @returns {string} the scratch repo root
  */
-function writeFixtureRepo({ linked = [], changesets }) {
+function writeFixtureRepo({ linked = [], ignore = [], changesets }) {
   const repoRoot = mkdtempSync(join(tmpdir(), 'major-bump-guard-self-test-'))
   const changesetDir = join(repoRoot, '.changeset')
   mkdirSync(changesetDir, { recursive: true })
-  writeFileSync(join(changesetDir, 'config.json'), JSON.stringify({ linked }))
+  writeFileSync(join(changesetDir, 'config.json'), JSON.stringify({ linked, ignore }))
   writeFileSync(join(changesetDir, 'README.md'), '# Changesets\n')
   for (const [fileName, content] of Object.entries(changesets)) {
     writeFileSync(join(changesetDir, fileName), content)
@@ -380,6 +402,35 @@ function runSelfTest() {
       },
       expectedNames: ['@attest-it/example-embedder'],
     },
+    {
+      // Real config: .changeset/config.json sets ignore: ["@attest-it/github-action"].
+      // Changesets never versions or publishes an ignored package, so a major
+      // changeset that targets ONLY an ignored package must not be reported —
+      // doing so would be a false positive (issue raised in #155 review).
+      name: 'major on an ignored-only package is not reported (would be a false positive)',
+      fixture: {
+        linked: linkedGroups,
+        ignore: ['@attest-it/github-action'],
+        changesets: {
+          'a.md': "---\n'@attest-it/github-action': major\n---\n\nbreaking change\n",
+        },
+      },
+      expectedNames: [],
+    },
+    {
+      // If an ignored package is (unusually) also a member of a linked group,
+      // it must not suppress propagation to its non-ignored linked siblings —
+      // they still get published together and still need to be caught.
+      name: 'an ignored package inside a linked group still propagates to its non-ignored siblings',
+      fixture: {
+        linked: linkedGroups,
+        ignore: ['attest-it'],
+        changesets: {
+          'a.md': "---\n'attest-it': major\n---\n\nbreaking change\n",
+        },
+      },
+      expectedNames: ['@attest-it/cli', '@attest-it/core'],
+    },
   ]
 
   for (const testCase of parsingCases) {
@@ -387,7 +438,11 @@ function runSelfTest() {
     let gotNames
     try {
       const releaseState = loadReleaseState(repoRoot)
-      gotNames = computeMajorBumpPackages(releaseState.allReleases, releaseState.linkedGroups)
+      gotNames = computeMajorBumpPackages(
+        releaseState.allReleases,
+        releaseState.linkedGroups,
+        releaseState.ignoredPackages,
+      )
     } finally {
       rmSync(repoRoot, { recursive: true, force: true })
     }
