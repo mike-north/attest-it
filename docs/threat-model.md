@@ -165,9 +165,14 @@ noted here so the boundary is explicit rather than assumed.
     rejected as `UNKNOWN_SIGNER`, exactly as the Action rejects it — because the
     authorized signer set comes from the trusted ref, not the working tree.
 
-  `--base` fails **closed**: if the ref or its `policy.yaml` cannot be read (e.g. a
-  shallow clone missing the ref), it errors rather than falling back to the
-  untrusted working-tree policy.
+  `--base` fails **closed**: if the ref or its `policy.yaml` cannot be read, it
+  errors rather than falling back to the untrusted working-tree policy. The
+  requirement is **ref presence**, not history depth — a `--depth 1` clone of a
+  branch works fine. The common failure is a default GitHub Actions
+  `pull_request` checkout, which fetches a detached merge ref and leaves no local
+  base-branch ref at all; see
+  [Using `verify --base` on GitHub Actions](github-integration.md#using-verify---base-on-github-actions)
+  for the fetch recipe that fixes it.
 
 - **attest-it proves existence of a valid seal, never permission.** Usage grants,
   session scoping, and human-presence enforcement are the key backend's / the
