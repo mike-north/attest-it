@@ -439,9 +439,9 @@ pre-check before pushing, but must not be relied on as the CI gate.
 
 > [!NOTE]
 > **On GitHub itself, prefer the Action above over `verify --base`.** A default
-> `pull_request` checkout (`actions/checkout@v4`) leaves no local `origin/main` for
-> `--base` to read, so it fails closed (`GitRefPolicyError`, exit 3) unless you fetch
-> the base ref first. See
+> `pull_request` checkout (`actions/checkout@v4`) leaves no local base-branch ref
+> (e.g. `origin/<base branch>`) for `--base` to read, so it fails closed
+> (`GitRefPolicyError`, exit 3) unless you fetch the base ref first. See
 > [Using `verify --base` on GitHub Actions](github-integration.md#using-verify---base-on-github-actions)
 > for the working recipe if you need the CLI there instead of the Action.
 

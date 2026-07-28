@@ -85,18 +85,18 @@ will not work out of the box:
 ```yaml
 # This FAILS in a default `pull_request` checkout:
 - uses: actions/checkout@v4
-- run: npx attest-it verify --base origin/main
+- run: npx attest-it verify --base origin/${{ github.base_ref }}
   # error: Cannot read '.attest-it/policy.yaml' from ref 'origin/main'.
-  #        (GitRefPolicyError, exit 3)
+  #        (GitRefPolicyError, exit 3 — 'main' here is this PR's actual base branch)
 ```
 
 `verify --base <ref>` runs a single `git show <ref>:./<path>`, which only needs the
 **ref to be present** locally — not any particular history depth. The failure above
 has nothing to do with shallow cloning: `actions/checkout@v4` on a `pull_request`
-event checks out a detached merge commit and does not create a local `origin/main`
-(or any base-branch ref) at all, so there is nothing for `git show` to read. A
-`--depth 1` clone of an actual branch works fine with `--base`; it's the
-`pull_request` merge-ref layout specifically that breaks it.
+event checks out a detached merge commit and does not create a local base-branch ref
+at all, so there is nothing for `git show` to read. A `--depth 1` clone of an actual
+branch works fine with `--base`; it's the `pull_request` merge-ref layout
+specifically that breaks it.
 
 The fix is to fetch the base ref before verifying — a full history is not required,
 just the ref's existence:
