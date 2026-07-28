@@ -466,11 +466,41 @@ describe('verify --base <ref> — CLI trusted-ref mode is a genuine CI trust bou
     const result = await runCli(
       ['verify', 'example-gate', '--base', 'refs/heads/does-not-exist'],
       dir,
+      // Force the generic (non-GitHub-Actions) message regardless of the ambient
+      // environment this test suite happens to run in (this repo's own CI is
+      // itself a GitHub Actions `pull_request` workflow).
+      { GITHUB_ACTIONS: '', GITHUB_BASE_REF: '' },
     )
     expect(result.exitCode).toBe(3)
     expect(result.stdout + result.stderr).toContain('does-not-exist')
-    // Actionable: points the user at fetching the ref.
-    expect((result.stdout + result.stderr).toLowerCase()).toContain('fetch')
+    // Actionable: points the user at fetching the ref, framed as ref presence
+    // rather than history depth.
+    const combined = (result.stdout + result.stderr).toLowerCase()
+    expect(combined).toContain('fetch')
+    expect(combined).toContain('ref present')
+  })
+
+  it('FAIL-CLOSED (#157): `--base` against a missing ref under a GitHub Actions `pull_request` checkout names the cause and the exact fetch to run', async () => {
+    // Simulates the environment a default `actions/checkout@v4` leaves behind for
+    // a `pull_request` workflow: GITHUB_ACTIONS=true and GITHUB_BASE_REF set to the
+    // base branch name, with no local base-branch ref (refs/heads/does-not-exist
+    // stands in for the "ref simply isn't there" case actions/checkout produces).
+    const rootSeal = sealRootWith('test-user', ownerPrivateKey)
+    writeSeals(dir, { version: 1, seals: { [ROOT_GATE_ID]: rootSeal } })
+
+    const result = await runCli(
+      ['verify', 'example-gate', '--base', 'refs/heads/does-not-exist'],
+      dir,
+      { GITHUB_ACTIONS: 'true', GITHUB_BASE_REF: 'main' },
+    )
+    expect(result.exitCode).toBe(3)
+    const combined = result.stdout + result.stderr
+    // Names the specific cause instead of the generic "shallow clone" hint.
+    expect(combined).toContain('GitHub Actions')
+    expect(combined).toContain('pull_request')
+    // Names the exact remedy from the docs, using the real base branch name.
+    expect(combined).toContain('git fetch --depth=1 origin main')
+    expect(combined).toContain('--base origin/main')
   })
 })
 

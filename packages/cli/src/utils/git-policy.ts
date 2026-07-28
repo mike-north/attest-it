@@ -89,14 +89,37 @@ export function readPolicyFromRef(
 
   if (result.status !== 0) {
     const stderr = (result.stderr || '').trim()
-    throw new GitRefPolicyError(
-      `Cannot read '${relFromCwd}' from ref '${ref}'. ` +
-        'Ensure the ref exists locally (a shallow CI clone may need ' +
-        `\`git fetch origin ${ref}\`) and that the policy file exists there.` +
-        (stderr ? `\n  git: ${stderr}` : ''),
-    )
+    throw new GitRefPolicyError(buildRefReadErrorMessage(ref, relFromCwd, stderr))
   }
 
   const format: 'yaml' | 'json' = policyPathAbs.endsWith('.json') ? 'json' : 'yaml'
   return { content: result.stdout, format }
+}
+
+/**
+ * Build the actionable error for a failed `git show <ref>:...` read.
+ *
+ * The requirement is **ref presence**, not history depth — a `--depth 1` clone of
+ * a branch works fine with `--base`. The most common way this fails is a default
+ * GitHub Actions `pull_request` checkout: `actions/checkout@v4` checks out a
+ * detached merge commit and creates no local base-branch ref at all, regardless of
+ * `fetch-depth`. GitHub Actions sets `GITHUB_BASE_REF` (the base branch name, no
+ * `origin/` prefix) only for `pull_request`-triggered workflows, so its presence
+ * alongside `GITHUB_ACTIONS` is a reliable signal for that specific case — name it
+ * and the exact fetch to run, rather than the generic "shallow clone" hint.
+ * @internal
+ */
+function buildRefReadErrorMessage(ref: string, relPath: string, stderr: string): string {
+  const base = `Cannot read '${relPath}' from ref '${ref}'. `
+  const baseRef = process.env.GITHUB_BASE_REF
+  const guidance =
+    process.env.GITHUB_ACTIONS === 'true' && baseRef
+      ? 'This looks like a default GitHub Actions `pull_request` checkout, which ' +
+        'does not create a local base-branch ref (no `fetch-depth` fixes this — the ' +
+        `ref must be fetched). Run \`git fetch --depth=1 origin ${baseRef}\` before ` +
+        `verifying, then pass \`--base origin/${baseRef}\`.`
+      : 'Ensure the ref exists locally — `--base` needs the ref present, not any ' +
+        `particular history depth (a shallow CI clone may need \`git fetch origin ` +
+        `${ref}\`) — and that the policy file exists there.`
+  return base + guidance + (stderr ? `\n  git: ${stderr}` : '')
 }
