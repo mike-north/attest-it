@@ -838,3 +838,106 @@ describe('verifyGateSeal - optional maxAge (indefinite gate, #69)', () => {
     expect(result.state).toBe('STALE')
   })
 })
+
+// Regression: a seal that is simultaneously FINGERPRINT_MISMATCH and STALE only
+// ever reported FINGERPRINT_MISMATCH before `conditions` aggregation existed
+// (#156) — discovered for real when 4 of this repo's own manual-attestation
+// gates were simultaneously fingerprint-invalidated AND 172 days old against a
+// 90-day maxAge, but only the fingerprint mismatch surfaced.
+describe('verifyGateSeal - conditions aggregation (#156)', () => {
+  it('reports FINGERPRINT_MISMATCH as the primary state but includes STALE in conditions when both fail', () => {
+    const { publicKey, privateKey } = generateKeyPair()
+    const config = createTestConfig()
+    config.team ??= {}
+    config.team.alice = { name: 'Alice Developer', publicKey }
+
+    const sealFingerprint = 'sha256:sealed-content'
+    const currentFingerprint = 'sha256:current-content'
+    // 8 days ago; unit-tests gate has maxAge '7d'.
+    const eightDaysAgo = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString()
+    const gateId = 'unit-tests'
+    const seal: Seal = {
+      gateId,
+      fingerprint: sealFingerprint,
+      timestamp: eightDaysAgo,
+      sealedBy: 'alice',
+      signature: sign(`${gateId}:${sealFingerprint}:${eightDaysAgo}`, privateKey),
+    }
+    const seals: SealsFile = { version: 1, seals: { [gateId]: seal } }
+
+    const result = verifyGateSeal(config, gateId, seals, currentFingerprint)
+
+    // Backward-compat: primary state/message unchanged from pre-aggregation behavior.
+    expect(result.state).toBe('FINGERPRINT_MISMATCH')
+    expect(result.message).toBe('Fingerprint changed since seal was created')
+
+    // New: both independently-failing conditions are surfaced.
+    expect(result.conditions).toHaveLength(2)
+    expect(result.conditions?.[0]).toEqual({
+      state: 'FINGERPRINT_MISMATCH',
+      message: 'Fingerprint changed since seal was created',
+    })
+    expect(result.conditions?.[1]?.state).toBe('STALE')
+    expect(result.conditions?.[1]?.message).toContain('exceeds maxAge')
+  })
+
+  it('omits `conditions` when only a single condition fails (no new noise in the common case)', () => {
+    const { publicKey, privateKey } = generateKeyPair()
+    const config = createTestConfig()
+    config.team ??= {}
+    config.team.alice = { name: 'Alice Developer', publicKey }
+
+    const sealFingerprint = 'sha256:sealed-content'
+    const currentFingerprint = 'sha256:current-content'
+    const gateId = 'unit-tests'
+    // Fresh timestamp — only the fingerprint check fails, staleness does not.
+    const seal = createSeal({
+      gateId,
+      fingerprint: sealFingerprint,
+      sealedBy: 'alice',
+      privateKey,
+    })
+    const seals: SealsFile = { version: 1, seals: { [gateId]: seal } }
+
+    const result = verifyGateSeal(config, gateId, seals, currentFingerprint)
+
+    expect(result.state).toBe('FINGERPRINT_MISMATCH')
+    expect(result.conditions).toBeUndefined()
+  })
+
+  it('never attaches `conditions` to a MISSING result (exclusive, produced before a seal exists to evaluate)', () => {
+    const config = createTestConfig()
+    const seals = createEmptySealsFile()
+
+    const result = verifyGateSeal(config, 'unit-tests', seals, 'sha256:whatever')
+
+    expect(result.state).toBe('MISSING')
+    expect(result.conditions).toBeUndefined()
+  })
+
+  it('reports only UNKNOWN_SIGNER, never alongside INVALID_SIGNATURE, when the signer is unauthorized (signature check never runs)', () => {
+    const { publicKey: charliePublicKey } = generateKeyPair()
+    const { privateKey: wrongPrivateKey } = generateKeyPair()
+    const config = createTestConfig()
+    config.team ??= {}
+    // Charlie is a known team member, but NOT in unit-tests' authorizedSigners.
+    config.team.charlie = { name: 'Charlie Admin', publicKey: charliePublicKey }
+
+    const fingerprint = 'sha256:abc123'
+    const gateId = 'unit-tests'
+    // Signed with an unrelated key, so signature validation — if it ever ran —
+    // would ALSO fail. It must never run: signer resolution fails first.
+    const seal = createSeal({
+      gateId,
+      fingerprint,
+      sealedBy: 'charlie',
+      privateKey: wrongPrivateKey,
+    })
+    const seals: SealsFile = { version: 1, seals: { [gateId]: seal } }
+
+    const result = verifyGateSeal(config, gateId, seals, fingerprint)
+
+    expect(result.state).toBe('UNKNOWN_SIGNER')
+    expect(result.conditions).toBeUndefined()
+  })
+})

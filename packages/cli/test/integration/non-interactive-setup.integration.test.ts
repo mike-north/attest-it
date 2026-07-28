@@ -342,7 +342,11 @@ describe('non-interactive setup end-to-end (issue #80)', () => {
       if (!isUnknownArray(verifyJson)) {
         throw new Error('Expected verify --json to output an array')
       }
-      const [gateStatus] = verifyJson
+      // Look up by gateId rather than assuming index 0: `--json` now also
+      // carries a (non-blocking) root-gate pre-step entry when the policy
+      // resolves a path — this fixture's policy has no rootGate, so that
+      // entry is NOT_ANCHORED (see #156's Bug 2 fix).
+      const gateStatus = verifyJson.find((r) => isRecordOfUnknown(r) && r.gateId === 'example-gate')
       expect(isRecordOfUnknown(gateStatus) && gateStatus.state).toBe('VALID')
     },
     CLI_CALL_TIMEOUT_MS * 5,

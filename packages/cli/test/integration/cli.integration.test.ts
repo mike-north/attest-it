@@ -541,6 +541,57 @@ describe('CLI Integration Tests', () => {
       expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('STALE')
     })
+
+    /**
+     * Regression test for #156: a seal that is simultaneously
+     * FINGERPRINT_MISMATCH and STALE previously only ever reported
+     * FINGERPRINT_MISMATCH (the first check in priority order) — the caller
+     * never learned it was ALSO stale. This is a user-visible-output defect,
+     * so it must be proven at the CLI (`--json`) layer, not just core.
+     */
+    it('reports both FINGERPRINT_MISMATCH and STALE in `--json` output when a seal fails both simultaneously', async () => {
+      // Seal a fingerprint that will no longer match the current one, so
+      // verify reports FINGERPRINT_MISMATCH.
+      const sealsFile = createRealSealsFile(
+        'example-gate',
+        'sha256:deadbeef1234567890',
+        privateKeyPem,
+      )
+      const sealsPath = path.join(tempDir, '.attest-it', 'seals.json')
+      await fs.promises.writeFile(sealsPath, JSON.stringify(sealsFile, null, 2))
+
+      // Also make the gate's maxAge vanishingly short, so the (fingerprint-
+      // mismatched) seal is ALSO stale by the time verify runs.
+      const policyPath = path.join(tempDir, '.attest-it', 'policy.yaml')
+      const policyContent = await fs.promises.readFile(policyPath, 'utf8')
+      const policy = yaml.parse(policyContent) as Record<string, unknown>
+      const gates = policy.gates as Record<string, { maxAge?: string }>
+      if (gates && gates['example-gate']) {
+        gates['example-gate'].maxAge = '1ms'
+      }
+      await fs.promises.writeFile(policyPath, yaml.stringify(policy), 'utf8')
+      await runCommand('git add . && git commit -m "add concurrently-failing seal"', tempDir)
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      const result = await runCli(['verify', 'example-gate', '--json'], tempDir)
+      expect(result.exitCode).toBe(1) // FINGERPRINT_MISMATCH is a hard failure
+
+      const json = JSON.parse(result.stdout) as {
+        gateId: string
+        state: string
+        conditions?: { state: string; message: string }[]
+      }[]
+      const exampleResult = json.find((r) => r.gateId === 'example-gate')
+      expect(exampleResult).toBeDefined()
+      // Backward-compat: primary state unchanged.
+      expect(exampleResult?.state).toBe('FINGERPRINT_MISMATCH')
+      // New: both conditions are surfaced to `--json` consumers.
+      expect(exampleResult?.conditions).toBeDefined()
+      const states = exampleResult?.conditions?.map((c) => c.state) ?? []
+      expect(states).toContain('FINGERPRINT_MISMATCH')
+      expect(states).toContain('STALE')
+    })
   })
 
   describe('NO_WORK: config present but zero gates configured', () => {

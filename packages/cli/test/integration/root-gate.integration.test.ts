@@ -474,6 +474,55 @@ describe('verify --base <ref> — CLI trusted-ref mode is a genuine CI trust bou
   })
 })
 
+// Regression tests for the scope addition on #156: a `--base` policy with no
+// `rootGate` section previously skipped the root-gate pre-step ENTIRELY, with
+// zero trace in output — `--json` callers had no way to tell it didn't run.
+describe('verify --base <ref> — root-gate skip is explicit, never silent (#156)', () => {
+  let dir: string
+
+  beforeEach(async () => {
+    dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'attest-rootgate-skip-'))
+    await copyDir(FIXTURE_PATH, dir)
+    // Deliberately leave the fixture's policy.yaml as-is: it defines no
+    // `rootGate` section at all (the un-bootstrapped, default state).
+
+    await runGit(['init'], dir)
+    await runGit(['config', 'user.email', 'test@example.com'], dir)
+    await runGit(['config', 'user.name', 'Test User'], dir)
+    await runGit(['add', '.'], dir)
+    // HEAD (the trusted base) has no rootGate.
+    await runGit(['commit', '-m', 'un-anchored base policy'], dir)
+  })
+
+  afterEach(async () => {
+    await fs.promises.rm(dir, { recursive: true, force: true })
+  })
+
+  it('a base policy lacking rootGate produces an explicit NOT_ANCHORED entry in `--json` output', async () => {
+    const result = await runCli(['verify', 'example-gate', '--base', 'HEAD', '--json'], dir)
+
+    const json = JSON.parse(result.stdout) as { gateId: string; state: string }[]
+    const rootEntry = json.find((r) => r.gateId === ROOT_GATE_ID)
+    // Previously ABSENT entirely — the pre-step was skipped with no trace.
+    expect(rootEntry).toBeDefined()
+    // NOT_ANCHORED is non-blocking and JSON-mapped to MISSING (see
+    // rootGateResultToJson), consistent with how the CLI already represents it.
+    expect(rootEntry?.state).toBe('MISSING')
+  })
+
+  it('warns explicitly that the base policy has no rootGate — but ONLY in --base mode, never for plain local verify', async () => {
+    const baseRun = await runCli(['verify', 'example-gate', '--base', 'HEAD'], dir)
+    expect(baseRun.stdout + baseRun.stderr).toContain(
+      "Base policy at 'HEAD' has no rootGate configured — root-gate verification was skipped.",
+    )
+
+    // Local/non-`--base` mode: an un-bootstrapped repo is the ordinary,
+    // legitimate case — stays silent for backward compatibility.
+    const localRun = await runCli(['verify', 'example-gate'], dir)
+    expect(localRun.stdout + localRun.stderr).not.toContain('has no rootGate configured')
+  })
+})
+
 describe('root gate — bootstrap ceremony reaches trusted state in one human-run step (#72)', () => {
   let projectDir: string
   let homeDir: string
