@@ -47436,43 +47436,39 @@ function verifyGateSeal(config, gateId, seals, currentFingerprint) {
 function evaluateSeal(params) {
   const { config, gateId, seal: seal2, currentFingerprint, maxAge, artifactPath } = params;
   const base = artifactPath !== void 0 ? { gateId, artifactPath } : { gateId };
+  const conditions = [];
   if (seal2.fingerprint !== currentFingerprint) {
-    return {
-      ...base,
+    conditions.push({
       state: "FINGERPRINT_MISMATCH",
-      seal: seal2,
       message: `Fingerprint changed since seal was created`
-    };
+    });
   }
   if (!config.team) {
-    return { ...base, state: "UNKNOWN_SIGNER", seal: seal2, message: `No team configuration found` };
-  }
-  const teamMember = config.team[seal2.sealedBy];
-  if (!teamMember) {
-    return {
-      ...base,
-      state: "UNKNOWN_SIGNER",
-      seal: seal2,
-      message: `Signer '${seal2.sealedBy}' not found in team`
-    };
-  }
-  const authorized = isAuthorizedSigner(config, gateId, teamMember.publicKey);
-  if (!authorized) {
-    return {
-      ...base,
-      state: "UNKNOWN_SIGNER",
-      seal: seal2,
-      message: `Signer '${seal2.sealedBy}' is not authorized for gate '${gateId}'`
-    };
-  }
-  const verificationResult = verifySeal(seal2, config);
-  if (!verificationResult.valid) {
-    return {
-      ...base,
-      state: "INVALID_SIGNATURE",
-      seal: seal2,
-      message: verificationResult.error ?? "Signature verification failed"
-    };
+    conditions.push({ state: "UNKNOWN_SIGNER", message: `No team configuration found` });
+  } else {
+    const teamMember = config.team[seal2.sealedBy];
+    if (!teamMember) {
+      conditions.push({
+        state: "UNKNOWN_SIGNER",
+        message: `Signer '${seal2.sealedBy}' not found in team`
+      });
+    } else {
+      const authorized = isAuthorizedSigner(config, gateId, teamMember.publicKey);
+      if (!authorized) {
+        conditions.push({
+          state: "UNKNOWN_SIGNER",
+          message: `Signer '${seal2.sealedBy}' is not authorized for gate '${gateId}'`
+        });
+      } else {
+        const verificationResult = verifySeal(seal2, config);
+        if (!verificationResult.valid) {
+          conditions.push({
+            state: "INVALID_SIGNATURE",
+            message: verificationResult.error ?? "Signature verification failed"
+          });
+        }
+      }
+    }
   }
   if (maxAge !== void 0) {
     try {
@@ -47482,23 +47478,29 @@ function evaluateSeal(params) {
       if (ageMs > maxAgeMs) {
         const ageDays = Math.floor(ageMs / (1e3 * 60 * 60 * 24));
         const maxAgeDays = Math.floor(maxAgeMs / (1e3 * 60 * 60 * 24));
-        return {
-          ...base,
+        conditions.push({
           state: "STALE",
-          seal: seal2,
           message: `Seal is ${ageDays.toString()} days old, exceeds maxAge of ${maxAgeDays.toString()} days`
-        };
+        });
       }
     } catch (error2) {
-      return {
-        ...base,
+      conditions.push({
         state: "STALE",
-        seal: seal2,
         message: `Cannot verify freshness: invalid maxAge format: ${error2 instanceof Error ? error2.message : String(error2)}`
-      };
+      });
     }
   }
-  return { ...base, state: "VALID", seal: seal2 };
+  const [primary, ...rest] = conditions;
+  if (!primary) {
+    return { ...base, state: "VALID", seal: seal2 };
+  }
+  return {
+    ...base,
+    state: primary.state,
+    seal: seal2,
+    message: primary.message,
+    ...rest.length > 0 && { conditions }
+  };
 }
 function verifyAllSeals(config, seals, fingerprints) {
   if (!config.gates) {
@@ -47583,7 +47585,13 @@ function verifyRootGate(params) {
     gateId: ROOT_GATE_ID,
     state: result.state,
     ...result.seal && { seal: result.seal },
-    message: describeRootState(result.state, trustedSourceLabel)
+    message: describeRootState(result.state, trustedSourceLabel),
+    ...result.conditions && {
+      conditions: result.conditions.map((c) => ({
+        state: c.state,
+        message: describeRootState(c.state, trustedSourceLabel)
+      }))
+    }
   };
 }
 function isBlockingRootGateState(state) {
@@ -48225,7 +48233,16 @@ function mapSealResultsToSuites(config, sealResults) {
       results.push({
         suite: suiteName,
         status: mapSealStateToStatus(sealResult.state),
-        message: sealResult.message
+        message: sealResult.message,
+        // A result with `conditions` failed more than one independent check
+        // simultaneously (e.g. fingerprint-mismatched AND stale); carry all of
+        // them so downstream `suites` output consumers aren't blind to that.
+        ...sealResult.conditions && {
+          conditions: sealResult.conditions.map((c) => ({
+            status: mapSealStateToStatus(c.state),
+            message: c.message
+          }))
+        }
       });
     }
   }
@@ -48237,6 +48254,11 @@ function logResults(results) {
     const icon = result.state === "VALID" ? "\u2713" : "\u2717";
     const status = mapSealStateToStatus(result.state);
     core.info(`${icon} ${result.gateId}: ${status}`);
+    if (result.conditions) {
+      for (const condition of result.conditions) {
+        core.info(`    - ${mapSealStateToStatus(condition.state)}: ${condition.message}`);
+      }
+    }
   }
   core.endGroup();
 }

@@ -268,4 +268,5 @@ export {
   type SignatureVerificationResult,
   type VerificationState,
   type SealVerificationResult,
+  type SealCondition,
 } from './seal/index.js'

@@ -21,6 +21,18 @@ export type VerificationState =
   | 'UNKNOWN_SIGNER' // sealedBy not in team or not authorized for this gate
 
 /**
+ * A single independently-determined failing condition for a seal.
+ * @see {@link SealVerificationResult.conditions}
+ * @public
+ */
+export interface SealCondition {
+  /** Verification state this condition represents. Never `VALID` — a condition only ever exists to describe a failure. */
+  state: Exclude<VerificationState, 'VALID'>
+  /** Human-readable message explaining this condition */
+  message: string
+}
+
+/**
  * Result of verifying a single gate's seal.
  * @public
  */
@@ -39,6 +51,15 @@ export interface SealVerificationResult {
   seal?: Seal
   /** Human-readable message explaining the state */
   message?: string
+  /**
+   * Every independently-determined failing condition, in the same priority
+   * order used to pick `state` (so `conditions[0]` mirrors `state`/`message`
+   * exactly). Present only when MORE THAN ONE condition failed simultaneously
+   * — a single-condition failure (the overwhelmingly common case) omits this
+   * field, so existing single-condition consumers see no shape change.
+   * `MISSING` is exclusive and never appears here.
+   */
+  conditions?: SealCondition[]
 }
 
 /**
@@ -122,8 +143,31 @@ export function verifyPatternArtifactSeal(
  * validity, then optional staleness. Used by both the single-gate and
  * pattern-gate verification entry points so their rules never drift.
  *
+ * Every check below is evaluated regardless of whether an earlier check
+ * failed, and each failing check contributes a {@link SealCondition} to the
+ * result's `conditions` array (when more than one fails). Which conditions
+ * are independent vs. mutually exclusive:
+ *
+ * - `FINGERPRINT_MISMATCH` (seal content vs. current fingerprint), the
+ *   signer-resolution chain (`UNKNOWN_SIGNER`/`INVALID_SIGNATURE`), and
+ *   `STALE` (seal age vs. `maxAge`) are all **independently determinable** —
+ *   none of them depends on another's outcome. A seal can simultaneously have
+ *   drifted content, be signed by an unauthorized party, and be too old, so
+ *   all three are computed and reported.
+ * - Within the signer chain, `UNKNOWN_SIGNER` (no team / signer not in team /
+ *   signer not authorized for this gate) and `INVALID_SIGNATURE` are
+ *   **mutually exclusive by necessity**: signature verification requires a
+ *   resolved signer's public key, so signature validity literally cannot be
+ *   checked until a signer has been resolved. This sub-chain therefore only
+ *   ever contributes a single condition slot — either `UNKNOWN_SIGNER` fires
+ *   (and signature checking never runs), or the signer resolves and the
+ *   signature check proceeds, possibly producing `INVALID_SIGNATURE`.
+ * - `MISSING` is exclusive and produced entirely outside this function (by
+ *   {@link verifyGateSeal} / {@link verifyPatternArtifactSeal} before a seal
+ *   object exists to evaluate), so it can never co-occur with anything here.
+ *
  * When `maxAge` is `undefined` the gate is **indefinite**: the staleness check is
- * skipped entirely and no `STALE` state is ever produced, regardless of seal age.
+ * skipped entirely and no `STALE` condition is ever produced, regardless of seal age.
  * @internal
  */
 function evaluateSeal(params: {
@@ -137,50 +181,45 @@ function evaluateSeal(params: {
   const { config, gateId, seal, currentFingerprint, maxAge, artifactPath } = params
   const base = artifactPath !== undefined ? { gateId, artifactPath } : { gateId }
 
+  const conditions: SealCondition[] = []
+
   // Check if fingerprint matches
   if (seal.fingerprint !== currentFingerprint) {
-    return {
-      ...base,
+    conditions.push({
       state: 'FINGERPRINT_MISMATCH',
-      seal,
       message: `Fingerprint changed since seal was created`,
-    }
+    })
   }
 
-  // Check if signer is in team and authorized
+  // Check if signer is in team and authorized. Signature validity can only be
+  // checked once a signer's public key has resolved, so this sub-chain
+  // contributes at most one condition (UNKNOWN_SIGNER, or INVALID_SIGNATURE).
   if (!config.team) {
-    return { ...base, state: 'UNKNOWN_SIGNER', seal, message: `No team configuration found` }
-  }
-
-  const teamMember = config.team[seal.sealedBy]
-  if (!teamMember) {
-    return {
-      ...base,
-      state: 'UNKNOWN_SIGNER',
-      seal,
-      message: `Signer '${seal.sealedBy}' not found in team`,
-    }
-  }
-
-  // Check if signer is authorized for this gate
-  const authorized = isAuthorizedSigner(config, gateId, teamMember.publicKey)
-  if (!authorized) {
-    return {
-      ...base,
-      state: 'UNKNOWN_SIGNER',
-      seal,
-      message: `Signer '${seal.sealedBy}' is not authorized for gate '${gateId}'`,
-    }
-  }
-
-  // Verify signature
-  const verificationResult = verifySeal(seal, config)
-  if (!verificationResult.valid) {
-    return {
-      ...base,
-      state: 'INVALID_SIGNATURE',
-      seal,
-      message: verificationResult.error ?? 'Signature verification failed',
+    conditions.push({ state: 'UNKNOWN_SIGNER', message: `No team configuration found` })
+  } else {
+    const teamMember = config.team[seal.sealedBy]
+    if (!teamMember) {
+      conditions.push({
+        state: 'UNKNOWN_SIGNER',
+        message: `Signer '${seal.sealedBy}' not found in team`,
+      })
+    } else {
+      const authorized = isAuthorizedSigner(config, gateId, teamMember.publicKey)
+      if (!authorized) {
+        conditions.push({
+          state: 'UNKNOWN_SIGNER',
+          message: `Signer '${seal.sealedBy}' is not authorized for gate '${gateId}'`,
+        })
+      } else {
+        // Verify signature
+        const verificationResult = verifySeal(seal, config)
+        if (!verificationResult.valid) {
+          conditions.push({
+            state: 'INVALID_SIGNATURE',
+            message: verificationResult.error ?? 'Signature verification failed',
+          })
+        }
+      }
     }
   }
 
@@ -195,27 +234,34 @@ function evaluateSeal(params: {
       if (ageMs > maxAgeMs) {
         const ageDays = Math.floor(ageMs / (1000 * 60 * 60 * 24))
         const maxAgeDays = Math.floor(maxAgeMs / (1000 * 60 * 60 * 24))
-        return {
-          ...base,
+        conditions.push({
           state: 'STALE',
-          seal,
           message: `Seal is ${ageDays.toString()} days old, exceeds maxAge of ${maxAgeDays.toString()} days`,
-        }
+        })
       }
     } catch (error) {
       // If we can't parse maxAge, fail closed - treat as stale to enforce freshness
       // This prevents bypassing staleness checks with invalid maxAge values
-      return {
-        ...base,
+      conditions.push({
         state: 'STALE',
-        seal,
         message: `Cannot verify freshness: invalid maxAge format: ${error instanceof Error ? error.message : String(error)}`,
-      }
+      })
     }
   }
 
-  // All checks passed
-  return { ...base, state: 'VALID', seal }
+  const [primary, ...rest] = conditions
+  if (!primary) {
+    // No condition failed: all checks passed.
+    return { ...base, state: 'VALID', seal }
+  }
+
+  return {
+    ...base,
+    state: primary.state,
+    seal,
+    message: primary.message,
+    ...(rest.length > 0 && { conditions }),
+  }
 }
 
 /**

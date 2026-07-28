@@ -335,6 +335,16 @@ function verdictToArtifactVerification(
     gateId,
     underlyingState: verdict.state,
     ...(pathValue !== undefined && { path: pathValue }),
+    // Only populate when more than one condition failed simultaneously — mirrors
+    // the core's own "omit when single" rule for SealVerificationResult.conditions.
+    ...(verdict.conditions &&
+      verdict.conditions.length > 1 && {
+        underlyingConditions: verdict.conditions.map((c) => ({
+          state: c.state,
+          failureClass: stateToFailureClass(c.state),
+          message: c.message,
+        })),
+      }),
   })
 }
 

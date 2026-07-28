@@ -8,6 +8,7 @@ import {
   SplitConfigNotFoundError,
   type VerificationState,
   type SealVerificationResult,
+  type SealCondition,
 } from '@attest-it/core'
 import { isPatternGate, verifyPatternGateSync } from '../utils/pattern-gate.js'
 import {
@@ -49,6 +50,8 @@ interface GateStatus {
   sealedAt?: string
   age?: number
   message?: string | undefined
+  /** Every independently-determined failing condition, mirroring {@link SealVerificationResult.conditions}. */
+  conditions?: SealCondition[]
 }
 
 /**
@@ -180,6 +183,7 @@ function toGateStatus(
     state: result.state,
     currentFingerprint,
     message: result.message,
+    ...(result.conditions && { conditions: result.conditions }),
   }
 
   if (result.seal) {
@@ -237,7 +241,15 @@ function displayStatusTable(results: GateStatus[]): void {
   if (withIssues.length > 0) {
     log('Issues:')
     for (const result of withIssues) {
-      log(`  ${rowLabel(result)}: ${result.message ?? 'Unknown issue'}`)
+      const label = rowLabel(result)
+      // A result carrying `conditions` failed more than one independent check
+      // simultaneously; show each one so concurrent failures aren't hidden.
+      const toShow = result.conditions ?? [
+        { state: result.state, message: result.message ?? 'Unknown issue' },
+      ]
+      for (const condition of toShow) {
+        log(`  ${label}: ${condition.message}`)
+      }
     }
     log('')
   }

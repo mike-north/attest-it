@@ -141,39 +141,54 @@ async function runVerify(
 
     // MANDATORY PRE-STEP: verify the config's OWN seal chain against the root
     // gate BEFORE evaluating any other gate. Gate evaluation must never proceed
-    // against a policy whose own root-gate seal did not verify. Repositories that
-    // have not run the bootstrap ceremony define no rootGate; there is no trust
-    // anchor to check, so evaluation proceeds unchanged (backward compatibility).
+    // against a policy whose own root-gate seal did not verify.
+    //
+    // This is called whenever a policy path is resolved (not gated on
+    // `config.rootGate`): `verifyRootGate` already handles a policy with no
+    // `rootGate` section by returning `NOT_ANCHORED`, which `isBlockingRootGateState`
+    // treats as non-blocking. Calling it unconditionally means an un-anchored
+    // trusted policy source produces an explicit, reportable verdict instead of
+    // silently skipping the pre-step — see the JSON/human handling below.
     //
     // In --base mode the authorized signer set comes from the trusted ref, so a
     // working-tree policy that self-adds a root signer and re-seals is rejected as
     // UNKNOWN_SIGNER (the ref does not list it) — the same rejection the Action makes.
-    if (config.rootGate) {
-      const policyPath = workingTreePolicyPath
-      if (policyPath) {
-        const policyFingerprint = computePolicyFingerprintSync(projectRoot, policyPath)
-        const rootResult = verifyRootGate({
-          config,
-          policyFingerprint,
-          seals: sealsFile,
-          ...(options.base !== undefined && {
-            trustedSourceLabel: `root signers from ${options.base}`,
-          }),
-        })
+    let rootGateJsonResult: SealVerificationResult | undefined
+    if (workingTreePolicyPath) {
+      const policyFingerprint = computePolicyFingerprintSync(projectRoot, workingTreePolicyPath)
+      const rootResult = verifyRootGate({
+        config,
+        policyFingerprint,
+        seals: sealsFile,
+        ...(options.base !== undefined && {
+          trustedSourceLabel: `root signers from ${options.base}`,
+        }),
+      })
+      rootGateJsonResult = rootGateResultToJson(rootResult)
 
-        if (isBlockingRootGateState(rootResult.state)) {
-          if (options.json) {
-            outputJson([rootGateResultToJson(rootResult)])
-          } else {
-            log('')
-            error(rootResult.message)
-          }
-          process.exit(ExitCode.FAILURE)
+      if (isBlockingRootGateState(rootResult.state)) {
+        if (options.json) {
+          outputJson([rootGateJsonResult])
+        } else {
+          log('')
+          error(rootResult.message)
         }
+        process.exit(ExitCode.FAILURE)
+      }
 
-        if (rootResult.state === 'STALE' && !options.json) {
-          warn(rootResult.message)
-        }
+      if (rootResult.state === 'STALE' && !options.json) {
+        warn(rootResult.message)
+      }
+
+      // NOT_ANCHORED is only worth flagging in --base mode: that's the CI trust
+      // boundary invocation where an un-anchored base policy is a real gap. In
+      // local/non-`--base` mode it's the ordinary, legitimate state of a repo
+      // that has never run the bootstrap ceremony — stay silent for backward
+      // compatibility (matches existing plain-`verify` behavior).
+      if (rootResult.state === 'NOT_ANCHORED' && options.base !== undefined && !options.json) {
+        warn(
+          `Base policy at '${options.base}' has no rootGate configured — root-gate verification was skipped.`,
+        )
       }
     }
 
@@ -223,9 +238,11 @@ async function runVerify(
       results.push(verifyGateSeal(config, gateId, sealsFile, fingerprint))
     }
 
-    // Output results
+    // Output results. A non-blocking root-gate outcome (VALID / STALE /
+    // NOT_ANCHORED) is prepended so --json callers always see the pre-step's
+    // verdict, not just the gate results — a blocking outcome already exited above.
     if (options.json) {
-      outputJson(results)
+      outputJson(rootGateJsonResult ? [rootGateJsonResult, ...results] : results)
     } else {
       displayResults(results)
     }
@@ -278,6 +295,12 @@ function rootGateResultToJson(result: RootGateVerificationResult): SealVerificat
     state: result.state === 'NOT_ANCHORED' ? 'MISSING' : result.state,
     ...(result.seal && { seal: result.seal }),
     message: result.message,
+    ...(result.conditions && {
+      conditions: result.conditions.map((c) => ({
+        state: c.state === 'NOT_ANCHORED' ? 'MISSING' : c.state,
+        message: c.message,
+      })),
+    }),
   }
 }
 
@@ -314,8 +337,13 @@ function displayResults(results: SealVerificationResult[]): void {
 
   if (withIssues.length > 0) {
     for (const result of withIssues) {
-      if (result.message) {
-        log(`${verificationRowLabel(result)}: ${result.message}`)
+      const label = verificationRowLabel(result)
+      // A result carrying `conditions` failed more than one independent check
+      // simultaneously (e.g. FINGERPRINT_MISMATCH and STALE); render each one so
+      // the operator sees every concurrent problem, not just the primary state.
+      const toShow = result.conditions ?? (result.message ? [{ message: result.message }] : [])
+      for (const condition of toShow) {
+        log(`${label}: ${condition.message}`)
       }
     }
     log('')

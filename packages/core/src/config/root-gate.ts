@@ -66,6 +66,13 @@ export interface RootGateVerificationResult {
   seal?: Seal
   /** Human-readable, non-generic explanation of the state. */
   message: string
+  /**
+   * Every independently-determined failing condition, root-gate-flavored
+   * (each mapped through the same message logic as `message`). Present only
+   * when the underlying {@link SealVerificationResult} carried more than one
+   * condition — mirrors {@link SealVerificationResult.conditions}.
+   */
+  conditions?: { state: Exclude<RootGateState, 'VALID'>; message: string }[]
 }
 
 /**
@@ -313,6 +320,12 @@ export function verifyRootGate(params: {
     state: result.state,
     ...(result.seal && { seal: result.seal }),
     message: describeRootState(result.state, trustedSourceLabel),
+    ...(result.conditions && {
+      conditions: result.conditions.map((c) => ({
+        state: c.state,
+        message: describeRootState(c.state, trustedSourceLabel),
+      })),
+    }),
   }
 }
 

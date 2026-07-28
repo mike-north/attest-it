@@ -10,7 +10,7 @@ import { SecretBackend } from 'vaultkeeper';
 import { z } from 'zod';
 
 // @public
-export const API_SCHEMA_VERSION = 1;
+export const API_SCHEMA_VERSION = 2;
 
 // @public
 export interface ApiFailure extends ApiResultBase {
@@ -19,6 +19,11 @@ export interface ApiFailure extends ApiResultBase {
     message: string;
     ok: false;
     path?: string;
+    underlyingConditions?: {
+        failureClass: FailureClass;
+        message: string;
+        state: Exclude<VerificationState, 'VALID'>;
+    }[];
     underlyingState?: VerificationState;
 }
 
@@ -943,6 +948,10 @@ export class RootGateVerificationError extends Error {
 
 // @public
 export interface RootGateVerificationResult {
+    conditions?: {
+        message: string;
+        state: Exclude<RootGateState, 'VALID'>;
+    }[];
     gateId: string;
     message: string;
     seal?: Seal;
@@ -983,6 +992,12 @@ export interface Seal {
 export function seal(artifactPath: string, params: SealParams, options?: ApiOptions): Promise<ApiFailure | SealResult>;
 
 // @public
+export interface SealCondition {
+    message: string;
+    state: Exclude<VerificationState, 'VALID'>;
+}
+
+// @public
 export interface SealParams {
     identity: string;
 }
@@ -1006,6 +1021,7 @@ export interface SealsFile {
 // @public
 export interface SealVerificationResult {
     artifactPath?: string;
+    conditions?: SealCondition[];
     gateId: string;
     message?: string;
     seal?: Seal;
