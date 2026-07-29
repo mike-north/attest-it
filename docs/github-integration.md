@@ -14,10 +14,16 @@ Complete guide to integrating attest-it with GitHub Actions and workflows.
 >   from the PR **base branch**, so a PR cannot grant itself signers or gates.
 > - **On non-GitHub CI, use `attest-it verify --base <ref>`** — see
 >   [Non-GitHub CI](#non-github-ci-verify---base). It anchors `rootGate`/`team`/`gates`
->   to `<ref>` while fingerprinting the working tree.
+>   to `<ref>` while fingerprinting the working tree. On GitHub itself, `--base`
+>   needs the base ref fetched first — see
+>   [Using `verify --base` on GitHub Actions](#using-verify---base-on-github-actions).
 >
 > The YAML examples in this guide use the Action for exactly this reason. Where a
 > snippet shows bare `npx attest-it verify`, treat it as a **local** pre-check only.
+>
+> `verify --base` is documented here as it exists on `main`; check
+> `npx attest-it verify --help` (or your installed version's changelog) if it is not
+> yet available in the release you have installed.
 
 ## Quick Start
 
@@ -65,6 +71,48 @@ npx attest-it verify --base origin/main
 
 Without `--base`, `verify` trusts the working-tree policy and is only a local
 pre-check — never rely on it to gate untrusted proposal branches.
+
+### Using `verify --base` on GitHub Actions
+
+**On GitHub, prefer the Action** (above) — it fetches the base-branch policy via the
+GitHub API, needs no git history at all, and is the recommended path. Reach for
+`verify --base` on GitHub only when you specifically need the CLI (e.g. a custom
+script that also needs other CLI output alongside the trust check).
+
+If you do use `verify --base` on GitHub Actions, the default `pull_request` checkout
+will not work out of the box:
+
+```yaml
+# This FAILS in a default `pull_request` checkout:
+- uses: actions/checkout@v4
+- run: npx attest-it verify --base origin/${{ github.base_ref }}
+  # error: Cannot read '.attest-it/policy.yaml' from ref 'origin/main'.
+  #        (GitRefPolicyError, exit 3 — 'main' here is this PR's actual base branch)
+```
+
+`verify --base <ref>` runs a single `git show <ref>:./<path>`, which only needs the
+**ref to be present** locally — not any particular history depth. The failure above
+has nothing to do with shallow cloning: `actions/checkout@v4` on a `pull_request`
+event checks out a detached merge commit and does not create a local base-branch ref
+at all, so there is nothing for `git show` to read. A `--depth 1` clone of an actual
+branch works fine with `--base`; it's the `pull_request` merge-ref layout
+specifically that breaks it.
+
+The fix is to fetch the base ref before verifying — a full history is not required,
+just the ref's existence:
+
+```yaml
+- uses: actions/checkout@v4
+
+# Fetch just the base ref so it exists locally for `git show` — a depth-1 fetch
+# is enough; `verify --base` needs the ref present, not any history depth.
+- run: git fetch --depth=1 origin ${{ github.base_ref }}
+
+- run: npx attest-it verify --base origin/${{ github.base_ref }}
+```
+
+Avoid reaching for `fetch-depth: 0` (a full-history clone) to fix this — it works,
+but it's solving the wrong problem and costs far more than the targeted fetch above.
 
 ## GitHub Action
 
