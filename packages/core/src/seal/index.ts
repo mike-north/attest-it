@@ -42,4 +42,5 @@ export {
   verifyPatternArtifactSeal,
   type VerificationState,
   type SealVerificationResult,
+  type SealCondition,
 } from './verification.js'

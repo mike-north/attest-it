@@ -41,8 +41,10 @@ import {
   computeFingerprintSync,
   ROOT_GATE_ID,
   type AttestItConfig,
+  type Seal,
   type SealsFile,
 } from '../../src/index.js'
+import { sign } from '../../src/crypto/ed25519.js'
 
 /** Ed25519 key pair as returned by {@link generateEd25519KeyPair}. */
 interface KeyPair {
@@ -183,6 +185,29 @@ function gateSealOver(baseDir: string, signerSlug: string, signer: KeyPair) {
   })
 }
 
+/**
+ * Seal the policy file at `baseDir` under the root gate with `signer`'s key,
+ * but with a caller-controlled timestamp (unlike {@link rootSealOver}, which
+ * always stamps "now"). Used to construct an already-stale root seal
+ * deterministically.
+ */
+function rootSealOverWithTimestamp(
+  baseDir: string,
+  signerSlug: string,
+  signer: KeyPair,
+  timestamp: string,
+): Seal {
+  const fingerprint = computePolicyFingerprintSync(baseDir, join(baseDir, POLICY_REL))
+  const canonical = `${ROOT_GATE_ID}:${fingerprint}:${timestamp}`
+  return {
+    gateId: ROOT_GATE_ID,
+    fingerprint,
+    timestamp,
+    sealedBy: signerSlug,
+    signature: sign(canonical, signer.privateKey),
+  }
+}
+
 describe('embeddable API root-gate enforcement (#131)', () => {
   it('(a) REJECTS a working-tree policy that self-adds a root signer and self-seals when a trusted base config is supplied', async () => {
     const alice = generateEd25519KeyPair()
@@ -228,6 +253,57 @@ describe('embeddable API root-gate enforcement (#131)', () => {
     if (one.ok) return
     expect(one.failureClass).toBe('untrusted-config')
     expect(one.path).toBe('src/lib/tool.ts')
+  })
+
+  // Regression for #156: enforceRootGate previously converted a blocking
+  // RootGateVerificationResult into an ApiFailure without threading
+  // underlyingState/underlyingConditions, so an embedder with a compound
+  // root-gate failure (e.g. simultaneously UNKNOWN_SIGNER and STALE) only ever
+  // saw the primary message — the aggregated detail was silently dropped.
+  it('(a-conditions) surfaces underlyingState AND underlyingConditions when the root gate fails both UNKNOWN_SIGNER and STALE simultaneously', async () => {
+    const alice = generateEd25519KeyPair()
+    const mallory = generateEd25519KeyPair()
+
+    const policy = anchoredPolicy(
+      {
+        alice: { name: 'Alice Developer', publicKey: alice.publicKey },
+        mallory: { name: 'Mallory', publicKey: mallory.publicKey },
+      },
+      ['alice', 'mallory'],
+    )
+    const { baseDir } = scaffold(policy, { version: 1, seals: {} })
+
+    // Root seal sealed by mallory (not a trusted-config root signer) with a
+    // 5-day-old timestamp.
+    const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+    const seals: SealsFile = {
+      version: 1,
+      seals: {
+        [ROOT_GATE_ID]: rootSealOverWithTimestamp(baseDir, 'mallory', mallory, fiveDaysAgo),
+        [GATE_ID]: gateSealOver(baseDir, 'alice', alice),
+      },
+    }
+    writeFileSync(join(baseDir, SEALS_REL), JSON.stringify(seals, null, 2), 'utf8')
+
+    // Trusted config: only alice is a root signer, AND its root-gate maxAge is
+    // short (1d) so the 5-day-old root seal is ALSO stale — independent of the
+    // signer rejection.
+    const trustedConfig: AttestItConfig = {
+      ...trustedBaseConfig(alice),
+      rootGate: { authorizedSigners: ['alice'], maxAge: '1d' },
+    }
+
+    const all = await verifyAll({}, { baseDir, trustedConfig })
+    expect(all.ok).toBe(false)
+    if (all.ok) return
+    expect(all.failureClass).toBe('untrusted-config')
+    // Backward-compat: primary underlyingState unchanged.
+    expect(all.underlyingState).toBe('UNKNOWN_SIGNER')
+    // New: both conditions surfaced.
+    expect(all.underlyingConditions).toBeDefined()
+    const states = all.underlyingConditions?.map((c) => c.state) ?? []
+    expect(states).toContain('UNKNOWN_SIGNER')
+    expect(states).toContain('STALE')
   })
 
   it('(a2) REJECTS a working-tree that DELETES rootGate and self-authorizes a gate, when a trusted anchored base config is supplied', async () => {

@@ -228,7 +228,11 @@ describe('unauthorized signer seal/run reporting (issue #136)', () => {
       const verifyResult = await runCliNonInteractive(['verify', 'g', '--json'], projectDir, env)
       const verifyJson: unknown = JSON.parse(verifyResult.stdout)
       expect(Array.isArray(verifyJson)).toBe(true)
-      const [gateStatus] = verifyJson as unknown[]
+      // Look up by gateId rather than assuming index 0: `--json` now also
+      // carries a (non-blocking) root-gate pre-step entry when the policy
+      // resolves a path — this fixture's policy has no rootGate, so that
+      // entry is NOT_ANCHORED (see #156's Bug 2 fix).
+      const gateStatus = (verifyJson as Record<string, unknown>[]).find((r) => r.gateId === 'g')
       expect(isRecordOfUnknown(gateStatus) && gateStatus.state).toBe('MISSING')
     },
     CLI_CALL_TIMEOUT_MS * 6,
@@ -276,7 +280,8 @@ describe('unauthorized signer seal/run reporting (issue #136)', () => {
       const verifyResult = await runCliNonInteractive(['verify', 'g', '--json'], projectDir, env)
       expect(verifyResult.exitCode).toBe(0)
       const verifyJson: unknown = JSON.parse(verifyResult.stdout)
-      const [gateStatus] = verifyJson as unknown[]
+      // Look up by gateId rather than assuming index 0 (see note above).
+      const gateStatus = (verifyJson as Record<string, unknown>[]).find((r) => r.gateId === 'g')
       expect(isRecordOfUnknown(gateStatus) && gateStatus.state).toBe('VALID')
     },
     CLI_CALL_TIMEOUT_MS * 6,

@@ -224,7 +224,26 @@ async function enforceRootGate(
   })
 
   if (isBlockingRootGateState(rootResult.state)) {
-    return fail('untrusted-config', rootResult.message, { gateId: rootResult.gateId })
+    // A blocking root-gate state is never VALID/STALE/NOT_ANCHORED (see
+    // isBlockingRootGateState), so it is always a genuine VerificationState —
+    // safe to feed to stateToFailureClass and to underlyingState/-Conditions,
+    // mirroring how verdictToArtifactVerification threads the same detail
+    // through for ordinary gate failures.
+    const underlyingState = rootResult.state
+    return fail('untrusted-config', rootResult.message, {
+      gateId: rootResult.gateId,
+      underlyingState,
+      // Only populate when more than one condition failed simultaneously —
+      // mirrors the core's own "omit when single" rule.
+      ...(rootResult.conditions &&
+        rootResult.conditions.length > 1 && {
+          underlyingConditions: rootResult.conditions.map((c) => ({
+            state: c.state,
+            failureClass: stateToFailureClass(c.state),
+            message: c.message,
+          })),
+        }),
+    })
   }
 
   // VALID, STALE (a warning, not a failure), or NOT_ANCHORED (the trusted source
@@ -335,6 +354,16 @@ function verdictToArtifactVerification(
     gateId,
     underlyingState: verdict.state,
     ...(pathValue !== undefined && { path: pathValue }),
+    // Only populate when more than one condition failed simultaneously — mirrors
+    // the core's own "omit when single" rule for SealVerificationResult.conditions.
+    ...(verdict.conditions &&
+      verdict.conditions.length > 1 && {
+        underlyingConditions: verdict.conditions.map((c) => ({
+          state: c.state,
+          failureClass: stateToFailureClass(c.state),
+          message: c.message,
+        })),
+      }),
   })
 }
 

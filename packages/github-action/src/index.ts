@@ -318,14 +318,27 @@ function mapSealStateToStatus(
 }
 
 /**
+ * A single suite's mapped result for the `suites` action output, carrying
+ * every independently-failing condition (when more than one applies) so
+ * downstream consumers of the `suites` JSON aren't blind to concurrent
+ * failures.
+ */
+interface SuiteResult {
+  suite: string
+  status: string
+  message?: string
+  conditions?: { status: string; message?: string }[]
+}
+
+/**
  * Map seal verification results to suite-based format for output compatibility.
  */
 function mapSealResultsToSuites(
   config: AttestItConfig,
   sealResults: SealVerificationResult[],
-): { suite: string; status: string; message?: string }[] {
+): SuiteResult[] {
   // For each suite, find its gate and get the seal result
-  const results: { suite: string; status: string; message?: string }[] = []
+  const results: SuiteResult[] = []
 
   for (const [suiteName, suiteConfig] of Object.entries(config.suites)) {
     const gateId = suiteConfig.gate
@@ -342,6 +355,15 @@ function mapSealResultsToSuites(
         suite: suiteName,
         status: mapSealStateToStatus(sealResult.state),
         message: sealResult.message,
+        // A result with `conditions` failed more than one independent check
+        // simultaneously (e.g. fingerprint-mismatched AND stale); carry all of
+        // them so downstream `suites` output consumers aren't blind to that.
+        ...(sealResult.conditions && {
+          conditions: sealResult.conditions.map((c) => ({
+            status: mapSealStateToStatus(c.state),
+            message: c.message,
+          })),
+        }),
       })
     }
   }
@@ -356,6 +378,14 @@ function logResults(results: SealVerificationResult[]): void {
     const icon = result.state === 'VALID' ? '✓' : '✗'
     const status = mapSealStateToStatus(result.state)
     core.info(`${icon} ${result.gateId}: ${status}`)
+
+    // Log every concurrent condition on its own indented line, rather than
+    // only the primary state, when more than one condition failed at once.
+    if (result.conditions) {
+      for (const condition of result.conditions) {
+        core.info(`    - ${mapSealStateToStatus(condition.state)}: ${condition.message}`)
+      }
+    }
   }
 
   core.endGroup()

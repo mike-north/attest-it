@@ -23,7 +23,7 @@ import type { VerificationState } from '../seal/verification.js'
  *
  * @public
  */
-export const API_SCHEMA_VERSION = 1
+export const API_SCHEMA_VERSION = 2
 
 /**
  * The literal type of {@link API_SCHEMA_VERSION}.
@@ -105,6 +105,21 @@ export interface ApiFailure extends ApiResultBase {
    * {@link FailureClass} collapses.
    */
   underlyingState?: VerificationState
+  /**
+   * Every independently-determined underlying condition, when seal
+   * verification found more than one failing condition simultaneously (e.g. a
+   * seal that is both fingerprint-mismatched and expired). Each entry mirrors
+   * `underlyingState`/`failureClass`/`message` for one condition, in the same
+   * priority order used to pick the primary `failureClass`/`message`
+   * (`underlyingConditions[0]` mirrors them exactly). Present only when MORE
+   * THAN ONE condition failed simultaneously — the common single-condition
+   * failure omits this field. Added in schema version 2.
+   */
+  underlyingConditions?: {
+    state: Exclude<VerificationState, 'VALID'>
+    failureClass: FailureClass
+    message: string
+  }[]
 }
 
 /**

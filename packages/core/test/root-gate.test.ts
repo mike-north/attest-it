@@ -14,7 +14,7 @@ import { describe, expect, it, beforeEach, afterEach } from 'vitest'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
-import { generateKeyPair } from '../src/crypto/ed25519.js'
+import { generateKeyPair, sign } from '../src/crypto/ed25519.js'
 import { createSeal, verifyGateSeal } from '../src/seal/index.js'
 import type { Seal, SealsFile } from '../src/seal/types.js'
 import type { AttestItConfig, TeamMember } from '../src/types.js'
@@ -420,6 +420,68 @@ describe('root gate — MISSING / NOT_ANCHORED states', () => {
     })
     expect(result.state).toBe('MISSING')
     expect(isBlockingRootGateState(result.state)).toBe(true)
+  })
+})
+
+// Regression: the root gate delegates entirely to verifyGateSeal, so the same
+// FINGERPRINT_MISMATCH + STALE aggregation bug (#156) applies to it — e.g. a
+// root seal that is both fingerprint-invalidated and expired.
+describe('root gate — conditions aggregation (#156)', () => {
+  it('propagates both FINGERPRINT_MISMATCH and STALE conditions when the root seal fails both simultaneously', () => {
+    const owner = makeSigner('owner', 'Repo Owner')
+    const config = makeConfig({ rootSigners: ['owner'], team: { owner: owner.member } })
+    // Root gate's own maxAge is short so a 2-day-old seal is stale.
+    config.rootGate = { authorizedSigners: ['owner'], maxAge: '1d' }
+
+    const sealedFingerprint = 'sha256:sealed-policy'
+    const currentFingerprint = 'sha256:current-policy' // deliberately different
+    const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+    const canonicalString = `${ROOT_GATE_ID}:${sealedFingerprint}:${twoDaysAgo}`
+    const rootSeal: Seal = {
+      gateId: ROOT_GATE_ID,
+      fingerprint: sealedFingerprint,
+      timestamp: twoDaysAgo,
+      sealedBy: 'owner',
+      // createRootSeal always stamps "now"; sign directly to control the
+      // timestamp so the seal can be constructed as already-stale.
+      signature: sign(canonicalString, owner.privateKey),
+    }
+
+    const result = verifyRootGate({
+      config,
+      policyFingerprint: currentFingerprint,
+      seals: sealsWith(rootSeal),
+    })
+
+    // Backward-compat: primary state unchanged.
+    expect(result.state).toBe('FINGERPRINT_MISMATCH')
+    // New: both independently-failing conditions are surfaced, root-gate-flavored.
+    expect(result.conditions).toHaveLength(2)
+    expect(result.conditions?.[0]?.state).toBe('FINGERPRINT_MISMATCH')
+    expect(result.conditions?.[0]?.message).toContain('Untrusted change to .attest-it/policy.yaml')
+    expect(result.conditions?.[1]?.state).toBe('STALE')
+    expect(result.conditions?.[1]?.message).toContain(
+      'root seal over .attest-it/policy.yaml is stale',
+    )
+  })
+
+  it('omits `conditions` when only the root seal fingerprint mismatches (single condition)', () => {
+    const owner = makeSigner('owner', 'Repo Owner')
+    const rootSeal = createRootSeal({
+      policyFingerprint: 'sha256:sealed-policy',
+      sealedBy: 'owner',
+      privateKey: owner.privateKey,
+    })
+
+    const config = makeConfig({ rootSigners: ['owner'], team: { owner: owner.member } })
+    const result = verifyRootGate({
+      config,
+      policyFingerprint: 'sha256:a-totally-different-fingerprint',
+      seals: sealsWith(rootSeal),
+    })
+
+    expect(result.state).toBe('FINGERPRINT_MISMATCH')
+    expect(result.conditions).toBeUndefined()
   })
 })
 

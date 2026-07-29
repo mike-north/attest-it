@@ -85,6 +85,7 @@ export {
   isBlockingRootGateState,
   type RootGateState,
   type RootGateVerificationResult,
+  type RootGateCondition,
 } from './config/index.js'
 
 // Fingerprinting
@@ -268,4 +269,5 @@ export {
   type SignatureVerificationResult,
   type VerificationState,
   type SealVerificationResult,
+  type SealCondition,
 } from './seal/index.js'

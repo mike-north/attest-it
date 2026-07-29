@@ -6,8 +6,10 @@ import {
   verifyGateSeal,
   getGate,
   SplitConfigNotFoundError,
+  API_SCHEMA_VERSION,
   type VerificationState,
   type SealVerificationResult,
+  type SealCondition,
 } from '@attest-it/core'
 import { isPatternGate, verifyPatternGateSync } from '../utils/pattern-gate.js'
 import {
@@ -49,6 +51,8 @@ interface GateStatus {
   sealedAt?: string
   age?: number
   message?: string | undefined
+  /** Every independently-determined failing condition, mirroring {@link SealVerificationResult.conditions}. */
+  conditions?: SealCondition[]
 }
 
 /**
@@ -87,7 +91,7 @@ async function runStatus(
     // Distinct from a missing/unreadable config (CONFIG_ERROR) — treat as NO_WORK.
     if (!config.gates || Object.keys(config.gates).length === 0) {
       if (options.json) {
-        outputJson([])
+        outputJson(withSchemaVersion([]))
       } else {
         warn('No gates defined in configuration — nothing to report')
       }
@@ -140,7 +144,7 @@ async function runStatus(
 
     // Output results
     if (options.json) {
-      outputJson(results)
+      outputJson(withSchemaVersion(results))
     } else {
       displayStatusTable(results)
     }
@@ -166,6 +170,20 @@ async function runStatus(
 }
 
 /**
+ * Stamp each `--json` array item with the current embeddable-API schema
+ * version, so consumers get an explicit version signal for this shape —
+ * mirroring the convention `seal --json` already uses via its top-level
+ * `schemaVersion` field. The array itself stays a bare array (only elements
+ * gain the field), so existing positional/`.find()`-based consumers of
+ * `status --json` are unaffected by this addition.
+ */
+function withSchemaVersion<T extends object>(
+  items: T[],
+): (T & { schemaVersion: typeof API_SCHEMA_VERSION })[] {
+  return items.map((item) => ({ schemaVersion: API_SCHEMA_VERSION, ...item }))
+}
+
+/**
  * Build a {@link GateStatus} row from a verification result and the current
  * fingerprint, carrying `artifactPath` for a pattern gate's per-file row.
  */
@@ -180,6 +198,7 @@ function toGateStatus(
     state: result.state,
     currentFingerprint,
     message: result.message,
+    ...(result.conditions && { conditions: result.conditions }),
   }
 
   if (result.seal) {
@@ -237,7 +256,15 @@ function displayStatusTable(results: GateStatus[]): void {
   if (withIssues.length > 0) {
     log('Issues:')
     for (const result of withIssues) {
-      log(`  ${rowLabel(result)}: ${result.message ?? 'Unknown issue'}`)
+      const label = rowLabel(result)
+      // A result carrying `conditions` failed more than one independent check
+      // simultaneously; show each one so concurrent failures aren't hidden.
+      const toShow = result.conditions ?? [
+        { state: result.state, message: result.message ?? 'Unknown issue' },
+      ]
+      for (const condition of toShow) {
+        log(`  ${label}: ${condition.message}`)
+      }
     }
     log('')
   }

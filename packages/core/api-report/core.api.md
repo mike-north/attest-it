@@ -10,7 +10,7 @@ import { SecretBackend } from 'vaultkeeper';
 import { z } from 'zod';
 
 // @public
-export const API_SCHEMA_VERSION = 1;
+export const API_SCHEMA_VERSION = 2;
 
 // @public
 export interface ApiFailure extends ApiResultBase {
@@ -19,6 +19,11 @@ export interface ApiFailure extends ApiResultBase {
     message: string;
     ok: false;
     path?: string;
+    underlyingConditions?: {
+        failureClass: FailureClass;
+        message: string;
+        state: Exclude<VerificationState, 'VALID'>;
+    }[];
     underlyingState?: VerificationState;
 }
 
@@ -340,7 +345,7 @@ export interface InaccessibleAccount {
 export function isAuthorizedSigner(config: AttestItConfig, gateId: string, publicKey: string): boolean;
 
 // @public
-export function isBlockingRootGateState(state: RootGateState): boolean;
+export function isBlockingRootGateState(state: RootGateState): state is Exclude<RootGateState, 'VALID' | 'STALE' | 'NOT_ANCHORED'>;
 
 // @public
 export function isEncryptedPrivateKeyPem(privateKeyPem: string): boolean;
@@ -925,6 +930,12 @@ export function resolveSealsRoot(dir: string, sealsPathOverride?: string): strin
 export const ROOT_GATE_ID = "__root__";
 
 // @public
+export interface RootGateCondition {
+    message: string;
+    state: Exclude<SealVerificationResult['state'], 'VALID'>;
+}
+
+// @public
 export interface RootGateConfig {
     authorizedSigners: string[];
     description?: string;
@@ -943,6 +954,7 @@ export class RootGateVerificationError extends Error {
 
 // @public
 export interface RootGateVerificationResult {
+    conditions?: RootGateCondition[];
     gateId: string;
     message: string;
     seal?: Seal;
@@ -983,6 +995,12 @@ export interface Seal {
 export function seal(artifactPath: string, params: SealParams, options?: ApiOptions): Promise<ApiFailure | SealResult>;
 
 // @public
+export interface SealCondition {
+    message: string;
+    state: Exclude<VerificationState, 'VALID'>;
+}
+
+// @public
 export interface SealParams {
     identity: string;
 }
@@ -1006,6 +1024,7 @@ export interface SealsFile {
 // @public
 export interface SealVerificationResult {
     artifactPath?: string;
+    conditions?: SealCondition[];
     gateId: string;
     message?: string;
     seal?: Seal;

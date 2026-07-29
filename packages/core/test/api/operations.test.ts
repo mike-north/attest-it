@@ -202,6 +202,56 @@ describe('verifyOne', () => {
     const failure = expectFailure(await verifyOne('README.md', { baseDir: project.baseDir }))
     expect(failure.failureClass).toBe('malformed')
   })
+
+  // Regression for #156: a seal that is simultaneously fingerprint-mismatched
+  // and expired must expose BOTH conditions through the embeddable API, not
+  // just the primary one.
+  it('populates underlyingConditions with both fingerprint-mismatch and expired when a seal fails both simultaneously', async () => {
+    project = createTestProject()
+    const fp = await fingerprint(project.gatedFile, { baseDir: project.baseDir })
+    expect(fp.ok).toBe(true)
+    if (!fp.ok) return
+    // Seal the ORIGINAL fingerprint with an old (>maxAge) timestamp...
+    const oldTimestamp = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()
+    writeSealWithTimestamp(project, fp.fingerprint, oldTimestamp)
+    // ...then mutate the artifact so the sealed fingerprint no longer matches
+    // the CURRENT one. The seal is now concurrently fingerprint-mismatched
+    // AND stale.
+    writeFileSync(
+      join(project.baseDir, project.gatedFile),
+      'export const tool = () => 999\n',
+      'utf8',
+    )
+
+    const failure = expectFailure(await verifyOne(project.gatedFile, { baseDir: project.baseDir }))
+
+    // Backward-compat: primary failureClass/underlyingState unchanged.
+    expect(failure.failureClass).toBe('fingerprint-mismatch')
+    expect(failure.underlyingState).toBe('FINGERPRINT_MISMATCH')
+
+    // New: both conditions are surfaced.
+    expect(failure.underlyingConditions).toBeDefined()
+    const states = failure.underlyingConditions?.map((c) => c.state) ?? []
+    const classes = failure.underlyingConditions?.map((c) => c.failureClass) ?? []
+    expect(states).toContain('FINGERPRINT_MISMATCH')
+    expect(states).toContain('STALE')
+    expect(classes).toContain('fingerprint-mismatch')
+    expect(classes).toContain('expired')
+  })
+
+  it('omits underlyingConditions when only a single condition fails (no new noise in the common case)', async () => {
+    project = createTestProject()
+    await seal(project.gatedFile, { identity: 'alice' }, { baseDir: project.baseDir })
+    // Mutate content — only fingerprint mismatches; the seal is otherwise fresh.
+    writeFileSync(
+      join(project.baseDir, project.gatedFile),
+      'export const tool = () => 999\n',
+      'utf8',
+    )
+    const failure = expectFailure(await verifyOne(project.gatedFile, { baseDir: project.baseDir }))
+    expect(failure.failureClass).toBe('fingerprint-mismatch')
+    expect(failure.underlyingConditions).toBeUndefined()
+  })
 })
 
 describe('status', () => {
@@ -254,6 +304,36 @@ describe('verifyAll', () => {
     expect(result.ok).toBe(true)
     if (!result.ok) return
     expect(result.results).toHaveLength(0)
+  })
+
+  // Regression for #156: verifyAll routes through the same verdict mapping as
+  // verifyOne, so a concurrently-failing seal must surface underlyingConditions
+  // here too.
+  it('populates underlyingConditions for a concurrently-failing seal', async () => {
+    project = createTestProject()
+    const fp = await fingerprint(project.gatedFile, { baseDir: project.baseDir })
+    expect(fp.ok).toBe(true)
+    if (!fp.ok) return
+    const oldTimestamp = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()
+    writeSealWithTimestamp(project, fp.fingerprint, oldTimestamp)
+    writeFileSync(
+      join(project.baseDir, project.gatedFile),
+      'export const tool = () => 999\n',
+      'utf8',
+    )
+
+    const result = await verifyAll({}, { baseDir: project.baseDir })
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.results).toHaveLength(1)
+    const only = result.results[0]
+    expect(only).toBeDefined()
+    if (!only) return
+    const failure = expectFailure(only)
+    expect(failure.failureClass).toBe('fingerprint-mismatch')
+    const states = failure.underlyingConditions?.map((c) => c.state) ?? []
+    expect(states).toContain('FINGERPRINT_MISMATCH')
+    expect(states).toContain('STALE')
   })
 })
 

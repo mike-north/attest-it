@@ -33,7 +33,7 @@ export function isApiFailure(value: object): value is ApiFailure {
 export function fail(
   failureClass: FailureClass,
   message: string,
-  extra: Pick<ApiFailure, 'gateId' | 'path' | 'underlyingState'> = {},
+  extra: Pick<ApiFailure, 'gateId' | 'path' | 'underlyingState' | 'underlyingConditions'> = {},
 ): ApiFailure {
   return {
     schemaVersion: API_SCHEMA_VERSION,

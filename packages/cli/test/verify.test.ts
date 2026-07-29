@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { runVerify, displayResults } from '../src/commands/verify.js'
-import { SplitConfigNotFoundError } from '@attest-it/core'
+import { SplitConfigNotFoundError, API_SCHEMA_VERSION } from '@attest-it/core'
 import type { SealVerificationResult, AttestItConfig, SealsFile, Config } from '@attest-it/core'
 
 // Mock the core functions
@@ -280,8 +280,10 @@ describe('verify command', () => {
 
       await runVerify([], { json: true })
 
-      // Should output JSON
-      expect(mockConsoleLog).toHaveBeenCalledWith(JSON.stringify(mockResults, null, 2))
+      // Should output JSON, each item stamped with the current schema version
+      // (mirrors `seal --json`'s top-level `schemaVersion` field).
+      const expectedJson = mockResults.map((r) => ({ schemaVersion: API_SCHEMA_VERSION, ...r }))
+      expect(mockConsoleLog).toHaveBeenCalledWith(JSON.stringify(expectedJson, null, 2))
       expect(mockProcessExit).toHaveBeenCalledWith(0)
     })
   })

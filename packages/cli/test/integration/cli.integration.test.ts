@@ -412,6 +412,58 @@ describe('CLI Integration Tests', () => {
       const gateStatus = newStatus[0]
       expect(gateStatus?.state).toBe('VALID')
     })
+
+    /**
+     * Regression test for #156: `GateStatus.conditions` and the human-readable
+     * Issues section both needed to be wired through for `status`, mirroring
+     * `verify`. Prior coverage for concurrent conditions only exercised
+     * `verify`; this proves `status --json` AND `status`'s human-readable
+     * Issues section both surface every concurrent condition too.
+     */
+    it('reports both FINGERPRINT_MISMATCH and STALE in `status --json` conditions and in the human-readable Issues section', async () => {
+      const sealsFile = createRealSealsFile(
+        'example-gate',
+        'sha256:deadbeef1234567890',
+        privateKeyPem,
+      )
+      const sealsPath = path.join(tempDir, '.attest-it', 'seals.json')
+      await fs.promises.writeFile(sealsPath, JSON.stringify(sealsFile, null, 2))
+
+      const policyPath = path.join(tempDir, '.attest-it', 'policy.yaml')
+      const policyContent = await fs.promises.readFile(policyPath, 'utf8')
+      const policy = yaml.parse(policyContent) as Record<string, unknown>
+      const gates = policy.gates as Record<string, { maxAge?: string }>
+      if (gates && gates['example-gate']) {
+        gates['example-gate'].maxAge = '1ms'
+      }
+      await fs.promises.writeFile(policyPath, yaml.stringify(policy), 'utf8')
+      await runCommand(
+        'git add . && git commit -m "add concurrently-failing seal (status)"',
+        tempDir,
+      )
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      // --json: GateStatus.conditions carries both.
+      const jsonResult = await runCli(['status', 'example-gate', '--json'], tempDir)
+      expect(jsonResult.exitCode).toBe(0) // status is informational-only; always exits 0
+      const json = JSON.parse(jsonResult.stdout) as {
+        gateId: string
+        state: string
+        conditions?: { state: string; message: string }[]
+      }[]
+      const exampleStatus = json.find((r) => r.gateId === 'example-gate')
+      expect(exampleStatus?.state).toBe('FINGERPRINT_MISMATCH')
+      expect(exampleStatus?.conditions).toBeDefined()
+      const states = exampleStatus?.conditions?.map((c) => c.state) ?? []
+      expect(states).toContain('FINGERPRINT_MISMATCH')
+      expect(states).toContain('STALE')
+
+      // Human-readable: the Issues section prints both condition messages.
+      const humanResult = await runCli(['status', 'example-gate'], tempDir)
+      expect(humanResult.stdout).toContain('Fingerprint changed since seal was created')
+      expect(humanResult.stdout).toMatch(/exceeds maxAge/)
+    })
   })
 
   describe('attest-it run', () => {
@@ -540,6 +592,100 @@ describe('CLI Integration Tests', () => {
       // STALE is a warning, exit code 0 in verify
       expect(result.exitCode).toBe(0)
       expect(result.stdout).toContain('STALE')
+    })
+
+    /**
+     * Regression test for #156: a seal that is simultaneously
+     * FINGERPRINT_MISMATCH and STALE previously only ever reported
+     * FINGERPRINT_MISMATCH (the first check in priority order) — the caller
+     * never learned it was ALSO stale. This is a user-visible-output defect,
+     * so it must be proven at the CLI (`--json`) layer, not just core.
+     */
+    it('reports both FINGERPRINT_MISMATCH and STALE in `--json` output when a seal fails both simultaneously', async () => {
+      // Seal a fingerprint that will no longer match the current one, so
+      // verify reports FINGERPRINT_MISMATCH.
+      const sealsFile = createRealSealsFile(
+        'example-gate',
+        'sha256:deadbeef1234567890',
+        privateKeyPem,
+      )
+      const sealsPath = path.join(tempDir, '.attest-it', 'seals.json')
+      await fs.promises.writeFile(sealsPath, JSON.stringify(sealsFile, null, 2))
+
+      // Also make the gate's maxAge vanishingly short, so the (fingerprint-
+      // mismatched) seal is ALSO stale by the time verify runs.
+      const policyPath = path.join(tempDir, '.attest-it', 'policy.yaml')
+      const policyContent = await fs.promises.readFile(policyPath, 'utf8')
+      const policy = yaml.parse(policyContent) as Record<string, unknown>
+      const gates = policy.gates as Record<string, { maxAge?: string }>
+      if (gates && gates['example-gate']) {
+        gates['example-gate'].maxAge = '1ms'
+      }
+      await fs.promises.writeFile(policyPath, yaml.stringify(policy), 'utf8')
+      await runCommand('git add . && git commit -m "add concurrently-failing seal"', tempDir)
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      const result = await runCli(['verify', 'example-gate', '--json'], tempDir)
+      expect(result.exitCode).toBe(1) // FINGERPRINT_MISMATCH is a hard failure
+
+      const json = JSON.parse(result.stdout) as {
+        gateId: string
+        state: string
+        conditions?: { state: string; message: string }[]
+      }[]
+      const exampleResult = json.find((r) => r.gateId === 'example-gate')
+      expect(exampleResult).toBeDefined()
+      // Backward-compat: primary state unchanged.
+      expect(exampleResult?.state).toBe('FINGERPRINT_MISMATCH')
+      // New: both conditions are surfaced to `--json` consumers.
+      expect(exampleResult?.conditions).toBeDefined()
+      const states = exampleResult?.conditions?.map((c) => c.state) ?? []
+      expect(states).toContain('FINGERPRINT_MISMATCH')
+      expect(states).toContain('STALE')
+    })
+
+    /**
+     * Regression test for #156, human-readable path: `displayResults()` was
+     * changed to loop over `result.conditions` and print one line per
+     * condition, but the only prior regression coverage exercised `--json`.
+     * Prove the same concurrently-failing seal prints BOTH condition lines in
+     * the default (non-JSON) `verify` output too.
+     */
+    it('reports both FINGERPRINT_MISMATCH and STALE as separate lines in human-readable (non-JSON) output', async () => {
+      const sealsFile = createRealSealsFile(
+        'example-gate',
+        'sha256:deadbeef1234567890',
+        privateKeyPem,
+      )
+      const sealsPath = path.join(tempDir, '.attest-it', 'seals.json')
+      await fs.promises.writeFile(sealsPath, JSON.stringify(sealsFile, null, 2))
+
+      const policyPath = path.join(tempDir, '.attest-it', 'policy.yaml')
+      const policyContent = await fs.promises.readFile(policyPath, 'utf8')
+      const policy = yaml.parse(policyContent) as Record<string, unknown>
+      const gates = policy.gates as Record<string, { maxAge?: string }>
+      if (gates && gates['example-gate']) {
+        gates['example-gate'].maxAge = '1ms'
+      }
+      await fs.promises.writeFile(policyPath, yaml.stringify(policy), 'utf8')
+      await runCommand(
+        'git add . && git commit -m "add concurrently-failing seal (human output)"',
+        tempDir,
+      )
+
+      await new Promise((resolve) => setTimeout(resolve, 10))
+
+      const result = await runCli(['verify', 'example-gate'], tempDir)
+      expect(result.exitCode).toBe(1)
+
+      // Both condition messages appear as their own lines, not just the
+      // primary FINGERPRINT_MISMATCH message.
+      expect(result.stdout).toContain('Fingerprint changed since seal was created')
+      expect(result.stdout).toMatch(/exceeds maxAge/)
+      // Sanity: both lines are attributed to the same gate.
+      const gateLines = result.stdout.split('\n').filter((line) => line.startsWith('example-gate:'))
+      expect(gateLines.length).toBeGreaterThanOrEqual(2)
     })
   })
 
