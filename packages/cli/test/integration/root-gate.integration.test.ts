@@ -183,6 +183,58 @@ describe('root gate — CLI verify against tampered/valid policy.yaml (#72)', ()
     expect(result.stderr).not.toContain('Untrusted')
   })
 
+  /**
+   * Regression coverage for #156: on a fully-bootstrapped repo (a genuine,
+   * VALID root gate — not the un-bootstrapped/NOT_ANCHORED case the other
+   * `--json` regression tests use), `verify --json` still gains a leading
+   * root-gate row. This is the common case a bootstrapped repo hits on every
+   * `verify --json` call, so it needs its own direct coverage distinct from
+   * the un-anchored-base tests.
+   */
+  it('POSITIVE `--json`: a fully-bootstrapped (VALID) root gate appears as a leading, non-blocking entry in `verify --json`', async () => {
+    const policyPath = path.join(dir, '.attest-it', 'policy.yaml')
+    const rootSeal = createRootSeal({
+      policyFingerprint: computePolicyFingerprintSync(dir, policyPath),
+      sealedBy: 'test-user',
+      privateKey: ownerPrivateKey,
+    })
+
+    const statusJson = await runCli(['status', 'example-gate', '--json'], dir)
+    const status = JSON.parse(statusJson.stdout) as { currentFingerprint: string }[]
+    const gateFingerprint = status[0]!.currentFingerprint
+    const gateSeal = createSeal({
+      gateId: 'example-gate',
+      fingerprint: gateFingerprint,
+      sealedBy: 'test-user',
+      privateKey: ownerPrivateKey,
+    })
+    writeSeals(dir, { version: 1, seals: { [ROOT_GATE_ID]: rootSeal, 'example-gate': gateSeal } })
+    await runGit(['add', '.'], dir)
+    await runGit(['commit', '-m', 'seal root + gate (json case)'], dir)
+
+    const result = await runCli(['verify', 'example-gate', '--json'], dir)
+    expect(result.exitCode).toBe(0)
+
+    const json = JSON.parse(result.stdout) as {
+      gateId: string
+      state: string
+      schemaVersion?: number
+    }[]
+    expect(json).toHaveLength(2)
+
+    // Leading entry: the root gate itself, VALID (non-blocking, so evaluation
+    // proceeded and the gate below still appears).
+    const [rootEntry, gateEntry] = json
+    expect(rootEntry?.gateId).toBe(ROOT_GATE_ID)
+    expect(rootEntry?.state).toBe('VALID')
+    expect(typeof rootEntry?.schemaVersion).toBe('number')
+
+    // Second entry: the ordinary gate result, unaffected by the root-gate row.
+    expect(gateEntry?.gateId).toBe('example-gate')
+    expect(gateEntry?.state).toBe('VALID')
+    expect(typeof gateEntry?.schemaVersion).toBe('number')
+  })
+
   it('ADVERSARIAL 1: adding a key to team and authorizing it, without a root re-seal, fails verify and names the untrusted change', async () => {
     // Anchor the ORIGINAL policy.
     sealRoot()

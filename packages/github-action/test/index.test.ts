@@ -188,6 +188,95 @@ describe('GitHub Action', () => {
     })
   })
 
+  // Regression coverage for #156: mapSealResultsToSuites/logResults previously
+  // only looked at a result's primary state/message, so concurrent conditions
+  // (e.g. a seal that is both fingerprint-mismatched and stale) were invisible
+  // to both the `suites` action output and the log group.
+  describe('concurrent conditions (#156)', () => {
+    beforeEach(() => {
+      const mockConfig = createMockConfig()
+      mockLoadSplitConfig.mockResolvedValue(mockConfig)
+    })
+
+    it('carries every condition through to the `suites` output when a result has more than one', async () => {
+      mockVerifyAllSeals.mockReturnValue([
+        createMockSealResult({
+          gateId: 'test-gate',
+          state: 'FINGERPRINT_MISMATCH',
+          message: 'Fingerprint changed since seal was created',
+          conditions: [
+            {
+              state: 'FINGERPRINT_MISMATCH',
+              message: 'Fingerprint changed since seal was created',
+            },
+            { state: 'STALE', message: 'Seal is 100 days old, exceeds maxAge of 30 days' },
+          ],
+        }),
+      ])
+
+      await run()
+
+      const suitesCall = mockCore.setOutput.mock.calls.find(([key]) => key === 'suites')
+      expect(suitesCall).toBeDefined()
+      const suites = JSON.parse(suitesCall?.[1] as string) as {
+        suite: string
+        status: string
+        conditions?: { status: string; message?: string }[]
+      }[]
+      const testSuite = suites.find((s) => s.suite === 'test-suite')
+      expect(testSuite?.status).toBe('FINGERPRINT_CHANGED')
+      expect(testSuite?.conditions).toBeDefined()
+      const statuses = testSuite?.conditions?.map((c) => c.status) ?? []
+      expect(statuses).toContain('FINGERPRINT_CHANGED')
+      expect(statuses).toContain('EXPIRED')
+    })
+
+    it('omits `conditions` in the `suites` output when a result has only one condition', async () => {
+      mockVerifyAllSeals.mockReturnValue([
+        createMockSealResult({ gateId: 'test-gate', state: 'VALID' }),
+      ])
+
+      await run()
+
+      const suitesCall = mockCore.setOutput.mock.calls.find(([key]) => key === 'suites')
+      const suites = JSON.parse(suitesCall?.[1] as string) as {
+        suite: string
+        conditions?: unknown[]
+      }[]
+      const testSuite = suites.find((s) => s.suite === 'test-suite')
+      expect(testSuite?.conditions).toBeUndefined()
+    })
+
+    it('logs every condition as its own indented line via logResults', async () => {
+      mockVerifyAllSeals.mockReturnValue([
+        createMockSealResult({
+          gateId: 'test-gate',
+          state: 'FINGERPRINT_MISMATCH',
+          message: 'Fingerprint changed since seal was created',
+          conditions: [
+            {
+              state: 'FINGERPRINT_MISMATCH',
+              message: 'Fingerprint changed since seal was created',
+            },
+            { state: 'STALE', message: 'Seal is 100 days old, exceeds maxAge of 30 days' },
+          ],
+        }),
+      ])
+
+      await run()
+
+      // The primary one-line summary is still logged...
+      expect(mockCore.info).toHaveBeenCalledWith('✗ test-gate: FINGERPRINT_CHANGED')
+      // ...and each condition gets its own indented line underneath.
+      expect(mockCore.info).toHaveBeenCalledWith(
+        expect.stringContaining('FINGERPRINT_CHANGED: Fingerprint changed since seal was created'),
+      )
+      expect(mockCore.info).toHaveBeenCalledWith(
+        expect.stringContaining('EXPIRED: Seal is 100 days old, exceeds maxAge of 30 days'),
+      )
+    })
+  })
+
   describe('Suite filtering', () => {
     beforeEach(() => {
       const mockConfig = createMockConfig({
