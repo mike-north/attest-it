@@ -119,7 +119,21 @@ function buildRefReadErrorMessage(ref: string, relPath: string, stderr: string):
         `ref must be fetched). Run \`git fetch --depth=1 origin ${baseRef}\` before ` +
         `verifying, then pass \`--base origin/${baseRef}\`.`
       : 'Ensure the ref exists locally — `--base` needs the ref present, not any ' +
-        `particular history depth (a shallow CI clone may need \`git fetch origin ` +
-        `${ref}\`) — and that the policy file exists there.`
+        'particular history depth (a shallow CI clone may need ' +
+        `\`git fetch origin ${branchNameFromRef(ref)}\`) — and that the policy file ` +
+        'exists there.'
   return base + guidance + (stderr ? `\n  git: ${stderr}` : '')
+}
+
+/**
+ * Strip a leading `<remote>/` from a ref for use in a `git fetch origin <branch>`
+ * suggestion. `--base` refs are conventionally passed as `origin/main`, but
+ * `git fetch origin origin/main` is not a valid remote ref — the remote already
+ * scopes the fetch, so only the bare branch name (`main`) belongs after it. A ref
+ * with no `/` (already a bare branch, tag, or SHA) is returned unchanged.
+ * @internal
+ */
+function branchNameFromRef(ref: string): string {
+  const slash = ref.indexOf('/')
+  return slash === -1 ? ref : ref.slice(slash + 1)
 }

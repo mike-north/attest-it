@@ -502,6 +502,44 @@ describe('verify --base <ref> — CLI trusted-ref mode is a genuine CI trust bou
     expect(combined).toContain('git fetch --depth=1 origin main')
     expect(combined).toContain('--base origin/main')
   })
+
+  it('FAIL-CLOSED (#159): the generic fallback suggests `git fetch origin main`, not `git fetch origin origin/main`', async () => {
+    // The docs recommend passing --base as "origin/<branch>". The generic fallback
+    // guidance used to echo that whole ref back into `git fetch origin <ref>`,
+    // producing `git fetch origin origin/main` — not a valid remote ref, since the
+    // remote name is already `origin` and there is no branch literally named
+    // "origin/main". The suggested command must use the bare branch name.
+    const rootSeal = sealRootWith('test-user', ownerPrivateKey)
+    writeSeals(dir, { version: 1, seals: { [ROOT_GATE_ID]: rootSeal } })
+
+    const result = await runCli(['verify', 'example-gate', '--base', 'origin/main'], dir, {
+      GITHUB_ACTIONS: '',
+      GITHUB_BASE_REF: '',
+    })
+    expect(result.exitCode).toBe(3)
+    const combined = result.stdout + result.stderr
+    expect(combined).toContain('git fetch origin main')
+    expect(combined).not.toContain('git fetch origin origin/main')
+  })
+
+  it('FAIL-CLOSED (#159): GITHUB_ACTIONS=true with no GITHUB_BASE_REF (push / workflow_dispatch, not pull_request) falls back to the generic message', async () => {
+    // GITHUB_BASE_REF is only set by GitHub Actions for pull_request-triggered
+    // workflows. A push or workflow_dispatch run still has GITHUB_ACTIONS=true but
+    // no GITHUB_BASE_REF, so the pull_request-specific guidance must NOT fire —
+    // this is the middle state the `&& baseRef` guard exists for.
+    const rootSeal = sealRootWith('test-user', ownerPrivateKey)
+    writeSeals(dir, { version: 1, seals: { [ROOT_GATE_ID]: rootSeal } })
+
+    const result = await runCli(['verify', 'example-gate', '--base', 'origin/main'], dir, {
+      GITHUB_ACTIONS: 'true',
+      GITHUB_BASE_REF: '',
+    })
+    expect(result.exitCode).toBe(3)
+    const combined = result.stdout + result.stderr
+    expect(combined).not.toContain('pull_request')
+    expect(combined.toLowerCase()).toContain('ref present')
+    expect(combined).toContain('git fetch origin main')
+  })
 })
 
 describe('root gate — bootstrap ceremony reaches trusted state in one human-run step (#72)', () => {
