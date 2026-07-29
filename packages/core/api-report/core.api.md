@@ -345,7 +345,7 @@ export interface InaccessibleAccount {
 export function isAuthorizedSigner(config: AttestItConfig, gateId: string, publicKey: string): boolean;
 
 // @public
-export function isBlockingRootGateState(state: RootGateState): boolean;
+export function isBlockingRootGateState(state: RootGateState): state is Exclude<RootGateState, 'VALID' | 'STALE' | 'NOT_ANCHORED'>;
 
 // @public
 export function isEncryptedPrivateKeyPem(privateKeyPem: string): boolean;
@@ -930,6 +930,12 @@ export function resolveSealsRoot(dir: string, sealsPathOverride?: string): strin
 export const ROOT_GATE_ID = "__root__";
 
 // @public
+export interface RootGateCondition {
+    message: string;
+    state: Exclude<SealVerificationResult['state'], 'VALID'>;
+}
+
+// @public
 export interface RootGateConfig {
     authorizedSigners: string[];
     description?: string;
@@ -948,10 +954,7 @@ export class RootGateVerificationError extends Error {
 
 // @public
 export interface RootGateVerificationResult {
-    conditions?: {
-        message: string;
-        state: Exclude<RootGateState, 'VALID'>;
-    }[];
+    conditions?: RootGateCondition[];
     gateId: string;
     message: string;
     seal?: Seal;

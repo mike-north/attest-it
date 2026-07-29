@@ -6,6 +6,7 @@ import {
   verifyGateSeal,
   getGate,
   SplitConfigNotFoundError,
+  API_SCHEMA_VERSION,
   type VerificationState,
   type SealVerificationResult,
   type SealCondition,
@@ -90,7 +91,7 @@ async function runStatus(
     // Distinct from a missing/unreadable config (CONFIG_ERROR) — treat as NO_WORK.
     if (!config.gates || Object.keys(config.gates).length === 0) {
       if (options.json) {
-        outputJson([])
+        outputJson(withSchemaVersion([]))
       } else {
         warn('No gates defined in configuration — nothing to report')
       }
@@ -143,7 +144,7 @@ async function runStatus(
 
     // Output results
     if (options.json) {
-      outputJson(results)
+      outputJson(withSchemaVersion(results))
     } else {
       displayStatusTable(results)
     }
@@ -166,6 +167,20 @@ async function runStatus(
     }
     process.exit(ExitCode.CONFIG_ERROR)
   }
+}
+
+/**
+ * Stamp each `--json` array item with the current embeddable-API schema
+ * version, so consumers get an explicit version signal for this shape —
+ * mirroring the convention `seal --json` already uses via its top-level
+ * `schemaVersion` field. The array itself stays a bare array (only elements
+ * gain the field), so existing positional/`.find()`-based consumers of
+ * `status --json` are unaffected by this addition.
+ */
+function withSchemaVersion<T extends object>(
+  items: T[],
+): (T & { schemaVersion: typeof API_SCHEMA_VERSION })[] {
+  return items.map((item) => ({ schemaVersion: API_SCHEMA_VERSION, ...item }))
 }
 
 /**

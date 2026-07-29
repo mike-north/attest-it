@@ -76,4 +76,5 @@ export {
   isBlockingRootGateState,
   type RootGateState,
   type RootGateVerificationResult,
+  type RootGateCondition,
 } from './root-gate.js'

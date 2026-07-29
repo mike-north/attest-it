@@ -10,6 +10,7 @@ import {
   getGate,
   isBlockingRootGateState,
   SplitConfigNotFoundError,
+  API_SCHEMA_VERSION,
   type AttestItConfig,
   type VerificationState,
   type SealVerificationResult,
@@ -168,7 +169,7 @@ async function runVerify(
 
       if (isBlockingRootGateState(rootResult.state)) {
         if (options.json) {
-          outputJson([rootGateJsonResult])
+          outputJson(withSchemaVersion([rootGateJsonResult]))
         } else {
           log('')
           error(rootResult.message)
@@ -197,7 +198,7 @@ async function runVerify(
     // is valid, so treat it as NO_WORK rather than an error or a silent success.
     if (!config.gates || Object.keys(config.gates).length === 0) {
       if (options.json) {
-        outputJson([])
+        outputJson(withSchemaVersion(rootGateJsonResult ? [rootGateJsonResult] : []))
       } else {
         warn('No gates defined in configuration — nothing to verify')
       }
@@ -242,7 +243,7 @@ async function runVerify(
     // NOT_ANCHORED) is prepended so --json callers always see the pre-step's
     // verdict, not just the gate results — a blocking outcome already exited above.
     if (options.json) {
-      outputJson(rootGateJsonResult ? [rootGateJsonResult, ...results] : results)
+      outputJson(withSchemaVersion(rootGateJsonResult ? [rootGateJsonResult, ...results] : results))
     } else {
       displayResults(results)
     }
@@ -286,6 +287,20 @@ async function runVerify(
 }
 
 /**
+ * Stamp each `--json` array item with the current embeddable-API schema
+ * version, so consumers get an explicit version signal for this shape —
+ * mirroring the convention `seal --json` already uses via its top-level
+ * `schemaVersion` field. The array itself stays a bare array (only elements
+ * gain the field), so existing positional/`.find()`-based consumers of
+ * `verify --json` are unaffected by this addition.
+ */
+function withSchemaVersion<T extends object>(
+  items: T[],
+): (T & { schemaVersion: typeof API_SCHEMA_VERSION })[] {
+  return items.map((item) => ({ schemaVersion: API_SCHEMA_VERSION, ...item }))
+}
+
+/**
  * Shape a root-gate verification result into the same JSON envelope as ordinary
  * gate results so `verify --json` consumers see a single, uniform array.
  */
@@ -295,11 +310,11 @@ function rootGateResultToJson(result: RootGateVerificationResult): SealVerificat
     state: result.state === 'NOT_ANCHORED' ? 'MISSING' : result.state,
     ...(result.seal && { seal: result.seal }),
     message: result.message,
+    // A RootGateCondition's `state` is structurally never 'NOT_ANCHORED' (see
+    // RootGateCondition's doc comment), so no MISSING remap is needed here —
+    // only the top-level `state` above can legitimately be NOT_ANCHORED.
     ...(result.conditions && {
-      conditions: result.conditions.map((c) => ({
-        state: c.state === 'NOT_ANCHORED' ? 'MISSING' : c.state,
-        message: c.message,
-      })),
+      conditions: result.conditions.map((c) => ({ state: c.state, message: c.message })),
     }),
   }
 }

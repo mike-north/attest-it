@@ -318,24 +318,27 @@ function mapSealStateToStatus(
 }
 
 /**
+ * A single suite's mapped result for the `suites` action output, carrying
+ * every independently-failing condition (when more than one applies) so
+ * downstream consumers of the `suites` JSON aren't blind to concurrent
+ * failures.
+ */
+interface SuiteResult {
+  suite: string
+  status: string
+  message?: string
+  conditions?: { status: string; message?: string }[]
+}
+
+/**
  * Map seal verification results to suite-based format for output compatibility.
  */
 function mapSealResultsToSuites(
   config: AttestItConfig,
   sealResults: SealVerificationResult[],
-): {
-  suite: string
-  status: string
-  message?: string
-  conditions?: { status: string; message?: string }[]
-}[] {
+): SuiteResult[] {
   // For each suite, find its gate and get the seal result
-  const results: {
-    suite: string
-    status: string
-    message?: string
-    conditions?: { status: string; message?: string }[]
-  }[] = []
+  const results: SuiteResult[] = []
 
   for (const [suiteName, suiteConfig] of Object.entries(config.suites)) {
     const gateId = suiteConfig.gate

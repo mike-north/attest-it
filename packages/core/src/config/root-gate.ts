@@ -54,6 +54,26 @@ const DEFAULT_POLICY_REL_PATH = '.attest-it/policy.yaml'
 export type RootGateState = SealVerificationResult['state'] | 'NOT_ANCHORED'
 
 /**
+ * A single independently-determined failing condition for the root gate,
+ * root-gate-flavored (message text mirrors {@link RootGateVerificationResult.message}).
+ * @see {@link RootGateVerificationResult.conditions}
+ * @public
+ */
+export interface RootGateCondition {
+  /**
+   * Verification state this condition represents. Never `VALID` or
+   * `NOT_ANCHORED`: `conditions` is only ever populated by mapping
+   * {@link SealVerificationResult.conditions} (via {@link verifyGateSeal}),
+   * whose entries can never be `NOT_ANCHORED` — that state is produced only by
+   * the early-return branch in {@link verifyRootGate} that never sets
+   * `conditions` at all.
+   */
+  state: Exclude<SealVerificationResult['state'], 'VALID'>
+  /** Human-readable message explaining this condition */
+  message: string
+}
+
+/**
  * Result of verifying the root gate over the policy file.
  * @public
  */
@@ -72,7 +92,7 @@ export interface RootGateVerificationResult {
    * when the underlying {@link SealVerificationResult} carried more than one
    * condition — mirrors {@link SealVerificationResult.conditions}.
    */
-  conditions?: { state: Exclude<RootGateState, 'VALID'>; message: string }[]
+  conditions?: RootGateCondition[]
 }
 
 /**
@@ -335,9 +355,14 @@ export function verifyRootGate(params: {
  * Any state other than `VALID`, `STALE` (a warning, matching ordinary gate
  * semantics), and `NOT_ANCHORED` (a repository that predates the bootstrap
  * ceremony) is a hard failure: gate evaluation must not proceed against a policy
- * whose own root-gate seal did not verify.
+ * whose own root-gate seal did not verify. A type predicate so callers narrow
+ * `state` to a genuine {@link VerificationState} (never `NOT_ANCHORED`) in the
+ * blocking branch, safe to feed to `VerificationState`-typed APIs without a
+ * cast.
  * @public
  */
-export function isBlockingRootGateState(state: RootGateState): boolean {
+export function isBlockingRootGateState(
+  state: RootGateState,
+): state is Exclude<RootGateState, 'VALID' | 'STALE' | 'NOT_ANCHORED'> {
   return state !== 'VALID' && state !== 'STALE' && state !== 'NOT_ANCHORED'
 }
